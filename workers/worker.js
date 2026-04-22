@@ -1,5 +1,5 @@
 /* ============================================
-   MIRAI AI - Cloudflare Worker
+   MIRAI AI - Cloudflare Worker (CORREGIDO)
    Backend para integración con DeepSeek API
    ============================================ */
 
@@ -13,26 +13,6 @@ const ROUTES = {
   HISTORY: '/api/history',
   STATIC: '/'
 };
-
-async function loghandleChat(request, env, corsHeaders) {
-  console.log('🔍 handleChat llamado');
-  console.log('🔍 env keys:', Object.keys(env));
-  console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
-  console.log('🔍 MIRAI_AI_DB presente:', !!env.MIRAI_AI_DB);
-  console.log('🔍 MIRAI_AI_ASSETS presente:', !!env.MIRAI_AI_ASSETS);
-
-  try {
-    // ... resto del código
-  } catch (error) {
-    console.error('❌ Chat handler error:', error.message);
-    console.error('❌ Stack:', error.stack);
-    return jsonResponse(
-      { error: error.message, stack: error.stack },
-      500,
-      corsHeaders
-    );
-  }
-}
 
 // --- HANDLER PRINCIPAL ---
 export default {
@@ -109,6 +89,11 @@ async function handleApiRequest(request, env, corsHeaders) {
 
 // --- MANEJAR CHAT (DeepSeek API) ---
 async function handleChat(request, env, corsHeaders) {
+  // Debug logging
+  console.log('🔍 handleChat llamado');
+  console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
+  console.log('🔍 MIRAI_AI_DB presente:', !!env.MIRAI_AI_DB);
+
   try {
     const { message, conversation_id } = await request.json();
 
@@ -180,9 +165,10 @@ async function handleChat(request, env, corsHeaders) {
     );
 
   } catch (error) {
-    console.error('Chat handler error:', error);
+    console.error('Chat handler error:', error.message);
+    console.error('Stack:', error.stack);
     return jsonResponse(
-      { error: 'Error procesando el mensaje' },
+      { error: 'Error procesando el mensaje', details: error.message },
       500,
       corsHeaders
     );
@@ -278,7 +264,6 @@ async function ensureConversationExists(conversationId, firstMessage, env) {
     const { results } = await checkStmt.bind(conversationId).all();
 
     if (results.length === 0) {
-      // Crear conversación con título basado en el primer mensaje
       const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
       
       const createStmt = env.MIRAI_AI_DB.prepare(`
@@ -291,7 +276,6 @@ async function ensureConversationExists(conversationId, firstMessage, env) {
 
   } catch (error) {
     console.error('Error ensuring conversation exists:', error);
-    // No lanzar error aquí para no romper el flujo
   }
 }
 
@@ -313,7 +297,6 @@ async function updateConversationTimestamp(conversationId, env) {
 
 // --- CONSTRUCCIÓN DE MENSAJES PARA DEEPSEEK ---
 function buildDeepseekMessages(userMessage, history) {
-  // Mensaje del sistema (instrucciones base)
   const systemMessage = {
     role: 'system',
     content: `Eres Mirai AI, un asistente inteligente creado por Proton. 
@@ -322,19 +305,16 @@ function buildDeepseekMessages(userMessage, history) {
     Si el usuario hace preguntas técnicas, responde con precisión.`
   };
 
-  // Conversión del historial a formato DeepSeek
   const historyMessages = history.map(msg => ({
     role: msg.role,
     content: msg.content
   }));
 
-  // Mensaje del usuario actual
   const userMsg = {
     role: 'user',
     content: userMessage
   };
 
-  // Construir array completo
   return [systemMessage, ...historyMessages, userMsg];
 }
 
@@ -345,25 +325,32 @@ async function serveStatic(url, env, corsHeaders) {
   // Ruta raíz: servir index.html
   if (path === '/' || path === '') {
     try {
-      const object = await env.MIRAI_AI_ASSETS.get('../public/index.html');
+      // Buscar en R2 (sin ../, es la raíz del bucket)
+      const object = await env.MIRAI_AI_ASSETS.get('index.html');
       
       if (object === null) {
-        // Fallback: intentar leer desde el bundle del Worker
-        return new Response(await import('../public/index.html').then(m => m.default), {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'text/html'
-          }
-        });
+        return jsonResponse(
+          { error: 'index.html no encontrado en R2' },
+          404,
+          corsHeaders
+        );
       }
 
       const headers = new Headers(object.httpHeaders);
       headers.set('Content-Type', 'text/html');
       headers.set('Cache-Control', 'public, max-age=3600');
+      
+      // FORZAR CABECERAS DE SEGURIDAD PERMITIDAS (ANTES DEL RETURN)
+      headers.set('Content-Security-Policy',
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "connect-src 'self' https://api.deepseek.com; " +
+        "img-src 'self' data:; " +
+        "font-src 'self';"
+      );
 
-      return new Response(object.body, {
-        headers: headers
-      });
+      return new Response(object.body, { headers });
 
     } catch (error) {
       console.error('Error serving index.html:', error);
@@ -377,7 +364,6 @@ async function serveStatic(url, env, corsHeaders) {
 
   // Otras rutas estáticas (CSS, JS, imágenes)
   try {
-    // Eliminar slash inicial para buscar en R2
     const assetPath = path.startsWith('/') ? path.slice(1) : path;
     
     const object = await env.MIRAI_AI_ASSETS.get(assetPath);
@@ -392,6 +378,16 @@ async function serveStatic(url, env, corsHeaders) {
 
     const headers = new Headers(object.httpHeaders);
     headers.set('Cache-Control', 'public, max-age=3600');
+    
+    // FORZAR CABECERAS DE SEGURIDAD PERMITIDAS (ANTES DEL RETURN)
+    headers.set('Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "connect-src 'self' https://api.deepseek.com; " +
+      "img-src 'self' data:; " +
+      "font-src 'self';"
+    );
 
     return new Response(object.body, { headers });
 
@@ -414,9 +410,4 @@ function jsonResponse(data, status = 200, headers = {}) {
       ...headers
     }
   });
-}
-
-// --- DEBUGGING (Solo en desarrollo) ---
-if (import.meta?.env?.DEV) {
-  console.log('🤖 Mirai AI Worker - Modo Desarrollo activado');
 }
