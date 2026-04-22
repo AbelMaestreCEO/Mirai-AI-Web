@@ -14,7 +14,7 @@ const ROUTES = {
   STATIC: '/'
 };
 
-async function handleChat(request, env, corsHeaders) {
+async function loghandleChat(request, env, corsHeaders) {
   console.log('🔍 handleChat llamado');
   console.log('🔍 env keys:', Object.keys(env));
   console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
