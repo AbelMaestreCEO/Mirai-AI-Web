@@ -14,6 +14,26 @@ const ROUTES = {
   STATIC: '/'
 };
 
+async function handleChat(request, env, corsHeaders) {
+  console.log('🔍 handleChat llamado');
+  console.log('🔍 env keys:', Object.keys(env));
+  console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
+  console.log('🔍 MIRAI_AI_DB presente:', !!env.MIRAI_AI_DB);
+  console.log('🔍 MIRAI_AI_ASSETS presente:', !!env.MIRAI_AI_ASSETS);
+
+  try {
+    // ... resto del código
+  } catch (error) {
+    console.error('❌ Chat handler error:', error.message);
+    console.error('❌ Stack:', error.stack);
+    return jsonResponse(
+      { error: error.message, stack: error.stack },
+      500,
+      corsHeaders
+    );
+  }
+}
+
 // --- HANDLER PRINCIPAL ---
 export default {
   async fetch(request, env, ctx) {
