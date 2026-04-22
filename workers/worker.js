@@ -70,6 +70,12 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleHistory(conversationId, env, corsHeaders);
     }
 
+    // Ruta: DELETE /api/chat/clear
+    if (path === ROUTES.CHAT + '/clear' && request.method === 'DELETE') {
+      const { conversation_id } = await request.json();
+      return await handleDeleteConversation(conversation_id, env, corsHeaders);
+    }
+
     // Ruta no encontrada
     return jsonResponse(
       { error: 'Endpoint no encontrado' },
@@ -240,12 +246,12 @@ async function ensureConversationExists(conversationId, firstMessage, env) {
     if (results.length === 0) {
       // 2. Si no existe, crearla
       const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
-      
+
       const createStmt = env.MIRAI_AI_DB.prepare(`
         INSERT INTO conversations (id, title, model, created_at, updated_at)
         VALUES (?, ?, ?, datetime('now'), datetime('now'))
       `);
-      
+
       await createStmt.bind(conversationId, title, DEEPSEEK_MODEL).run();
       console.log(`✅ Conversación creada: ${conversationId}`);
     } else {
@@ -306,7 +312,7 @@ async function serveStatic(url, env, corsHeaders) {
     try {
       // Buscar en R2 (sin ../, es la raíz del bucket)
       const object = await env.MIRAI_AI_ASSETS.get('index.html');
-      
+
       if (object === null) {
         return jsonResponse(
           { error: 'index.html no encontrado en R2' },
@@ -318,7 +324,7 @@ async function serveStatic(url, env, corsHeaders) {
       const headers = new Headers(object.httpHeaders);
       headers.set('Content-Type', 'text/html');
       headers.set('Cache-Control', 'public, max-age=3600');
-      
+
       // FORZAR CABECERAS DE SEGURIDAD PERMITIDAS (ANTES DEL RETURN)
       headers.set('Content-Security-Policy',
         "default-src 'self'; " +
@@ -344,7 +350,7 @@ async function serveStatic(url, env, corsHeaders) {
   // Otras rutas estáticas (CSS, JS, imágenes)
   try {
     const assetPath = path.startsWith('/') ? path.slice(1) : path;
-    
+
     const object = await env.MIRAI_AI_ASSETS.get(assetPath);
 
     if (object === null) {
@@ -357,7 +363,7 @@ async function serveStatic(url, env, corsHeaders) {
 
     const headers = new Headers(object.httpHeaders);
     headers.set('Cache-Control', 'public, max-age=3600');
-    
+
     // FORZAR CABECERAS DE SEGURIDAD PERMITIDAS (ANTES DEL RETURN)
     headers.set('Content-Security-Policy',
       "default-src 'self'; " +
@@ -391,11 +397,6 @@ function jsonResponse(data, status = 200, headers = {}) {
   });
 }
 
-// Ruta: DELETE /api/chat/clear
-if (path === ROUTES.CHAT + '/clear' && request.method === 'DELETE') {
-  const { conversation_id } = await request.json();
-  return await handleDeleteConversation(conversation_id, env, corsHeaders);
-}
 
 async function handleDeleteConversation(conversationId, env, corsHeaders) {
   try {
@@ -403,12 +404,12 @@ async function handleDeleteConversation(conversationId, env, corsHeaders) {
       DELETE FROM messages WHERE conversation_id = ?
     `);
     await deleteMessagesStmt.bind(conversationId).run();
-    
+
     const deleteConvStmt = env.MIRAI_AI_DB.prepare(`
       DELETE FROM conversations WHERE id = ?
     `);
     await deleteConvStmt.bind(conversationId).run();
-    
+
     return jsonResponse({ success: true }, 200, corsHeaders);
   } catch (error) {
     console.error('Error deleting conversation:', error);
