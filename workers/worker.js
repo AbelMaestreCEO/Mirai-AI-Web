@@ -325,11 +325,11 @@ async function serveStatic(url, env, corsHeaders) {
   // Ruta raíz: servir index.html
   if (path === '/' || path === '') {
     try {
-      const object = await env.MIRAI_AI_ASSETS.get('index.html');
+      const object = await env.MIRAI_AI_ASSETS.get('../public/index.html');
       
       if (object === null) {
         // Fallback: intentar leer desde el bundle del Worker
-        return new Response(await import('./index.html').then(m => m.default), {
+        return new Response(await import('../public/index.html').then(m => m.default), {
           headers: {
             ...corsHeaders,
             'Content-Type': 'text/html'
