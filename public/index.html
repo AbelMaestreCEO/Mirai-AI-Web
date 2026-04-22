@@ -188,45 +188,6 @@
     </div>
 
     <!-- Scripts -->
-    <!-- SCRIPT (Al final del body) -->
-    <script>
-        // Script para el menú
-        document.addEventListener('DOMContentLoaded', function () {
-            const menuToggle = document.querySelector('.mobile-menu-toggle');
-            const closeBtn = document.querySelector('.close-menu');
-            const sidebar = document.querySelector('.mobile-sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-
-            if (!menuToggle || !sidebar) return; // Evitar errores si no existen
-
-            function toggleMenu() {
-                const isActive = sidebar.classList.contains('active');
-
-                if (isActive) {
-                    sidebar.classList.remove('active');
-                    overlay.classList.remove('active');
-                    menuToggle.classList.remove('active');
-                    document.body.style.overflow = '';
-                } else {
-                    sidebar.classList.add('active');
-                    overlay.classList.add('active');
-                    menuToggle.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                }
-            }
-
-            menuToggle.addEventListener('click', toggleMenu);
-            closeBtn.addEventListener('click', toggleMenu);
-            overlay.addEventListener('click', toggleMenu);
-
-            // Cerrar con Escape
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                    toggleMenu();
-                }
-            });
-        });
-    </script>
     <script type="module" src="app.js" defer></script>
 </body>
 

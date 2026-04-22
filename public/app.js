@@ -8,9 +8,9 @@ const CONFIG = {
   API_ENDPOINT: '/api/chat',
   STORAGE_KEY_THEME: 'mirai-ai-theme',
   STORAGE_KEY_CONVERSATION: 'mirai-ai-conversation-id',
-  TYPING_DELAY: 300, // ms para mostrar indicador de escritura
-  MAX_INPUT_HEIGHT: 120, // px
-  DEBOUNCE_DELAY: 300 // ms para auto-resize
+  TYPING_DELAY: 300,
+  MAX_INPUT_HEIGHT: 120,
+  DEBOUNCE_DELAY: 300
 };
 
 // --- ELEMENTOS DEL DOM ---
@@ -19,10 +19,10 @@ const elements = {
   messageInput: document.getElementById('message-input'),
   sendButton: document.getElementById('send-button'),
   themeToggle: document.getElementById('theme-toggle'),
+  clearButton: document.getElementById('clear-conversation'),
   typingIndicator: document.getElementById('typing-indicator'),
   sunIcon: document.querySelector('.sun-icon'),
-  moonIcon: document.querySelector('.moon-icon'),
-  clearButton: document.getElementById('clear-conversation')
+  moonIcon: document.querySelector('.moon-icon')
 };
 
 // --- ESTADO DE LA APLICACIÓN ---
@@ -31,20 +31,6 @@ let state = {
   currentConversationId: null,
   theme: 'light'
 };
-
-// --- INICIALIZACIÓN DE CHAT ---
-function initializeChat() {
-  // Asegurar que el chat comience limpio
-  elements.chatMessages.scrollTop = 0;
-
-  // Auto-focus en el input
-  elements.messageInput.focus();
-
-  // Ajustar altura inicial del textarea
-  autoResizeTextarea();
-
-  console.log('✨ Mirai AI inicializado correctamente');
-}
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initializeTheme() {
   const savedTheme = localStorage.getItem(CONFIG.STORAGE_KEY_THEME);
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
+  
   state.theme = savedTheme || (prefersDark ? 'dark' : 'light');
   applyTheme(state.theme);
 }
@@ -66,8 +52,7 @@ function initializeTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   state.theme = theme;
-
-  // Actualizar iconos
+  
   if (theme === 'dark') {
     elements.sunIcon.classList.add('hidden');
     elements.moonIcon.classList.remove('hidden');
@@ -75,7 +60,7 @@ function applyTheme(theme) {
     elements.sunIcon.classList.remove('hidden');
     elements.moonIcon.classList.add('hidden');
   }
-
+  
   localStorage.setItem(CONFIG.STORAGE_KEY_THEME, theme);
 }
 
@@ -84,10 +69,18 @@ function toggleTheme() {
   applyTheme(newTheme);
 }
 
+// --- INICIALIZACIÓN DE CHAT ---
+function initializeChat() {
+  elements.chatMessages.scrollTop = 0;
+  elements.messageInput.focus();
+  autoResizeTextarea();
+  console.log('✨ Mirai AI inicializado correctamente');
+}
+
 // --- GESTIÓN DE CONVERSACIÓN ---
 async function loadOrCreateConversation() {
   const savedId = localStorage.getItem(CONFIG.STORAGE_KEY_CONVERSATION);
-
+  
   if (savedId) {
     state.currentConversationId = savedId;
     await loadConversationHistory(savedId);
@@ -100,19 +93,16 @@ async function loadOrCreateConversation() {
 async function loadConversationHistory(conversationId) {
   try {
     const response = await fetch(`/api/history/${conversationId}`);
-
+    
     if (!response.ok) return;
-
+    
     const messages = await response.json();
-
-    // Limpiar mensaje de bienvenida
     elements.chatMessages.innerHTML = '';
-
-    // Agregar mensajes históricos
+    
     messages.forEach(msg => {
       appendMessage(msg.role, msg.content, false);
     });
-
+    
     scrollToBottom();
   } catch (error) {
     console.error('Error cargando historial:', error);
@@ -121,89 +111,69 @@ async function loadConversationHistory(conversationId) {
 
 // --- MANEJO DE EVENTOS ---
 function setupEventListeners() {
-  // Enviar mensaje con botón
   elements.sendButton.addEventListener('click', handleSendMessage);
-
-  // Enviar mensaje con Enter (Shift+Enter para nueva línea)
+  
   elements.messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   });
-
-  // Auto-resize del textarea
+  
   elements.messageInput.addEventListener('input', debounce(autoResizeTextarea, CONFIG.DEBOUNCE_DELAY));
-
-  // Cambio de tema
   elements.themeToggle.addEventListener('click', toggleTheme);
-
+  
+  // ← BOTÓN DE LIMPIAR CONVERSACIÓN
   if (elements.clearButton) {
     elements.clearButton.addEventListener('click', handleClearConversation);
   }
-
-  // Mantener foco en el input
+  
   elements.messageInput.focus();
 }
 
 // --- LÓGICA DE MENSAJES ---
 async function handleSendMessage() {
   const content = elements.messageInput.value.trim();
-
+  
   if (!content || state.isSending) return;
-
-  // Resetear input
+  
   elements.messageInput.value = '';
   autoResizeTextarea();
-
-  // Deshabilitar botón durante envío
+  
   state.isSending = true;
   updateSendButtonState();
   showTypingIndicator();
-
+  
   try {
-    // Agregar mensaje del usuario inmediatamente
     appendMessage('user', content);
-
-    // Enviar al Worker
+    
     const response = await fetch(CONFIG.API_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: content,
         conversation_id: state.currentConversationId
       })
     });
-
+    
     if (!response.ok) {
       throw new Error(`Error HTTP: ${response.status}`);
     }
-
+    
     const data = await response.json();
-
-    // Ocultar indicador de escritura
     hideTypingIndicator();
-
-    // Agregar respuesta de la IA
+    
     if (data.response) {
       appendMessage('assistant', data.response);
-
-      // Guardar en historial local (opcional, para respaldo)
       saveToLocalHistory(data.response);
     } else {
       throw new Error('No se recibió respuesta válida');
     }
-
+    
   } catch (error) {
     console.error('Error enviando mensaje:', error);
     hideTypingIndicator();
-
-    // Mostrar mensaje de error
     appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.');
-
-    // Restaurar mensaje en el input
     elements.messageInput.value = content;
   } finally {
     state.isSending = false;
@@ -212,23 +182,62 @@ async function handleSendMessage() {
   }
 }
 
+// --- LIMPIAR CONVERSACIÓN ---
+async function handleClearConversation() {
+  const confirmed = confirm(
+    '¿Estás seguro de que quieres limpiar esta conversación? ' +
+    'Se borrará todo el historial y comenzaremos desde cero.'
+  );
+  
+  if (!confirmed) return;
+  
+  try {
+    const originalText = elements.clearButton.innerHTML;
+    elements.clearButton.disabled = true;
+    elements.clearButton.innerHTML = '⏳';
+    
+    const response = await fetch(`${CONFIG.API_ENDPOINT}/clear`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_id: state.currentConversationId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      elements.chatMessages.innerHTML = '';
+      state.currentConversationId = crypto.randomUUID();
+      localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, state.currentConversationId);
+      appendMessage('system', '✨ Conversación limpia. ¿En qué puedo ayudarte hoy?');
+      console.log('✅ Conversación limpiada correctamente');
+    }
+    
+  } catch (error) {
+    console.error('Error limpiando conversación:', error);
+    alert('Hubo un error al limpiar la conversación. Por favor, inténtalo de nuevo.');
+  } finally {
+    elements.clearButton.disabled = false;
+    elements.clearButton.innerHTML = '🗑️';
+    elements.messageInput.focus();
+  }
+}
+
 // --- INTERFAZ DE USUARIO ---
 function appendMessage(role, content, animate = true) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
-
-  // Escapar HTML para prevenir XSS
+  
   const escapedContent = escapeHtml(content);
-
-  // Formatear markdown básico (negritas, código, etc.)
   const formattedContent = formatMessageContent(escapedContent);
-
-  // Avatar según rol
   const avatar = role === 'user' ? 'U' : 'M';
-
-  // Tiempo actual
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+  
   messageDiv.innerHTML = `
     ${role !== 'system' ? `<div class="message-avatar">${avatar}</div>` : ''}
     <div class="message-content">
@@ -236,11 +245,11 @@ function appendMessage(role, content, animate = true) {
       ${role !== 'system' ? `<div class="message-time">${time}</div>` : ''}
     </div>
   `;
-
+  
   if (animate) {
     messageDiv.classList.add('fade-in');
   }
-
+  
   elements.chatMessages.appendChild(messageDiv);
   scrollToBottom();
 }
@@ -270,16 +279,8 @@ function scrollToBottom() {
 
 function autoResizeTextarea() {
   const textarea = elements.messageInput;
-
-  // Resetear altura para calcular el correcto
   textarea.style.height = 'auto';
-
-  // Calcular nueva altura
-  const newHeight = Math.min(
-    textarea.scrollHeight,
-    CONFIG.MAX_INPUT_HEIGHT
-  );
-
+  const newHeight = Math.min(textarea.scrollHeight, CONFIG.MAX_INPUT_HEIGHT);
   textarea.style.height = `${newHeight}px`;
 }
 
@@ -291,25 +292,16 @@ function escapeHtml(text) {
 }
 
 function formatMessageContent(content) {
-  // Formatear negritas (**texto**)
   let formatted = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-  // Formatear código inline (`texto`)
   formatted = formatted.replace(/`(.*?)`/g, '<code>$1</code>');
-
-  // Formatear bloques de código (```idioma\ncódigo```)
   formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
     return `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`;
   });
-
-  // Convertir saltos de línea en <br>
   formatted = formatted.replace(/\n/g, '<br>');
-
   return formatted;
 }
 
 function saveToLocalHistory(response) {
-  // Opcional: guardar historial en localStorage como respaldo
   let history = JSON.parse(localStorage.getItem('mirai-ai-local-history') || '[]');
   history.push({
     role: 'assistant',
@@ -329,126 +321,4 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
-}
-// Menú Lateral Móvil - Toggle
-document.addEventListener('DOMContentLoaded', function () {
-  const menuToggle = document.querySelector('.mobile-menu-toggle');
-  const closeMenu = document.querySelector('.close-menu');
-  const sidebar = document.querySelector('.mobile-sidebar');
-  const overlay = document.querySelector('.mobile-overlay');
-
-  function toggleMenu() {
-    menuToggle.classList.toggle('active');
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-  }
-
-  menuToggle.addEventListener('click', toggleMenu);
-  closeMenu.addEventListener('click', toggleMenu);
-  overlay.addEventListener('click', toggleMenu);
-});
-
-// --- NUEVA RUTA: DELETE /api/conversation/:conversationId ---
-if (path.startsWith('/api/conversation/') && request.method === 'DELETE') {
-  const conversationId = path.split('/').pop();
-  return await handleDeleteConversation(conversationId, env, corsHeaders);
-}
-
-// --- FUNCIÓN PARA BORRAR CONVERSACIÓN ---
-async function handleDeleteConversation(conversationId, env, corsHeaders) {
-  try {
-    if (!conversationId) {
-      return jsonResponse(
-        { error: 'conversation_id es requerido' },
-        400,
-        corsHeaders
-      );
-    }
-
-    // 1. Borrar todos los mensajes de esa conversación
-    const deleteMessagesStmt = env.MIRAI_AI_DB.prepare(`
-      DELETE FROM messages WHERE conversation_id = ?
-    `);
-    await deleteMessagesStmt.bind(conversationId).run();
-
-    // 2. Borrar la conversación misma
-    const deleteConvStmt = env.MIRAI_AI_DB.prepare(`
-      DELETE FROM conversations WHERE id = ?
-    `);
-    await deleteConvStmt.bind(conversationId).run();
-
-    // 3. Limpiar localStorage del frontend
-    localStorage.removeItem(CONFIG.STORAGE_KEY_CONVERSATION);
-
-    return jsonResponse(
-      { success: true, message: 'Conversación eliminada correctamente' },
-      200,
-      corsHeaders
-    );
-
-  } catch (error) {
-    console.error('Error deleting conversation:', error);
-    return jsonResponse(
-      { error: 'Error eliminando conversación', details: error.message },
-      500,
-      corsHeaders
-    );
-  }
-}
-
-// --- LIMPIAR CONVERSACIÓN ---
-async function handleClearConversation() {
-  const confirmed = confirm(
-    '¿Estás seguro de que quieres limpiar esta conversación? ' +
-    'Se borrará todo el historial y comenzaremos desde cero.'
-  );
-  
-  if (!confirmed) return;
-  
-  try {
-    // Mostrar estado de carga
-    const originalText = elements.clearButton.textContent;
-    elements.clearButton.disabled = true;
-    elements.clearButton.textContent = 'Limpiando...';
-    
-    // Llamar al endpoint de borrado
-    const response = await fetch(`${CONFIG.API_ENDPOINT}/clear`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        conversation_id: state.currentConversationId
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      // Limpiar UI
-      elements.chatMessages.innerHTML = '';
-      
-      // Generar nueva conversación ID
-      state.currentConversationId = crypto.randomUUID();
-      localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, state.currentConversationId);
-      
-      // Mensaje de bienvenida opcional
-      appendMessage('system', '✨ Conversación limpia. ¿En qué puedo ayudarte hoy?');
-      
-      console.log('✅ Conversación limpiada correctamente');
-    }
-    
-  } catch (error) {
-    console.error('Error limpiando conversación:', error);
-    alert('Hubo un error al limpiar la conversación. Por favor, inténtalo de nuevo.');
-  } finally {
-    elements.clearButton.disabled = false;
-    elements.clearButton.textContent = originalText || '🗑️';
-    elements.messageInput.focus();
-  }
 }

@@ -390,3 +390,28 @@ function jsonResponse(data, status = 200, headers = {}) {
     }
   });
 }
+
+// Ruta: DELETE /api/chat/clear
+if (path === ROUTES.CHAT + '/clear' && request.method === 'DELETE') {
+  const { conversation_id } = await request.json();
+  return await handleDeleteConversation(conversation_id, env, corsHeaders);
+}
+
+async function handleDeleteConversation(conversationId, env, corsHeaders) {
+  try {
+    const deleteMessagesStmt = env.MIRAI_AI_DB.prepare(`
+      DELETE FROM messages WHERE conversation_id = ?
+    `);
+    await deleteMessagesStmt.bind(conversationId).run();
+    
+    const deleteConvStmt = env.MIRAI_AI_DB.prepare(`
+      DELETE FROM conversations WHERE id = ?
+    `);
+    await deleteConvStmt.bind(conversationId).run();
+    
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    return jsonResponse({ error: error.message }, 500, corsHeaders);
+  }
+}
