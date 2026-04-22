@@ -133,6 +133,7 @@
                     d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
             </svg>
         </button>
+
     </header>
 
     <!-- Contenedor Principal -->
@@ -172,7 +173,10 @@
             <div class="input-wrapper">
                 <textarea id="message-input" class="message-input" placeholder="Escribe tu mensaje aquí..." rows="1"
                     autocomplete="off" spellcheck="false"></textarea>
-
+                <!-- Botón de limpiar conversación -->
+                <button id="clear-conversation" class="clear-btn" title="Limpiar conversación">
+                    🗑️
+                </button>
                 <button id="send-button" class="send-button" aria-label="Enviar mensaje">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
