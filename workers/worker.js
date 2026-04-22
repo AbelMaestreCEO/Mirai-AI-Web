@@ -87,9 +87,8 @@ async function handleApiRequest(request, env, corsHeaders) {
   }
 }
 
-// --- MANEJAR CHAT (DeepSeek API) ---
+// --- MANEJAR CHAT (DeepSeek API) --- CORREGIDO
 async function handleChat(request, env, corsHeaders) {
-  // Debug logging
   console.log('🔍 handleChat llamado');
   console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
   console.log('🔍 MIRAI_AI_DB presente:', !!env.MIRAI_AI_DB);
@@ -99,28 +98,20 @@ async function handleChat(request, env, corsHeaders) {
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
-      return jsonResponse(
-        { error: 'El campo "message" es requerido y debe ser un string' },
-        400,
-        corsHeaders
-      );
+      return jsonResponse({ error: 'El campo "message" es requerido' }, 400, corsHeaders);
     }
-
     if (!conversation_id || typeof conversation_id !== 'string') {
-      return jsonResponse(
-        { error: 'El campo "conversation_id" es requerido' },
-        400,
-        corsHeaders
-      );
+      return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
     }
 
-    // Obtener historial de la conversación para contexto
+    // 1. ASEGURAR QUE LA CONVERSACIÓN EXISTA PRIMERO (CRÍTICO)
+    await ensureConversationExists(conversation_id, message, env);
+
+    // 2. Obtener historial (ahora la conversación existe)
     const history = await getConversationHistory(conversation_id, env);
 
-    // Construir mensajes para DeepSeek
+    // 3. Llamar a DeepSeek
     const deepseekMessages = buildDeepseekMessages(message, history);
-
-    // Llamar a la API de DeepSeek
     const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
@@ -138,40 +129,23 @@ async function handleChat(request, env, corsHeaders) {
     if (!deepseekResponse.ok) {
       const errorData = await deepseekResponse.text();
       console.error('DeepSeek API error:', errorData);
-      return jsonResponse(
-        { error: 'Error al comunicarse con DeepSeek API' },
-        deepseekResponse.status,
-        corsHeaders
-      );
+      return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
     }
 
     const deepseekData = await deepseekResponse.json();
     const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
 
-    // Guardar mensaje del usuario en D1
+    // 4. AHORA SÍ, GUARDAR MENSAJES (la FK ya está satisfecha)
     await saveMessage(conversation_id, 'user', message, env);
-
-    // Guardar respuesta de la IA en D1
     await saveMessage(conversation_id, 'assistant', aiResponse, env);
-
-    // Actualizar timestamp de la conversación
     await updateConversationTimestamp(conversation_id, env);
 
-    // Retornar respuesta al frontend
-    return jsonResponse(
-      { response: aiResponse },
-      200,
-      corsHeaders
-    );
+    return jsonResponse({ response: aiResponse }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Chat handler error:', error.message);
     console.error('Stack:', error.stack);
-    return jsonResponse(
-      { error: 'Error procesando el mensaje', details: error.message },
-      500,
-      corsHeaders
-    );
+    return jsonResponse({ error: 'Error procesando el mensaje', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -254,28 +228,33 @@ async function saveMessage(conversationId, role, content, env) {
   }
 }
 
-// Asegurar que la conversación existe
+// Asegurar que la conversación existe (Versión Robusta)
 async function ensureConversationExists(conversationId, firstMessage, env) {
   try {
+    // 1. Verificar si existe
     const checkStmt = env.MIRAI_AI_DB.prepare(`
       SELECT id FROM conversations WHERE id = ?
     `);
-
     const { results } = await checkStmt.bind(conversationId).all();
 
     if (results.length === 0) {
+      // 2. Si no existe, crearla
       const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
       
       const createStmt = env.MIRAI_AI_DB.prepare(`
         INSERT INTO conversations (id, title, model, created_at, updated_at)
         VALUES (?, ?, ?, datetime('now'), datetime('now'))
       `);
-
+      
       await createStmt.bind(conversationId, title, DEEPSEEK_MODEL).run();
+      console.log(`✅ Conversación creada: ${conversationId}`);
+    } else {
+      console.log(`ℹ️ Conversación ya existe: ${conversationId}`);
     }
-
   } catch (error) {
-    console.error('Error ensuring conversation exists:', error);
+    console.error('❌ Error en ensureConversationExists:', error.message);
+    // Lanzar el error para que el flujo se detenga si falla la creación
+    throw error;
   }
 }
 
