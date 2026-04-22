@@ -311,8 +311,3 @@ function debounce(func, wait) {
     timeout = setTimeout(later, wait);
   };
 }
-
-// --- DEBUGGING (Solo en desarrollo) ---
-if (import.meta?.env?.DEV) {
-  console.log('🤖 Mirai AI - Modo Desarrollo activado');
-}
