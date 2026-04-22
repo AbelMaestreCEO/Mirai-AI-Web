@@ -1,0 +1,16 @@
+mirai-ai/
+├── .env.example              # Plantilla de variables de entorno
+├── .gitignore                # Archivos ignorados por Git
+├── README.md                 # Documentación del proyecto
+├── wrangler.toml             # Configuración de Cloudflare Workers
+├── db/
+│   └── schema.sql            # Esquema de D1 (tablas de historial)
+├── workers/
+│   └── worker.js             # Código del Worker (backend)
+└── public/
+    ├── index.html            # Interfaz del chatbot
+    ├── styles.css            # Estilos visuales
+    ├── app.js                # Lógica del cliente
+    └── assets/
+        ├── images/           # Imágenes, logos, fondos
+        └── models/           # Modelos ligeros para R2

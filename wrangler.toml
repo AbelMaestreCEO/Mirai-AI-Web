@@ -1,0 +1,35 @@
+name = "mirai-ai"
+main = "workers/worker.js"
+compatibility_date = "2024-01-01"
+
+# Configuración de Assets Estáticos (Frontend)
+# Esto sirve automáticamente los archivos de la carpeta 'public/'
+assets = { directory = "./public" }
+
+# Variables de entorno (se pueden sobreescribir con .dev.vars o en la CLI)
+vars = { ENVIRONMENT = "production" }
+
+# --- BINDING DE BASE DE DATOS D1 ---
+# Nombre del binding en tu código: DB
+# El nombre del dataset en Cloudflare debe coincidir con 'database_name'
+[[d1_databases]]
+binding = "MIRAI_AI_DB"
+database_name = "mirai-ai-db"
+database_id = "0609f674-fdd9-4320-9a85-0b416ec68282"
+
+# --- BINDING DE ALMACENAMIENTO R2 ---
+# Nombre del binding en tu código: ASSETS
+# El nombre del bucket en Cloudflare debe coincidir con 'bucket_name'
+[[r2_buckets]]
+binding = "MIRAI_AI_ASSETS"
+bucket_name = "mirai-ai-assets"
+
+# --- CONFIGURACIÓN DE DOMINIO (Opcional pero recomendado) ---
+# Si quieres que el Worker responda directamente en aberumirai.com
+# (Asegúrate de tener el dominio verificado en Cloudflare)
+# routes = [
+#   { pattern = "aberumirai.com/*", zone_name = "aberumirai.com" }
+# ]
+
+# --- OPCIONAL: Reglas de envío de logs o métricas ---
+# observability = { enabled = true }

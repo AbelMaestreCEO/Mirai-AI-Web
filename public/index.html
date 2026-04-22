@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Tu asistente inteligente potenciado por DeepSeek">
+    
+    <title>Mirai AI</title>
+    
+    <!-- Preload de fuentes del sistema para evitar FOIT -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    
+    <!-- Hoja de estilos -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Iconos (SVG inline para evitar carga externa, pero preparado para librerías si se desea) -->
+    <style>
+        /* Pequeño ajuste para asegurar que los iconos SVG se vean bien */
+        svg { display: block; }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor Principal -->
+    <div class="chat-container">
+        
+        <!-- Header -->
+        <header class="header">
+            <div class="header-title">
+                Mirai AI
+            </div>
+            
+            <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+                <!-- Icono de Sol (Claro) -->
+                <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
+                </svg>
+                <!-- Icono de Luna (Oscuro) - Oculto por defecto -->
+                <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                </svg>
+            </button>
+        </header>
+
+        <!-- Área de Mensajes -->
+        <main id="chat-messages" class="chat-messages" aria-live="polite">
+            <!-- Mensaje de bienvenida inicial -->
+            <div class="message ai">
+                <div class="message-avatar">M</div>
+                <div class="message-content">
+                    Hola, Abel. Soy <strong>Mirai AI</strong>. 
+                    <br><br>
+                    ¿En qué puedo ayudarte hoy? Puedo escribir código, analizar datos o simplemente charlar.
+                </div>
+            </div>
+            
+            <!-- Aquí se insertarán dinámicamente los nuevos mensajes -->
+        </main>
+
+        <!-- Indicador de escritura (oculto por defecto) -->
+        <div id="typing-indicator" class="message ai hidden" style="margin-bottom: 20px;">
+            <div class="message-avatar">M</div>
+            <div class="message-content">
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Entrada -->
+        <footer class="input-area">
+            <div class="input-wrapper">
+                <textarea 
+                    id="message-input" 
+                    class="message-input" 
+                    placeholder="Escribe tu mensaje aquí..." 
+                    rows="1"
+                    autocomplete="off"
+                    spellcheck="false"
+                ></textarea>
+                
+                <button id="send-button" class="send-button" aria-label="Enviar mensaje">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js" defer></script>
+</body>
+</html>
