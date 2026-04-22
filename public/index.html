@@ -25,122 +25,120 @@
 </head>
 
 <body>
+    <!-- Menú Lateral -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Aberu & Mirai</h3>
+            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Sección: Contacto -->
+            <section class="sidebar-section">
+                <h4>Servicios</h4>
+                <ul class="sidebar-links">
+                    <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                    <li><a href="https://aberumirai.com#education">Educación</a></li>
+                    <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                    <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                    <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                </ul>
+            </section>
+
+            <!-- Sección: Información de Empresa -->
+            <section class="sidebar-section">
+                <h4>Empresa</h4>
+                <ul class="sidebar-links">
+                    <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                    <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                    <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                    <li><a href="#">Quiénes somos</a></li>
+                    <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                </ul>
+            </section>
+
+            <!-- Sección: Contacto -->
+            <section class="sidebar-section">
+                <h4>Enlaces Externos</h4>
+                <ul class="sidebar-links">
+                    <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                    <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                    <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                    <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                </ul>
+            </section>
+
+            <!-- Sección: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <!-- Logo en sidebar -->
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer del sidebar -->
+        <div class="sidebar-footer">
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
+        </div>
+    </nav>
+    <div class="mobile-overlay"></div>
+    <!-- Header -->
+    <header class="header">
+        <!-- Botón Hamburguesa (Solo visible en móvil) -->
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+        <!-- Overlay de fondo oscuro (para cerrar al hacer clic fuera) -->
+
+
+        <div class="header-title">
+            Mirai AI
+        </div>
+
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <!-- Icono de Sol (Claro) -->
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+            </svg>
+            <!-- Icono de Luna (Oscuro) - Oculto por defecto -->
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
+    </header>
 
     <!-- Contenedor Principal -->
     <div class="chat-container">
 
-        <!-- Header -->
-        <header class="header">
-            <!-- Botón Hamburguesa (Solo visible en móvil) -->
-            <button class="mobile-menu-toggle" aria-label="Abrir menú">
-                <span class="hamburger-line"></span>
-                <span class="hamburger-line"></span>
-                <span class="hamburger-line"></span>
-            </button>
-            <!-- Overlay de fondo oscuro (para cerrar al hacer clic fuera) -->
-            <div class="mobile-overlay"></div>
-            <!-- Menú Lateral -->
-            <nav class="mobile-sidebar">
-                <div class="sidebar-header">
-                    <h3>Aberu & Mirai</h3>
-                    <button class="close-menu" aria-label="Cerrar menú">&times;</button>
-                </div>
 
-                <div class="sidebar-content">
-                    <!-- Sección: Contacto -->
-                    <section class="sidebar-section">
-                        <h4>Servicios</h4>
-                        <ul class="sidebar-links">
-                            <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
-                            <li><a href="https://aberumirai.com#education">Educación</a></li>
-                            <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
-                            <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
-                            <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
-                        </ul>
-                    </section>
-
-                    <!-- Sección: Información de Empresa -->
-                    <section class="sidebar-section">
-                        <h4>Empresa</h4>
-                        <ul class="sidebar-links">
-                            <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
-                            <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
-                            <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
-                            <li><a href="#">Quiénes somos</a></li>
-                            <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
-                        </ul>
-                    </section>
-
-                    <!-- Sección: Contacto -->
-                    <section class="sidebar-section">
-                        <h4>Enlaces Externos</h4>
-                        <ul class="sidebar-links">
-                            <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
-                            <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
-                            <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
-                            <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
-                        </ul>
-                    </section>
-
-                    <!-- Sección: Redes Sociales -->
-                    <section class="sidebar-section">
-                        <h4>Síguenos</h4>
-                        <div class="sidebar-social">
-                            <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
-                                <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp"
-                                    alt="Facebook">
-                            </a>
-                            <a href="#" aria-label="Twitter/X">
-                                <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp"
-                                    alt="Twitter">
-                            </a>
-                            <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
-                                <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp"
-                                    alt="TikTok">
-                            </a>
-                            <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
-                                <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp"
-                                    alt="Instagram">
-                            </a>
-                            <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
-                                <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp"
-                                    alt="GitHub">
-                            </a>
-                        </div>
-                    </section>
-
-                    <!-- Logo en sidebar -->
-                    <div class="sidebar-logo">
-                        <a href="https://aberumirai.com">
-                            <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Footer del sidebar -->
-                <div class="sidebar-footer">
-                    <p>&copy;
-                        <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
-                    </p>
-                </div>
-            </nav>
-            <div class="header-title">
-                Mirai AI
-            </div>
-
-            <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
-                <!-- Icono de Sol (Claro) -->
-                <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
-                </svg>
-                <!-- Icono de Luna (Oscuro) - Oculto por defecto -->
-                <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
-                </svg>
-            </button>
-        </header>
 
         <!-- Área de Mensajes -->
         <main id="chat-messages" class="chat-messages" aria-live="polite">
@@ -186,6 +184,45 @@
     </div>
 
     <!-- Scripts -->
+    <!-- SCRIPT (Al final del body) -->
+    <script>
+        // Script para el menú
+        document.addEventListener('DOMContentLoaded', function () {
+            const menuToggle = document.querySelector('.mobile-menu-toggle');
+            const closeBtn = document.querySelector('.close-menu');
+            const sidebar = document.querySelector('.mobile-sidebar');
+            const overlay = document.querySelector('.mobile-overlay');
+
+            if (!menuToggle || !sidebar) return; // Evitar errores si no existen
+
+            function toggleMenu() {
+                const isActive = sidebar.classList.contains('active');
+
+                if (isActive) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                    menuToggle.classList.remove('active');
+                    document.body.style.overflow = '';
+                } else {
+                    sidebar.classList.add('active');
+                    overlay.classList.add('active');
+                    menuToggle.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            menuToggle.addEventListener('click', toggleMenu);
+            closeBtn.addEventListener('click', toggleMenu);
+            overlay.addEventListener('click', toggleMenu);
+
+            // Cerrar con Escape
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+                    toggleMenu();
+                }
+            });
+        });
+    </script>
     <script type="module" src="app.js" defer></script>
 </body>
 
