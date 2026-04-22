@@ -31,6 +31,20 @@ let state = {
   theme: 'light'
 };
 
+// --- INICIALIZACIÓN DE CHAT ---
+function initializeChat() {
+  // Asegurar que el chat comience limpio
+  elements.chatMessages.scrollTop = 0;
+  
+  // Auto-focus en el input
+  elements.messageInput.focus();
+  
+  // Ajustar altura inicial del textarea
+  autoResizeTextarea();
+  
+  console.log('✨ Mirai AI inicializado correctamente');
+}
+
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
   initializeTheme();
