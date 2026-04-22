@@ -579,57 +579,6 @@ function setupEventListeners() {
   elements.messageInput.focus();
 }
 
-// --- LÓGICA DE MENSAJES ---
-async function handleSendMessage() {
-  const content = elements.messageInput.value.trim();
-  
-  if (!content || state.isSending) return;
-  
-  elements.messageInput.value = '';
-  autoResizeTextarea();
-  
-  state.isSending = true;
-  updateSendButtonState();
-  showTypingIndicator();
-  
-  try {
-    appendMessage('user', content);
-    
-    const response = await fetch(CONFIG.API_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: content,
-        conversation_id: state.currentConversationId
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    hideTypingIndicator();
-    
-    if (data.response) {
-      appendMessage('assistant', data.response);
-      saveToLocalHistory(data.response);
-    } else {
-      throw new Error('No se recibió respuesta válida');
-    }
-    
-  } catch (error) {
-    console.error('Error enviando mensaje:', error);
-    hideTypingIndicator();
-    appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.');
-    elements.messageInput.value = content;
-  } finally {
-    state.isSending = false;
-    updateSendButtonState();
-    elements.messageInput.focus();
-  }
-}
-
 // --- LIMPIAR CONVERSACIÓN ---
 async function handleClearConversation() {
   const confirmed = confirm(
