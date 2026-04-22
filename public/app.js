@@ -11,7 +11,9 @@ const CONFIG = {
   TYPING_DELAY: 300,
   MAX_INPUT_HEIGHT: 120,
   DEBOUNCE_DELAY: 300,
-  VOICE_LANG: 'es-ES'
+  VOICE_LANG: 'es-ES',
+  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  SUPPORTED_FORMATS: ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv']
 };
 
 // --- ELEMENTOS DEL DOM ---
@@ -19,6 +21,9 @@ const elements = {
   chatMessages: document.getElementById('chat-messages'),
   messageInput: document.getElementById('message-input'),
   sendButton: document.getElementById('send-button'),
+  attachBtn: document.getElementById('attach-btn'),
+  fileInput: document.getElementById('file-input'),
+  attachmentsArea: document.getElementById('attachments-area'),
   themeToggle: document.getElementById('theme-toggle'),
   clearButton: document.getElementById('clear-conversation'),
   typingIndicator: document.getElementById('typing-indicator'),
@@ -33,7 +38,8 @@ let state = {
   currentConversationId: null,
   theme: 'light',
   isListening: false,  // ← AGREGAR ESTA LÍNEA
-  recognition: null  
+  recognition: null ,
+  attachments: [] 
 };
 
 // --- INICIALIZACIÓN ---
@@ -44,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadOrCreateConversation();
   setupEventListeners();
   setupMobileMenu();
+  initializeFileUpload(); 
 });
 
 // --- GESTIÓN DE TEMA ---
@@ -53,6 +60,357 @@ function initializeTheme() {
   
   state.theme = savedTheme || (prefersDark ? 'dark' : 'light');
   applyTheme(state.theme);
+}
+
+// --- INICIALIZACIÓN DE SUBIDA DE ARCHIVOS ---
+function initializeFileUpload() {
+  if (!elements.attachBtn || !elements.fileInput) return;
+  
+  // Configurar pdf.js worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  
+  // Click en botón de adjuntar
+  elements.attachBtn.addEventListener('click', () => {
+    elements.fileInput.click();
+  });
+  
+  // Selección de archivo
+  elements.fileInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    for (const file of files) {
+      await processFile(file);
+    }
+    
+    // Limpiar input para permitir seleccionar el mismo archivo nuevamente
+    elements.fileInput.value = '';
+  });
+  
+  // Drag & Drop en toda la página
+  setupDragAndDrop();
+}
+
+// --- CONFIGURACIÓN DRAG & DROP ---
+function setupDragAndDrop() {
+  let dragCounter = 0;
+  
+  document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) {
+      showDropZone();
+    }
+  });
+  
+  document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) {
+      hideDropZone();
+    }
+  });
+  
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+  
+  document.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    hideDropZone();
+    
+    const files = Array.from(e.dataTransfer.files);
+    for (const file of files) {
+      await processFile(file);
+    }
+  });
+}
+
+function showDropZone() {
+  let overlay = document.getElementById('drop-zone-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'drop-zone-overlay';
+    overlay.className = 'drop-zone-overlay';
+    overlay.innerHTML = `
+      <div class="drop-zone-content">
+        <h3>📎 Suelta los archivos aquí</h3>
+        <p>PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.add('active');
+}
+
+function hideDropZone() {
+  const overlay = document.getElementById('drop-zone-overlay');
+  if (overlay) {
+    overlay.classList.remove('active');
+  }
+}
+
+// --- PROCESAR ARCHIVO ---
+async function processFile(file) {
+  // Validar tamaño
+  if (file.size > CONFIG.MAX_FILE_SIZE) {
+    alert(`El archivo "${file.name}" excede el tamaño máximo de 10MB`);
+    return;
+  }
+  
+  // Validar formato
+  const extension = file.name.split('.').pop().toLowerCase();
+  if (!CONFIG.SUPPORTED_FORMATS.includes(extension)) {
+    alert(`El formato .${extension} no es soportado`);
+    return;
+  }
+  
+  // Mostrar indicador de carga
+  const loadingId = `loading-${Date.now()}`;
+  addAttachmentChip(file.name, loadingId, true);
+  
+  try {
+    // Extraer texto según formato
+    const text = await extractTextFromFile(file, extension);
+    
+    // Remover loading chip
+    removeAttachmentChip(loadingId);
+    
+    // Agregar archivo a estado
+    const attachmentId = crypto.randomUUID();
+    state.attachments.push({
+      id: attachmentId,
+      name: file.name,
+      type: extension,
+      text: text
+    });
+    
+    // Agregar chip visual
+    addAttachmentChip(file.name, attachmentId, false);
+    
+    // Inyectar texto en el input (opcional)
+    const separator = elements.messageInput.value.length > 0 ? '\n\n' : '';
+    elements.messageInput.value += `${separator}[Contenido de ${file.name}]:\n${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`;
+    autoResizeTextarea();
+    
+    console.log(`✅ Archivo procesado: ${file.name}`);
+  } catch (error) {
+    console.error(`Error procesando archivo ${file.name}:`, error);
+    removeAttachmentChip(loadingId);
+    alert(`Error al procesar "${file.name}". Intenta con otro archivo.`);
+  }
+}
+
+// --- EXTRAER TEXTO SEGÚN FORMATO ---
+async function extractTextFromFile(file, extension) {
+  const reader = new FileReader();
+  
+  switch (extension) {
+    case 'txt':
+    case 'csv':
+      return new Promise((resolve, reject) => {
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    
+    case 'pdf':
+      return extractTextFromPDF(file);
+    
+    case 'docx':
+      return extractTextFromDOCX(file);
+    
+    case 'xlsx':
+    case 'xls':
+      return extractTextFromExcel(file);
+    
+    case 'pptx':
+    case 'ppt':
+      return extractTextFromPPT(file);
+    
+    default:
+      throw new Error(`Formato no soportado: ${extension}`);
+  }
+}
+
+// --- EXTRAER TEXTO DE PDF ---
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n\n';
+  }
+  
+  return fullText.trim();
+}
+
+// --- EXTRAER TEXTO DE DOCX ---
+async function extractTextFromDOCX(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value;
+}
+
+// --- EXTRAER TEXTO DE EXCEL ---
+async function extractTextFromExcel(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  let fullText = '';
+  
+  workbook.SheetNames.forEach(sheetName => {
+    const worksheet = workbook.Sheets[sheetName];
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+    fullText += `Hoja: ${sheetName}\n${csv}\n\n`;
+  });
+  
+  return fullText.trim();
+}
+
+// --- EXTRAER TEXTO DE PPT ---
+async function extractTextFromPPT(file) {
+  // Para PPT/PPTX, necesitamos usar JSZip para extraer el XML interno
+  // Esta es una implementación simplificada
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = new JSZip();
+  
+  try {
+    const content = await zip.loadAsync(arrayBuffer);
+    let fullText = '';
+    
+    // Buscar archivos de texto en la estructura PPTX
+    const textFiles = Object.keys(content.files).filter(name => 
+      name.match(/ppt\/slides\/slide\d+\.xml$/)
+    );
+    
+    for (const fileName of textFiles) {
+      const xml = await content.files[fileName].async('string');
+      // Extraer texto de XML (simplificado)
+      const text = xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      fullText += text + '\n\n';
+    }
+    
+    return fullText.trim() || 'No se pudo extraer texto del PPT';
+  } catch (error) {
+    throw new Error('Error extrayendo texto de PPT. Intenta convertir a PDF primero.');
+  }
+}
+
+// --- GESTIÓN DE CHIPS DE ADJUNTOS ---
+function addAttachmentChip(fileName, id, isLoading) {
+  const chip = document.createElement('div');
+  chip.className = 'attachment-chip';
+  chip.id = `chip-${id}`;
+  
+  const extension = fileName.split('.').pop().toUpperCase();
+  const icon = getFileIcon(extension);
+  
+  chip.innerHTML = `
+    <span class="attachment-icon">${icon}</span>
+    <span class="attachment-name" title="${fileName}">${fileName}</span>
+    ${isLoading ? '<span class="attachment-loading">⏳</span>' : `
+      <span class="attachment-remove" onclick="removeAttachment('${id}')">×</span>
+    `}
+  `;
+  
+  elements.attachmentsArea.appendChild(chip);
+}
+
+function removeAttachmentChip(id) {
+  const chip = document.getElementById(`chip-${id}`);
+  if (chip) {
+    chip.remove();
+  }
+}
+
+function removeAttachment(attachmentId) {
+  state.attachments = state.attachments.filter(att => att.id !== attachmentId);
+  removeAttachmentChip(attachmentId);
+}
+
+function getFileIcon(extension) {
+  const icons = {
+    'PDF': '📄',
+    'DOC': '📝',
+    'DOCX': '📝',
+    'XLS': '📊',
+    'XLSX': '📊',
+    'PPT': '📽️',
+    'PPTX': '📽️',
+    'TXT': '📃',
+    'CSV': '📋'
+  };
+  return icons[extension.toUpperCase()] || '📎';
+}
+
+// --- MODIFICAR handleSendMessage PARA INCLUIR ADJUNTOS ---
+async function handleSendMessage() {
+  const content = elements.messageInput.value.trim();
+  
+  if (!content && state.attachments.length === 0) return;
+  
+  // Preparar mensaje con adjuntos
+  const attachmentsText = state.attachments.map(att => 
+    `[Archivo: ${att.name}]\n${att.text}`
+  ).join('\n\n---\n\n');
+  
+  const fullMessage = attachmentsText 
+    ? `${content}\n\n---\n\n${attachmentsText}`
+    : content;
+  
+  // Resetear input y adjuntos
+  elements.messageInput.value = '';
+  state.attachments = [];
+  elements.attachmentsArea.innerHTML = '';
+  autoResizeTextarea();
+  
+  state.isSending = true;
+  updateSendButtonState();
+  showTypingIndicator();
+  
+  try {
+    appendMessage('user', fullMessage);
+    
+    const response = await fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: fullMessage,
+        conversation_id: state.currentConversationId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    hideTypingIndicator();
+    
+    if (data.response) {
+      appendMessage('assistant', data.response);
+      saveToLocalHistory(data.response);
+    } else {
+      throw new Error('No se recibió respuesta válida');
+    }
+    
+  } catch (error) {
+    console.error('Error enviando mensaje:', error);
+    hideTypingIndicator();
+    appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.');
+    elements.messageInput.value = content;
+  } finally {
+    state.isSending = false;
+    updateSendButtonState();
+    elements.messageInput.focus();
+  }
 }
 
 // --- INICIALIZACIÓN DE VOZ (WEB SPEECH API) ---
