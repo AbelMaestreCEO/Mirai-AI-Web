@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeChat();
   loadOrCreateConversation();
   setupEventListeners();
+  setupMobileMenu();
 });
 
 // --- GESTIÓN DE TEMA ---
@@ -321,4 +322,45 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+// --- MENÚ LATERAL MÓVIL ---
+function setupMobileMenu() {
+  const menuToggle = document.querySelector('.mobile-menu-toggle');
+  const closeMenu = document.querySelector('.close-menu');
+  const sidebar = document.querySelector('.mobile-sidebar');
+  const overlay = document.querySelector('.mobile-overlay');
+  
+  // Verificar que todos los elementos existan
+  if (!menuToggle || !closeMenu || !sidebar || !overlay) {
+    console.warn('⚠️ Elementos del menú móvil no encontrados. Verifica el HTML.');
+    return;
+  }
+  
+  function toggleMenu() {
+    const isActive = sidebar.classList.contains('active');
+    
+    if (isActive) {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+      menuToggle.classList.remove('active');
+      document.body.style.overflow = '';
+    } else {
+      sidebar.classList.add('active');
+      overlay.classList.add('active');
+      menuToggle.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  
+  menuToggle.addEventListener('click', toggleMenu);
+  closeMenu.addEventListener('click', toggleMenu);
+  overlay.addEventListener('click', toggleMenu);
+  
+  // Cerrar con Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+      toggleMenu();
+    }
+  });
 }
