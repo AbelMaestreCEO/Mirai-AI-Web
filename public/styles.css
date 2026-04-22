@@ -867,3 +867,67 @@ footer.footer {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* --- BOTÓN DE VOZ --- */
+.voice-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.voice-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  transition: fill var(--transition-fast);
+}
+
+.voice-btn:hover {
+  background: var(--message-user-bg);
+  color: var(--accent-color);
+}
+
+/* Estado: Escuchando */
+.voice-btn.listening {
+  color: #ff3b30; /* Rojo para indicar grabación */
+  background: rgba(255, 59, 48, 0.1);
+  animation: pulse-red 1.5s infinite;
+}
+
+.voice-btn.listening svg {
+  fill: #ff3b30;
+}
+
+/* Animación de pulso para estado escuchando */
+@keyframes pulse-red {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 59, 48, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+  }
+}
+
+/* Ajuste para móvil */
+@media (max-width: 768px) {
+  .voice-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .voice-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+}

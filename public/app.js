@@ -10,7 +10,8 @@ const CONFIG = {
   STORAGE_KEY_CONVERSATION: 'mirai-ai-conversation-id',
   TYPING_DELAY: 300,
   MAX_INPUT_HEIGHT: 120,
-  DEBOUNCE_DELAY: 300
+  DEBOUNCE_DELAY: 300,
+  VOICE_LANG: 'es-ES'
 };
 
 // --- ELEMENTOS DEL DOM ---
@@ -22,19 +23,23 @@ const elements = {
   clearButton: document.getElementById('clear-conversation'),
   typingIndicator: document.getElementById('typing-indicator'),
   sunIcon: document.querySelector('.sun-icon'),
-  moonIcon: document.querySelector('.moon-icon')
+  moonIcon: document.querySelector('.moon-icon'),
+  voiceBtn: document.getElementById('voice-btn'), 
 };
 
 // --- ESTADO DE LA APLICACIÓN ---
 let state = {
   isSending: false,
   currentConversationId: null,
-  theme: 'light'
+  theme: 'light',
+  isListening: false,  // ← AGREGAR ESTA LÍNEA
+  recognition: null  
 };
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
   initializeTheme();
+  initializeVoiceRecognition(); 
   initializeChat();
   loadOrCreateConversation();
   setupEventListeners();
@@ -48,6 +53,90 @@ function initializeTheme() {
   
   state.theme = savedTheme || (prefersDark ? 'dark' : 'light');
   applyTheme(state.theme);
+}
+
+// --- INICIALIZACIÓN DE VOZ (WEB SPEECH API) ---
+function initializeVoiceRecognition() {
+  // Detectar soporte del navegador
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    console.warn('⚠️ Web Speech API no soportada en este navegador.');
+    if (elements.voiceBtn) {
+      elements.voiceBtn.style.display = 'none'; // Ocultar si no hay soporte
+    }
+    return;
+  }
+
+  // Crear instancia
+  state.recognition = new SpeechRecognition();
+  state.recognition.lang = CONFIG.VOICE_LANG;
+  state.recognition.continuous = false;
+  state.recognition.interimResults = true;
+
+  // Evento: Inicio
+  state.recognition.onstart = () => {
+    state.isListening = true;
+    elements.voiceBtn.classList.add('listening');
+    elements.messageInput.placeholder = "Escuchando...";
+  };
+
+  // Evento: Resultados
+  state.recognition.onresult = (event) => {
+    let finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    // Inyectar texto en el input
+    if (finalTranscript) {
+      const currentText = elements.messageInput.value;
+      const separator = currentText.length > 0 ? ' ' : '';
+      elements.messageInput.value = currentText + separator + finalTranscript;
+      autoResizeTextarea();
+    }
+  };
+
+  // Evento: Fin
+  state.recognition.onend = () => {
+    state.isListening = false;
+    elements.voiceBtn.classList.remove('listening');
+    elements.messageInput.placeholder = "Escribe tu mensaje aquí...";
+  };
+
+  // Evento: Error
+  state.recognition.onerror = (event) => {
+    console.error('Error de reconocimiento de voz:', event.error);
+    state.isListening = false;
+    elements.voiceBtn.classList.remove('listening');
+    elements.messageInput.placeholder = "Error de voz. Inténtalo de nuevo.";
+    
+    setTimeout(() => {
+      elements.messageInput.placeholder = "Escribe tu mensaje aquí...";
+    }, 2000);
+  };
+
+  // Configurar evento click del botón
+  if (elements.voiceBtn) {
+    elements.voiceBtn.addEventListener('click', toggleVoiceRecognition);
+  }
+}
+
+function toggleVoiceRecognition() {
+  if (!state.recognition) return;
+
+  if (state.isListening) {
+    state.recognition.stop();
+  } else {
+    try {
+      state.recognition.start();
+    } catch (err) {
+      console.error('Error iniciando reconocimiento:', err);
+    }
+  }
 }
 
 function applyTheme(theme) {
