@@ -325,3 +325,21 @@ function debounce(func, wait) {
     timeout = setTimeout(later, wait);
   };
 }
+// Menú Lateral Móvil - Toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const closeMenu = document.querySelector('.close-menu');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    
+    function toggleMenu() {
+        menuToggle.classList.toggle('active');
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+    }
+    
+    menuToggle.addEventListener('click', toggleMenu);
+    closeMenu.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', toggleMenu);
+});
