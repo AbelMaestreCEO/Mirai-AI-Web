@@ -1243,3 +1243,146 @@ footer.footer {
   .md-heading h2 { font-size: 1.15rem; }
   .md-heading h3 { font-size: 1.05rem; }
 }
+
+/* ============================================
+   ESTILOS PARA BLOQUES DE CÓDIGO CON BOTÓN COPIAR
+   ============================================ */
+
+/* Contenedor del bloque de código */
+.code-block-wrapper {
+  margin: 12px 0;
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-primary);
+  box-shadow: var(--glass-shadow);
+}
+
+[data-theme="dark"] .code-block-wrapper {
+  background: rgba(44, 44, 46, 0.9);
+}
+
+/* Cabecera del bloque de código */
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 0.75rem;
+}
+
+[data-theme="dark"] .code-header {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.code-lang {
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Botón de copiar */
+.copy-code-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  font-weight: 500;
+}
+
+.copy-code-btn:hover {
+  background: var(--message-user-bg);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.copy-code-btn svg {
+  fill: currentColor;
+}
+
+/* Estado: Copiado */
+.copy-code-btn.copied {
+  background: rgba(52, 199, 89, 0.1);
+  color: #34c759;
+  border-color: #34c759;
+}
+
+.copy-code-btn.copied svg {
+  fill: #34c759;
+}
+
+/* Estado: Error */
+.copy-code-btn.error {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  border-color: #ff3b30;
+}
+
+.copy-code-btn.error svg {
+  fill: #ff3b30;
+}
+
+/* Bloque de código */
+.code-block {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+}
+
+/* Resaltar sintaxis básico (colores por lenguaje) */
+.code-block .language-javascript,
+.code-block .language-js { color: #f7df1e; }
+.code-block .language-python { color: #3776ab; }
+.code-block .language-html { color: #e34c26; }
+.code-block .language-css { color: #264de4; }
+.code-block .language-json { color: #f1e05a; }
+.code-block .language-bash { color: #4eaa25; }
+.code-block .language-sql { color: #00758f; }
+
+/* Código inline */
+.inline-code {
+  background: var(--message-user-bg);
+  border: 1px solid var(--message-user-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85em;
+  color: var(--accent-color);
+  word-break: break-word;
+}
+
+/* Asegurar que el texto sea seleccionable */
+.message-content {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* En móviles, permitir selección pero con cuidado */
+@media (hover: none) and (pointer: coarse) {
+  .message-content {
+    user-select: text;
+  }
+  
+  .copy-code-btn {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+}

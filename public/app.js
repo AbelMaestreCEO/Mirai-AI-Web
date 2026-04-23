@@ -643,7 +643,7 @@ async function handleClearConversation() {
   }
 }
 
-// --- INTERFAZ DE USUARIO ---
+// --- MODIFICAR appendMessage PARA LLAMAR addCopyButtons ---
 function appendMessage(role, content, animate = true) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
@@ -667,6 +667,9 @@ function appendMessage(role, content, animate = true) {
   
   elements.chatMessages.appendChild(messageDiv);
   scrollToBottom();
+  
+  // Agregar botones de copiar después de insertar el mensaje
+  addCopyButtons();
 }
 
 function showTypingIndicator() {
@@ -706,16 +709,31 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// --- FORMATEO DE MARKDOWN MEJORADO ---
+// --- FORMATEO DE MARKDOWN MEJORADO (CON SOPORTE PARA COPIAR CÓDIGO) ---
 function formatMessageContent(content) {
   let formatted = content;
   
   // 1. Escapar HTML primero para prevenir XSS
   formatted = escapeHtml(formatted);
   
-  // 2. Bloques de código (```idioma\ncódigo```) - PRIMERO para evitar conflictos
+  // 2. Bloques de código (```idiama\ncódigo```) - PRIMERO para evitar conflictos
   formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-    return `<pre class="code-block"><code class="language-${lang}">${code}</code></pre>`;
+    // Codificar el código para usarlo en atributo data
+    const encodedCode = encodeURIComponent(code);
+    return `
+      <div class="code-block-wrapper">
+        <div class="code-header">
+          <span class="code-lang">${lang || 'plaintext'}</span>
+          <button class="copy-code-btn" data-code="${encodedCode}" title="Copiar código">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <span>Copiar</span>
+          </button>
+        </div>
+        <pre class="code-block"><code class="language-${lang}">${code}</code></pre>
+      </div>
+    `;
   });
   
   // 3. Código inline (`texto`)
@@ -756,10 +774,65 @@ function formatMessageContent(content) {
   formatted = formatted.replace(/\n/g, '<br>');
   
   // 13. Limpiar <br> duplicados después de elementos de bloque
-  formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre)>[ ]*<br>/g, '</$1>');
+  formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|div)>[ ]*<br>/g, '</$1>');
   
   return formatted;
 }
+
+// --- AGREGAR BOTONES DE COPIAR DESPUÉS DE RENDERIZAR MENSAJE ---
+function addCopyButtons() {
+  const codeBlocks = document.querySelectorAll('.copy-code-btn');
+  
+  codeBlocks.forEach(btn => {
+    if (btn.dataset.initialized === 'true') return; // Evitar duplicados
+    
+    btn.dataset.initialized = 'true';
+    
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // Evitar propagación
+      
+      const encodedCode = btn.dataset.code;
+      const code = decodeURIComponent(encodedCode);
+      const originalHTML = btn.innerHTML;
+      
+      try {
+        await navigator.clipboard.writeText(code);
+        
+        // Feedback visual: cambiar texto y color
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+          </svg>
+          <span>¡Copiado!</span>
+        `;
+        btn.classList.add('copied');
+        
+        // Restaurar después de 2 segundos
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('copied');
+        }, 2000);
+        
+      } catch (err) {
+        console.error('Error al copiar:', err);
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <span>Error</span>
+        `;
+        btn.classList.add('error');
+        
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('error');
+        }, 2000);
+      }
+    });
+  });
+}
+
+
 
 function saveToLocalHistory(response) {
   let history = JSON.parse(localStorage.getItem('mirai-ai-local-history') || '[]');
