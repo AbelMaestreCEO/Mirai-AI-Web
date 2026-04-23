@@ -706,13 +706,58 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// --- FORMATEO DE MARKDOWN MEJORADO ---
 function formatMessageContent(content) {
-  let formatted = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  formatted = formatted.replace(/`(.*?)`/g, '<code>$1</code>');
+  let formatted = content;
+  
+  // 1. Escapar HTML primero para prevenir XSS
+  formatted = escapeHtml(formatted);
+  
+  // 2. Bloques de código (```idioma\ncódigo```) - PRIMERO para evitar conflictos
   formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-    return `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`;
+    return `<pre class="code-block"><code class="language-${lang}">${code}</code></pre>`;
   });
+  
+  // 3. Código inline (`texto`)
+  formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  
+  // 4. Encabezados Markdown (#, ##, ###, ####, #####)
+  formatted = formatted.replace(/^###### (.+)$/gm, '<h6 class="md-heading">$1</h6>');
+  formatted = formatted.replace(/^##### (.+)$/gm, '<h5 class="md-heading">$1</h5>');
+  formatted = formatted.replace(/^#### (.+)$/gm, '<h4 class="md-heading">$1</h4>');
+  formatted = formatted.replace(/^### (.+)$/gm, '<h3 class="md-heading">$1</h3>');
+  formatted = formatted.replace(/^## (.+)$/gm, '<h2 class="md-heading">$1</h2>');
+  formatted = formatted.replace(/^# (.+)$/gm, '<h1 class="md-heading">$1</h1>');
+  
+  // 5. Negritas (**texto**)
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // 6. Cursivas (*texto*)
+  formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // 7. Listas con guiones (- texto)
+  formatted = formatted.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
+  formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
+  
+  // 8. Listas numeradas (1. texto)
+  formatted = formatted.replace(/^\d+\. (.+)$/gm, '<li class="md-list-item">$1</li>');
+  formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ol class="md-list">$&</ol>');
+  
+  // 9. Blockquotes (> texto)
+  formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
+  
+  // 10. Líneas horizontales (---)
+  formatted = formatted.replace(/^---$/gm, '<hr class="md-hr">');
+  
+  // 11. Enlaces ([texto](url))
+  formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
+  
+  // 12. Saltos de línea (convertir a <br>)
   formatted = formatted.replace(/\n/g, '<br>');
+  
+  // 13. Limpiar <br> duplicados después de elementos de bloque
+  formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre)>[ ]*<br>/g, '</$1>');
+  
   return formatted;
 }
 
