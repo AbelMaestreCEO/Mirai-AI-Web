@@ -1547,3 +1547,182 @@ footer.footer {
 .edit-btn:hover {
   color: #f59e0b; /* Color ámbar para editar */
 }
+
+/* ============================================
+   LISTA DE CONVERSACIONES EN SIDEBAR
+   ============================================ */
+
+.conversations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.conversations-header h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.new-conv-btn {
+  background: var(--accent-gradient);
+  border: none;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.new-conv-btn svg {
+  fill: white;
+}
+
+.new-conv-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.conversations-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.conversations-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.conversations-list::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 2px;
+}
+
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 2px solid transparent;
+  position: relative;
+}
+
+.conv-item:hover {
+  background: var(--message-user-bg);
+  border-left-color: var(--accent-color);
+}
+
+.conv-item.active {
+  background: var(--message-user-bg);
+  border-left-color: var(--accent-color);
+}
+
+.conv-item-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.conv-item-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.conv-item-title {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.conv-item-date {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  display: block;
+  margin-top: 2px;
+}
+
+.conv-item-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.conv-item:hover .conv-item-actions {
+  opacity: 1;
+}
+
+.conv-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conv-action-btn:hover {
+  color: var(--accent-color);
+  background: var(--message-user-bg);
+}
+
+.conv-action-btn.delete:hover {
+  color: #ff3b30;
+}
+
+.conv-action-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+/* Input para renombrar */
+.conv-rename-input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+}
+
+/* Estado vacío */
+.conv-empty {
+  text-align: center;
+  padding: 20px 12px;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* Responsive móvil */
+@media (max-width: 768px) {
+  .conversations-list {
+    max-height: 200px;
+  }
+}

@@ -30,6 +30,8 @@ const elements = {
   sunIcon: document.querySelector('.sun-icon'),
   moonIcon: document.querySelector('.moon-icon'),
   voiceBtn: document.getElementById('voice-btn'),
+  conversationsList: document.getElementById('conversations-list'),
+  newConversationBtn: document.getElementById('new-conversation-btn'),
 };
 
 // --- ESTADO DE LA APLICACIÓN ---
@@ -51,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   setupMobileMenu();
   initializeFileUpload();
+  loadConversations();
 });
 
 // --- GESTIÓN DE TEMA ---
@@ -377,7 +380,7 @@ async function handleSendMessage() {
   // 1. Construir mensaje
   let fullMessage = userInput;
   let attachmentIds = [];
-  
+
   if (state.attachments.length > 0) {
     const attachmentsSection = state.attachments.map(att => {
       attachmentIds.push(att.id);
@@ -404,7 +407,7 @@ async function handleSendMessage() {
   // Si el último mensaje de la IA existe, lo eliminamos para regenerar
   const messages = document.querySelectorAll('.message');
   const lastAiMessage = Array.from(messages).reverse().find(m => m.classList.contains('assistant'));
-  
+
   if (lastAiMessage) {
     // Si hay un mensaje de IA anterior, asumimos que es una edición
     // Eliminamos el mensaje de IA y el mensaje de usuario que acabamos de poner (para reemplazarlo)
@@ -430,6 +433,7 @@ async function handleSendMessage() {
 
     if (data.response) {
       appendMessage('assistant', data.response);
+      loadConversations();
       saveToLocalHistory(data.response);
     } else {
       throw new Error('No se recibió respuesta válida');
@@ -608,6 +612,10 @@ function setupEventListeners() {
     elements.clearButton.addEventListener('click', handleClearConversation);
   }
 
+  if (elements.newConversationBtn) {
+    elements.newConversationBtn.addEventListener('click', createNewConversation);
+  }
+
   document.querySelectorAll('.action-menu:not(.hidden)').forEach(m => {
     m.classList.add('hidden');
   });
@@ -648,6 +656,7 @@ async function handleClearConversation() {
       state.currentConversationId = crypto.randomUUID();
       localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, state.currentConversationId);
       appendMessage('system', '✨ Conversación limpia. ¿En qué puedo ayudarte hoy?');
+      loadConversations();
       console.log('✅ Conversación limpiada correctamente');
     }
 
@@ -1210,4 +1219,243 @@ function setupMobileMenu() {
       toggleMenu();
     }
   });
+}
+
+// ============================================
+// GESTIÓN DE CONVERSACIONES (SIDEBAR)
+// ============================================
+
+// --- CARGAR LISTA DE CONVERSACIONES ---
+async function loadConversations() {
+  if (!elements.conversationsList) return;
+
+  try {
+    const response = await fetch('/api/conversations');
+    if (!response.ok) return;
+
+    const conversations = await response.json();
+    renderConversationsList(conversations);
+
+  } catch (error) {
+    console.error('Error cargando conversaciones:', error);
+  }
+}
+
+// --- RENDERIZAR LISTA EN SIDEBAR ---
+function renderConversationsList(conversations) {
+  const list = elements.conversationsList;
+  list.innerHTML = '';
+
+  if (!conversations || conversations.length === 0) {
+    list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
+    return;
+  }
+
+  conversations.forEach(conv => {
+    const li = document.createElement('li');
+    li.className = 'conv-item';
+    li.dataset.id = conv.id;
+
+    // Marcar como activa si es la conversación actual
+    if (conv.id === state.currentConversationId) {
+      li.classList.add('active');
+    }
+
+    // Formatear fecha
+    const dateStr = formatDate(conv.updated_at || conv.created_at);
+
+    li.innerHTML = `
+      <span class="conv-item-icon">💬</span>
+      <div class="conv-item-info">
+        <span class="conv-item-title">${escapeHtml(conv.title)}</span>
+        <span class="conv-item-date">${dateStr}</span>
+      </div>
+      <div class="conv-item-actions">
+        <button class="conv-action-btn rename-btn" title="Renombrar">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </button>
+        <button class="conv-action-btn delete" title="Eliminar">
+          <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+    `;
+
+    // Click para cambiar de conversación
+    li.addEventListener('click', (e) => {
+      // Ignorar clicks en botones de acción
+      if (e.target.closest('.conv-action-btn')) return;
+      switchConversation(conv.id);
+    });
+
+    // Botón renombrar
+    const renameBtn = li.querySelector('.rename-btn');
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startRenameConversation(li, conv);
+    });
+
+    // Botón eliminar
+    const deleteBtn = li.querySelector('.delete');
+    deleteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await deleteConversation(conv.id, li);
+    });
+
+    list.appendChild(li);
+  });
+}
+
+// --- CAMBIAR DE CONVERSACIÓN ---
+async function switchConversation(conversationId) {
+  if (conversationId === state.currentConversationId) return;
+
+  state.currentConversationId = conversationId;
+  localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, conversationId);
+
+  // Cargar historial de la conversación
+  elements.chatMessages.innerHTML = '';
+  await loadConversationHistory(conversationId);
+
+  // Actualizar UI
+  updateActiveConversation();
+
+  // Cerrar sidebar en móvil
+  const sidebar = document.querySelector('.mobile-sidebar');
+  if (sidebar && sidebar.classList.contains('active')) {
+    document.querySelector('.mobile-overlay').click();
+  }
+}
+
+// --- CREAR NUEVA CONVERSACIÓN ---
+async function createNewConversation() {
+  const newId = crypto.randomUUID();
+  state.currentConversationId = newId;
+  localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, newId);
+
+  // Limpiar chat
+  elements.chatMessages.innerHTML = '';
+  appendMessage('system', '✨ Nueva conversación iniciada. ¿En qué puedo ayudarte?');
+
+  // Actualizar lista
+  await loadConversations();
+  updateActiveConversation();
+
+  // Cerrar sidebar en móvil
+  const sidebar = document.querySelector('.mobile-sidebar');
+  if (sidebar && sidebar.classList.contains('active')) {
+    document.querySelector('.mobile-overlay').click();
+  }
+
+  elements.messageInput.focus();
+}
+
+// --- RENOMBRAR CONVERSACIÓN ---
+function startRenameConversation(li, conv) {
+  const infoDiv = li.querySelector('.conv-item-info');
+  const originalTitle = conv.title;
+
+  // Reemplazar título con input
+  infoDiv.innerHTML = `
+    <input type="text" class="conv-rename-input" value="${escapeHtml(originalTitle)}" maxlength="100">
+  `;
+
+  const input = infoDiv.querySelector('.conv-rename-input');
+  input.focus();
+  input.select();
+
+  // Guardar al presionar Enter o al perder foco
+  const saveRename = async () => {
+    const newTitle = input.value.trim();
+    if (newTitle && newTitle !== originalTitle) {
+      try {
+        await fetch('/api/conversations/rename', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversation_id: conv.id,
+            title: newTitle
+          })
+        });
+      } catch (error) {
+        console.error('Error renombrando:', error);
+      }
+    }
+    // Recargar lista
+    await loadConversations();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveRename();
+    } else if (e.key === 'Escape') {
+      loadConversations(); // Cancelar
+    }
+  });
+
+  input.addEventListener('blur', saveRename);
+}
+
+// --- ELIMINAR CONVERSACIÓN ---
+async function deleteConversation(conversationId, li) {
+  const confirmed = confirm('¿Eliminar esta conversación? No se puede deshacer.');
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${CONFIG.API_ENDPOINT}/clear`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId })
+    });
+
+    if (!response.ok) throw new Error('Error eliminando');
+
+    // Si era la conversación activa, crear una nueva
+    if (conversationId === state.currentConversationId) {
+      await createNewConversation();
+    }
+
+    // Recargar lista
+    await loadConversations();
+
+  } catch (error) {
+    console.error('Error eliminando conversación:', error);
+    alert('Error al eliminar la conversación.');
+  }
+}
+
+// --- ACTUALIZAR CLASE ACTIVA EN SIDEBAR ---
+function updateActiveConversation() {
+  const items = document.querySelectorAll('.conv-item');
+  items.forEach(item => {
+    if (item.dataset.id === state.currentConversationId) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+
+// --- FORMATEAR FECHA ---
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  
+  try {
+    const date = new Date(dateStr + 'Z'); // Agregar Z para UTC
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Hoy';
+    } else if (diffDays === 1) {
+      return 'Ayer';
+    } else if (diffDays < 7) {
+      return `Hace ${diffDays} días`;
+    } else {
+      return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+  } catch (e) {
+    return '';
+  }
 }

@@ -45,6 +45,19 @@
         </div>
 
         <div class="sidebar-content">
+            <section class="sidebar-section">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
+            </section>
             <!-- Sección: Contacto -->
             <section class="sidebar-section">
                 <h4>Servicios</h4>
@@ -186,12 +199,14 @@
                 <!-- Botón de Adjuntar Archivos -->
                 <button id="attach-btn" class="attach-btn" title="Adjuntar archivo" aria-label="Adjuntar archivo">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z" />
+                        <path
+                            d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z" />
                     </svg>
                 </button>
 
                 <!-- Input de archivo oculto -->
-                <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv" style="display: none;">
+                <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv"
+                    style="display: none;">
 
                 <!-- Área para mostrar archivos adjuntos -->
                 <div id="attachments-area" class="attachments-area"></div>

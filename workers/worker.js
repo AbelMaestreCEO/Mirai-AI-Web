@@ -69,6 +69,16 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleUpload(request, env, corsHeaders);
     }
 
+    // Ruta: GET /api/conversations
+    if (path === '/api/conversations' && request.method === 'GET') {
+      return await handleListConversations(env, corsHeaders);
+    }
+
+    // Ruta: PUT /api/conversations/rename
+    if (path === '/api/conversations/rename' && request.method === 'PUT') {
+      return await handleRenameConversation(request, env, corsHeaders);
+    }
+
     // Ruta: GET /api/history/:conversationId
     if (path.startsWith(ROUTES.HISTORY) && request.method === 'GET') {
       const conversationId = path.split('/').pop();
@@ -462,14 +472,14 @@ async function handleUpload(request, env, corsHeaders) {
       INSERT INTO attachments (id, conversation_id, r2_key, original_name, file_type, created_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
     `);
-    
+
     // NOTA: Necesitarás crear la tabla 'attachments' en D1 (ver Paso 4)
     // Si no quieres tabla extra, guarda el r2_key en el campo 'content' de messages con un prefijo
     await stmt.bind(uniqueId, conversationId, filename, file.name, file.type).run();
 
     // 6. Devolver la URL pública (si el bucket es público) o el key
     // Si el bucket es privado, solo devuelve el key y el Worker servirá el archivo
-    const publicUrl = `https://pub-${env.ACCOUNT_ID}.r2.cloudflarestorage.com/mirai-ai-assets/${filename}`; 
+    const publicUrl = `https://pub-${env.ACCOUNT_ID}.r2.cloudflarestorage.com/mirai-ai-assets/${filename}`;
     // Nota: Reemplaza ACCOUNT_ID con tu ID real o usa una ruta de acceso directo si configuras un dominio
 
     return jsonResponse({
@@ -478,11 +488,55 @@ async function handleUpload(request, env, corsHeaders) {
       r2_key: filename,
       original_name: file.name,
       // Si configuras un dominio personalizado para R2, usa esa URL
-      url: `https://assets.aberumirai.com/${filename}` 
+      url: `https://assets.aberumirai.com/${filename}`
     }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Error uploading file:', error);
     return jsonResponse({ error: 'Error al subir archivo', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// --- LISTAR CONVERSACIONES ---
+async function handleListConversations(env, corsHeaders) {
+  try {
+    const stmt = env.MIRAI_AI_DB.prepare(`
+      SELECT id, title, created_at, updated_at
+      FROM conversations
+      ORDER BY updated_at DESC
+      LIMIT 50
+    `);
+
+    const { results } = await stmt.all();
+
+    return jsonResponse(results, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error listing conversations:', error);
+    return jsonResponse({ error: 'Error obteniendo conversaciones' }, 500, corsHeaders);
+  }
+}
+
+// --- RENOMBRAR CONVERSACIÓN ---
+async function handleRenameConversation(request, env, corsHeaders) {
+  try {
+    const { conversation_id, title } = await request.json();
+
+    if (!conversation_id || !title) {
+      return jsonResponse({ error: 'Faltan campos' }, 400, corsHeaders);
+    }
+
+    const stmt = env.MIRAI_AI_DB.prepare(`
+      UPDATE conversations SET title = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `);
+
+    await stmt.bind(title.substring(0, 100), conversation_id).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error renaming conversation:', error);
+    return jsonResponse({ error: 'Error renombrando conversación' }, 500, corsHeaders);
   }
 }
