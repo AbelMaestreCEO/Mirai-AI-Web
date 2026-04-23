@@ -153,45 +153,57 @@ function hideDropZone() {
   }
 }
 
-// --- PROCESAR ARCHIVO (MODIFICADO) ---
+// --- PROCESAR ARCHIVO (MODIFICADO PARA R2) ---
 async function processFile(file) {
-  // Validar tamaño
   if (file.size > CONFIG.MAX_FILE_SIZE) {
     alert(`El archivo "${file.name}" excede el tamaño máximo de 10MB`);
     return;
   }
 
-  // Validar formato
   const extension = file.name.split('.').pop().toLowerCase();
   if (!CONFIG.SUPPORTED_FORMATS.includes(extension)) {
     alert(`El formato .${extension} no es soportado`);
     return;
   }
 
-  // Mostrar indicador de carga
   const loadingId = `loading-${Date.now()}`;
   addAttachmentChip(file.name, loadingId, true);
 
   try {
-    // Extraer texto según formato
+    // 1. Extraer texto (lo que ya haces)
     const text = await extractTextFromFile(file, extension);
 
-    // Remover loading chip
-    removeAttachmentChip(loadingId);
+    // 2. Subir archivo a R2
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversation_id', state.currentConversationId);
 
-    // Agregar archivo a estado (GUARDAMOS EL TEXTO AQUÍ, NO EN EL INPUT)
+    const uploadResponse = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData // No poner Content-Type manualmente, el navegador lo pone con boundary
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Error subiendo archivo: ${uploadResponse.status}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    
+    // 3. Guardar referencia en estado
     const attachmentId = crypto.randomUUID();
     state.attachments.push({
       id: attachmentId,
       name: file.name,
       type: extension,
-      text: text // El texto se guarda en memoria, listo para enviar
+      text: text,
+      r2_key: uploadData.r2_key, // Guardamos la clave de R2
+      url: uploadData.url // Opcional: URL directa si es pública
     });
 
-    // Agregar chip visual (SIN TEXTO EN EL INPUT)
+    removeAttachmentChip(loadingId);
     addAttachmentChip(file.name, attachmentId, false);
 
-    console.log(`✅ Archivo procesado: ${file.name} (${text.length} caracteres extraídos)`);
+    console.log(`✅ Archivo procesado y guardado en R2: ${file.name}`);
 
   } catch (error) {
     console.error(`Error procesando archivo ${file.name}:`, error);
@@ -346,59 +358,49 @@ function getFileIcon(extension) {
   return icons[extension.toUpperCase()] || '📎';
 }
 
-// --- LÓGICA DE MENSAJES (MODIFICADA PARA INCLUIR ADJUNTOS) ---
+// --- LÓGICA DE MENSAJES (MODIFICADA) ---
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
-
-  // Permitir enviar si hay texto O si hay adjuntos
   if (!userInput && state.attachments.length === 0) return;
 
-  // 1. Construir el mensaje completo
   let fullMessage = userInput;
+  let attachmentIds = []; // Lista de IDs de archivos
 
   if (state.attachments.length > 0) {
-    // Separador visual para los adjuntos
     const attachmentsSection = state.attachments.map(att => {
+      attachmentIds.push(att.id); // Guardamos el ID local
       return `[Archivo: ${att.name}]\n${att.text}`;
     }).join('\n\n---\n\n');
 
-    // Si hay texto de usuario, añadimos un separador antes de los archivos
-    if (fullMessage) {
-      fullMessage += `\n\n---\n\n${attachmentsSection}`;
-    } else {
-      fullMessage = attachmentsSection;
-    }
+    fullMessage = fullMessage 
+      ? `${fullMessage}\n\n---\n\n${attachmentsSection}`
+      : attachmentsSection;
   }
 
-  // 2. Limpiar la interfaz (Input y Adjuntos) ANTES de enviar
+  // Limpiar UI
   elements.messageInput.value = '';
-  state.attachments = []; // Vaciamos el array de adjuntos
-  elements.attachmentsArea.innerHTML = ''; // Limpiamos los chips visuales
+  state.attachments = [];
+  elements.attachmentsArea.innerHTML = '';
   autoResizeTextarea();
 
-  // 3. Estado de envío
   state.isSending = true;
   updateSendButtonState();
   showTypingIndicator();
 
-  try {
-    // Mostrar el mensaje completo en el chat (solo visualmente para el usuario)
-    // Nota: En el chat mostramos el resumen, pero enviamos el texto completo a la IA
-    appendMessage('user', fullMessage);
+  appendMessage('user', fullMessage);
 
-    // Enviar al Worker
+  try {
     const response = await fetch(CONFIG.API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: fullMessage, // Enviamos el texto combinado
-        conversation_id: state.currentConversationId
+        message: fullMessage,
+        conversation_id: state.currentConversationId,
+        attachment_ids: attachmentIds // Enviamos los IDs de los archivos
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
 
     const data = await response.json();
     hideTypingIndicator();
@@ -413,17 +415,7 @@ async function handleSendMessage() {
   } catch (error) {
     console.error('Error enviando mensaje:', error);
     hideTypingIndicator();
-
-    // ERROR: Recuperar el mensaje para que el usuario no lo pierda
-    // (En un caso real, quizás quieras recuperar solo el texto del input, 
-    // pero aquí recuperamos todo para seguridad)
-    appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.');
-
-    // Opcional: Restaurar el texto en el input si falló el envío
-    // elements.messageInput.value = userInput; 
-    // Pero como ya limpiamos los adjuntos, es mejor dejar que el usuario reescriba
-    // o implementar una lógica de "undo" más compleja.
-
+    appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje.');
   } finally {
     state.isSending = false;
     updateSendButtonState();

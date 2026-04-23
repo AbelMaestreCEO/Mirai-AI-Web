@@ -25,3 +25,17 @@ CREATE TABLE IF NOT EXISTS messages (
 -- Índices para optimizar consultas frecuentes
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at DESC);
+
+-- Nueva tabla para archivos adjuntos
+CREATE TABLE IF NOT EXISTS attachments (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    file_type TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+);
+
+-- Índice para búsquedas rápidas
+CREATE INDEX IF NOT EXISTS idx_attachments_conversation_id ON attachments(conversation_id);

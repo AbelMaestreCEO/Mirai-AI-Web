@@ -64,6 +64,11 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleChat(request, env, corsHeaders);
     }
 
+    // NUEVA RUTA: Subida de archivos
+    if (path === '/api/upload' && request.method === 'POST') {
+      return await handleUpload(request, env, corsHeaders);
+    }
+
     // Ruta: GET /api/history/:conversationId
     if (path.startsWith(ROUTES.HISTORY) && request.method === 'GET') {
       const conversationId = path.split('/').pop();
@@ -411,5 +416,73 @@ async function handleDeleteConversation(conversationId, env, corsHeaders) {
   } catch (error) {
     console.error('Error deleting conversation:', error);
     return jsonResponse({ error: error.message }, 500, corsHeaders);
+  }
+}
+
+// --- MANEJAR SUBIDA DE ARCHIVOS A R2 ---
+async function handleUpload(request, env, corsHeaders) {
+  if (request.method !== 'POST') {
+    return jsonResponse({ error: 'Método no permitido' }, 405, corsHeaders);
+  }
+
+  try {
+    // 1. Obtener el archivo del FormData
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const conversationId = formData.get('conversation_id');
+
+    if (!file || !conversationId) {
+      return jsonResponse({ error: 'Faltan el archivo o el conversation_id' }, 400, corsHeaders);
+    }
+
+    // 2. Validar tipo y tamaño (opcional pero recomendado)
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
+      return jsonResponse({ error: 'Tipo de archivo no soportado' }, 400, corsHeaders);
+    }
+
+    // 3. Generar nombre único para el archivo
+    const uniqueId = crypto.randomUUID();
+    const extension = file.name.split('.').pop();
+    const filename = `${uniqueId}.${extension}`;
+
+    // 4. Subir a R2
+    await env.MIRAI_AI_ASSETS.put(filename, file.stream(), {
+      httpMetadata: { contentType: file.type },
+      customMetadata: {
+        conversation_id: conversationId,
+        original_name: file.name,
+        uploaded_at: new Date().toISOString()
+      }
+    });
+
+    // 5. Guardar referencia en D1 (Opcional: si quieres un historial de archivos)
+    // Si prefieres guardar en la tabla messages, puedes hacerlo aquí o en handleChat
+    const stmt = env.MIRAI_AI_DB.prepare(`
+      INSERT INTO attachments (id, conversation_id, r2_key, original_name, file_type, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `);
+    
+    // NOTA: Necesitarás crear la tabla 'attachments' en D1 (ver Paso 4)
+    // Si no quieres tabla extra, guarda el r2_key en el campo 'content' de messages con un prefijo
+    await stmt.bind(uniqueId, conversationId, filename, file.name, file.type).run();
+
+    // 6. Devolver la URL pública (si el bucket es público) o el key
+    // Si el bucket es privado, solo devuelve el key y el Worker servirá el archivo
+    const publicUrl = `https://pub-${env.ACCOUNT_ID}.r2.cloudflarestorage.com/mirai-ai-assets/${filename}`; 
+    // Nota: Reemplaza ACCOUNT_ID con tu ID real o usa una ruta de acceso directo si configuras un dominio
+
+    return jsonResponse({
+      success: true,
+      file_id: uniqueId,
+      r2_key: filename,
+      original_name: file.name,
+      // Si configuras un dominio personalizado para R2, usa esa URL
+      url: `https://assets.aberumirai.com/${filename}` 
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return jsonResponse({ error: 'Error al subir archivo', details: error.message }, 500, corsHeaders);
   }
 }
