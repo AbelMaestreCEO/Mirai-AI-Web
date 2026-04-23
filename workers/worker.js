@@ -121,14 +121,20 @@ async function handleChat(request, env, corsHeaders) {
     const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
         messages: deepseekMessages,
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 2000,
+        stream: true
       })
     });
 

@@ -400,18 +400,26 @@ async function handleSendMessage() {
       throw new Error(`Error HTTP: ${response.status}`);
     }
 
-    const data = await response.json();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
     hideTypingIndicator();
 
-    if (data.response) {
-      appendMessage('assistant', data.response);
-      saveToLocalHistory(data.response);
-    } else {
-      throw new Error('No se recibió respuesta válida');
+    let fullContent = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      // Parsear los eventos SSE
+      const content = parseSSE(chunk);
+      if (content) {
+        fullContent += content;
+        updateLastMessage(fullContent); // Actualizar en tiempo real
+      }
     }
 
-  } catch (error) {
-    console.error('Error enviando mensaje:', error);
+    // Al finalizar, guardar en historial
+    saveToLocalHistory(fullContent);
     hideTypingIndicator();
 
     // ERROR: Recuperar el mensaje para que el usuario no lo pierda
@@ -428,6 +436,15 @@ async function handleSendMessage() {
     state.isSending = false;
     updateSendButtonState();
     elements.messageInput.focus();
+  }
+}
+
+function updateLastMessage(content) {
+  const lastMessage = document.querySelector('.message.ai:last-child .message-content');
+  if (lastMessage) {
+    lastMessage.innerHTML = formatMessageContent(escapeHtml(content));
+    scrollToBottom();
+    addCopyButtons(); // Re-agregar botones de copiar para código
   }
 }
 
