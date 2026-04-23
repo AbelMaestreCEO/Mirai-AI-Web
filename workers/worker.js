@@ -93,71 +93,104 @@ async function handleApiRequest(request, env, corsHeaders) {
   }
 }
 
-// --- MANEJAR CHAT (DeepSeek API) --- CORREGIDO
+// --- MANEJAR CHAT (STREAMING CORREGIDO) ---
 async function handleChat(request, env, corsHeaders) {
-  console.log('🔍 handleChat llamado');
-  console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
-  console.log('🔍 MIRAI_AI_DB presente:', !!env.MIRAI_AI_DB);
+  console.log('🔍 handleChat llamado (Streaming)');
 
   try {
-    const { message, conversation_id } = await request.json();
+    // 1. LEER EL CUERPO (Solo JSON de entrada)
+    let data;
+    try {
+      data = await request.json();
+    } catch (e) {
+      console.error('Error parseando JSON de entrada:', e);
+      return new Response(JSON.stringify({ error: 'Cuerpo inválido. Debe ser JSON.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
-    // Validar entrada
+    const { message, conversation_id } = data;
+
+    // 2. VALIDAR ENTRADA
     if (!message || typeof message !== 'string') {
-      return jsonResponse({ error: 'El campo "message" es requerido' }, 400, corsHeaders);
+      return new Response(JSON.stringify({ error: 'El campo "message" es requerido' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
     if (!conversation_id || typeof conversation_id !== 'string') {
-      return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
+      return new Response(JSON.stringify({ error: 'El campo "conversation_id" es requerido' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    // 1. ASEGURAR QUE LA CONVERSACIÓN EXISTA PRIMERO (CRÍTICO)
+    // 3. ASEGURAR CONVERSACIÓN Y OBTER HISTORIAL
     await ensureConversationExists(conversation_id, message, env);
-
-    // 2. Obtener historial (ahora la conversación existe)
     const history = await getConversationHistory(conversation_id, env);
-
-    // 3. Llamar a DeepSeek
     const deepseekMessages = buildDeepseekMessages(message, history);
+
+    // 4. LLAMAR A DEEPSEEK (SOLO CABECERAS DE PETICIÓN)
     const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        'Content-Type': 'application/json', // <--- ¡CORRECTO! DeepSeek espera JSON
+        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
         model: DEEPSEEK_MODEL,
         messages: deepseekMessages,
         temperature: 0.7,
         max_tokens: 2000,
-        stream: true
+        stream: true // <--- Activamos streaming
       })
     });
 
     if (!deepseekResponse.ok) {
       const errorData = await deepseekResponse.text();
       console.error('DeepSeek API error:', errorData);
-      return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
+      return new Response(JSON.stringify({ error: 'Error con DeepSeek API', details: errorData }), {
+        status: deepseekResponse.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    const deepseekData = await deepseekResponse.json();
-    const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
+    // 5. PROXYEAR EL STREAM AL FRONTEND
+    // Creamos un TransformStream para capturar el contenido y guardarlo en D1 al final
+    let fullContent = '';
+    const transformer = new TransformStream({
+      transform(chunk, controller) {
+        const text = new TextDecoder().decode(chunk);
+        fullContent += text;
+        controller.enqueue(chunk); // Reenviamos el chunk al cliente
+      },
+      flush() {
+        // Al finalizar el stream, guardamos en D1
+        console.log('Stream finalizado. Guardando en D1...');
+        saveMessage(conversation_id, 'user', message, env).catch(console.error);
+        saveMessage(conversation_id, 'assistant', fullContent, env).catch(console.error);
+        updateConversationTimestamp(conversation_id, env).catch(console.error);
+      }
+    });
 
-    // 4. AHORA SÍ, GUARDAR MENSAJES (la FK ya está satisfecha)
-    await saveMessage(conversation_id, 'user', message, env);
-    await saveMessage(conversation_id, 'assistant', aiResponse, env);
-    await updateConversationTimestamp(conversation_id, env);
-
-    return jsonResponse({ response: aiResponse }, 200, corsHeaders);
+    // Devolvemos el stream transformado
+    return new Response(deepseekResponse.body.pipeThrough(transformer), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream', // <--- ¡CORRECTO! Frontend espera SSE
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Transfer-Encoding': 'chunked'
+      }
+    });
 
   } catch (error) {
     console.error('Chat handler error:', error.message);
-    console.error('Stack:', error.stack);
-    return jsonResponse({ error: 'Error procesando el mensaje', details: error.message }, 500, corsHeaders);
+    return new Response(JSON.stringify({ error: 'Error interno', details: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 }
 

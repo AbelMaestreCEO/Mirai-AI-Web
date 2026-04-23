@@ -439,6 +439,31 @@ async function handleSendMessage() {
   }
 }
 
+// --- PARSER DE EVENTOS SSE (AGREGAR EN app.js) ---
+function parseSSE(chunk) {
+  // El chunk viene como "data: {...}\n\n"
+  const lines = chunk.split('\n');
+  let content = '';
+
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
+      
+      try {
+        const json = JSON.parse(data);
+        const delta = json.choices?.[0]?.delta?.content;
+        if (delta) {
+          content += delta;
+        }
+      } catch (e) {
+        // Ignorar errores de parseo en fragmentos incompletos
+      }
+    }
+  }
+  return content;
+}
+
 function updateLastMessage(content) {
   const lastMessage = document.querySelector('.message.ai:last-child .message-content');
   if (lastMessage) {
