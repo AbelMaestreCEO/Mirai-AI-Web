@@ -346,41 +346,45 @@ function getFileIcon(extension) {
   return icons[extension.toUpperCase()] || '📎';
 }
 
-// --- LÓGICA DE MENSAJES (STREAMING CORREGIDO) ---
+// --- LÓGICA DE MENSAJES (CORREGIDA Y ROBUSTA) ---
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
 
-  // Permitir enviar si hay texto O si hay adjuntos
-  if (!userInput && state.attachments.length === 0) return;
-
-  // 1. Construir el mensaje completo
-  let fullMessage = userInput;
-
-  if (state.attachments.length > 0) {
-    const attachmentsSection = state.attachments.map(att => {
-      return `[Archivo: ${att.name}]\n${att.text}`;
-    }).join('\n\n---\n\n');
-
-    if (fullMessage) {
-      fullMessage += `\n\n---\n\n${attachmentsSection}`;
-    } else {
-      fullMessage = attachmentsSection;
-    }
+  // Validar que haya algo que enviar
+  if (!userInput && state.attachments.length === 0) {
+    console.warn('No hay contenido para enviar');
+    return;
   }
 
-  // 2. Limpiar la interfaz (Input y Adjuntos) ANTES de enviar
+  // 1. Construir el mensaje completo (texto + adjuntos)
+  let fullMessage = userInput;
+  if (state.attachments.length > 0) {
+    const attachmentsSection = state.attachments.map(att => 
+      `[Archivo: ${att.name}]\n${att.text}`
+    ).join('\n\n---\n\n');
+    
+    fullMessage = fullMessage 
+      ? `${fullMessage}\n\n---\n\n${attachmentsSection}`
+      : attachmentsSection;
+  }
+
+  // 2. Limpiar input y adjuntos INMEDIATAMENTE
   elements.messageInput.value = '';
   state.attachments = [];
   elements.attachmentsArea.innerHTML = '';
   autoResizeTextarea();
 
-  // 3. Estado de envío
+  // 3. Mostrar mensaje del usuario INMEDIATAMENTE
+  appendMessage('user', fullMessage);
+
+  // 4. Crear mensaje de IA vacío (placeholder)
+  appendMessage('assistant', '');
+
+  // 5. Estado de envío
   state.isSending = true;
   updateSendButtonState();
-  showTypingIndicator();
-
-  // 4. Crear mensaje de IA vacío (para ir actualizando)
-  appendMessage('assistant', '');
+  // Ocultar indicador de escritura (ya tenemos el placeholder)
+  hideTypingIndicator();
 
   try {
     const response = await fetch(CONFIG.API_ENDPOINT, {
@@ -393,10 +397,14 @@ async function handleSendMessage() {
     });
 
     if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // 5. LEER EL STREAM
+    // 6. Leer el STREAM
+    if (!response.body) {
+      throw new Error('El cuerpo de la respuesta es nulo');
+    }
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let fullContent = '';
@@ -405,53 +413,56 @@ async function handleSendMessage() {
       const { done, value } = await reader.read();
       if (done) break;
 
-      // Decodificar con stream: true para evitar cortar caracteres UTF-8
       const chunk = decoder.decode(value, { stream: true });
-      
-      // Parsear eventos SSE
       const lines = chunk.split('\n');
+
       for (const line of lines) {
+        // Solo procesar líneas que empiezan con "data: "
         if (line.startsWith('data: ')) {
           const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
           
+          if (data === '[DONE]') {
+            break; // Fin del stream
+          }
+
           try {
             const json = JSON.parse(data);
             const delta = json.choices?.[0]?.delta?.content;
+            
             if (delta) {
               fullContent += delta;
-              // Actualizar el último mensaje en tiempo real
-              updateLastMessage(fullContent);
+              updateLastMessage(fullContent); // Actualizar UI en tiempo real
             }
-          } catch (e) {
-            // Ignorar errores de parseo en fragmentos incompletos
-            console.debug('Parse error (ignorable):', e);
+          } catch (parseError) {
+            // Ignorar errores de parseo (fragmentos incompletos)
+            console.debug('Chunk incompleto ignorado:', parseError.message);
           }
         }
       }
     }
 
-    // 6. Al finalizar, guardar en historial local
-    hideTypingIndicator();
+    // 7. Finalización exitosa
+    console.log('✅ Stream completado. Longitud:', fullContent.length);
     saveToLocalHistory(fullContent);
 
   } catch (error) {
-    console.error('Error enviando mensaje:', error);
-    hideTypingIndicator();
+    console.error('❌ Error en handleSendMessage:', error);
     
-    // Eliminar el mensaje de IA vacío si falló
+    // Si falló, eliminar el mensaje de IA vacío y mostrar error
     const lastAiMessage = document.querySelector('.message.ai:last-child');
     if (lastAiMessage) {
       lastAiMessage.remove();
     }
     
-    appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.');
+    appendMessage('system', `⚠️ Error: ${error.message}. Inténtalo de nuevo.`);
+    
   } finally {
     state.isSending = false;
     updateSendButtonState();
     elements.messageInput.focus();
   }
 }
+
 
 // --- PARSER DE EVENTOS SSE (AGREGAR EN app.js) ---
 function parseSSE(chunk) {
@@ -478,16 +489,22 @@ function parseSSE(chunk) {
   return content;
 }
 
-// --- ACTUALIZAR ÚLTIMO MENSAJE EN TIEMPO REAL ---
+// --- ACTUALIZAR ÚLTIMO MENSAJE (IA) ---
 function updateLastMessage(content) {
-  const lastMessage = document.querySelector('.message.ai:last-child .message-content');
-  if (lastMessage) {
-    // Solo actualizar el contenido, no los botones todavía
-    lastMessage.innerHTML = formatMessageContent(escapeHtml(content));
-    scrollToBottom();
-    // Re-agregar botones de copiar para código
-    addCopyButtons();
-  }
+  const lastAiMessage = document.querySelector('.message.ai:last-child');
+  if (!lastAiMessage) return;
+
+  const contentDiv = lastAiMessage.querySelector('.message-content');
+  if (!contentDiv) return;
+
+  // Actualizar solo el contenido, no los botones todavía
+  contentDiv.innerHTML = formatMessageContent(escapeHtml(content));
+  
+  // Scroll suave
+  scrollToBottom();
+  
+  // Re-agregar botones de copiar para código (importante en streaming)
+  addCopyButtons();
 }
 
 // --- INICIALIZACIÓN DE VOZ (WEB SPEECH API) ---
