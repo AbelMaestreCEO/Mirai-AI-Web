@@ -643,7 +643,7 @@ async function handleClearConversation() {
   }
 }
 
-// --- MODIFICAR appendMessage PARA LLAMAR addCopyButtons ---
+// --- APENDAR MENSAJE CON BOTONES DE ACCIÓN (IA SOLO) ---
 function appendMessage(role, content, animate = true) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
@@ -653,12 +653,53 @@ function appendMessage(role, content, animate = true) {
   const avatar = role === 'user' ? 'U' : 'M';
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
+  // Botones de acción (solo para IA)
+  let actionButtonsHTML = '';
+  if (role === 'assistant') {
+    actionButtonsHTML = `
+      <div class="message-actions">
+        <button class="action-btn copy-full-btn" title="Copiar respuesta completa">
+          <svg viewBox="0 0 24 24" width="14" height="14">
+            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+          </svg>
+        </button>
+        <button class="action-btn regenerate-btn" title="Regenerar respuesta">
+          <svg viewBox="0 0 24 24" width="14" height="14">
+            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+        </button>
+        <button class="action-btn options-btn" title="Más opciones">
+          <svg viewBox="0 0 24 24" width="14" height="14">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+        </button>
+        
+        <!-- Menú desplegable de opciones -->
+        <div class="action-menu hidden">
+          <button class="menu-item" data-action="summarize">
+            <span>📝</span> Resumir
+          </button>
+          <button class="menu-item" data-action="extend">
+            <span>📈</span> Extender
+          </button>
+          <button class="menu-item" data-action="formal">
+            <span>👔</span> Tono Formal
+          </button>
+          <button class="menu-item" data-action="friendly">
+            <span>😊</span> Tono Amigable
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  
   messageDiv.innerHTML = `
     ${role !== 'system' ? `<div class="message-avatar">${avatar}</div>` : ''}
     <div class="message-content">
       ${formattedContent}
       ${role !== 'system' ? `<div class="message-time">${time}</div>` : ''}
     </div>
+    ${actionButtonsHTML}
   `;
   
   if (animate) {
@@ -668,8 +709,214 @@ function appendMessage(role, content, animate = true) {
   elements.chatMessages.appendChild(messageDiv);
   scrollToBottom();
   
-  // Agregar botones de copiar después de insertar el mensaje
+  // Agregar botones de copiar para código
   addCopyButtons();
+  
+  // Agregar listeners para botones de acción
+  addActionButtonsListeners(messageDiv, content);
+}
+
+function addActionButtonsListeners(messageDiv, content) {
+  // Botón Copiar Completo
+  const copyFullBtn = messageDiv.querySelector('.copy-full-btn');
+  if (copyFullBtn) {
+    copyFullBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(content);
+        showActionFeedback(copyFullBtn, '¡Copiado!', 'success');
+      } catch (err) {
+        showActionFeedback(copyFullBtn, 'Error', 'error');
+      }
+    });
+  }
+  
+  // Botón Regenerar
+  const regenerateBtn = messageDiv.querySelector('.regenerate-btn');
+  if (regenerateBtn) {
+    regenerateBtn.addEventListener('click', async () => {
+      await regenerateResponse(messageDiv, content);
+    });
+  }
+  
+  // Botón Opciones (menú desplegable)
+  const optionsBtn = messageDiv.querySelector('.options-btn');
+  const actionMenu = messageDiv.querySelector('.action-menu');
+  
+  if (optionsBtn && actionMenu) {
+    optionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      actionMenu.classList.toggle('hidden');
+    });
+    
+    // Cerrar menú al hacer clic fuera
+    document.addEventListener('click', () => {
+      actionMenu.classList.add('hidden');
+    });
+    
+    // Items del menú
+    const menuItems = actionMenu.querySelectorAll('.menu-item');
+    menuItems.forEach(item => {
+      item.addEventListener('click', async () => {
+        const action = item.dataset.action;
+        actionMenu.classList.add('hidden');
+        await modifyResponse(messageDiv, content, action);
+      });
+    });
+  }
+}
+
+// --- MODIFICAR RESPUESTA (Resumir, Extender, etc.) ---
+async function modifyResponse(messageDiv, originalContent, action) {
+  const actionPrompts = {
+    summarize: 'Por favor, resume la siguiente respuesta de manera concisa:\n\n',
+    extend: 'Por favor, expande y detalla más la siguiente respuesta:\n\n',
+    formal: 'Por favor, reescribe la siguiente respuesta con un tono más formal y profesional:\n\n',
+    friendly: 'Por favor, reescribe la siguiente respuesta con un tono más amigable y cercano:\n\n'
+  };
+  
+  const prompt = actionPrompts[action] + originalContent;
+  
+  // Mostrar estado de carga
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'message ai loading-message';
+  loadingDiv.innerHTML = `
+    <div class="message-avatar">M</div>
+    <div class="message-content">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  
+  messageDiv.after(loadingDiv);
+  messageDiv.style.opacity = '0.5';
+  scrollToBottom();
+  
+  try {
+    const response = await fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: prompt,
+        conversation_id: state.currentConversationId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Remover mensaje de carga
+    loadingDiv.remove();
+    
+    // Reemplazar mensaje original con respuesta modificada
+    if (data.response) {
+      messageDiv.querySelector('.message-content').innerHTML = formatMessageContent(escapeHtml(data.response));
+      messageDiv.style.opacity = '1';
+      
+      // Recargar botones
+      addActionButtonsListeners(messageDiv, data.response);
+      addCopyButtons();
+      
+      // Guardar en historial
+      saveToLocalHistory(data.response);
+    }
+    
+  } catch (error) {
+    console.error('Error modificando respuesta:', error);
+    loadingDiv.remove();
+    messageDiv.style.opacity = '1';
+    alert('Error al modificar la respuesta. Inténtalo de nuevo.');
+  }
+}
+
+// --- REGENERAR RESPUESTA ---
+async function regenerateResponse(messageDiv, originalContent) {
+  // Obtener mensaje del usuario anterior
+  const prevMessage = messageDiv.previousElementSibling;
+  if (!prevMessage || !prevMessage.classList.contains('user')) {
+    alert('No hay mensaje anterior para regenerar');
+    return;
+  }
+  
+  const userContent = prevMessage.querySelector('.message-content').textContent;
+  
+  // Mostrar estado de carga
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'message ai loading-message';
+  loadingDiv.innerHTML = `
+    <div class="message-avatar">M</div>
+    <div class="message-content">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  
+  messageDiv.after(loadingDiv);
+  messageDiv.style.opacity = '0.5';
+  scrollToBottom();
+  
+  try {
+    const response = await fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: userContent + '\n\n(Por favor, genera una respuesta diferente)',
+        conversation_id: state.currentConversationId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Remover mensaje de carga
+    loadingDiv.remove();
+    
+    // Reemplazar mensaje original con nueva respuesta
+    if (data.response) {
+      messageDiv.querySelector('.message-content').innerHTML = formatMessageContent(escapeHtml(data.response));
+      messageDiv.style.opacity = '1';
+      
+      // Recargar botones
+      addActionButtonsListeners(messageDiv, data.response);
+      addCopyButtons();
+      
+      // Guardar en historial
+      saveToLocalHistory(data.response);
+    }
+    
+  } catch (error) {
+    console.error('Error regenerando:', error);
+    loadingDiv.remove();
+    messageDiv.style.opacity = '1';
+    alert('Error al regenerar la respuesta. Inténtalo de nuevo.');
+  }
+}
+
+// --- MOSTRAR FEEDBACK EN BOTONES ---
+function showActionFeedback(button, text, type) {
+  const originalHTML = button.innerHTML;
+  const originalTitle = button.title;
+  
+  button.innerHTML = type === 'success' ? '✓' : '✗';
+  button.title = text;
+  button.classList.add(type);
+  
+  setTimeout(() => {
+    button.innerHTML = originalHTML;
+    button.title = originalTitle;
+    button.classList.remove(type);
+  }, 2000);
 }
 
 function showTypingIndicator() {
