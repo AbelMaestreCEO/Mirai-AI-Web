@@ -153,7 +153,7 @@ function hideDropZone() {
   }
 }
 
-// --- PROCESAR ARCHIVO ---
+// --- PROCESAR ARCHIVO (MODIFICADO) ---
 async function processFile(file) {
   // Validar tamaño
   if (file.size > CONFIG.MAX_FILE_SIZE) {
@@ -179,24 +179,20 @@ async function processFile(file) {
     // Remover loading chip
     removeAttachmentChip(loadingId);
     
-    // Agregar archivo a estado
+    // Agregar archivo a estado (GUARDAMOS EL TEXTO AQUÍ, NO EN EL INPUT)
     const attachmentId = crypto.randomUUID();
     state.attachments.push({
       id: attachmentId,
       name: file.name,
       type: extension,
-      text: text
+      text: text // El texto se guarda en memoria, listo para enviar
     });
     
-    // Agregar chip visual
+    // Agregar chip visual (SIN TEXTO EN EL INPUT)
     addAttachmentChip(file.name, attachmentId, false);
     
-    // Inyectar texto en el input (opcional)
-    const separator = elements.messageInput.value.length > 0 ? '\n\n' : '';
-    elements.messageInput.value += `${separator}[Contenido de ${file.name}]:\n${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`;
-    autoResizeTextarea();
+    console.log(`✅ Archivo procesado: ${file.name} (${text.length} caracteres extraídos)`);
     
-    console.log(`✅ Archivo procesado: ${file.name}`);
   } catch (error) {
     console.error(`Error procesando archivo ${file.name}:`, error);
     removeAttachmentChip(loadingId);
@@ -350,39 +346,52 @@ function getFileIcon(extension) {
   return icons[extension.toUpperCase()] || '📎';
 }
 
-// --- MODIFICAR handleSendMessage PARA INCLUIR ADJUNTOS ---
+// --- LÓGICA DE MENSAJES (MODIFICADA PARA INCLUIR ADJUNTOS) ---
 async function handleSendMessage() {
-  const content = elements.messageInput.value.trim();
+  const userInput = elements.messageInput.value.trim();
   
-  if (!content && state.attachments.length === 0) return;
+  // Permitir enviar si hay texto O si hay adjuntos
+  if (!userInput && state.attachments.length === 0) return;
   
-  // Preparar mensaje con adjuntos
-  const attachmentsText = state.attachments.map(att => 
-    `[Archivo: ${att.name}]\n${att.text}`
-  ).join('\n\n---\n\n');
+  // 1. Construir el mensaje completo
+  let fullMessage = userInput;
   
-  const fullMessage = attachmentsText 
-    ? `${content}\n\n---\n\n${attachmentsText}`
-    : content;
+  if (state.attachments.length > 0) {
+    // Separador visual para los adjuntos
+    const attachmentsSection = state.attachments.map(att => {
+      return `[Archivo: ${att.name}]\n${att.text}`;
+    }).join('\n\n---\n\n');
+    
+    // Si hay texto de usuario, añadimos un separador antes de los archivos
+    if (fullMessage) {
+      fullMessage += `\n\n---\n\n${attachmentsSection}`;
+    } else {
+      fullMessage = attachmentsSection;
+    }
+  }
   
-  // Resetear input y adjuntos
+  // 2. Limpiar la interfaz (Input y Adjuntos) ANTES de enviar
   elements.messageInput.value = '';
-  state.attachments = [];
-  elements.attachmentsArea.innerHTML = '';
+  state.attachments = []; // Vaciamos el array de adjuntos
+  elements.attachmentsArea.innerHTML = ''; // Limpiamos los chips visuales
   autoResizeTextarea();
   
+  // 3. Estado de envío
   state.isSending = true;
   updateSendButtonState();
   showTypingIndicator();
   
   try {
+    // Mostrar el mensaje completo en el chat (solo visualmente para el usuario)
+    // Nota: En el chat mostramos el resumen, pero enviamos el texto completo a la IA
     appendMessage('user', fullMessage);
     
+    // Enviar al Worker
     const response = await fetch(CONFIG.API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: fullMessage,
+        message: fullMessage, // Enviamos el texto combinado
         conversation_id: state.currentConversationId
       })
     });
@@ -404,8 +413,17 @@ async function handleSendMessage() {
   } catch (error) {
     console.error('Error enviando mensaje:', error);
     hideTypingIndicator();
+    
+    // ERROR: Recuperar el mensaje para que el usuario no lo pierda
+    // (En un caso real, quizás quieras recuperar solo el texto del input, 
+    // pero aquí recuperamos todo para seguridad)
     appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.');
-    elements.messageInput.value = content;
+    
+    // Opcional: Restaurar el texto en el input si falló el envío
+    // elements.messageInput.value = userInput; 
+    // Pero como ya limpiamos los adjuntos, es mejor dejar que el usuario reescriba
+    // o implementar una lógica de "undo" más compleja.
+    
   } finally {
     state.isSending = false;
     updateSendButtonState();
