@@ -1538,3 +1538,12 @@ footer.footer {
     font-size: 0.8rem;
   }
 }
+
+/* Botón de editar */
+.edit-btn {
+  /* Hereda estilos de .msg-action, pero puedes agregar diferencias si quieres */
+}
+
+.edit-btn:hover {
+  color: #f59e0b; /* Color ámbar para editar */
+}

@@ -188,7 +188,7 @@ async function processFile(file) {
     }
 
     const uploadData = await uploadResponse.json();
-    
+
     // 3. Guardar referencia en estado
     const attachmentId = crypto.randomUUID();
     state.attachments.push({
@@ -320,15 +320,26 @@ function addAttachmentChip(fileName, id, isLoading) {
   const extension = fileName.split('.').pop().toUpperCase();
   const icon = getFileIcon(extension);
 
+  // Construir el HTML SIN el onclick
   chip.innerHTML = `
     <span class="attachment-icon">${icon}</span>
     <span class="attachment-name" title="${fileName}">${fileName}</span>
     ${isLoading ? '<span class="attachment-loading">⏳</span>' : `
-      <span class="attachment-remove" onclick="removeAttachment('${id}')">×</span>
+      <span class="attachment-remove">×</span>
     `}
   `;
 
   elements.attachmentsArea.appendChild(chip);
+
+  // AGREGAR EL EVENTO LISTENER AQUÍ (si no está cargando)
+  if (!isLoading) {
+    const removeBtn = chip.querySelector('.attachment-remove');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        removeAttachment(id);
+      });
+    }
+  }
 }
 
 function removeAttachmentChip(id) {
@@ -358,36 +369,49 @@ function getFileIcon(extension) {
   return icons[extension.toUpperCase()] || '📎';
 }
 
-// --- LÓGICA DE MENSAJES (MODIFICADA) ---
+// --- LÓGICA DE MENSAJES (ACTUALIZADA PARA EDICIÓN) ---
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
   if (!userInput && state.attachments.length === 0) return;
 
+  // 1. Construir mensaje
   let fullMessage = userInput;
-  let attachmentIds = []; // Lista de IDs de archivos
-
+  let attachmentIds = [];
+  
   if (state.attachments.length > 0) {
     const attachmentsSection = state.attachments.map(att => {
-      attachmentIds.push(att.id); // Guardamos el ID local
+      attachmentIds.push(att.id);
       return `[Archivo: ${att.name}]\n${att.text}`;
     }).join('\n\n---\n\n');
-
-    fullMessage = fullMessage 
-      ? `${fullMessage}\n\n---\n\n${attachmentsSection}`
-      : attachmentsSection;
+    fullMessage = fullMessage ? `${fullMessage}\n\n---\n\n${attachmentsSection}` : attachmentsSection;
   }
 
-  // Limpiar UI
+  // 2. Limpiar UI
   elements.messageInput.value = '';
   state.attachments = [];
   elements.attachmentsArea.innerHTML = '';
   autoResizeTextarea();
 
+  // 3. Estado de envío
   state.isSending = true;
   updateSendButtonState();
   showTypingIndicator();
 
+  // 4. Mostrar mensaje del usuario
   appendMessage('user', fullMessage);
+
+  // 5. DETECCIÓN DE EDICIÓN: 
+  // Si el último mensaje de la IA existe, lo eliminamos para regenerar
+  const messages = document.querySelectorAll('.message');
+  const lastAiMessage = Array.from(messages).reverse().find(m => m.classList.contains('assistant'));
+  
+  if (lastAiMessage) {
+    // Si hay un mensaje de IA anterior, asumimos que es una edición
+    // Eliminamos el mensaje de IA y el mensaje de usuario que acabamos de poner (para reemplazarlo)
+    // Nota: En este flujo simple, el usuario acaba de enviar, así que el mensaje de IA anterior es el que我们要 borrar.
+    lastAiMessage.remove();
+    console.log('🔄 Regenerando respuesta tras edición...');
+  }
 
   try {
     const response = await fetch(CONFIG.API_ENDPOINT, {
@@ -395,8 +419,7 @@ async function handleSendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: fullMessage,
-        conversation_id: state.currentConversationId,
-        attachment_ids: attachmentIds // Enviamos los IDs de los archivos
+        conversation_id: state.currentConversationId
       })
     });
 
@@ -422,7 +445,6 @@ async function handleSendMessage() {
     elements.messageInput.focus();
   }
 }
-
 // --- INICIALIZACIÓN DE VOZ (WEB SPEECH API) ---
 function initializeVoiceRecognition() {
   // Detectar soporte del navegador
@@ -639,7 +661,7 @@ async function handleClearConversation() {
   }
 }
 
-// --- APENDAR MENSAJE CON ACCIONES JUNTO A LA HORA ---
+// --- APENDAR MENSAJE CON BOTÓN EDITAR (USUARIO) ---
 function appendMessage(role, content, animate = true) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
@@ -649,48 +671,51 @@ function appendMessage(role, content, animate = true) {
   const avatar = role === 'user' ? 'U' : 'M';
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Fila inferior: hora + botones (solo para IA)
+  // Fila inferior: hora + botones
   let metaRow = '';
+
   if (role === 'assistant') {
+    // Botones de IA (Copiar, Regenerar, Opciones)
     metaRow = `
       <div class="message-meta">
         <span class="message-time">${time}</span>
         <div class="message-actions">
           <button class="msg-action copy-full-btn" title="Copiar respuesta">
-            <svg viewBox="0 0 24 24" width="14" height="14">
-              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-            </svg>
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
           </button>
           <button class="msg-action regenerate-btn" title="Regenerar respuesta">
-            <svg viewBox="0 0 24 24" width="14" height="14">
-              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-            </svg>
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
           </button>
           <div class="options-wrapper">
             <button class="msg-action options-btn" title="Más opciones">
-              <svg viewBox="0 0 24 24" width="14" height="14">
-                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-              </svg>
+              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
             </button>
             <div class="action-menu hidden">
-              <button class="menu-item" data-action="summarize">
-                <span>📝</span> Resumir
-              </button>
-              <button class="menu-item" data-action="extend">
-                <span>📈</span> Extender
-              </button>
-              <button class="menu-item" data-action="formal">
-                <span>👔</span> Tono Formal
-              </button>
-              <button class="menu-item" data-action="friendly">
-                <span>😊</span> Tono Amigable
-              </button>
+              <button class="menu-item" data-action="summarize"><span>📝</span> Resumir</button>
+              <button class="menu-item" data-action="extend"><span>📈</span> Extender</button>
+              <button class="menu-item" data-action="formal"><span>👔</span> Tono Formal</button>
+              <button class="menu-item" data-action="friendly"><span>😊</span> Tono Amigable</button>
             </div>
           </div>
         </div>
       </div>
     `;
-  } else if (role !== 'system') {
+  } else if (role === 'user') {
+    // Botones de Usuario (Solo Editar)
+    metaRow = `
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+        <div class="message-actions">
+          <button class="msg-action edit-btn" title="Editar mensaje" data-original-content="${escapedContent}">
+            <svg viewBox="0 0 24 24" width="14" height="14">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Sistema (Solo hora)
     metaRow = `
       <div class="message-meta">
         <span class="message-time">${time}</span>
@@ -760,6 +785,33 @@ function addActionButtonsListeners(messageDiv, content) {
       });
     });
   }
+  const editBtn = messageDiv.querySelector('.edit-btn');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      const originalContent = editBtn.getAttribute('data-original-content');
+      const decodedContent = decodeHtml(originalContent); // Decodificar entidades HTML
+
+      // 1. Poner el contenido en el input
+      elements.messageInput.value = decodedContent;
+      autoResizeTextarea();
+
+      // 2. Eliminar el mensaje actual del chat
+      messageDiv.remove();
+
+      // 3. Enfocar el input
+      elements.messageInput.focus();
+
+      // 4. (Opcional) Mostrar un aviso visual
+      console.log('✏️ Mensaje editado. Envía de nuevo para regenerar la respuesta.');
+    });
+  }
+}
+
+// --- UTILIDAD: Decodificar HTML Entities ---
+function decodeHtml(html) {
+  const txt = document.createElement('textarea');
+  txt.innerHTML = html;
+  return txt.value;
 }
 
 // --- MODIFICAR RESPUESTA ---
