@@ -372,15 +372,19 @@ function getFileIcon(extension) {
   return icons[extension.toUpperCase()] || '📎';
 }
 
-// --- LÓGICA DE MENSAJES (ACTUALIZADA PARA EDICIÓN) ---
+// --- LÓGICA DE MENSAJES (CON DETECCIÓN DE IMAGEN) ---
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
   if (!userInput && state.attachments.length === 0) return;
 
-  // 1. Construir mensaje
+  // 1. Detectar si es una petición de imagen
+  const imageKeywords = ['genera', 'dibuja', 'crea', 'imagen', 'foto', 'ilustración', 'render', 'make', 'draw', 'create'];
+  const isImageRequest = imageKeywords.some(keyword => userInput.toLowerCase().includes(keyword));
+
+  // 2. Construir mensaje
   let fullMessage = userInput;
   let attachmentIds = [];
-
+  
   if (state.attachments.length > 0) {
     const attachmentsSection = state.attachments.map(att => {
       attachmentIds.push(att.id);
@@ -389,60 +393,70 @@ async function handleSendMessage() {
     fullMessage = fullMessage ? `${fullMessage}\n\n---\n\n${attachmentsSection}` : attachmentsSection;
   }
 
-  // 2. Limpiar UI
+  // Limpiar UI
   elements.messageInput.value = '';
   state.attachments = [];
   elements.attachmentsArea.innerHTML = '';
   autoResizeTextarea();
 
-  // 3. Estado de envío
+  // Mostrar mensaje del usuario
+  appendMessage('user', fullMessage);
+
   state.isSending = true;
   updateSendButtonState();
   showTypingIndicator();
 
-  // 4. Mostrar mensaje del usuario
-  appendMessage('user', fullMessage);
-
-  // 5. DETECCIÓN DE EDICIÓN: 
-  // Si el último mensaje de la IA existe, lo eliminamos para regenerar
-  const messages = document.querySelectorAll('.message');
-  const lastAiMessage = Array.from(messages).reverse().find(m => m.classList.contains('assistant'));
-
-  if (lastAiMessage) {
-    // Si hay un mensaje de IA anterior, asumimos que es una edición
-    // Eliminamos el mensaje de IA y el mensaje de usuario que acabamos de poner (para reemplazarlo)
-    // Nota: En este flujo simple, el usuario acaba de enviar, así que el mensaje de IA anterior es el que我们要 borrar.
-    lastAiMessage.remove();
-    console.log('🔄 Regenerando respuesta tras edición...');
-  }
-
   try {
-    const response = await fetch(CONFIG.API_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: fullMessage,
-        conversation_id: state.currentConversationId
-      })
-    });
+    let responseData;
 
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    if (isImageRequest) {
+      // --- LLAMAR A GENERADOR DE IMÁGENES ---
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: userInput, // Usamos el mensaje completo como prompt
+          conversation_id: state.currentConversationId
+        })
+      });
 
-    const data = await response.json();
-    hideTypingIndicator();
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+      responseData = await response.json();
 
-    if (data.response) {
-      appendMessage('assistant', data.response);
-      loadConversations();
-      saveToLocalHistory(data.response);
+      // Mostrar la imagen
+      if (responseData.success && responseData.image_url) {
+        const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
+        appendMessage('assistant', imageMarkdown);
+      } else {
+        throw new Error('No se generó imagen');
+      }
+
     } else {
-      throw new Error('No se recibió respuesta válida');
+      // --- LLAMAR A DEEPSEEK (TEXTO NORMAL) ---
+      const response = await fetch(CONFIG.API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: fullMessage,
+          conversation_id: state.currentConversationId
+        })
+      });
+
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+      responseData = await response.json();
+
+      if (responseData.response) {
+        appendMessage('assistant', responseData.response);
+      } else {
+        throw new Error('No se recibió respuesta válida');
+      }
     }
+
+    saveToLocalHistory(responseData.response || responseData.response_text);
 
   } catch (error) {
     console.error('Error enviando mensaje:', error);
-    hideTypingIndicator();
-    appendMessage('system', '⚠️ Hubo un error al procesar tu mensaje.');
+    appendMessage('system', `⚠️ Error: ${error.message}`);
   } finally {
     state.isSending = false;
     updateSendButtonState();

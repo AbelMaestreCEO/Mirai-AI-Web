@@ -1,0 +1,12 @@
+# Archivos con secretos
+.dev.vars
+.env
+.env.local
+wrangler-account.json
+
+# Dependencias
+node_modules/
+
+# Build
+dist/
+.wrangler/
