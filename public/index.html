@@ -139,6 +139,16 @@
             <span class="hamburger-line"></span>
             <span class="hamburger-line"></span>
         </button>
+        <button id="audio-mode-toggle" class="audio-mode-toggle" title="Alternar modo audio/texto">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+            </svg>
+            <span>Auto</span>
+        </button>
+        <script>
+            // Agregar listener para el botón
+            document.getElementById('audio-mode-toggle')?.addEventListener('click', toggleAudioMode);
+        </script>
         <!-- Overlay de fondo oscuro (para cerrar al hacer clic fuera) -->
 
 

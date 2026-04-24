@@ -13,7 +13,9 @@ const CONFIG = {
   DEBOUNCE_DELAY: 300,
   VOICE_LANG: 'es-ES',
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-  SUPPORTED_FORMATS: ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv']
+  SUPPORTED_FORMATS: ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'],
+  TTS_AUTO_PLAY: false,           // No autoplay por defecto (mejor UX)
+  TTS_MODE_KEY: 'mirai-ai-audio-mode',
 };
 
 // --- ELEMENTOS DEL DOM ---
@@ -32,6 +34,8 @@ const elements = {
   voiceBtn: document.getElementById('voice-btn'),
   conversationsList: document.getElementById('conversations-list'),
   newConversationBtn: document.getElementById('new-conversation-btn'),
+  audioModeToggle: document.getElementById('audio-mode-toggle'),
+  
 };
 
 // --- ESTADO DE LA APLICACIÓN ---
@@ -41,7 +45,9 @@ let state = {
   theme: 'light',
   isListening: false,  // ← AGREGAR ESTA LÍNEA
   recognition: null,
-  attachments: []
+  attachments: [],
+  currentAudio: null,              // Audio actualmente reproduciéndose
+  audioMode: 'auto',              // 'auto' | 'always' | 'never'
 };
 
 // --- INICIALIZACIÓN ---
@@ -54,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMobileMenu();
   initializeFileUpload();
   loadConversations();
+  initializeAudioMode();
 });
 
 // --- GESTIÓN DE TEMA ---
@@ -438,7 +445,8 @@ async function handleSendMessage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: fullMessage,
-          conversation_id: state.currentConversationId
+          conversation_id: state.currentConversationId,
+          audio_mode: state.audioMode
         })
       });
 
@@ -446,7 +454,10 @@ async function handleSendMessage() {
       responseData = await response.json();
 
       if (responseData.response) {
-        appendMessage('assistant', responseData.response);
+        appendMessage('assistant', responseData.response, {
+          audioUrl: responseData.audio_url,   // ✨ NUEVO
+          isAudio: responseData.is_audio       // ✨ NUEVO
+        });
       } else {
         throw new Error('No se recibió respuesta válida');
       }
@@ -620,7 +631,16 @@ function setupEventListeners() {
 
   elements.messageInput.addEventListener('input', debounce(autoResizeTextarea, CONFIG.DEBOUNCE_DELAY));
   elements.themeToggle.addEventListener('click', toggleTheme);
+  initializeAudioPlayers();
+  // Observador para nuevos mensajes
+  const observer = new MutationObserver(() => {
+    initializeAudioPlayers();
+  });
 
+  observer.observe(elements.chatMessages, {
+    childList: true,
+    subtree: true
+  });
   // ← BOTÓN DE LIMPIAR CONVERSACIÓN
   if (elements.clearButton) {
     elements.clearButton.addEventListener('click', handleClearConversation);
@@ -763,6 +783,155 @@ function appendMessage(role, content, animate = true) {
 
   addCopyButtons();
   addActionButtonsListeners(messageDiv, content);
+}
+
+// ============================================
+// CONSTRUCTOR DEL REPRODUCTOR DE AUDIO
+// ============================================
+
+function buildAudioPlayer(audioUrl) {
+  const playerId = `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  return `
+    <div class="audio-player-wrapper" id="${playerId}">
+      <div class="audio-header">
+        <span class="audio-icon">🎤</span>
+        <span class="audio-label">Nota de voz</span>
+        <span class="audio-status">Listo para reproducir</span>
+      </div>
+      <audio 
+        class="audio-player" 
+        src="${audioUrl}"
+        preload="metadata"
+        data-player-id="${playerId}"
+      ></audio>
+      <div class="audio-controls">
+        <button class="audio-play-btn" title="Reproducir/Pausar">
+          <svg class="icon-play" viewBox="0 0 24 24" width="24" height="24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <svg class="icon-pause hidden" viewBox="0 0 24 24" width="24" height="24">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+        </button>
+        <div class="audio-progress">
+          <div class="audio-progress-bar">
+            <div class="audio-progress-fill"></div>
+          </div>
+          <span class="audio-time-current">0:00</span>
+          <span class="audio-time-total">--:--</span>
+        </div>
+        <button class="audio-speed-btn" title="Velocidad" data-speed="1">
+          1×
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================
+// INICIALIZAR CONTROLES DE AUDIO
+// ============================================
+
+// Agregar esta función después de appendMessage
+function initializeAudioPlayers() {
+  const players = document.querySelectorAll('.audio-player');
+
+  players.forEach(player => {
+    const playerId = player.dataset.playerId;
+    const wrapper = document.getElementById(playerId);
+
+    if (!wrapper) return;
+
+    const playBtn = wrapper.querySelector('.audio-play-btn');
+    const progressFill = wrapper.querySelector('.audio-progress-fill');
+    const progressBar = wrapper.querySelector('.audio-progress-bar');
+    const timeCurrent = wrapper.querySelector('.audio-time-current');
+    const timeTotal = wrapper.querySelector('.audio-time-total');
+    const speedBtn = wrapper.querySelector('.audio-speed-btn');
+
+    // Formatear tiempo (segundos → MM:SS)
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return '--:--';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // Botón Play/Pause
+    playBtn.addEventListener('click', () => {
+      if (player.paused) {
+        // Detener otros audios
+        document.querySelectorAll('.audio-player').forEach(p => {
+          if (p !== player && !p.paused) {
+            p.pause();
+            const otherWrapper = document.getElementById(p.dataset.playerId);
+            if (otherWrapper) {
+              otherWrapper.classList.remove('playing');
+              otherWrapper.querySelector('.icon-play').classList.remove('hidden');
+              otherWrapper.querySelector('.icon-pause').classList.add('hidden');
+            }
+          }
+        });
+
+        player.play();
+        wrapper.classList.add('playing');
+        playBtn.querySelector('.icon-play').classList.add('hidden');
+        playBtn.querySelector('.icon-pause').classList.remove('hidden');
+        state.currentAudio = player;
+      } else {
+        player.pause();
+        wrapper.classList.remove('playing');
+        playBtn.querySelector('.icon-play').classList.remove('hidden');
+        playBtn.querySelector('.icon-pause').classList.add('hidden');
+      }
+    });
+
+    // Actualizar progreso
+    player.addEventListener('timeupdate', () => {
+      const percent = (player.currentTime / player.duration) * 100;
+      progressFill.style.width = `${percent}%`;
+      timeCurrent.textContent = formatTime(player.currentTime);
+    });
+
+    // Duración total cargada
+    player.addEventListener('loadedmetadata', () => {
+      timeTotal.textContent = formatTime(player.duration);
+    });
+
+    // Click en barra de progreso
+    progressBar.addEventListener('click', (e) => {
+      const rect = progressBar.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      player.currentTime = percent * player.duration;
+    });
+
+    // Fin de reproducción
+    player.addEventListener('ended', () => {
+      wrapper.classList.remove('playing');
+      playBtn.querySelector('.icon-play').classList.remove('hidden');
+      playBtn.querySelector('.icon-pause').classList.add('hidden');
+      progressFill.style.width = '0%';
+      timeCurrent.textContent = '0:00';
+
+      if (state.currentAudio === player) {
+        state.currentAudio = null;
+      }
+    });
+
+    // Cambiar velocidad
+    if (speedBtn) {
+      const speeds = [0.5, 1, 1.5, 2];
+      let speedIndex = 1; // Default 1x
+
+      speedBtn.addEventListener('click', () => {
+        speedIndex = (speedIndex + 1) % speeds.length;
+        const newSpeed = speeds[speedIndex];
+        player.playbackRate = newSpeed;
+        speedBtn.textContent = `${newSpeed}×`;
+      });
+    }
+  });
 }
 
 // --- LISTENERS PARA BOTONES DE ACCIÓN ---
@@ -1478,4 +1647,52 @@ function formatDate(dateStr) {
   } catch (e) {
     return '';
   }
+}
+
+
+// --- INICIALIZAR MODO AUDIO ---
+function initializeAudioMode() {
+  const savedMode = localStorage.getItem(CONFIG.TTS_MODE_KEY) || 'auto';
+  state.audioMode = savedMode;
+  updateAudioModeUI();
+
+  if (elements.audioModeToggle) {
+    elements.audioModeToggle.addEventListener('click', cycleAudioMode);
+  }
+}
+
+function cycleAudioMode() {
+  const modes = ['auto', 'always', 'never'];
+  const currentIndex = modes.indexOf(state.audioMode);
+  const nextIndex = (currentIndex + 1) % modes.length;
+  state.audioMode = modes[nextIndex];
+
+  localStorage.setItem(CONFIG.TTS_MODE_KEY, state.audioMode);
+  updateAudioModeUI();
+
+  // Feedback visual
+  const modeLabels = {
+    auto: '🔊 Modo automático',
+    always: '🎙️ Siempre audio',
+    never: '🔇 Solo texto'
+  };
+  appendMessage('system', modeLabels[state.audioMode]);
+}
+
+function updateAudioModeUI() {
+  if (!elements.audioModeToggle) return;
+
+  const btn = elements.audioModeToggle;
+  const label = btn.querySelector('.audio-mode-label');
+
+  const configs = {
+    auto: { icon: '🔊', label: 'Auto', class: '' },
+    always: { icon: '🎙️', label: 'Audio', class: 'active' },
+    never: { icon: '🔇', label: 'Texto', class: 'text-mode' },
+  };
+
+  const config = configs[state.audioMode];
+  btn.className = `audio-mode-toggle ${config.class}`;
+  if (label) label.textContent = config.label;
+  btn.title = `Modo: ${config.label} (clic para cambiar)`;
 }

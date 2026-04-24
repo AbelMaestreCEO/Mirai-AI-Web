@@ -7,6 +7,18 @@
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 
+// ✨ NUEVO: Configuración TTS
+const TTS_CONFIG = {
+  MODEL: 'inworld/tts-1.5-mini',
+  VOICE_ID: 'Luna',           // Voz femenina suave
+  OUTPUT_FORMAT: 'mp3',
+  SPEAKING_RATE: 1.0,
+  SAMPLE_RATE: 24000,
+  BIT_RATE: 128000,
+  CHAR_LIMIT: 2000,           // Límite del modelo TTS
+  THRESHOLD: 300,             // Caracteres mínimos para activar audio
+};
+
 // --- RUTAS ---
 const ROUTES = {
   CHAT: '/api/chat',
@@ -68,7 +80,9 @@ async function handleApiRequest(request, env, corsHeaders) {
     if (path === '/api/upload' && request.method === 'POST') {
       return await handleUpload(request, env, corsHeaders);
     }
-
+    if (path.startsWith('/api/audio/') && request.method === 'GET') {
+      return await handleServeAudio(path, env);
+    }
     // Ruta: GET /api/conversations
     if (path === '/api/conversations' && request.method === 'GET') {
       return await handleListConversations(env, corsHeaders);
@@ -113,14 +127,11 @@ async function handleApiRequest(request, env, corsHeaders) {
   }
 }
 
-// --- MANEJAR CHAT (DeepSeek API) --- CORREGIDO
 async function handleChat(request, env, corsHeaders) {
   console.log('🔍 handleChat llamado');
-  console.log('🔍 DEEPSEEK_API_KEY presente:', !!env.DEEPSEEK_API_KEY);
-  console.log('🔍 MIRAI_AI_DB presente:', !!env.MIRAI_AI_DB);
 
   try {
-    const { message, conversation_id } = await request.json();
+    const { message, conversation_id, audio_mode } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -130,10 +141,10 @@ async function handleChat(request, env, corsHeaders) {
       return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
     }
 
-    // 1. ASEGURAR QUE LA CONVERSACIÓN EXISTA PRIMERO (CRÍTICO)
+    // 1. ASEGURAR QUE LA CONVERSACIÓN EXISTA
     await ensureConversationExists(conversation_id, message, env);
 
-    // 2. Obtener historial (ahora la conversación existe)
+    // 2. Obtener historial
     const history = await getConversationHistory(conversation_id, env);
 
     // 3. Llamar a DeepSeek
@@ -161,17 +172,242 @@ async function handleChat(request, env, corsHeaders) {
     const deepseekData = await deepseekResponse.json();
     const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
 
-    // 4. AHORA SÍ, GUARDAR MENSAJES (la FK ya está satisfecha)
+    // 4. GUARDAR MENSAJES
     await saveMessage(conversation_id, 'user', message, env);
     await saveMessage(conversation_id, 'assistant', aiResponse, env);
     await updateConversationTimestamp(conversation_id, env);
 
-    return jsonResponse({ response: aiResponse }, 200, corsHeaders);
+    // ✨ 5. DECIDIR SI GENERAR AUDIO
+    const shouldGenerateAudio = shouldSendAsAudio(aiResponse, audio_mode);
+    let audioUrl = null;
+
+    if (shouldGenerateAudio) {
+      audioUrl = await generateAndStoreTTS(aiResponse, conversation_id, env);
+    }
+
+    // ✨ 6. RESPUESTA CON AUDIO (si aplica)
+    return jsonResponse({
+      response: aiResponse,
+      audio_url: audioUrl,        // null si no hay audio
+      is_audio: !!audioUrl        // boolean para el frontend
+    }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Chat handler error:', error.message);
     console.error('Stack:', error.stack);
     return jsonResponse({ error: 'Error procesando el mensaje', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// ============================================
+// FUNCIONES TTS (Text-to-Speech)
+// ============================================
+
+// --- DECIDIR SI LA RESPUESTA DEBE SER AUDIO ---
+function shouldSendAsAudio(text, audioMode) {
+  // audioMode viene del frontend: 'auto' | 'always' | 'never'
+
+  // 1. Si el usuario forzó modo texto
+  if (audioMode === 'never') return false;
+
+  // 2. Si el usuario forzó modo audio
+  if (audioMode === 'always') {
+    // Pero incluso en "always", el código debe ser texto
+    const hasOnlyCode = isMostlyCode(text);
+    if (hasOnlyCode) return false;
+    return true;
+  }
+
+  // 3. Modo 'auto': decidir por contenido
+  // Si contiene bloques de código extensos, no audio
+  if (isMostlyCode(text)) return false;
+
+  // Si es muy corto, no vale la pena audio
+  const textWithoutCode = stripCodeBlocks(text);
+  if (textWithoutCode.length < TTS_CONFIG.THRESHOLD) return false;
+
+  return true;
+}
+
+// --- DETECTAR SI EL CONTENIDO ES MAYORMENTE CÓDIGO ---
+function isMostlyCode(text) {
+  const codeBlockMatches = text.match(/```[\s\S]*?```/g) || [];
+  const codeChars = codeBlockMatches.reduce((sum, block) => sum + block.length, 0);
+  const totalChars = text.length;
+
+  // Si más del 60% es código, tratar como código
+  return (codeChars / totalChars) > 0.6;
+}
+
+// --- REMOVER BLOQUES DE CÓDIGO PARA TTS ---
+function stripCodeBlocks(text) {
+  return text.replace(/```[\s\S]*?```/g, '').trim();
+}
+
+// --- LIMPIAR TEXTO PARA TTS ---
+function cleanTextForTTS(text) {
+  let cleaned = text;
+
+  // 1. Remover bloques de código completos
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
+
+  // 2. Remover código inline pero conservar el nombre
+  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
+
+  // 3. Remover markdown de formato
+  cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');  // Negritas
+  cleaned = cleaned.replace(/\*(.+?)\*/g, '$1');       // Cursivas
+  cleaned = cleaned.replace(/~~(.+?)~~/g, '$1');       // Tachado
+
+  // 4. Remover encabezados (# ## ###)
+  cleaned = cleaned.replace(/^#{1,6}\s+(.+)$/gm, '$1');
+
+  // 5. Remover enlaces pero conservar texto
+  cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+
+  // 6. Remover imágenes
+  cleaned = cleaned.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '');
+
+  // 7. Remover líneas horizontales
+  cleaned = cleaned.replace(/^---+$/gm, '');
+
+  // 8. Remover blockquotes
+  cleaned = cleaned.replace(/^>\s+/gm, '');
+
+  // 9. Limpiar listas (conservar texto)
+  cleaned = cleaned.replace(/^[-*+]\s+/gm, '');
+  cleaned = cleaned.replace(/^\d+\.\s+/gm, '');
+
+  // 10. Limpiar emojis excesivos (conservar algunos)
+  cleaned = cleaned.replace(/([\u{1F600}-\u{1F64F}]){3,}/gu, '$1');
+
+  // 11. Limpiar kaomojis excesivos
+  cleaned = cleaned.replace(/(╮|╭|┣|┫|┻|━|┃|ノ|ヽ|♪|♫|♬|∩|︶|ω|≧|≦|◡|ᴗ|°|・){5,}/g, '');
+
+  // 12. Normalizar espacios múltiples
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+  cleaned = cleaned.replace(/  +/g, ' ');
+
+  return cleaned.trim();
+}
+
+// --- SEGMENTAR TEXTO LARGO PARA TTS ---
+function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
+  if (text.length <= maxLength) return [text];
+
+  const segments = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      segments.push(remaining);
+      break;
+    }
+
+    // Buscar punto de corte natural (punto, signo de exclamación, etc.)
+    let cutIndex = maxLength;
+
+    // Buscar hacia atrás un punto natural de corte
+    const naturalBreaks = ['. ', '.\n', '! ', '? ', '。\n', '\n\n'];
+    for (const breaker of naturalBreaks) {
+      const lastIndex = remaining.lastIndexOf(breaker, maxLength);
+      if (lastIndex > maxLength * 0.5) {
+        cutIndex = lastIndex + breaker.length;
+        break;
+      }
+    }
+
+    segments.push(remaining.substring(0, cutIndex).trim());
+    remaining = remaining.substring(cutIndex).trim();
+  }
+
+  return segments.filter(s => s.length > 0);
+}
+
+// --- GENERAR TTS Y GUARDAR EN R2 ---
+async function generateAndStoreTTS(text, conversationId, env) {
+  try {
+    // 1. Limpiar texto para TTS
+    const cleanedText = cleanTextForTTS(text);
+
+    if (!cleanedText || cleanedText.length < 10) {
+      console.log('⚠️ Texto muy corto para TTS después de limpieza');
+      return null;
+    }
+
+    // 2. Segmentar si es necesario
+    const segments = segmentTextForTTS(cleanedText);
+    console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
+
+    // 3. Generar audio para cada segmento
+    const audioBuffers = [];
+
+    for (const segment of segments) {
+      const ttsResult = await env.AI.run(TTS_CONFIG.MODEL, {
+        text: segment,
+        voice_id: TTS_CONFIG.VOICE_ID,
+        output_format: TTS_CONFIG.OUTPUT_FORMAT,
+        speaking_rate: TTS_CONFIG.SPEAKING_RATE,
+        sample_rate: TTS_CONFIG.SAMPLE_RATE,
+        bit_rate: TTS_CONFIG.BIT_RATE,
+        apply_text_normalization: true,
+      });
+
+      if (ttsResult && ttsResult.audio) {
+        audioBuffers.push(ttsResult.audio);
+      }
+    }
+
+    if (audioBuffers.length === 0) {
+      console.error('❌ TTS no generó audio');
+      return null;
+    }
+
+    // 4. Combinar segmentos si hay múltiples
+    let finalAudioData;
+    if (audioBuffers.length === 1) {
+      finalAudioData = audioBuffers[0];
+    } else {
+      // Para múltiples segmentos, concatenar los buffers
+      // Nota: Esto funciona para MP3 ya que permiten concatenación
+      finalAudioData = audioBuffers.join('');
+    }
+
+    // 5. Decodificar base64 a binario
+    const binaryString = atob(finalAudioData);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // 6. Subir a R2
+    const audioId = crypto.randomUUID();
+    const r2Key = `tts/${conversationId}/${audioId}.mp3`;
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, bytes.buffer, {
+      httpMetadata: {
+        contentType: 'audio/mpeg',
+        cacheControl: 'public, max-age=86400',
+      },
+      customMetadata: {
+        conversation_id: conversationId,
+        generated_at: new Date().toISOString(),
+        voice_id: TTS_CONFIG.VOICE_ID,
+        text_length: cleanedText.length.toString(),
+      }
+    });
+
+    // 7. Construir URL pública
+    const audioUrl = `/api/audio/${r2Key}`;
+
+    console.log(`✅ Audio TTS generado: ${r2Key} (${cleanedText.length} chars)`);
+
+    return audioUrl;
+
+  } catch (error) {
+    console.error('❌ Error generando TTS:', error.message);
+    // No fallar el chat completo si TTS falla
+    return null;
   }
 }
 
@@ -349,6 +585,7 @@ async function serveStatic(url, env, corsHeaders) {
         "style-src 'self' 'unsafe-inline'; " +
         "connect-src 'self' https://api.deepseek.com; " +
         "img-src 'self' data:; " +
+        "media-src 'self' blob:; " +
         "font-src 'self';"
       );
 
@@ -388,6 +625,7 @@ async function serveStatic(url, env, corsHeaders) {
       "style-src 'self' 'unsafe-inline'; " +
       "connect-src 'self' https://api.deepseek.com; " +
       "img-src 'self' data:; " +
+      "media-src 'self' blob:; " +
       "font-src 'self';"
     );
 
@@ -592,7 +830,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
     }
 
     const aiData = await aiResponse.json();
-    
+
     // Verificar estructura de respuesta
     // Cloudflare AI suele devolver: { success: true, result: { image: "base64..." } }
     if (!aiData.success || !aiData.result || !aiData.result.image) {
@@ -604,7 +842,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
     // 4. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
-    
+
     // Convertir base64 a ArrayBuffer
     const binaryString = atob(imageBase64);
     const len = binaryString.length;
@@ -624,16 +862,16 @@ async function handleImageGeneration(request, env, corsHeaders) {
 
     // 5. Construir URL
     // Ajusta esto a tu configuración de R2 (dominio público o privado)
-    const imageUrl = `https://aiassets.aberumirai.com/${filename}`; 
+    const imageUrl = `https://aiassets.aberumirai.com/${filename}`;
 
     // 6. Guardar en D1 y responder
     await ensureConversationExists(conversation_id, prompt, env);
     const aiResponseText = `Aquí tienes la imagen que pediste:\n\n![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
-    
+
     await saveMessage(conversation_id, 'assistant', aiResponseText, env);
 
-    return jsonResponse({ 
-      success: true, 
+    return jsonResponse({
+      success: true,
       image_url: imageUrl,
       response_text: aiResponseText
     }, 200, corsHeaders);
@@ -641,5 +879,31 @@ async function handleImageGeneration(request, env, corsHeaders) {
   } catch (error) {
     console.error('Error generating image:', error);
     return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// --- SERVIR AUDIO DESDE R2 ---
+async function handleServeAudio(path, env) {
+  try {
+    // Extraer la clave R2 del path: /api/audio/tts/{convId}/{audioId}.mp3
+    const r2Key = path.replace('/api/audio/', '');
+
+    const object = await env.MIRAI_AI_ASSETS.get(r2Key);
+
+    if (object === null) {
+      return new Response('Audio no encontrado', { status: 404 });
+    }
+
+    const headers = new Headers();
+    headers.set('Content-Type', 'audio/mpeg');
+    headers.set('Cache-Control', 'public, max-age=86400');
+    headers.set('Accept-Ranges', 'bytes');
+    headers.set('Access-Control-Allow-Origin', '*');
+
+    return new Response(object.body, { headers });
+
+  } catch (error) {
+    console.error('Error sirviendo audio:', error);
+    return new Response('Error interno', { status: 500 });
   }
 }
