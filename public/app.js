@@ -380,6 +380,7 @@ function getFileIcon(extension) {
 }
 
 // --- LÓGICA DE MENSAJES (CON DETECCIÓN DE IMAGEN) ---
+// --- LÓGICA DE MENSAJES (ACTUALIZADA PARA EDICIÓN + TTS) ---
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
   if (!userInput && state.attachments.length === 0) return;
@@ -422,7 +423,7 @@ async function handleSendMessage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: userInput, // Usamos el mensaje completo como prompt
+          prompt: userInput,
           conversation_id: state.currentConversationId
         })
       });
@@ -430,7 +431,6 @@ async function handleSendMessage() {
       if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
       responseData = await response.json();
 
-      // Mostrar la imagen
       if (responseData.success && responseData.image_url) {
         const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
         appendMessage('assistant', imageMarkdown);
@@ -446,7 +446,7 @@ async function handleSendMessage() {
         body: JSON.stringify({
           message: fullMessage,
           conversation_id: state.currentConversationId,
-          audio_mode: state.audioMode
+          audio_mode: state.audioMode    // ✨ ENVIAR MODO AUDIO
         })
       });
 
@@ -454,15 +454,17 @@ async function handleSendMessage() {
       responseData = await response.json();
 
       if (responseData.response) {
+        // ✨ PASAR AUDIO A appendMessage
         appendMessage('assistant', responseData.response, {
-          audioUrl: responseData.audio_url,   // ✨ NUEVO
-          isAudio: responseData.is_audio       // ✨ NUEVO
+          audioUrl: responseData.audio_url || null,
+          isAudio: responseData.is_audio || false
         });
       } else {
         throw new Error('No se recibió respuesta válida');
       }
     }
 
+    loadConversations();
     saveToLocalHistory(responseData.response || responseData.response_text);
 
   } catch (error) {

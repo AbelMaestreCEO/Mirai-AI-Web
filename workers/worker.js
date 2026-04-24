@@ -10,13 +10,13 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
   MODEL: 'inworld/tts-1.5-mini',
-  VOICE_ID: 'Luna',           // Voz femenina suave
+  VOICE_ID: 'Luna',
   OUTPUT_FORMAT: 'mp3',
   SPEAKING_RATE: 1.0,
   SAMPLE_RATE: 24000,
   BIT_RATE: 128000,
-  CHAR_LIMIT: 2000,           // Límite del modelo TTS
-  THRESHOLD: 300,             // Caracteres mínimos para activar audio
+  CHAR_LIMIT: 2000,
+  THRESHOLD: 300,
 };
 
 // --- RUTAS ---
@@ -131,6 +131,7 @@ async function handleChat(request, env, corsHeaders) {
   console.log('🔍 handleChat llamado');
 
   try {
+    // ✨ Leer audio_mode del body
     const { message, conversation_id, audio_mode } = await request.json();
 
     // Validar entrada
@@ -182,14 +183,15 @@ async function handleChat(request, env, corsHeaders) {
     let audioUrl = null;
 
     if (shouldGenerateAudio) {
+      console.log(`🎤 Generando audio (modo: ${audio_mode})`);
       audioUrl = await generateAndStoreTTS(aiResponse, conversation_id, env);
     }
 
-    // ✨ 6. RESPUESTA CON AUDIO (si aplica)
+    // ✨ 6. RESPUESTA CON AUDIO
     return jsonResponse({
       response: aiResponse,
-      audio_url: audioUrl,        // null si no hay audio
-      is_audio: !!audioUrl        // boolean para el frontend
+      audio_url: audioUrl,
+      is_audio: !!audioUrl
     }, 200, corsHeaders);
 
   } catch (error) {
@@ -205,24 +207,19 @@ async function handleChat(request, env, corsHeaders) {
 
 // --- DECIDIR SI LA RESPUESTA DEBE SER AUDIO ---
 function shouldSendAsAudio(text, audioMode) {
-  // audioMode viene del frontend: 'auto' | 'always' | 'never'
-
-  // 1. Si el usuario forzó modo texto
+  // Si el usuario forzó modo texto
   if (audioMode === 'never') return false;
 
-  // 2. Si el usuario forzó modo audio
+  // Si el usuario forzó modo audio
   if (audioMode === 'always') {
-    // Pero incluso en "always", el código debe ser texto
-    const hasOnlyCode = isMostlyCode(text);
-    if (hasOnlyCode) return false;
+    // Pero incluso en "always", si es mayormente código → texto
+    if (isMostlyCode(text)) return false;
     return true;
   }
 
-  // 3. Modo 'auto': decidir por contenido
-  // Si contiene bloques de código extensos, no audio
+  // Modo 'auto' (por defecto): decidir por contenido
   if (isMostlyCode(text)) return false;
 
-  // Si es muy corto, no vale la pena audio
   const textWithoutCode = stripCodeBlocks(text);
   if (textWithoutCode.length < TTS_CONFIG.THRESHOLD) return false;
 
@@ -233,10 +230,7 @@ function shouldSendAsAudio(text, audioMode) {
 function isMostlyCode(text) {
   const codeBlockMatches = text.match(/```[\s\S]*?```/g) || [];
   const codeChars = codeBlockMatches.reduce((sum, block) => sum + block.length, 0);
-  const totalChars = text.length;
-
-  // Si más del 60% es código, tratar como código
-  return (codeChars / totalChars) > 0.6;
+  return (codeChars / text.length) > 0.6;
 }
 
 // --- REMOVER BLOQUES DE CÓDIGO PARA TTS ---
@@ -248,43 +242,28 @@ function stripCodeBlocks(text) {
 function cleanTextForTTS(text) {
   let cleaned = text;
 
-  // 1. Remover bloques de código completos
+  // Remover bloques de código
   cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
-
-  // 2. Remover código inline pero conservar el nombre
+  // Código inline → conservar nombre
   cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
-
-  // 3. Remover markdown de formato
-  cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');  // Negritas
-  cleaned = cleaned.replace(/\*(.+?)\*/g, '$1');       // Cursivas
-  cleaned = cleaned.replace(/~~(.+?)~~/g, '$1');       // Tachado
-
-  // 4. Remover encabezados (# ## ###)
+  // Markdown de formato
+  cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');
+  cleaned = cleaned.replace(/\*(.+?)\*/g, '$1');
+  cleaned = cleaned.replace(/~~(.+?)~~/g, '$1');
+  // Encabezados
   cleaned = cleaned.replace(/^#{1,6}\s+(.+)$/gm, '$1');
-
-  // 5. Remover enlaces pero conservar texto
+  // Enlaces → solo texto
   cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
-
-  // 6. Remover imágenes
+  // Imágenes
   cleaned = cleaned.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '');
-
-  // 7. Remover líneas horizontales
+  // Líneas horizontales
   cleaned = cleaned.replace(/^---+$/gm, '');
-
-  // 8. Remover blockquotes
+  // Blockquotes
   cleaned = cleaned.replace(/^>\s+/gm, '');
-
-  // 9. Limpiar listas (conservar texto)
+  // Listas
   cleaned = cleaned.replace(/^[-*+]\s+/gm, '');
   cleaned = cleaned.replace(/^\d+\.\s+/gm, '');
-
-  // 10. Limpiar emojis excesivos (conservar algunos)
-  cleaned = cleaned.replace(/([\u{1F600}-\u{1F64F}]){3,}/gu, '$1');
-
-  // 11. Limpiar kaomojis excesivos
-  cleaned = cleaned.replace(/(╮|╭|┣|┫|┻|━|┃|ノ|ヽ|♪|♫|♬|∩|︶|ω|≧|≦|◡|ᴗ|°|・){5,}/g, '');
-
-  // 12. Normalizar espacios múltiples
+  // Normalizar espacios
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   cleaned = cleaned.replace(/  +/g, ' ');
 
@@ -304,11 +283,9 @@ function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
       break;
     }
 
-    // Buscar punto de corte natural (punto, signo de exclamación, etc.)
     let cutIndex = maxLength;
-
-    // Buscar hacia atrás un punto natural de corte
     const naturalBreaks = ['. ', '.\n', '! ', '? ', '。\n', '\n\n'];
+
     for (const breaker of naturalBreaks) {
       const lastIndex = remaining.lastIndexOf(breaker, maxLength);
       if (lastIndex > maxLength * 0.5) {
@@ -324,10 +301,10 @@ function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
   return segments.filter(s => s.length > 0);
 }
 
+
 // --- GENERAR TTS Y GUARDAR EN R2 ---
 async function generateAndStoreTTS(text, conversationId, env) {
   try {
-    // 1. Limpiar texto para TTS
     const cleanedText = cleanTextForTTS(text);
 
     if (!cleanedText || cleanedText.length < 10) {
@@ -335,11 +312,9 @@ async function generateAndStoreTTS(text, conversationId, env) {
       return null;
     }
 
-    // 2. Segmentar si es necesario
     const segments = segmentTextForTTS(cleanedText);
-    console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
+    console.log(`🎤 Generando TTS: ${segments.length} segmento(s), ${cleanedText.length} chars`);
 
-    // 3. Generar audio para cada segmento
     const audioBuffers = [];
 
     for (const segment of segments) {
@@ -363,24 +338,19 @@ async function generateAndStoreTTS(text, conversationId, env) {
       return null;
     }
 
-    // 4. Combinar segmentos si hay múltiples
-    let finalAudioData;
-    if (audioBuffers.length === 1) {
-      finalAudioData = audioBuffers[0];
-    } else {
-      // Para múltiples segmentos, concatenar los buffers
-      // Nota: Esto funciona para MP3 ya que permiten concatenación
-      finalAudioData = audioBuffers.join('');
-    }
+    // Combinar segmentos (MP3 permite concatenación directa)
+    const finalAudioData = audioBuffers.length === 1
+      ? audioBuffers[0]
+      : audioBuffers.join('');
 
-    // 5. Decodificar base64 a binario
+    // Decodificar base64 a binario
     const binaryString = atob(finalAudioData);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // 6. Subir a R2
+    // Subir a R2
     const audioId = crypto.randomUUID();
     const r2Key = `tts/${conversationId}/${audioId}.mp3`;
 
@@ -393,20 +363,16 @@ async function generateAndStoreTTS(text, conversationId, env) {
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
         voice_id: TTS_CONFIG.VOICE_ID,
-        text_length: cleanedText.length.toString(),
       }
     });
 
-    // 7. Construir URL pública
     const audioUrl = `/api/audio/${r2Key}`;
-
-    console.log(`✅ Audio TTS generado: ${r2Key} (${cleanedText.length} chars)`);
+    console.log(`✅ Audio TTS generado: ${r2Key}`);
 
     return audioUrl;
 
   } catch (error) {
     console.error('❌ Error generando TTS:', error.message);
-    // No fallar el chat completo si TTS falla
     return null;
   }
 }
@@ -885,7 +851,6 @@ async function handleImageGeneration(request, env, corsHeaders) {
 // --- SERVIR AUDIO DESDE R2 ---
 async function handleServeAudio(path, env) {
   try {
-    // Extraer la clave R2 del path: /api/audio/tts/{convId}/{audioId}.mp3
     const r2Key = path.replace('/api/audio/', '');
 
     const object = await env.MIRAI_AI_ASSETS.get(r2Key);
