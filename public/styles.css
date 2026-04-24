@@ -1727,9 +1727,12 @@ footer.footer {
   }
 }
 
+/* Estilos para imágenes generadas */
 .md-image {
   max-width: 100%;
   border-radius: 8px;
   margin: 10px 0;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: block; /* Evita espacios extra debajo de la imagen */
+  height: auto;
 }
