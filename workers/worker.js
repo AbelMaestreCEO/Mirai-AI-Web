@@ -9,7 +9,7 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: 'inworld/tts-1.5-mini',
+  MODEL: 'inworld/tts-1.5-max',
   VOICE_ID: 'Luna',
   OUTPUT_FORMAT: 'mp3',
   SPEAKING_RATE: 1.0,
