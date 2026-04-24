@@ -546,13 +546,14 @@ async function handleRenameConversation(request, env, corsHeaders) {
   }
 }
 
-// --- GENERAR IMAGEN CON FLUX.2 ---
+// --- GENERAR IMAGEN CON FLUX.2 (CORREGIDO) ---
 async function handleImageGeneration(request, env, corsHeaders) {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Método no permitido' }, 405, corsHeaders);
   }
 
   try {
+    // 1. Obtener el JSON del cliente (prompt y conversation_id)
     const { prompt, conversation_id } = await request.json();
 
     if (!prompt) {
@@ -561,45 +562,49 @@ async function handleImageGeneration(request, env, corsHeaders) {
 
     console.log('🎨 Generando imagen para:', prompt);
 
-    // 1. Llamar a Cloudflare AI (Flux.2)
+    // 2. Crear FormData para la petición a Cloudflare AI
+    // La API de Flux espera multipart/form-data, NO JSON
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    formData.append('width', '1024');
+    formData.append('height', '1024');
+    formData.append('steps', '25');
+    // Opcional: seed, negative_prompt, etc.
+
+    // 3. Llamar a Cloudflare AI
     const aiResponse = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-9b`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`, // Necesitas crear este secreto
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`
+          // NO pongas 'Content-Type': 'application/json' aquí.
+          // El navegador/Worker lo pone automáticamente como multipart/form-data con boundary.
         },
-        body: JSON.stringify({
-          prompt: prompt,
-          width: 1024,
-          height: 1024,
-          steps: 25 // Calidad/velocidad balanceada
-        })
+        body: formData // ¡Enviar FormData!
       }
     );
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('Error AI:', errorText);
+      console.error('Error AI Response:', aiResponse.status, errorText);
       return jsonResponse({ error: 'Error generando imagen', details: errorText }, aiResponse.status, corsHeaders);
     }
 
     const aiData = await aiResponse.json();
-
-    // La respuesta de Flux suele ser un objeto con 'image' (base64) o 'result'
-    // Dependiendo de la versión exacta, revisa la estructura. 
-    // Asumimos que viene en aiData.result.image o aiData.image (base64)
-    let imageBase64 = aiData.result?.image || aiData.image;
-
-    if (!imageBase64) {
-      throw new Error('No se recibió imagen en la respuesta de AI');
+    
+    // Verificar estructura de respuesta
+    // Cloudflare AI suele devolver: { success: true, result: { image: "base64..." } }
+    if (!aiData.success || !aiData.result || !aiData.result.image) {
+      throw new Error('Respuesta inválida de la API de AI: ' + JSON.stringify(aiData));
     }
 
-    // 2. Guardar en R2
+    const imageBase64 = aiData.result.image;
+
+    // 4. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
-
+    
     // Convertir base64 a ArrayBuffer
     const binaryString = atob(imageBase64);
     const len = binaryString.length;
@@ -617,22 +622,17 @@ async function handleImageGeneration(request, env, corsHeaders) {
       }
     });
 
-    // 3. Construir URL pública (ajusta según tu configuración de R2)
-    // Si usas un dominio personalizado para R2:
-    const imageUrl = `https://assets.aberumirai.com/${filename}`;
-    // O si usas la URL pública por defecto:
-    // const imageUrl = `https://pub-${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/mirai-ai-assets/${filename}`;
+    // 5. Construir URL
+    // Ajusta esto a tu configuración de R2 (dominio público o privado)
+    const imageUrl = `https://assets.aberumirai.com/${filename}`; 
 
-    // 4. Guardar referencia en D1 (Opcional, pero recomendado)
-    // Necesitarás una columna 'image_url' en la tabla messages o una tabla attachments
-    // Por simplicidad, guardaremos la URL en el contenido del mensaje de la IA
+    // 6. Guardar en D1 y responder
     const aiResponseText = `Aquí tienes la imagen que pediste:\n\n![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
-
-    // 5. Guardar en D1 (Mensaje de texto con la imagen)
+    
     await saveMessage(conversation_id, 'assistant', aiResponseText, env);
 
-    return jsonResponse({
-      success: true,
+    return jsonResponse({ 
+      success: true, 
       image_url: imageUrl,
       response_text: aiResponseText
     }, 200, corsHeaders);
