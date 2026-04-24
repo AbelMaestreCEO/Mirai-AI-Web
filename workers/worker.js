@@ -624,7 +624,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
 
     // 5. Construir URL
     // Ajusta esto a tu configuración de R2 (dominio público o privado)
-    const imageUrl = `https://assets.aberumirai.com/${filename}`; 
+    const imageUrl = `https://aiassets.aberumirai.com/${filename}`; 
 
     // 6. Guardar en D1 y responder
     await ensureConversationExists(conversation_id, prompt, env);
