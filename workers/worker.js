@@ -627,6 +627,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
     const imageUrl = `https://assets.aberumirai.com/${filename}`; 
 
     // 6. Guardar en D1 y responder
+    await ensureConversationExists(conversation_id, prompt, env);
     const aiResponseText = `Aquí tienes la imagen que pediste:\n\n![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
     
     await saveMessage(conversation_id, 'assistant', aiResponseText, env);
