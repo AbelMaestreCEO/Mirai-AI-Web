@@ -9,12 +9,8 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: 'inworld/tts-1.5-mini',   // ← Sin @cf/
-  VOICE_ID: 'Luna',                 // ← Luna sí existe en el enum
-  OUTPUT_FORMAT: 'mp3',
-  SPEAKING_RATE: 1.0,
-  SAMPLE_RATE: 24000,
-  BIT_RATE: 128000,
+  MODEL: '@cf/deepgram/aura-2-es',   // ← Gratuito, nativo Cloudflare
+  VOICE_ID: 'diana',               // ← Voces: angus, asteria, luna, zeus, etc.
   CHAR_LIMIT: 2000,
   THRESHOLD: 300,
 };
@@ -325,53 +321,33 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       const ttsResult = await env.AI.run(
-        TTS_CONFIG.MODEL,
+        '@cf/deepgram/aura-1',
         {
           text: segment,
-          voice_id: TTS_CONFIG.VOICE_ID,
-          output_format: TTS_CONFIG.OUTPUT_FORMAT,
-          speaking_rate: TTS_CONFIG.SPEAKING_RATE,
-          sample_rate: TTS_CONFIG.SAMPLE_RATE,
-          bit_rate: TTS_CONFIG.BIT_RATE,
-          temperature: 1,           // ← required
-          timestamp_type: 'none',   // ← required
-          apply_text_normalization: true,
-        },
-        {
-          gateway: { id: 'default' }, // ← Requerido para modelos Proxied
+          voice: TTS_CONFIG.VOICE_ID,   // ← Deepgram usa "voice", no "voice_id"
         }
       );
 
-      console.log('🔍 ttsResult:', JSON.stringify(ttsResult));
+      console.log('🔍 ttsResult keys:', Object.keys(ttsResult || {}));
 
-      // La respuesta es { audio: "https://..." }
-      if (ttsResult && ttsResult.audio) {
-        audioUrls.push(ttsResult.audio);
-      } else {
-        console.error('❌ Segmento sin audio en respuesta:', ttsResult);
+      // Deepgram devuelve el audio directamente como ArrayBuffer
+      if (ttsResult) {
+        audioBuffers.push(ttsResult);
       }
     }
 
-    if (audioUrls.length === 0) {
-      console.error('❌ TTS no generó ninguna URL de audio');
+    if (audioBuffers.length === 0) {
+      console.error('❌ TTS no generó audio');
       return null;
     }
 
-    // Descargar el primer segmento (para múltiples segmentos habría que concatenar)
-    // Por ahora usamos solo el primero si hay varios
-    const audioResponse = await fetch(audioUrls[0]);
-    if (!audioResponse.ok) {
-      console.error('❌ Error descargando audio desde URL:', audioUrls[0]);
-      return null;
-    }
-
-    const audioBuffer = await audioResponse.arrayBuffer();
-
-    // Subir a R2
     const audioId = crypto.randomUUID();
     const r2Key = `tts/${conversationId}/${audioId}.mp3`;
 
-    await env.MIRAI_AI_ASSETS.put(r2Key, audioBuffer, {
+    // Deepgram devuelve ArrayBuffer directo
+    const finalBuffer = audioBuffers[0];
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, finalBuffer, {
       httpMetadata: { contentType: 'audio/mpeg' },
       customMetadata: { conversation_id: conversationId }
     });
