@@ -529,29 +529,24 @@ async function serveStatic(url, env, corsHeaders) {
   // Ruta raíz: servir index.html
   if (path === '/' || path === '') {
     try {
-      // Buscar en R2 (sin ../, es la raíz del bucket)
       const object = await env.MIRAI_AI_ASSETS.get('index.html');
 
       if (object === null) {
-        return jsonResponse(
-          { error: 'index.html no encontrado en R2' },
-          404,
-          corsHeaders
-        );
+        return jsonResponse({ error: 'index.html no encontrado en R2' }, 404, corsHeaders);
       }
 
       const headers = new Headers(object.httpHeaders);
       headers.set('Content-Type', 'text/html');
       headers.set('Cache-Control', 'public, max-age=3600');
 
-      // FORZAR CABECERAS DE SEGURIDAD PERMITIDAS (ANTES DEL RETURN)
+      // ✨ CSP ACTUALIZADA CON TU DOMINIO R2
       headers.set('Content-Security-Policy',
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdnjs.cloudflare.com; " +
         "style-src 'self' 'unsafe-inline'; " +
-        "connect-src 'self' https://api.deepseek.com; " +
-        "img-src 'self' data:; " +
-        "media-src 'self' blob:; " +
+        "connect-src 'self' https://api.deepseek.com https://ai.aberumirai.com https://aiassets.aberumirai.com blob:; " + // ✨ Agregado tu dominio R2
+        "img-src 'self' data: https://aiassets.aberumirai.com; " +
+        "media-src 'self' blob: https://aiassets.aberumirai.com; " + // ✨ Permitir audio desde R2
         "font-src 'self';"
       );
 
@@ -559,39 +554,30 @@ async function serveStatic(url, env, corsHeaders) {
 
     } catch (error) {
       console.error('Error serving index.html:', error);
-      return jsonResponse(
-        { error: 'Error cargando página principal' },
-        500,
-        corsHeaders
-      );
+      return jsonResponse({ error: 'Error cargando página principal' }, 500, corsHeaders);
     }
   }
 
   // Otras rutas estáticas (CSS, JS, imágenes)
   try {
     const assetPath = path.startsWith('/') ? path.slice(1) : path;
-
     const object = await env.MIRAI_AI_ASSETS.get(assetPath);
 
     if (object === null) {
-      return jsonResponse(
-        { error: 'Archivo no encontrado' },
-        404,
-        corsHeaders
-      );
+      return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
     }
 
     const headers = new Headers(object.httpHeaders);
     headers.set('Cache-Control', 'public, max-age=3600');
 
-    // FORZAR CABECERAS DE SEGURIDAD PERMITIDAS (ANTES DEL RETURN)
+    // ✨ MISMA CSP PARA TODOS LOS ARCHIVOS
     headers.set('Content-Security-Policy',
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdnjs.cloudflare.com; " +
       "style-src 'self' 'unsafe-inline'; " +
-      "connect-src 'self' https://api.deepseek.com; " +
-      "img-src 'self' data:; " +
-      "media-src 'self' blob:; " +
+      "connect-src 'self' https://api.deepseek.com https://ai.aberumirai.com https://aiassets.aberumirai.com blob:; " +
+      "img-src 'self' data: https://aiassets.aberumirai.com; " +
+      "media-src 'self' blob: https://aiassets.aberumirai.com; " +
       "font-src 'self';"
     );
 
@@ -599,11 +585,7 @@ async function serveStatic(url, env, corsHeaders) {
 
   } catch (error) {
     console.error('Error serving static file:', error);
-    return jsonResponse(
-      { error: 'Error cargando archivo estático' },
-      500,
-      corsHeaders
-    );
+    return jsonResponse({ error: 'Error cargando archivo estático' }, 500, corsHeaders);
   }
 }
 
