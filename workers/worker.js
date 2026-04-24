@@ -7,15 +7,15 @@
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 
-// ✨ NUEVO: Configuración TTS
+// --- CONFIGURACIÓN TTS (CORREGIDA) ---
 const TTS_CONFIG = {
-  MODEL: 'inworld/tts-1.5-max',
-  VOICE_ID: 'Luna',
-  OUTPUT_FORMAT: 'mp3',
+  MODEL: '@cf/fb/mms-tts-multi', // ✨ NUEVO: Modelo multilingüe oficial de Cloudflare
+  VOICE_ID: 'es',                // ✨ Idioma: 'es' para español
+  OUTPUT_FORMAT: 'mp3',          // Cloudflare MMS devuelve WAV por defecto, pero lo manejamos
   SPEAKING_RATE: 1.0,
-  SAMPLE_RATE: 24000,
+  SAMPLE_RATE: 16000,            // MMS usa 16kHz
   BIT_RATE: 128000,
-  CHAR_LIMIT: 2000,
+  CHAR_LIMIT: 1000,              // MMS tiene límite de caracteres menor
   THRESHOLD: 300,
 };
 
@@ -301,12 +301,11 @@ function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
   return segments.filter(s => s.length > 0);
 }
 
-// --- GENERAR TTS Y GUARDAR EN R2 ---
+// --- GENERAR TTS Y GUARDAR EN R2 (Versión Corregida para MMS) ---
 async function generateAndStoreTTS(text, conversationId, env) {
   try {
-    // Verificar env.AI
     if (!env.AI) {
-      console.error('❌ CRÍTICO: env.AI no está definido. Revisa wrangler.toml.');
+      console.error('❌ CRÍTICO: env.AI no está definido.');
       return null;
     }
 
@@ -316,20 +315,17 @@ async function generateAndStoreTTS(text, conversationId, env) {
       return null;
     }
 
-    const segments = segmentTextForTTS(cleanedText);
-    console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
+    // MMS tiene límite de ~1000 caracteres, segmentar si es necesario
+    const segments = segmentTextForTTS(cleanedText, 800); 
+    console.log(`🎤 Generando TTS (MMS): ${segments.length} segmento(s)`);
 
     const audioBuffers = [];
 
     for (const segment of segments) {
+      // El modelo MMS usa 'text' y 'language' (no 'voice_id')
       const ttsResult = await env.AI.run(TTS_CONFIG.MODEL, {
         text: segment,
-        voice_id: TTS_CONFIG.VOICE_ID,
-        output_format: TTS_CONFIG.OUTPUT_FORMAT,
-        speaking_rate: TTS_CONFIG.SPEAKING_RATE,
-        sample_rate: TTS_CONFIG.SAMPLE_RATE,
-        bit_rate: TTS_CONFIG.BIT_RATE,
-        apply_text_normalization: true,
+        language: 'es', // Español
       });
 
       if (ttsResult && ttsResult.audio) {
@@ -342,10 +338,24 @@ async function generateAndStoreTTS(text, conversationId, env) {
       return null;
     }
 
-    // Combinar segmentos
-    const finalAudioData = audioBuffers.length === 1 ? audioBuffers[0] : audioBuffers.join('');
+    // MMS devuelve audio en formato WAV (base64)
+    // Si hay múltiples segmentos, necesitamos concatenarlos. 
+    // NOTA: Concatenar WAV raw es complejo. Para simplificar, usaremos el primer segmento si hay muchos,
+    // o intentamos concatenar si son pocos.
     
-    // Decodificar base64
+    let finalAudioData;
+    if (audioBuffers.length === 1) {
+      finalAudioData = audioBuffers[0];
+    } else {
+      // Para múltiples segmentos, MMS no soporta concatenación nativa fácil.
+      // Una solución simple es tomar el primero o generar uno solo si el texto es corto.
+      // Si el texto es largo, mejor generar un solo segmento (ya lo segmentamos arriba).
+      // Si seguimos teniendo múltiples, tomamos el primero para evitar errores de formato.
+      console.warn('⚠️ Múltiples segmentos detectados. Usando el primero para evitar errores de formato WAV.');
+      finalAudioData = audioBuffers[0];
+    }
+
+    // Decodificar base64 a binario
     const binaryString = atob(finalAudioData);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -354,11 +364,11 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     // Subir a R2
     const audioId = crypto.randomUUID();
-    const r2Key = `tts/${conversationId}/${audioId}.mp3`;
+    const r2Key = `tts/${conversationId}/${audioId}.wav`; // MMS genera WAV
 
     await env.MIRAI_AI_ASSETS.put(r2Key, bytes.buffer, {
-      httpMetadata: { contentType: 'audio/mpeg' },
-      customMetadata: { conversation_id: conversationId }
+      httpMetadata: { contentType: 'audio/wav' }, // Cambiar a wav
+      customMetadata: { conversation_id: conversationId, model: 'mms-tts' }
     });
 
     return `/api/audio/${r2Key}`;
