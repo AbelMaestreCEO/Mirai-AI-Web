@@ -67,47 +67,6 @@ async function handleApiRequest(request, env, corsHeaders) {
   const path = url.pathname;
 
   try {
-    // Agrega esta ruta temporal en handleApiRequest
-    if (path === '/api/debug-tts-model' && request.method === 'POST') {
-      try {
-        const { text } = await request.json();
-
-        const result = await env.AI.run('@cf/deepgram/aura-1', {
-          text: text || 'Hola, esto es una prueba de TTS.',
-          voice: 'luna'
-        });
-
-        // Log exhaustivo
-        console.log('=== DEBUG TTS COMPLETO ===');
-        console.log('Tipo:', typeof result);
-        console.log('Es ArrayBuffer:', result instanceof ArrayBuffer);
-        console.log('Claves:', Object.keys(result || {}));
-        console.log('Valor JSON:', JSON.stringify(result, null, 2));
-        console.log('Propiedades:', Object.getOwnPropertyNames(result || {}));
-
-        // Intentar convertir a buffer si es posible
-        if (result && typeof result === 'object') {
-          for (const key of Object.keys(result)) {
-            console.log(`Propiedad ${key}:`, typeof result[key]);
-            console.log(`Propiedad ${key} es ArrayBuffer?:`, result[key] instanceof ArrayBuffer);
-          }
-        }
-
-        return jsonResponse({
-          success: true,
-          debug: {
-            type: typeof result,
-            isArrayBuffer: result instanceof ArrayBuffer,
-            keys: Object.keys(result || {}),
-            stringified: JSON.stringify(result, null, 2)
-          }
-        }, 200, corsHeaders);
-
-      } catch (error) {
-        return jsonResponse({ error: error.message }, 500, corsHeaders);
-      }
-    }
-    //BORRAR HASTA AQUÍ
     // Ruta: POST /api/chat
     if (path === ROUTES.CHAT && request.method === 'POST') {
       return await handleChat(request, env, corsHeaders);
@@ -313,32 +272,7 @@ function cleanTextForTTS(text) {
   return cleaned.trim();
 }
 
-// --- SEGMENTAR TEXTO LARGO ---
-function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
-  if (text.length <= maxLength) return [text];
-  const segments = [];
-  let remaining = text;
-  while (remaining.length > 0) {
-    if (remaining.length <= maxLength) {
-      segments.push(remaining);
-      break;
-    }
-    let cutIndex = maxLength;
-    const naturalBreaks = ['. ', '.\n', '! ', '? ', '。\n', '\n\n'];
-    for (const breaker of naturalBreaks) {
-      const lastIndex = remaining.lastIndexOf(breaker, maxLength);
-      if (lastIndex > maxLength * 0.5) {
-        cutIndex = lastIndex + breaker.length;
-        break;
-      }
-    }
-    segments.push(remaining.substring(0, cutIndex).trim());
-    remaining = remaining.substring(cutIndex).trim();
-  }
-  return segments.filter(s => s.length > 0);
-}
-
-// --- GENERAR TTS Y GUARDAR EN R2 ---
+// --- GENERAR TTS Y GUARDAR EN R2 (CORREGIDO) ---
 async function generateAndStoreTTS(text, conversationId, env) {
   try {
     if (!env.AI) {
@@ -355,51 +289,86 @@ async function generateAndStoreTTS(text, conversationId, env) {
     const segments = segmentTextForTTS(cleanedText);
     console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
 
-    const audioBuffers = []; // ← Declarada aquí dentro
+    const audioBuffers = [];
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run(
-          '@cf/deepgram/aura-1',
-          {
-            text: segment,
-            voice: 'luna',
-          }
-        );
+        const ttsResult = await env.AI.run('@cf/deepgram/aura-1', {
+          text: segment,
+          voice: 'luna',
+        });
 
         console.log('🔍 ttsResult tipo:', typeof ttsResult);
-        console.log('🔍 ttsResult instanceof ArrayBuffer:', ttsResult instanceof ArrayBuffer);
-        console.log('🔍 ttsResult byteLength:', ttsResult?.byteLength);
+        console.log('🔍 ttsResult constructor:', ttsResult?.constructor?.name);
 
-        // Deepgram puede devolver ArrayBuffer directamente
-        // o un objeto con propiedad audio
-        // ✨ MANEJO ROBUSTO DE LA RESPUESTA
+        let audioBuffer = null;
+
+        // CASO 1: ArrayBuffer directo
         if (ttsResult instanceof ArrayBuffer && ttsResult.byteLength > 0) {
-          // Caso 1: ArrayBuffer directo (el más común en CF AI)
-          audioBuffers.push(ttsResult);
+          audioBuffer = ttsResult;
           console.log('✅ ArrayBuffer directo capturado');
-        } else if (ttsResult?.audio instanceof ArrayBuffer) {
-          // Caso 2: Objeto con propiedad .audio
-          audioBuffers.push(ttsResult.audio);
-          console.log('✅ Propiedad .audio capturada');
-        } else if (ttsResult?.result?.audio instanceof ArrayBuffer) {
-          // Caso 3: Anidado en .result
-          audioBuffers.push(ttsResult.result.audio);
-          console.log('✅ Propiedad .result.audio capturada');
-        } else {
-          // Debug: mostrar qué tiene realmente el objeto
-          console.error('❌ Formato inesperado de ttsResult:', JSON.stringify(Object.keys(ttsResult || {})));
-          console.error('❌ Valor completo:', ttsResult);
         }
+        // CASO 2: Es un Response (objeto opaco sin claves enumerables)
+        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.arrayBuffer === 'function') {
+          console.log('🔍 ttsResult es un Response, llamando .arrayBuffer()...');
+          audioBuffer = await ttsResult.arrayBuffer();
+          console.log('✅ Audio extraído del Response:', audioBuffer.byteLength, 'bytes');
+        }
+        // CASO 3: Propiedad .audio
+        else if (ttsResult?.audio instanceof ArrayBuffer) {
+          audioBuffer = ttsResult.audio;
+          console.log('✅ Propiedad .audio capturada');
+        }
+        // CASO 4: Propiedad .result.audio
+        else if (ttsResult?.result?.audio instanceof ArrayBuffer) {
+          audioBuffer = ttsResult.result.audio;
+          console.log('✅ Propiedad .result.audio capturada');
+        }
+        // CASO 5: ReadableStream
+        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.getReader === 'function') {
+          console.log('🔍 ttsResult es un ReadableStream, consumiendo...');
+          const reader = ttsResult.getReader();
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+          }
+          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+          const combined = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const chunk of chunks) {
+            combined.set(new Uint8Array(chunk), offset);
+            offset += chunk.byteLength;
+          }
+          audioBuffer = combined.buffer;
+          console.log('✅ Audio extraído del ReadableStream:', audioBuffer.byteLength, 'bytes');
+        }
+        // CASO 6: Objeto vacío (fallback)
+        else {
+          console.error('❌ Formato no reconocido');
+          console.error('❌ Constructor:', ttsResult?.constructor?.name);
+          console.error('❌ Tiene .arrayBuffer?:', typeof ttsResult?.arrayBuffer);
+          console.error('❌ Tiene .getReader?:', typeof ttsResult?.getReader);
+          console.error('❌ Tiene .body?:', typeof ttsResult?.body);
+        }
+
+        if (audioBuffer && audioBuffer.byteLength > 0) {
+          audioBuffers.push(audioBuffer);
+        } else {
+          console.warn('⚠️ Segmento sin audio válido');
+        }
+
       } catch (segError) {
         console.error('❌ Error en segmento TTS:', segError.message);
       }
     }
 
     if (audioBuffers.length === 0) {
-      console.error('❌ TTS no generó audio válido después de intentar todos los formatos');
+      console.error('❌ TTS no generó audio válido');
       return null;
     }
+
     // Combinar buffers si hay múltiples segmentos
     let finalBuffer;
     if (audioBuffers.length === 1) {
