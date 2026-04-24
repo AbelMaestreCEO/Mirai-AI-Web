@@ -65,7 +65,47 @@ export default {
 async function handleApiRequest(request, env, corsHeaders) {
   const url = new URL(request.url);
   const path = url.pathname;
+  // Agrega esta ruta temporal en handleApiRequest
+  if (path === '/api/debug-tts-model' && request.method === 'POST') {
+    try {
+      const { text } = await request.json();
 
+      const result = await env.AI.run('@cf/deepgram/aura-1', {
+        text: text || 'Hola, esto es una prueba de TTS.',
+        voice: 'luna'
+      });
+
+      // Log exhaustivo
+      console.log('=== DEBUG TTS COMPLETO ===');
+      console.log('Tipo:', typeof result);
+      console.log('Es ArrayBuffer:', result instanceof ArrayBuffer);
+      console.log('Claves:', Object.keys(result || {}));
+      console.log('Valor JSON:', JSON.stringify(result, null, 2));
+      console.log('Propiedades:', Object.getOwnPropertyNames(result || {}));
+
+      // Intentar convertir a buffer si es posible
+      if (result && typeof result === 'object') {
+        for (const key of Object.keys(result)) {
+          console.log(`Propiedad ${key}:`, typeof result[key]);
+          console.log(`Propiedad ${key} es ArrayBuffer?:`, result[key] instanceof ArrayBuffer);
+        }
+      }
+
+      return jsonResponse({
+        success: true,
+        debug: {
+          type: typeof result,
+          isArrayBuffer: result instanceof ArrayBuffer,
+          keys: Object.keys(result || {}),
+          stringified: JSON.stringify(result, null, 2)
+        }
+      }, 200, corsHeaders);
+
+    } catch (error) {
+      return jsonResponse({ error: error.message }, 500, corsHeaders);
+    }
+  }
+  //BORRAR HASTA AQUÍ
   try {
     // Ruta: POST /api/chat
     if (path === ROUTES.CHAT && request.method === 'POST') {
