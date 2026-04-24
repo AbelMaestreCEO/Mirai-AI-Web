@@ -314,38 +314,66 @@ async function generateAndStoreTTS(text, conversationId, env) {
     const segments = segmentTextForTTS(cleanedText);
     console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
 
-    // Cloudflare requiere un gateway configurado para modelos "Proxied"
-    // Si no tienes un gateway llamado 'default', cámbialo o quita el tercer argumento
-    // y usa la REST API directamente (ver nota abajo)
-    const audioUrls = [];
+    const audioBuffers = []; // ← Declarada aquí dentro
 
     for (const segment of segments) {
-      const ttsResult = await env.AI.run(
-        '@cf/deepgram/aura-1',
-        {
-          text: segment,
-          voice: TTS_CONFIG.VOICE_ID,   // ← Deepgram usa "voice", no "voice_id"
+      try {
+        const ttsResult = await env.AI.run(
+          '@cf/deepgram/aura-2-es',
+          {
+            text: segment,
+            voice: 'luna',
+          }
+        );
+
+        console.log('🔍 ttsResult tipo:', typeof ttsResult);
+
+        // Deepgram puede devolver ArrayBuffer directamente
+        // o un objeto con propiedad audio
+        if (ttsResult instanceof ArrayBuffer && ttsResult.byteLength > 0) {
+          audioBuffers.push(ttsResult);
+        } else if (ttsResult && ttsResult.audio instanceof ArrayBuffer) {
+          audioBuffers.push(ttsResult.audio);
+        } else if (ttsResult && typeof ttsResult === 'object') {
+          // Intentar leer como stream/blob
+          const keys = Object.keys(ttsResult);
+          console.log('🔍 ttsResult keys:', keys);
+          // Buscar cualquier propiedad que sea ArrayBuffer
+          for (const key of keys) {
+            if (ttsResult[key] instanceof ArrayBuffer) {
+              audioBuffers.push(ttsResult[key]);
+              break;
+            }
+          }
         }
-      );
-
-      console.log('🔍 ttsResult keys:', Object.keys(ttsResult || {}));
-
-      // Deepgram devuelve el audio directamente como ArrayBuffer
-      if (ttsResult) {
-        audioBuffers.push(ttsResult);
+      } catch (segError) {
+        console.error('❌ Error en segmento TTS:', segError.message);
       }
     }
 
     if (audioBuffers.length === 0) {
-      console.error('❌ TTS no generó audio');
+      console.error('❌ TTS no generó audio válido');
       return null;
     }
 
+    // Combinar buffers si hay múltiples segmentos
+    let finalBuffer;
+    if (audioBuffers.length === 1) {
+      finalBuffer = audioBuffers[0];
+    } else {
+      const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+      const combined = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const buf of audioBuffers) {
+        combined.set(new Uint8Array(buf), offset);
+        offset += buf.byteLength;
+      }
+      finalBuffer = combined.buffer;
+    }
+
+    // Subir a R2
     const audioId = crypto.randomUUID();
     const r2Key = `tts/${conversationId}/${audioId}.mp3`;
-
-    // Deepgram devuelve ArrayBuffer directo
-    const finalBuffer = audioBuffers[0];
 
     await env.MIRAI_AI_ASSETS.put(r2Key, finalBuffer, {
       httpMetadata: { contentType: 'audio/mpeg' },
@@ -356,7 +384,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
     return `/api/audio/${r2Key}`;
 
   } catch (error) {
-    console.error('❌ Error en generateAndStoreTTS:', error);
+    console.error('❌ Error en generateAndStoreTTS:', error.message);
     return null;
   }
 }
