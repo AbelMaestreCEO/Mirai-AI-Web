@@ -9,8 +9,8 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: 'inworld/tts-1.5-mini',
-  VOICE_ID: 'Luna',
+  MODEL: '@cf/inworld/tts-1.5-mini',   // ← Prefijo @cf/ obligatorio
+  VOICE_ID: 'Luna',                     // ← Luna sí existe en el enum
   OUTPUT_FORMAT: 'mp3',
   SPEAKING_RATE: 1.0,
   SAMPLE_RATE: 24000,
@@ -329,11 +329,16 @@ async function generateAndStoreTTS(text, conversationId, env) {
         speaking_rate: TTS_CONFIG.SPEAKING_RATE,
         sample_rate: TTS_CONFIG.SAMPLE_RATE,
         bit_rate: TTS_CONFIG.BIT_RATE,
+        temperature: 1,               // ← required
+        timestamp_type: 'none',       // ← required
         apply_text_normalization: true,
       });
 
-      if (ttsResult && ttsResult.audio) {
-        audioBuffers.push(ttsResult.audio);
+      if (ttsResult) {
+        // La API devuelve el audio directamente como ArrayBuffer o base64
+        // dependiendo del formato. Para mp3 suele ser un objeto con .audio o directo.
+        const audioData = ttsResult.audio || ttsResult;
+        if (audioData) audioBuffers.push(audioData);
       }
     }
 
@@ -342,21 +347,27 @@ async function generateAndStoreTTS(text, conversationId, env) {
       return null;
     }
 
-    // Combinar segmentos
-    const finalAudioData = audioBuffers.length === 1 ? audioBuffers[0] : audioBuffers.join('');
-    
-    // Decodificar base64
-    const binaryString = atob(finalAudioData);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // Subir a R2
     const audioId = crypto.randomUUID();
     const r2Key = `tts/${conversationId}/${audioId}.mp3`;
 
-    await env.MIRAI_AI_ASSETS.put(r2Key, bytes.buffer, {
+    // Manejar tanto ArrayBuffer directo como base64 string
+    const firstBuffer = audioBuffers[0];
+    let finalBytes;
+
+    if (typeof firstBuffer === 'string') {
+      // Es base64
+      const combined = audioBuffers.join('');
+      const binaryString = atob(combined);
+      finalBytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        finalBytes[i] = binaryString.charCodeAt(i);
+      }
+    } else {
+      // Es ArrayBuffer directo
+      finalBytes = new Uint8Array(firstBuffer);
+    }
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, finalBytes.buffer, {
       httpMetadata: { contentType: 'audio/mpeg' },
       customMetadata: { conversation_id: conversationId }
     });
