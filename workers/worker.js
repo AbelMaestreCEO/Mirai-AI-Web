@@ -9,8 +9,8 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: '@cf/inworld/tts-1.5-mini',   // ← Prefijo @cf/ obligatorio
-  VOICE_ID: 'Luna',                     // ← Luna sí existe en el enum
+  MODEL: 'inworld/tts-1.5-mini',   // ← Sin @cf/
+  VOICE_ID: 'Luna',                 // ← Luna sí existe en el enum
   OUTPUT_FORMAT: 'mp3',
   SPEAKING_RATE: 1.0,
   SAMPLE_RATE: 24000,
@@ -304,9 +304,8 @@ function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
 // --- GENERAR TTS Y GUARDAR EN R2 ---
 async function generateAndStoreTTS(text, conversationId, env) {
   try {
-    // Verificar env.AI
     if (!env.AI) {
-      console.error('❌ CRÍTICO: env.AI no está definido. Revisa wrangler.toml.');
+      console.error('❌ CRÍTICO: env.AI no está definido.');
       return null;
     }
 
@@ -319,59 +318,65 @@ async function generateAndStoreTTS(text, conversationId, env) {
     const segments = segmentTextForTTS(cleanedText);
     console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
 
-    const audioBuffers = [];
+    // Cloudflare requiere un gateway configurado para modelos "Proxied"
+    // Si no tienes un gateway llamado 'default', cámbialo o quita el tercer argumento
+    // y usa la REST API directamente (ver nota abajo)
+    const audioUrls = [];
 
     for (const segment of segments) {
-      const ttsResult = await env.AI.run(TTS_CONFIG.MODEL, {
-        text: segment,
-        voice_id: TTS_CONFIG.VOICE_ID,
-        output_format: TTS_CONFIG.OUTPUT_FORMAT,
-        speaking_rate: TTS_CONFIG.SPEAKING_RATE,
-        sample_rate: TTS_CONFIG.SAMPLE_RATE,
-        bit_rate: TTS_CONFIG.BIT_RATE,
-        temperature: 1,               // ← required
-        timestamp_type: 'none',       // ← required
-        apply_text_normalization: true,
-      });
+      const ttsResult = await env.AI.run(
+        TTS_CONFIG.MODEL,
+        {
+          text: segment,
+          voice_id: TTS_CONFIG.VOICE_ID,
+          output_format: TTS_CONFIG.OUTPUT_FORMAT,
+          speaking_rate: TTS_CONFIG.SPEAKING_RATE,
+          sample_rate: TTS_CONFIG.SAMPLE_RATE,
+          bit_rate: TTS_CONFIG.BIT_RATE,
+          temperature: 1,           // ← required
+          timestamp_type: 'none',   // ← required
+          apply_text_normalization: true,
+        },
+        {
+          gateway: { id: 'default' }, // ← Requerido para modelos Proxied
+        }
+      );
 
-      if (ttsResult) {
-        // La API devuelve el audio directamente como ArrayBuffer o base64
-        // dependiendo del formato. Para mp3 suele ser un objeto con .audio o directo.
-        const audioData = ttsResult.audio || ttsResult;
-        if (audioData) audioBuffers.push(audioData);
+      console.log('🔍 ttsResult:', JSON.stringify(ttsResult));
+
+      // La respuesta es { audio: "https://..." }
+      if (ttsResult && ttsResult.audio) {
+        audioUrls.push(ttsResult.audio);
+      } else {
+        console.error('❌ Segmento sin audio en respuesta:', ttsResult);
       }
     }
 
-    if (audioBuffers.length === 0) {
-      console.error('❌ TTS no generó audio');
+    if (audioUrls.length === 0) {
+      console.error('❌ TTS no generó ninguna URL de audio');
       return null;
     }
 
+    // Descargar el primer segmento (para múltiples segmentos habría que concatenar)
+    // Por ahora usamos solo el primero si hay varios
+    const audioResponse = await fetch(audioUrls[0]);
+    if (!audioResponse.ok) {
+      console.error('❌ Error descargando audio desde URL:', audioUrls[0]);
+      return null;
+    }
+
+    const audioBuffer = await audioResponse.arrayBuffer();
+
+    // Subir a R2
     const audioId = crypto.randomUUID();
     const r2Key = `tts/${conversationId}/${audioId}.mp3`;
 
-    // Manejar tanto ArrayBuffer directo como base64 string
-    const firstBuffer = audioBuffers[0];
-    let finalBytes;
-
-    if (typeof firstBuffer === 'string') {
-      // Es base64
-      const combined = audioBuffers.join('');
-      const binaryString = atob(combined);
-      finalBytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        finalBytes[i] = binaryString.charCodeAt(i);
-      }
-    } else {
-      // Es ArrayBuffer directo
-      finalBytes = new Uint8Array(firstBuffer);
-    }
-
-    await env.MIRAI_AI_ASSETS.put(r2Key, finalBytes.buffer, {
+    await env.MIRAI_AI_ASSETS.put(r2Key, audioBuffer, {
       httpMetadata: { contentType: 'audio/mpeg' },
       customMetadata: { conversation_id: conversationId }
     });
 
+    console.log(`✅ Audio guardado en R2: ${r2Key}`);
     return `/api/audio/${r2Key}`;
 
   } catch (error) {
