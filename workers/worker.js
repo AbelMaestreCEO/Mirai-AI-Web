@@ -241,67 +241,53 @@ function shouldSendAsAudio(text, audioMode) {
 
   return true;
 }
-
 // --- DETECTAR SI EL CONTENIDO ES MAYORMENTE CÓDIGO ---
 function isMostlyCode(text) {
   const codeBlockMatches = text.match(/```[\s\S]*?```/g) || [];
   const codeChars = codeBlockMatches.reduce((sum, block) => sum + block.length, 0);
-  return (codeChars / text.length) > 0.6;
+  return text.length > 0 && (codeChars / text.length) > 0.6;
 }
 
-// --- REMOVER BLOQUES DE CÓDIGO PARA TTS ---
+// --- REMOVER BLOQUES DE CÓDIGO ---
 function stripCodeBlocks(text) {
   return text.replace(/```[\s\S]*?```/g, '').trim();
 }
 
+
 // --- LIMPIAR TEXTO PARA TTS ---
 function cleanTextForTTS(text) {
   let cleaned = text;
-
   // Remover bloques de código
   cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
-  // Código inline → conservar nombre
+  // Código inline
   cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
-  // Markdown de formato
+  // Markdown
   cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');
   cleaned = cleaned.replace(/\*(.+?)\*/g, '$1');
-  cleaned = cleaned.replace(/~~(.+?)~~/g, '$1');
-  // Encabezados
   cleaned = cleaned.replace(/^#{1,6}\s+(.+)$/gm, '$1');
-  // Enlaces → solo texto
   cleaned = cleaned.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
-  // Imágenes
   cleaned = cleaned.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '');
-  // Líneas horizontales
   cleaned = cleaned.replace(/^---+$/gm, '');
-  // Blockquotes
   cleaned = cleaned.replace(/^>\s+/gm, '');
-  // Listas
   cleaned = cleaned.replace(/^[-*+]\s+/gm, '');
   cleaned = cleaned.replace(/^\d+\.\s+/gm, '');
-  // Normalizar espacios
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   cleaned = cleaned.replace(/  +/g, ' ');
-
   return cleaned.trim();
 }
 
-// --- SEGMENTAR TEXTO LARGO PARA TTS ---
+// --- SEGMENTAR TEXTO LARGO ---
 function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
   if (text.length <= maxLength) return [text];
-
   const segments = [];
   let remaining = text;
-
   while (remaining.length > 0) {
     if (remaining.length <= maxLength) {
       segments.push(remaining);
       break;
     }
-
     let cutIndex = maxLength;
     const naturalBreaks = ['. ', '.\n', '! ', '? ', '。\n', '\n\n'];
-
     for (const breaker of naturalBreaks) {
       const lastIndex = remaining.lastIndexOf(breaker, maxLength);
       if (lastIndex > maxLength * 0.5) {
@@ -309,27 +295,29 @@ function segmentTextForTTS(text, maxLength = TTS_CONFIG.CHAR_LIMIT) {
         break;
       }
     }
-
     segments.push(remaining.substring(0, cutIndex).trim());
     remaining = remaining.substring(cutIndex).trim();
   }
-
   return segments.filter(s => s.length > 0);
 }
-
 
 // --- GENERAR TTS Y GUARDAR EN R2 ---
 async function generateAndStoreTTS(text, conversationId, env) {
   try {
-    const cleanedText = cleanTextForTTS(text);
+    // Verificar env.AI
+    if (!env.AI) {
+      console.error('❌ CRÍTICO: env.AI no está definido. Revisa wrangler.toml.');
+      return null;
+    }
 
+    const cleanedText = cleanTextForTTS(text);
     if (!cleanedText || cleanedText.length < 10) {
-      console.log('⚠️ Texto muy corto para TTS después de limpieza');
+      console.log('⚠️ Texto muy corto para TTS');
       return null;
     }
 
     const segments = segmentTextForTTS(cleanedText);
-    console.log(`🎤 Generando TTS: ${segments.length} segmento(s), ${cleanedText.length} chars`);
+    console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
 
     const audioBuffers = [];
 
@@ -354,12 +342,10 @@ async function generateAndStoreTTS(text, conversationId, env) {
       return null;
     }
 
-    // Combinar segmentos (MP3 permite concatenación directa)
-    const finalAudioData = audioBuffers.length === 1
-      ? audioBuffers[0]
-      : audioBuffers.join('');
-
-    // Decodificar base64 a binario
+    // Combinar segmentos
+    const finalAudioData = audioBuffers.length === 1 ? audioBuffers[0] : audioBuffers.join('');
+    
+    // Decodificar base64
     const binaryString = atob(finalAudioData);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -371,24 +357,14 @@ async function generateAndStoreTTS(text, conversationId, env) {
     const r2Key = `tts/${conversationId}/${audioId}.mp3`;
 
     await env.MIRAI_AI_ASSETS.put(r2Key, bytes.buffer, {
-      httpMetadata: {
-        contentType: 'audio/mpeg',
-        cacheControl: 'public, max-age=86400',
-      },
-      customMetadata: {
-        conversation_id: conversationId,
-        generated_at: new Date().toISOString(),
-        voice_id: TTS_CONFIG.VOICE_ID,
-      }
+      httpMetadata: { contentType: 'audio/mpeg' },
+      customMetadata: { conversation_id: conversationId }
     });
 
-    const audioUrl = `/api/audio/${r2Key}`;
-    console.log(`✅ Audio TTS generado: ${r2Key}`);
-
-    return audioUrl;
+    return `/api/audio/${r2Key}`;
 
   } catch (error) {
-    console.error('❌ Error generando TTS:', error.message);
+    console.error('❌ Error en generateAndStoreTTS:', error);
     return null;
   }
 }
