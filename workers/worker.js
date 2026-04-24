@@ -327,24 +327,28 @@ async function generateAndStoreTTS(text, conversationId, env) {
         );
 
         console.log('🔍 ttsResult tipo:', typeof ttsResult);
+        console.log('🔍 ttsResult instanceof ArrayBuffer:', ttsResult instanceof ArrayBuffer);
+        console.log('🔍 ttsResult byteLength:', ttsResult?.byteLength);
 
         // Deepgram puede devolver ArrayBuffer directamente
         // o un objeto con propiedad audio
+        // ✨ MANEJO ROBUSTO DE LA RESPUESTA
         if (ttsResult instanceof ArrayBuffer && ttsResult.byteLength > 0) {
+          // Caso 1: ArrayBuffer directo (el más común en CF AI)
           audioBuffers.push(ttsResult);
-        } else if (ttsResult && ttsResult.audio instanceof ArrayBuffer) {
+          console.log('✅ ArrayBuffer directo capturado');
+        } else if (ttsResult?.audio instanceof ArrayBuffer) {
+          // Caso 2: Objeto con propiedad .audio
           audioBuffers.push(ttsResult.audio);
-        } else if (ttsResult && typeof ttsResult === 'object') {
-          // Intentar leer como stream/blob
-          const keys = Object.keys(ttsResult);
-          console.log('🔍 ttsResult keys:', keys);
-          // Buscar cualquier propiedad que sea ArrayBuffer
-          for (const key of keys) {
-            if (ttsResult[key] instanceof ArrayBuffer) {
-              audioBuffers.push(ttsResult[key]);
-              break;
-            }
-          }
+          console.log('✅ Propiedad .audio capturada');
+        } else if (ttsResult?.result?.audio instanceof ArrayBuffer) {
+          // Caso 3: Anidado en .result
+          audioBuffers.push(ttsResult.result.audio);
+          console.log('✅ Propiedad .result.audio capturada');
+        } else {
+          // Debug: mostrar qué tiene realmente el objeto
+          console.error('❌ Formato inesperado de ttsResult:', JSON.stringify(Object.keys(ttsResult || {})));
+          console.error('❌ Valor completo:', ttsResult);
         }
       } catch (segError) {
         console.error('❌ Error en segmento TTS:', segError.message);
@@ -352,10 +356,9 @@ async function generateAndStoreTTS(text, conversationId, env) {
     }
 
     if (audioBuffers.length === 0) {
-      console.error('❌ TTS no generó audio válido');
+      console.error('❌ TTS no generó audio válido después de intentar todos los formatos');
       return null;
     }
-
     // Combinar buffers si hay múltiples segmentos
     let finalBuffer;
     if (audioBuffers.length === 1) {
@@ -385,6 +388,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
   } catch (error) {
     console.error('❌ Error en generateAndStoreTTS:', error.message);
+    console.error('Stack:', error.stack);
     return null;
   }
 }
