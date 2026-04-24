@@ -272,6 +272,36 @@ function cleanTextForTTS(text) {
   return cleaned.trim();
 }
 
+function segmentTextForTTS(text, maxLength = 2000) {
+  if (text.length <= maxLength) return [text];
+  
+  const segments = [];
+  let remaining = text;
+  
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      segments.push(remaining);
+      break;
+    }
+    
+    let cutIndex = maxLength;
+    const naturalBreaks = ['. ', '.\n', '! ', '? ', '。\n', '\n\n'];
+    
+    for (const breaker of naturalBreaks) {
+      const lastIndex = remaining.lastIndexOf(breaker, maxLength);
+      if (lastIndex > maxLength * 0.5) {
+        cutIndex = lastIndex + breaker.length;
+        break;
+      }
+    }
+    
+    segments.push(remaining.substring(0, cutIndex).trim());
+    remaining = remaining.substring(cutIndex).trim();
+  }
+  
+  return segments.filter(s => s.length > 0);
+}
+
 // --- GENERAR TTS Y GUARDAR EN R2 (CORREGIDO) ---
 async function generateAndStoreTTS(text, conversationId, env) {
   try {
