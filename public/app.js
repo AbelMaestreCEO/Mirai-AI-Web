@@ -384,7 +384,7 @@ async function handleSendMessage() {
   // 2. Construir mensaje
   let fullMessage = userInput;
   let attachmentIds = [];
-  
+
   if (state.attachments.length > 0) {
     const attachmentsSection = state.attachments.map(att => {
       attachmentIds.push(att.id);
@@ -1105,13 +1105,19 @@ function formatMessageContent(content) {
   // 10. Líneas horizontales (---)
   formatted = formatted.replace(/^---$/gm, '<hr class="md-hr">');
 
-  // 11. Enlaces ([texto](url))
+  // 12. IMÁGENES (AGREGAR ESTO ANTES DE LOS ENLACES)
+  // Convierte ![alt](url) en <img src="url" alt="alt">
+  formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    return `<img src="${url}" alt="${alt}" class="md-image" style="max-width: 100%; border-radius: 8px; margin: 10px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">`;
+  });
+
+  // 13. Enlaces ([texto](url))
   formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
 
-  // 12. Saltos de línea (convertir a <br>)
+  // 14. Saltos de línea (convertir a <br>)
   formatted = formatted.replace(/\n/g, '<br>');
 
-  // 13. Limpiar <br> duplicados después de elementos de bloque
+  // 15. Limpiar <br> duplicados después de elementos de bloque
   formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|div)>[ ]*<br>/g, '</$1>');
 
   return formatted;
@@ -1453,7 +1459,7 @@ function updateActiveConversation() {
 // --- FORMATEAR FECHA ---
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  
+
   try {
     const date = new Date(dateStr + 'Z'); // Agregar Z para UTC
     const now = new Date();
