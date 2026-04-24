@@ -35,7 +35,7 @@ const elements = {
   conversationsList: document.getElementById('conversations-list'),
   newConversationBtn: document.getElementById('new-conversation-btn'),
   audioModeToggle: document.getElementById('audio-mode-toggle'),
-  
+
 };
 
 // --- ESTADO DE LA APLICACIÓN ---
@@ -415,7 +415,7 @@ async function handleSendMessage() {
   try {
     let responseData;
     // Asegurarse de que audioMode tenga un valor por defecto si no está definido
-    const audioModeToSend = state.audioMode || 'always'; 
+    const audioModeToSend = state.audioMode || 'always';
 
     if (isImageRequest) {
       // --- LLAMAR A GENERADOR DE IMÁGENES ---
@@ -450,7 +450,7 @@ async function handleSendMessage() {
         body: JSON.stringify({
           message: fullMessage,
           conversation_id: state.currentConversationId,
-          audio_mode: audioModeToSend // ✨ ENVIAR MODO AUDIO
+          audio_mode: state.audioMode || 'always'
         })
       });
 
@@ -458,13 +458,8 @@ async function handleSendMessage() {
       responseData = await response.json();
 
       if (responseData.response) {
-        // ✨ PASAR AUDIO A appendMessage
-        // appendMessage ahora espera: role, content, animate, optionsObj
-        // optionsObj = { audioUrl: ..., isAudio: ... }
-        appendMessage('assistant', responseData.response, true, {
-          audioUrl: responseData.audio_url || null,
-          isAudio: responseData.is_audio || false
-        });
+        // ✅ PASAR audioUrl COMO STRING, NO COMO OBJETO
+        appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
       } else {
         throw new Error('No se recibió respuesta válida');
       }
@@ -745,7 +740,7 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
         </div>
       </div>
     `;
-    
+
     // Meta row para IA (botones de acción)
     metaRow = `
       <div class="message-meta">
