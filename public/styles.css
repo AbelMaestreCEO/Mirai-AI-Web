@@ -1889,3 +1889,56 @@ footer.footer {
     gap: 8px;
   }
 }
+
+/* ============================================
+   BOTÓN MODO AUDIO
+   ============================================ */
+
+.audio-mode-toggle {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-pill);
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.audio-mode-toggle:hover {
+  background: var(--glass-highlight);
+  color: var(--text-primary);
+  border-color: var(--accent-color);
+}
+
+.audio-mode-toggle.active {
+  background: var(--accent-gradient);
+  color: white;
+  border-color: transparent;
+}
+
+.audio-mode-toggle.text-mode {
+  background: rgba(255, 100, 100, 0.1);
+  color: #ff3b30;
+  border-color: #ff3b30;
+}
+
+.audio-mode-icon {
+  font-size: 1rem;
+}
+
+/* Responsive móvil */
+@media (max-width: 768px) {
+  .audio-mode-toggle {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+  
+  .audio-mode-label {
+    display: none; /* Solo icono en móvil */
+  }
+}
