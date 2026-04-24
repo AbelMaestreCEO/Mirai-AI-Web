@@ -9,8 +9,8 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: '@cf/deepgram/aura-2-es',   // ← Gratuito, nativo Cloudflare
-  VOICE_ID: 'diana',               // ← Voces: angus, asteria, luna, zeus, etc.
+  MODEL: '@cf/deepgram/aura-1',
+  VOICE_ID: 'luna',
   CHAR_LIMIT: 2000,
   THRESHOLD: 300,
 };
@@ -319,7 +319,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
     for (const segment of segments) {
       try {
         const ttsResult = await env.AI.run(
-          '@cf/deepgram/aura-2-es',
+          '@cf/deepgram/aura-1',
           {
             text: segment,
             voice: 'luna',
