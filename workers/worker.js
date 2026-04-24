@@ -127,11 +127,13 @@ async function handleApiRequest(request, env, corsHeaders) {
   }
 }
 
+// --- MANEJAR CHAT (DeepSeek API + TTS) ---
 async function handleChat(request, env, corsHeaders) {
   console.log('🔍 handleChat llamado');
+  console.log('🔍 env.AI disponible:', !!env.AI); // ¡CRÍTICO! Verifica esto en logs
 
   try {
-    // ✨ Leer audio_mode del body
+    // ✨ LEER audio_mode DEL BODY
     const { message, conversation_id, audio_mode } = await request.json();
 
     // Validar entrada
@@ -142,13 +144,15 @@ async function handleChat(request, env, corsHeaders) {
       return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
     }
 
+    console.log(`📩 Recibido: audio_mode = ${audio_mode}`);
+
     // 1. ASEGURAR QUE LA CONVERSACIÓN EXISTA
     await ensureConversationExists(conversation_id, message, env);
 
     // 2. Obtener historial
     const history = await getConversationHistory(conversation_id, env);
 
-    // 3. Llamar a DeepSeek
+    // 3. Llamar a DeepSeek (IMPORTANTE: stream: false)
     const deepseekMessages = buildDeepseekMessages(message, history);
     const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
@@ -160,7 +164,8 @@ async function handleChat(request, env, corsHeaders) {
         model: DEEPSEEK_MODEL,
         messages: deepseekMessages,
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 2000,
+        stream: false // ✨ DEBE SER FALSE PARA TTS
       })
     });
 
@@ -183,8 +188,19 @@ async function handleChat(request, env, corsHeaders) {
     let audioUrl = null;
 
     if (shouldGenerateAudio) {
-      console.log(`🎤 Generando audio (modo: ${audio_mode})`);
-      audioUrl = await generateAndStoreTTS(aiResponse, conversation_id, env);
+      console.log(`🎤 Generando audio (modo: ${audio_mode}, longitud: ${aiResponse.length})`);
+      try {
+        audioUrl = await generateAndStoreTTS(aiResponse, conversation_id, env);
+        if (audioUrl) {
+          console.log(`✅ Audio generado: ${audioUrl}`);
+        } else {
+          console.log('⚠️ generateAndStoreTTS devolvió null');
+        }
+      } catch (ttsError) {
+        console.error('❌ Error generando TTS:', ttsError);
+      }
+    } else {
+      console.log(`ℹ️ No se generará audio (decisión: ${shouldGenerateAudio})`);
     }
 
     // ✨ 6. RESPUESTA CON AUDIO
