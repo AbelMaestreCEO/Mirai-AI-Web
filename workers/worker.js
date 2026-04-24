@@ -493,7 +493,7 @@ async function handleUpload(request, env, corsHeaders) {
       r2_key: filename,
       original_name: file.name,
       // Si configuras un dominio personalizado para R2, usa esa URL
-      url: `https://assets.aberumirai.com/${filename}`
+      url: `https://aiassets.aberumirai.com/${filename}`
     }, 200, corsHeaders);
 
   } catch (error) {
