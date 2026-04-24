@@ -66,7 +66,6 @@ async function handleApiRequest(request, env, corsHeaders) {
   const url = new URL(request.url);
   const path = url.pathname;
   // Agrega esta ruta temporal en handleApiRequest
-  if (path === '/api/debug-tts-model' && request.method === 'POST') {
     try {
       const { text } = await request.json();
 
@@ -104,7 +103,6 @@ async function handleApiRequest(request, env, corsHeaders) {
     } catch (error) {
       return jsonResponse({ error: error.message }, 500, corsHeaders);
     }
-  }
   //BORRAR HASTA AQUÍ
   try {
     // Ruta: POST /api/chat
