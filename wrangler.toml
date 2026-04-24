@@ -33,3 +33,6 @@ bucket_name = "mirai-ai-assets"
 
 # --- OPCIONAL: Reglas de envío de logs o métricas ---
 # observability = { enabled = true }
+
+[ai]
+binding = "AI"
