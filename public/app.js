@@ -379,8 +379,6 @@ function getFileIcon(extension) {
   return icons[extension.toUpperCase()] || '📎';
 }
 
-// --- LÓGICA DE MENSAJES (CON DETECCIÓN DE IMAGEN) ---
-// --- LÓGICA DE MENSAJES (ACTUALIZADA PARA EDICIÓN + TTS) ---
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
   if (!userInput && state.attachments.length === 0) return;
@@ -416,6 +414,8 @@ async function handleSendMessage() {
 
   try {
     let responseData;
+    // Asegurarse de que audioMode tenga un valor por defecto si no está definido
+    const audioModeToSend = state.audioMode || 'always'; 
 
     if (isImageRequest) {
       // --- LLAMAR A GENERADOR DE IMÁGENES ---
@@ -433,7 +433,11 @@ async function handleSendMessage() {
 
       if (responseData.success && responseData.image_url) {
         const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
-        appendMessage('assistant', imageMarkdown);
+        // Las imágenes no tienen audio, así que pasamos null
+        appendMessage('assistant', imageMarkdown, {
+          audioUrl: null,
+          isAudio: false
+        });
       } else {
         throw new Error('No se generó imagen');
       }
@@ -446,7 +450,7 @@ async function handleSendMessage() {
         body: JSON.stringify({
           message: fullMessage,
           conversation_id: state.currentConversationId,
-          audio_mode: state.audioMode    // ✨ ENVIAR MODO AUDIO
+          audio_mode: audioModeToSend // ✨ ENVIAR MODO AUDIO
         })
       });
 
@@ -455,7 +459,9 @@ async function handleSendMessage() {
 
       if (responseData.response) {
         // ✨ PASAR AUDIO A appendMessage
-        appendMessage('assistant', responseData.response, {
+        // appendMessage ahora espera: role, content, animate, optionsObj
+        // optionsObj = { audioUrl: ..., isAudio: ... }
+        appendMessage('assistant', responseData.response, true, {
           audioUrl: responseData.audio_url || null,
           isAudio: responseData.is_audio || false
         });
@@ -706,8 +712,8 @@ async function handleClearConversation() {
   }
 }
 
-// --- APENDAR MENSAJE CON BOTÓN EDITAR (USUARIO) ---
-function appendMessage(role, content, animate = true) {
+// --- APENDAR MENSAJE CON SOPORTE DE AUDIO ---
+function appendMessage(role, content, animate = true, audioUrl = null) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
 
@@ -716,11 +722,58 @@ function appendMessage(role, content, animate = true) {
   const avatar = role === 'user' ? 'U' : 'M';
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Fila inferior: hora + botones
+  // Lógica para determinar qué mostrar
+  let contentDisplay = '';
   let metaRow = '';
 
-  if (role === 'assistant') {
-    // Botones de IA (Copiar, Regenerar, Opciones)
+  if (role === 'assistant' && audioUrl) {
+    // CASO: Respuesta de IA con Audio
+    // No mostramos el texto, solo el reproductor
+    contentDisplay = `
+      <div class="audio-player-container">
+        <div class="audio-player-header">
+          <span class="audio-icon">🎵</span>
+          <span class="audio-label">Mensaje de voz</span>
+        </div>
+        <audio controls class="custom-audio-player" preload="metadata">
+          <source src="${audioUrl}" type="audio/mpeg">
+          Tu navegador no soporta el elemento de audio.
+        </audio>
+        <div class="audio-duration">
+          <span class="audio-time-current">0:00</span>
+          <span class="audio-time-total">--:--</span>
+        </div>
+      </div>
+    `;
+    
+    // Meta row para IA (botones de acción)
+    metaRow = `
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+        <div class="message-actions">
+          <button class="msg-action copy-full-btn" title="Copiar texto original" data-content="${escapedContent}">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+          <button class="msg-action regenerate-btn" title="Regenerar respuesta">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          </button>
+          <div class="options-wrapper">
+            <button class="msg-action options-btn" title="Más opciones">
+              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+            <div class="action-menu hidden">
+              <button class="menu-item" data-action="summarize"><span>📝</span> Resumir</button>
+              <button class="menu-item" data-action="extend"><span>📈</span> Extender</button>
+              <button class="menu-item" data-action="formal"><span>👔</span> Tono Formal</button>
+              <button class="menu-item" data-action="friendly"><span>😊</span> Tono Amigable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (role === 'assistant') {
+    // CASO: Respuesta de IA solo texto (fallback)
+    contentDisplay = formattedContent;
     metaRow = `
       <div class="message-meta">
         <span class="message-time">${time}</span>
@@ -746,7 +799,8 @@ function appendMessage(role, content, animate = true) {
       </div>
     `;
   } else if (role === 'user') {
-    // Botones de Usuario (Solo Editar)
+    // CASO: Mensaje de usuario
+    contentDisplay = formattedContent;
     metaRow = `
       <div class="message-meta">
         <span class="message-time">${time}</span>
@@ -760,7 +814,8 @@ function appendMessage(role, content, animate = true) {
       </div>
     `;
   } else {
-    // Sistema (Solo hora)
+    // CASO: Sistema
+    contentDisplay = formattedContent;
     metaRow = `
       <div class="message-meta">
         <span class="message-time">${time}</span>
@@ -771,7 +826,7 @@ function appendMessage(role, content, animate = true) {
   messageDiv.innerHTML = `
     ${role !== 'system' ? `<div class="message-avatar">${avatar}</div>` : ''}
     <div class="message-content">
-      ${formattedContent}
+      ${contentDisplay}
       ${metaRow}
     </div>
   `;
@@ -783,8 +838,10 @@ function appendMessage(role, content, animate = true) {
   elements.chatMessages.appendChild(messageDiv);
   scrollToBottom();
 
+  // Agregar listeners para botones y reproductor
   addCopyButtons();
   addActionButtonsListeners(messageDiv, content);
+  setupAudioPlayer(messageDiv.querySelector('audio'));
 }
 
 // ============================================
@@ -1697,4 +1754,42 @@ function updateAudioModeUI() {
   btn.className = `audio-mode-toggle ${config.class}`;
   if (label) label.textContent = config.label;
   btn.title = `Modo: ${config.label} (clic para cambiar)`;
+}
+
+// --- CONFIGURAR REPRODUCTOR DE AUDIO ---
+function setupAudioPlayer(audioElement) {
+  if (!audioElement) return;
+
+  const container = audioElement.closest('.audio-player-container');
+  const currentTimeEl = container.querySelector('.audio-time-current');
+  const totalTimeEl = container.querySelector('.audio-time-total');
+
+  // Formatear tiempo (mm:ss)
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Cuando se carga el metadato
+  audioElement.addEventListener('loadedmetadata', () => {
+    totalTimeEl.textContent = formatTime(audioElement.duration);
+  });
+
+  // Actualizar tiempo actual
+  audioElement.addEventListener('timeupdate', () => {
+    currentTimeEl.textContent = formatTime(audioElement.currentTime);
+  });
+
+  // Click en el contenedor para pausar/reproducir
+  container.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'AUDIO' && !e.target.closest('.audio-controls')) {
+      if (audioElement.paused) {
+        audioElement.play();
+      } else {
+        audioElement.pause();
+      }
+    }
+  });
 }

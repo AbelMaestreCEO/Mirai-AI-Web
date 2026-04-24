@@ -1942,3 +1942,57 @@ footer.footer {
     display: none; /* Solo icono en móvil */
   }
 }
+
+/* Reproductor de Audio estilo WhatsApp */
+.audio-player-container {
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 5px 0;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+[data-theme='dark'] .audio-player-container {
+  background: #2a2a2a;
+}
+
+.audio-player-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+[data-theme='dark'] .audio-player-header {
+  color: #aaa;
+}
+
+.custom-audio-player {
+  width: 100%;
+  height: 35px;
+  outline: none;
+}
+
+/* Personalización básica del reproductor nativo */
+.custom-audio-player::-webkit-media-controls-panel {
+  background-color: #e0e0e0;
+}
+
+[data-theme='dark'] .custom-audio-player::-webkit-media-controls-panel {
+  background-color: #444;
+}
+
+.audio-duration {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 5px;
+}
+
+[data-theme='dark'] .audio-duration {
+  color: #bbb;
+}

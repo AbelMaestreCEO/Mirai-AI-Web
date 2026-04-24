@@ -9,8 +9,8 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: '@cf/deepgram/aura-1',
-  VOICE_ID: 'luna',
+  MODEL: '@cf/deepgram/aura-2-es',
+  VOICE_ID: 'estrella',
   CHAR_LIMIT: 2000,
   THRESHOLD: 300,
 };
@@ -323,7 +323,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run('@cf/deepgram/aura-1', {
+        const ttsResult = await env.AI.run('@cf/deepgram/aura-2-es', {
           text: segment,
           voice: 'luna',
         });
