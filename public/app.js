@@ -35,7 +35,6 @@ const elements = {
   conversationsList: document.getElementById('conversations-list'),
   newConversationBtn: document.getElementById('new-conversation-btn'),
   audioModeToggle: document.getElementById('audio-mode-toggle'),
-
 };
 
 // --- ESTADO DE LA APLICACIÓN ---
@@ -54,13 +53,19 @@ let state = {
 document.addEventListener('DOMContentLoaded', () => {
   initializeTheme();
   initializeVoiceRecognition();
-  initializeChat();
-  loadOrCreateConversation();
-  setupEventListeners();
+  // ✨ Solo inicializar chat si existe el contenedor
+  const isChatPage = !!document.getElementById('chat-messages');
+  if (isChatPage) {
+    initializeChat();
+    loadOrCreateConversation();
+    setupEventListeners();
+    setupMobileMenu();
+    initializeFileUpload();
+    loadConversations();
+    initializeAudioMode();
+  }
+
   setupMobileMenu();
-  initializeFileUpload();
-  loadConversations();
-  initializeAudioMode();
 });
 
 // --- GESTIÓN DE TEMA ---
@@ -556,9 +561,13 @@ function toggleTheme() {
 
 // --- INICIALIZACIÓN DE CHAT ---
 function initializeChat() {
-  elements.chatMessages.scrollTop = 0;
-  elements.messageInput.focus();
-  autoResizeTextarea();
+  if (elements.chatMessages) {
+    elements.chatMessages.scrollTop = 0;
+  }
+  if (elements.messageInput) {
+    elements.messageInput.focus();
+    autoResizeTextarea();
+  }
   console.log('✨ Mirai AI inicializado correctamente');
 }
 
@@ -596,6 +605,7 @@ async function loadConversationHistory(conversationId) {
 
 // --- MANEJO DE EVENTOS ---
 function setupEventListeners() {
+  if (!elements.chatMessages) return;
   elements.sendButton.addEventListener('click', handleSendMessage);
 
   elements.messageInput.addEventListener('keydown', (e) => {
@@ -1217,6 +1227,7 @@ function showActionFeedback(button, type) {
 
 // --- MOSTRAR INDICADOR DINÁMICO (Puntos o Micrófono) ---
 function showTypingIndicator() {
+  if (!elements.typingIndicator) return;
   const indicator = elements.typingIndicator;
   const dotsContainer = indicator.querySelector('.typing-indicator');
   const micContainer = indicator.querySelector('.recording-indicator'); // Asegúrate de tener este div en el HTML
@@ -1241,15 +1252,18 @@ function showTypingIndicator() {
 }
 
 function hideTypingIndicator() {
+  if (!elements.typingIndicator) return;
   elements.typingIndicator.classList.add('hidden');
 }
 
 function updateSendButtonState() {
+  if (!elements.sendButton) return;
   elements.sendButton.disabled = state.isSending;
   elements.sendButton.style.opacity = state.isSending ? '0.5' : '1';
 }
 
 function scrollToBottom() {
+  if (!elements.chatMessages) return;
   elements.chatMessages.scrollTo({
     top: elements.chatMessages.scrollHeight,
     behavior: 'smooth'
@@ -1257,6 +1271,7 @@ function scrollToBottom() {
 }
 
 function autoResizeTextarea() {
+  if (!elements.messageInput) return;
   const textarea = elements.messageInput;
   textarea.style.height = 'auto';
   const newHeight = Math.min(textarea.scrollHeight, CONFIG.MAX_INPUT_HEIGHT);
