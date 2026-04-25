@@ -1345,13 +1345,10 @@ function formatMessageContent(content) {
     // Generamos el HTML limpio SIN escapar (porque acabamos de construirlo)
     return `
       <div class="image-container" style="position: relative; display: inline-block; margin: 10px 0;">
-        <img src="${url}" alt="${alt}" class="md-image lightbox-trigger" 
-             style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;"
-             data-lightbox-id="${imageId}">
+        <img src="${url}" alt="${alt}" class="md-image lightbox-trigger" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;" data-lightbox-id="${imageId}">
         
         <!-- Botón de descarga flotante (Arriba Derecha) -->
-        <button class="image-download-btn" data-image-url="${url}" title="Descargar imagen" 
-                style="position: absolute; top: 8px; right: 8px; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <button class="image-download-btn" data-image-url="${url}" title="Descargar imagen" style="position: absolute; top: 8px; right: 8px; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
           <svg viewBox="0 0 24 24" width="20" height="20" style="fill: #007aff;">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
