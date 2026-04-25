@@ -325,8 +325,12 @@ async function generateAndStoreTTS(text, conversationId, env) {
       try {
         const ttsResult = await env.AI.run('minimax/speech-2.8-turbo', {
           text: segment,
-          voice: 'female_young',
-          emotion: 'happy' // Si el modelo lo soporta
+          voice_id: 'Spanish_expressive_narrator',
+          speed: 1,
+          volume: 1,
+          pitch: 0,
+          emotion: 'happy',
+          format: 'mp3',
         }, {
           gateway: { id: 'default' },
         });
