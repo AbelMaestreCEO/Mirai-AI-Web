@@ -9,8 +9,8 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: '@cf/deepgram/aura-2-es',
-  VOICE_ID: 'luna',
+  MODEL: '@cf/minimax/speech-2.8-hd',
+  VOICE_ID: 'female-young',
   CHAR_LIMIT: 2000,
   THRESHOLD: 300,
 };
@@ -274,19 +274,19 @@ function cleanTextForTTS(text) {
 
 function segmentTextForTTS(text, maxLength = 2000) {
   if (text.length <= maxLength) return [text];
-  
+
   const segments = [];
   let remaining = text;
-  
+
   while (remaining.length > 0) {
     if (remaining.length <= maxLength) {
       segments.push(remaining);
       break;
     }
-    
+
     let cutIndex = maxLength;
     const naturalBreaks = ['. ', '.\n', '! ', '? ', '。\n', '\n\n'];
-    
+
     for (const breaker of naturalBreaks) {
       const lastIndex = remaining.lastIndexOf(breaker, maxLength);
       if (lastIndex > maxLength * 0.5) {
@@ -294,11 +294,11 @@ function segmentTextForTTS(text, maxLength = 2000) {
         break;
       }
     }
-    
+
     segments.push(remaining.substring(0, cutIndex).trim());
     remaining = remaining.substring(cutIndex).trim();
   }
-  
+
   return segments.filter(s => s.length > 0);
 }
 
@@ -323,9 +323,11 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run('@cf/deepgram/aura-2-es', {
+        const ttsResult = await env.AI.run('@cf/minimax/speech-2.8-hd', {
           text: segment,
-          voice: 'luna',
+          voice: 'female-young',
+          language: 'es',
+          emotion: 'happy' // Si el modelo lo soporta
         });
 
         console.log('🔍 ttsResult tipo:', typeof ttsResult);
