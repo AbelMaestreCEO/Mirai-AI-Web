@@ -326,7 +326,10 @@ export default {
       // Habilitar CORS para todas las rutas
       const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; connect-src 'self' https://api.deepseek.com;",
+        'X-Frame-Options': 'DENY',
+        'X-Content-Type-Options': 'nosniff',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Content-Type': 'application/json'
       };
@@ -1247,7 +1250,7 @@ async function handleGetCourses(env, corsHeaders) {
   const stmt = env.MIRAI_AI_DB.prepare(`
     SELECT * FROM courses ORDER BY category, level
   `);
-  
+
   const { results } = await stmt.all();
   return jsonResponse(results, 200, corsHeaders);
 }
