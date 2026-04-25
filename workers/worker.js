@@ -328,6 +328,8 @@ async function generateAndStoreTTS(text, conversationId, env) {
           voice: 'female-young',
           language: 'es',
           emotion: 'happy' // Si el modelo lo soporta
+        }, {
+          gateway: { id: 'default' },
         });
 
         console.log('🔍 ttsResult tipo:', typeof ttsResult);
