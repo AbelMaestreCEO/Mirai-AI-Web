@@ -813,9 +813,10 @@ async function handleImageGeneration(request, env, corsHeaders) {
     // La API de Flux espera multipart/form-data, NO JSON
     const formData = new FormData();
     formData.append('prompt', prompt);
-    formData.append('width', '512');
+    formData.append('seed', Math.floor(Math.random() * 10));
+    /*formData.append('width', '512');
     formData.append('height', '512');
-    formData.append('steps', '25');
+    formData.append('steps', '25');*/
     // Opcional: seed, negative_prompt, etc.
 
     // 3. Llamar a Cloudflare AI
