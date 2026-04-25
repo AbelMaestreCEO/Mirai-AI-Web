@@ -644,6 +644,19 @@ function setupEventListeners() {
     childList: true,
     subtree: true
   });
+    // Inicializar lightbox y botones de descarga
+  initializeLightbox();
+  initializeImageDownloadButtons();
+  
+  // Observador para nuevos mensajes
+  const observer = new MutationObserver(() => {
+    initializeImageDownloadButtons();
+  });
+  
+  observer.observe(elements.chatMessages, {
+    childList: true,
+    subtree: true
+  });
   // ← BOTÓN DE LIMPIAR CONVERSACIÓN
   if (elements.clearButton) {
     elements.clearButton.addEventListener('click', handleClearConversation);
@@ -658,6 +671,8 @@ function setupEventListeners() {
   });
 
   elements.messageInput.focus();
+
+  
 }
 
 // --- LIMPIAR CONVERSACIÓN ---
@@ -1910,24 +1925,5 @@ function initializeImageDownloadButtons() {
         btn.innerHTML = originalHTML;
       }, 2000);
     });
-  });
-}
-
-// Agregar al setupEventListeners()
-function setupEventListeners() {
-  // ... tu código existente ...
-  
-  // Inicializar lightbox y botones de descarga
-  initializeLightbox();
-  initializeImageDownloadButtons();
-  
-  // Observador para nuevos mensajes
-  const observer = new MutationObserver(() => {
-    initializeImageDownloadButtons();
-  });
-  
-  observer.observe(elements.chatMessages, {
-    childList: true,
-    subtree: true
   });
 }
