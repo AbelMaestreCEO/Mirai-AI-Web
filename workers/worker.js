@@ -829,7 +829,10 @@ async function handleImageGeneration(request, env, corsHeaders) {
           'Content-Type': 'application/json'
           // El navegador/Worker lo pone automáticamente como multipart/form-data con boundary.
         },
-        body: JSON.stringify({formData}) // ¡Enviar FormData!
+        body: JSON.stringify({
+          prompt: prompt,
+          seed: Math.floor(Math.random() * 1000000),
+        }) // ¡Enviar FormData!
       }
     );
 
