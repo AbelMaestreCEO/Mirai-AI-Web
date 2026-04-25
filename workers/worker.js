@@ -9,7 +9,7 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
-  MODEL: '@cf/minimax/speech-2.8-hd',
+  MODEL: 'minimax/speech-2.8-turbo',
   VOICE_ID: 'female-young',
   CHAR_LIMIT: 2000,
   THRESHOLD: 300,
@@ -323,7 +323,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run('@cf/minimax/speech-2.8-hd', {
+        const ttsResult = await env.AI.run('minimax/speech-2.8-turbo', {
           text: segment,
           voice: 'female-young',
           language: 'es',
