@@ -1233,22 +1233,26 @@ function showActionFeedback(button, type) {
   }, 2000);
 }
 
-// Opción mejorada: Modificar showTypingIndicator para aceptar un tipo
-function showTypingIndicator(type = 'text') {
+// --- MOSTRAR INDICADOR DINÁMICO (Puntos o Micrófono) ---
+function showTypingIndicator() {
   const indicator = elements.typingIndicator;
+  const dotsContainer = indicator.querySelector('.typing-indicator');
+  const micContainer = indicator.querySelector('.recording-indicator'); // Asegúrate de tener este div en el HTML
+  
   indicator.classList.remove('hidden');
-  
-  // Cambiar el contenido según el tipo
-  if (type === 'audio') {
-    // El HTML ya tiene el micrófono, solo aseguramos que se vea
-    indicator.querySelector('.typing-indicator')?.classList.add('hidden');
-    indicator.querySelector('.recording-indicator')?.classList.remove('hidden');
+
+  // Lógica: Si el modo es 'always' (siempre audio), mostramos el micrófono
+  // Si el modo es 'auto' o 'never', mostramos los puntos (y luego el reproductor si hay audio)
+  if (state.audioMode === 'always') {
+    // Mostrar Micrófono
+    if (dotsContainer) dotsContainer.classList.add('hidden');
+    if (micContainer) micContainer.classList.remove('hidden');
   } else {
-    // Mostrar los 3 puntos
-    indicator.querySelector('.typing-indicator')?.classList.remove('hidden');
-    indicator.querySelector('.recording-indicator')?.classList.add('hidden');
+    // Mostrar Puntos (Escribiendo)
+    if (micContainer) micContainer.classList.add('hidden');
+    if (dotsContainer) dotsContainer.classList.remove('hidden');
   }
-  
+
   setTimeout(() => {
     indicator.scrollIntoView({ behavior: 'smooth' });
   }, CONFIG.TYPING_DELAY);

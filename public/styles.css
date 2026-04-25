@@ -2060,3 +2060,8 @@ footer.footer {
   color: var(--text-secondary);
   font-weight: 500;
 }
+
+/* Utilidad para ocultar */
+.hidden {
+  display: none !important;
+}

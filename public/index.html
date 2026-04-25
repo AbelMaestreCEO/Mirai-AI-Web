@@ -187,11 +187,20 @@
             <!-- Aquí se insertarán dinámicamente los nuevos mensajes -->
         </main>
 
-        <!-- Indicador de escritura (oculto por defecto) - MODIFICADO -->
+        <!-- Indicador de escritura (oculto por defecto) - ACTUALIZADO CON MICRÓFONO -->
         <div id="typing-indicator" class="message ai hidden" style="margin-bottom: 20px;">
             <div class="message-avatar">M</div>
             <div class="message-content">
-                <div class="recording-indicator">
+
+                <!-- Opción A: Puntos de escritura (Texto) -->
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+
+                <!-- Opción B: Micrófono (Audio) - Oculto por defecto -->
+                <div class="recording-indicator hidden">
                     <div class="mic-icon">
                         <svg viewBox="0 0 24 24" width="24" height="24">
                             <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
@@ -206,6 +215,7 @@
                     </div>
                     <span class="recording-text">Generando voz...</span>
                 </div>
+
             </div>
         </div>
 

@@ -10,7 +10,7 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
   MODEL: '@cf/deepgram/aura-2-es',
-  VOICE_ID: 'celeste',
+  VOICE_ID: 'luna',
   CHAR_LIMIT: 2000,
   THRESHOLD: 300,
 };
