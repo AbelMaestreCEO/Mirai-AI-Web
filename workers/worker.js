@@ -812,7 +812,9 @@ async function handleImageGeneration(request, env, corsHeaders) {
     // 2. Crear FormData para la petición a Cloudflare AI
     // La API de Flux espera multipart/form-data, NO JSON
     const formData = new FormData();
-    formData.append('prompt', prompt);
+    const universalBase = "captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.";
+    const promptParaIA = `${prompt}, ${universalBase}`;
+    formData.append('prompt', promptParaIA);
     formData.append('seed', Math.floor(Math.random() * 10));
     /*formData.append('width', '1024');
     formData.append('height', '1024');
@@ -830,7 +832,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
           // El navegador/Worker lo pone automáticamente como multipart/form-data con boundary.
         },
         body: JSON.stringify({
-          prompt: prompt,
+          prompt: promptParaIA,
           seed: Math.floor(Math.random() * 1000000),
         }) // ¡Enviar FormData!
       }
