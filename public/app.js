@@ -1300,57 +1300,29 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// --- FORMATEO DE MARKDOWN MEJORADO (CON SOPORTE PARA COPIAR CÓDIGO) ---
-// --- FORMATEO DE MARKDOWN MEJORADO (CON SOPORTE PARA IMÁGENES) ---
+// --- FORMATEO DE MARKDOWN MEJORADO (CORREGIDO PARA IMÁGENES) ---
 function formatMessageContent(content) {
   let formatted = content;
 
-  // 1. Escapar HTML primero para prevenir XSS
-  formatted = escapeHtml(formatted);
-
-  // 2. Bloques de código (```idioma\ncódigo```)
+  // 1. Escapar HTML primero para prevenir XSS en el texto normal
+  // Pero NO escapas las partes que vamos a generar nosotros después
+  // Estrategia: Escapamos todo, luego reemplazamos los patrones de markdown por HTML seguro
+  
+  // Primero, protegemos los bloques de código para que no se escapen mal
+  const codeBlocks = [];
   formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-    const encodedCode = encodeURIComponent(code);
-    return `
-      <div class="code-block-wrapper">
-        <div class="code-header">
-          <span class="code-lang">${lang || 'plaintext'}</span>
-          <button class="copy-code-btn" data-code="${encodedCode}" title="Copiar código">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-            </svg>
-            <span>Copiar</span>
-          </button>
-        </div>
-        <pre class="code-block"><code class="language-${lang}">${code}</code></pre>
-      </div>
-    `;
+    const id = `CODE_BLOCK_${codeBlocks.length}`;
+    codeBlocks.push({ id, lang, code });
+    return `__CODE_BLOCK_${id}__`;
   });
 
-  // 3. Código inline (`texto`)
-  // --- FORMATEO DE MARKDOWN MEJORADO (CORREGIDO PARA IMÁGENES) ---
-  function formatMessageContent(content) {
-    let formatted = content;
+  // Escapar el resto del HTML
+  formatted = escapeHtml(formatted);
 
-    // 1. Escapar HTML primero para prevenir XSS en el texto normal
-    // Pero NO escapas las partes que vamos a generar nosotros después
-    // Estrategia: Escapamos todo, luego reemplazamos los patrones de markdown por HTML seguro
-
-    // Primero, protegemos los bloques de código para que no se escapen mal
-    const codeBlocks = [];
-    formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-      const id = `CODE_BLOCK_${codeBlocks.length}`;
-      codeBlocks.push({ id, lang, code });
-      return `__CODE_BLOCK_${id}__`;
-    });
-
-    // Escapar el resto del HTML
-    formatted = escapeHtml(formatted);
-
-    // Restaurar bloques de código (ahora seguros)
-    codeBlocks.forEach(block => {
-      const encodedCode = encodeURIComponent(block.code);
-      const replacement = `
+  // Restaurar bloques de código (ahora seguros)
+  codeBlocks.forEach(block => {
+    const encodedCode = encodeURIComponent(block.code);
+    const replacement = `
       <div class="code-block-wrapper">
         <div class="code-header">
           <span class="code-lang">${block.lang || 'plaintext'}</span>
@@ -1362,16 +1334,16 @@ function formatMessageContent(content) {
         <pre class="code-block"><code class="language-${block.lang}">${block.code}</code></pre>
       </div>
     `;
-      formatted = formatted.replace(`__CODE_BLOCK_${block.id}__`, replacement);
-    });
+    formatted = formatted.replace(`__CODE_BLOCK_${block.id}__`, replacement);
+  });
 
-    // 2. Procesar Imágenes (Markdown: ![alt](url))
-    // Ahora que el HTML está escapado, buscamos el patrón de texto y lo convertimos a HTML
-    formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
-      const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      // Generamos el HTML limpio SIN escapar (porque acabamos de construirlo)
-      return `
+  // 2. Procesar Imágenes (Markdown: ![alt](url))
+  // Ahora que el HTML está escapado, buscamos el patrón de texto y lo convertimos a HTML
+  formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Generamos el HTML limpio SIN escapar (porque acabamos de construirlo)
+    return `
       <div class="image-container" style="position: relative; display: inline-block; margin: 10px 0;">
         <img src="${url}" alt="${alt}" class="md-image lightbox-trigger" 
              style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;"
@@ -1386,198 +1358,198 @@ function formatMessageContent(content) {
         </button>
       </div>
     `;
-    });
+  });
 
-    // 3. Procesar otros elementos de Markdown (Negritas, Cursivas, etc.)
-    // Como ya escapamos el texto, ahora reemplazamos los marcadores de texto
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  // 3. Procesar otros elementos de Markdown (Negritas, Cursivas, etc.)
+  // Como ya escapamos el texto, ahora reemplazamos los marcadores de texto
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  
+  // Encabezados
+  formatted = formatted.replace(/^###### (.+)$/gm, '<h6 class="md-heading">$1</h6>');
+  formatted = formatted.replace(/^##### (.+)$/gm, '<h5 class="md-heading">$1</h5>');
+  formatted = formatted.replace(/^#### (.+)$/gm, '<h4 class="md-heading">$1</h4>');
+  formatted = formatted.replace(/^### (.+)$/gm, '<h3 class="md-heading">$1</h3>');
+  formatted = formatted.replace(/^## (.+)$/gm, '<h2 class="md-heading">$1</h2>');
+  formatted = formatted.replace(/^# (.+)$/gm, '<h1 class="md-heading">$1</h1>');
 
-    // Encabezados
-    formatted = formatted.replace(/^###### (.+)$/gm, '<h6 class="md-heading">$1</h6>');
-    formatted = formatted.replace(/^##### (.+)$/gm, '<h5 class="md-heading">$1</h5>');
-    formatted = formatted.replace(/^#### (.+)$/gm, '<h4 class="md-heading">$1</h4>');
-    formatted = formatted.replace(/^### (.+)$/gm, '<h3 class="md-heading">$1</h3>');
-    formatted = formatted.replace(/^## (.+)$/gm, '<h2 class="md-heading">$1</h2>');
-    formatted = formatted.replace(/^# (.+)$/gm, '<h1 class="md-heading">$1</h1>');
+  // Listas y Blockquotes (Simplificado para este ejemplo)
+  formatted = formatted.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
+  formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
+  formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
 
-    // Listas y Blockquotes (Simplificado para este ejemplo)
-    formatted = formatted.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
-    formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
-    formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
+  // Saltos de línea
+  formatted = formatted.replace(/\n/g, '<br>');
 
-    // Saltos de línea
-    formatted = formatted.replace(/\n/g, '<br>');
+  // Limpieza final de <br> duplicados
+  formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|div)>[ ]*<br>/g, '</$1>');
 
-    // Limpieza final de <br> duplicados
-    formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|div)>[ ]*<br>/g, '</$1>');
+  return formatted;
+}
 
-    return formatted;
-  }
+// --- AGREGAR BOTONES DE COPIAR DESPUÉS DE RENDERIZAR MENSAJE ---
+function addCopyButtons() {
+  const codeBlocks = document.querySelectorAll('.copy-code-btn');
 
-  // --- AGREGAR BOTONES DE COPIAR DESPUÉS DE RENDERIZAR MENSAJE ---
-  function addCopyButtons() {
-    const codeBlocks = document.querySelectorAll('.copy-code-btn');
+  codeBlocks.forEach(btn => {
+    if (btn.dataset.initialized === 'true') return; // Evitar duplicados
 
-    codeBlocks.forEach(btn => {
-      if (btn.dataset.initialized === 'true') return; // Evitar duplicados
+    btn.dataset.initialized = 'true';
 
-      btn.dataset.initialized = 'true';
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation(); // Evitar propagación
 
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation(); // Evitar propagación
+      const encodedCode = btn.dataset.code;
+      const code = decodeURIComponent(encodedCode);
+      const originalHTML = btn.innerHTML;
 
-        const encodedCode = btn.dataset.code;
-        const code = decodeURIComponent(encodedCode);
-        const originalHTML = btn.innerHTML;
+      try {
+        await navigator.clipboard.writeText(code);
 
-        try {
-          await navigator.clipboard.writeText(code);
-
-          // Feedback visual: cambiar texto y color
-          btn.innerHTML = `
+        // Feedback visual: cambiar texto y color
+        btn.innerHTML = `
           <svg viewBox="0 0 24 24" width="16" height="16">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
           </svg>
           <span>¡Copiado!</span>
         `;
-          btn.classList.add('copied');
+        btn.classList.add('copied');
 
-          // Restaurar después de 2 segundos
-          setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.classList.remove('copied');
-          }, 2000);
+        // Restaurar después de 2 segundos
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('copied');
+        }, 2000);
 
-        } catch (err) {
-          console.error('Error al copiar:', err);
-          btn.innerHTML = `
+      } catch (err) {
+        console.error('Error al copiar:', err);
+        btn.innerHTML = `
           <svg viewBox="0 0 24 24" width="16" height="16">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
           </svg>
           <span>Error</span>
         `;
-          btn.classList.add('error');
+        btn.classList.add('error');
 
-          setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.classList.remove('error');
-          }, 2000);
-        }
-      });
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('error');
+        }, 2000);
+      }
     });
-  }
+  });
+}
 
 
 
-  function saveToLocalHistory(response) {
-    let history = JSON.parse(localStorage.getItem('mirai-ai-local-history') || '[]');
-    history.push({
-      role: 'assistant',
-      content: response,
-      timestamp: Date.now()
-    });
-    localStorage.setItem('mirai-ai-local-history', JSON.stringify(history));
-  }
+function saveToLocalHistory(response) {
+  let history = JSON.parse(localStorage.getItem('mirai-ai-local-history') || '[]');
+  history.push({
+    role: 'assistant',
+    content: response,
+    timestamp: Date.now()
+  });
+  localStorage.setItem('mirai-ai-local-history', JSON.stringify(history));
+}
 
-  function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
       clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
+      func(...args);
     };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// --- MENÚ LATERAL MÓVIL ---
+function setupMobileMenu() {
+  const menuToggle = document.querySelector('.mobile-menu-toggle');
+  const closeMenu = document.querySelector('.close-menu');
+  const sidebar = document.querySelector('.mobile-sidebar');
+  const overlay = document.querySelector('.mobile-overlay');
+
+  // Verificar que todos los elementos existan
+  if (!menuToggle || !closeMenu || !sidebar || !overlay) {
+    console.warn('⚠️ Elementos del menú móvil no encontrados. Verifica el HTML.');
+    return;
   }
 
-  // --- MENÚ LATERAL MÓVIL ---
-  function setupMobileMenu() {
-    const menuToggle = document.querySelector('.mobile-menu-toggle');
-    const closeMenu = document.querySelector('.close-menu');
-    const sidebar = document.querySelector('.mobile-sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
+  function toggleMenu() {
+    const isActive = sidebar.classList.contains('active');
 
-    // Verificar que todos los elementos existan
-    if (!menuToggle || !closeMenu || !sidebar || !overlay) {
-      console.warn('⚠️ Elementos del menú móvil no encontrados. Verifica el HTML.');
-      return;
-    }
-
-    function toggleMenu() {
-      const isActive = sidebar.classList.contains('active');
-
-      if (isActive) {
-        sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-        menuToggle.classList.remove('active');
-        document.body.style.overflow = '';
-      } else {
-        sidebar.classList.add('active');
-        overlay.classList.add('active');
-        menuToggle.classList.add('active');
-        document.body.style.overflow = 'hidden';
-      }
-    }
-
-    menuToggle.addEventListener('click', toggleMenu);
-    closeMenu.addEventListener('click', toggleMenu);
-    overlay.addEventListener('click', toggleMenu);
-
-    // Cerrar con Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-        toggleMenu();
-      }
-    });
-  }
-
-  // ============================================
-  // GESTIÓN DE CONVERSACIONES (SIDEBAR)
-  // ============================================
-
-  // --- CARGAR LISTA DE CONVERSACIONES ---
-  async function loadConversations() {
-    if (!elements.conversationsList) return;
-
-    try {
-      const response = await fetch('/api/conversations');
-      if (!response.ok) return;
-
-      const conversations = await response.json();
-      renderConversationsList(conversations);
-
-    } catch (error) {
-      console.error('Error cargando conversaciones:', error);
+    if (isActive) {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+      menuToggle.classList.remove('active');
+      document.body.style.overflow = '';
+    } else {
+      sidebar.classList.add('active');
+      overlay.classList.add('active');
+      menuToggle.classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
   }
 
-  // --- RENDERIZAR LISTA EN SIDEBAR ---
-  function renderConversationsList(conversations) {
-    const list = elements.conversationsList;
-    list.innerHTML = '';
+  menuToggle.addEventListener('click', toggleMenu);
+  closeMenu.addEventListener('click', toggleMenu);
+  overlay.addEventListener('click', toggleMenu);
 
-    if (!conversations || conversations.length === 0) {
-      list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
-      return;
+  // Cerrar con Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+      toggleMenu();
+    }
+  });
+}
+
+// ============================================
+// GESTIÓN DE CONVERSACIONES (SIDEBAR)
+// ============================================
+
+// --- CARGAR LISTA DE CONVERSACIONES ---
+async function loadConversations() {
+  if (!elements.conversationsList) return;
+
+  try {
+    const response = await fetch('/api/conversations');
+    if (!response.ok) return;
+
+    const conversations = await response.json();
+    renderConversationsList(conversations);
+
+  } catch (error) {
+    console.error('Error cargando conversaciones:', error);
+  }
+}
+
+// --- RENDERIZAR LISTA EN SIDEBAR ---
+function renderConversationsList(conversations) {
+  const list = elements.conversationsList;
+  list.innerHTML = '';
+
+  if (!conversations || conversations.length === 0) {
+    list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
+    return;
+  }
+
+  conversations.forEach(conv => {
+    const li = document.createElement('li');
+    li.className = 'conv-item';
+    li.dataset.id = conv.id;
+
+    // Marcar como activa si es la conversación actual
+    if (conv.id === state.currentConversationId) {
+      li.classList.add('active');
     }
 
-    conversations.forEach(conv => {
-      const li = document.createElement('li');
-      li.className = 'conv-item';
-      li.dataset.id = conv.id;
+    // Formatear fecha
+    const dateStr = formatDate(conv.updated_at || conv.created_at);
 
-      // Marcar como activa si es la conversación actual
-      if (conv.id === state.currentConversationId) {
-        li.classList.add('active');
-      }
-
-      // Formatear fecha
-      const dateStr = formatDate(conv.updated_at || conv.created_at);
-
-      li.innerHTML = `
+    li.innerHTML = `
       <span class="conv-item-icon">💬</span>
       <div class="conv-item-info">
         <span class="conv-item-title">${escapeHtml(conv.title)}</span>
@@ -1593,368 +1565,368 @@ function formatMessageContent(content) {
       </div>
     `;
 
-      // Click para cambiar de conversación
-      li.addEventListener('click', (e) => {
-        // Ignorar clicks en botones de acción
-        if (e.target.closest('.conv-action-btn')) return;
-        switchConversation(conv.id);
-      });
-
-      // Botón renombrar
-      const renameBtn = li.querySelector('.rename-btn');
-      renameBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        startRenameConversation(li, conv);
-      });
-
-      // Botón eliminar
-      const deleteBtn = li.querySelector('.delete');
-      deleteBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await deleteConversation(conv.id, li);
-      });
-
-      list.appendChild(li);
+    // Click para cambiar de conversación
+    li.addEventListener('click', (e) => {
+      // Ignorar clicks en botones de acción
+      if (e.target.closest('.conv-action-btn')) return;
+      switchConversation(conv.id);
     });
+
+    // Botón renombrar
+    const renameBtn = li.querySelector('.rename-btn');
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startRenameConversation(li, conv);
+    });
+
+    // Botón eliminar
+    const deleteBtn = li.querySelector('.delete');
+    deleteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await deleteConversation(conv.id, li);
+    });
+
+    list.appendChild(li);
+  });
+}
+
+// --- CAMBIAR DE CONVERSACIÓN ---
+async function switchConversation(conversationId) {
+  if (conversationId === state.currentConversationId) return;
+
+  state.currentConversationId = conversationId;
+  localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, conversationId);
+
+  // Cargar historial de la conversación
+  elements.chatMessages.innerHTML = '';
+  await loadConversationHistory(conversationId);
+
+  // Actualizar UI
+  updateActiveConversation();
+
+  // Cerrar sidebar en móvil
+  const sidebar = document.querySelector('.mobile-sidebar');
+  if (sidebar && sidebar.classList.contains('active')) {
+    document.querySelector('.mobile-overlay').click();
+  }
+}
+
+// --- CREAR NUEVA CONVERSACIÓN ---
+async function createNewConversation() {
+  const newId = crypto.randomUUID();
+  state.currentConversationId = newId;
+  localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, newId);
+
+  // Limpiar chat
+  elements.chatMessages.innerHTML = '';
+  appendMessage('system', '✨ Nueva conversación iniciada. ¿En qué puedo ayudarte?');
+
+  // Actualizar lista
+  await loadConversations();
+  updateActiveConversation();
+
+  // Cerrar sidebar en móvil
+  const sidebar = document.querySelector('.mobile-sidebar');
+  if (sidebar && sidebar.classList.contains('active')) {
+    document.querySelector('.mobile-overlay').click();
   }
 
-  // --- CAMBIAR DE CONVERSACIÓN ---
-  async function switchConversation(conversationId) {
-    if (conversationId === state.currentConversationId) return;
+  elements.messageInput.focus();
+}
 
-    state.currentConversationId = conversationId;
-    localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, conversationId);
+// --- RENOMBRAR CONVERSACIÓN ---
+function startRenameConversation(li, conv) {
+  const infoDiv = li.querySelector('.conv-item-info');
+  const originalTitle = conv.title;
 
-    // Cargar historial de la conversación
-    elements.chatMessages.innerHTML = '';
-    await loadConversationHistory(conversationId);
-
-    // Actualizar UI
-    updateActiveConversation();
-
-    // Cerrar sidebar en móvil
-    const sidebar = document.querySelector('.mobile-sidebar');
-    if (sidebar && sidebar.classList.contains('active')) {
-      document.querySelector('.mobile-overlay').click();
-    }
-  }
-
-  // --- CREAR NUEVA CONVERSACIÓN ---
-  async function createNewConversation() {
-    const newId = crypto.randomUUID();
-    state.currentConversationId = newId;
-    localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, newId);
-
-    // Limpiar chat
-    elements.chatMessages.innerHTML = '';
-    appendMessage('system', '✨ Nueva conversación iniciada. ¿En qué puedo ayudarte?');
-
-    // Actualizar lista
-    await loadConversations();
-    updateActiveConversation();
-
-    // Cerrar sidebar en móvil
-    const sidebar = document.querySelector('.mobile-sidebar');
-    if (sidebar && sidebar.classList.contains('active')) {
-      document.querySelector('.mobile-overlay').click();
-    }
-
-    elements.messageInput.focus();
-  }
-
-  // --- RENOMBRAR CONVERSACIÓN ---
-  function startRenameConversation(li, conv) {
-    const infoDiv = li.querySelector('.conv-item-info');
-    const originalTitle = conv.title;
-
-    // Reemplazar título con input
-    infoDiv.innerHTML = `
+  // Reemplazar título con input
+  infoDiv.innerHTML = `
     <input type="text" class="conv-rename-input" value="${escapeHtml(originalTitle)}" maxlength="100">
   `;
 
-    const input = infoDiv.querySelector('.conv-rename-input');
-    input.focus();
-    input.select();
+  const input = infoDiv.querySelector('.conv-rename-input');
+  input.focus();
+  input.select();
 
-    // Guardar al presionar Enter o al perder foco
-    const saveRename = async () => {
-      const newTitle = input.value.trim();
-      if (newTitle && newTitle !== originalTitle) {
-        try {
-          await fetch('/api/conversations/rename', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              conversation_id: conv.id,
-              title: newTitle
-            })
-          });
-        } catch (error) {
-          console.error('Error renombrando:', error);
-        }
+  // Guardar al presionar Enter o al perder foco
+  const saveRename = async () => {
+    const newTitle = input.value.trim();
+    if (newTitle && newTitle !== originalTitle) {
+      try {
+        await fetch('/api/conversations/rename', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversation_id: conv.id,
+            title: newTitle
+          })
+        });
+      } catch (error) {
+        console.error('Error renombrando:', error);
       }
-      // Recargar lista
-      await loadConversations();
-    };
+    }
+    // Recargar lista
+    await loadConversations();
+  };
 
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        saveRename();
-      } else if (e.key === 'Escape') {
-        loadConversations(); // Cancelar
-      }
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveRename();
+    } else if (e.key === 'Escape') {
+      loadConversations(); // Cancelar
+    }
+  });
+
+  input.addEventListener('blur', saveRename);
+}
+
+// --- ELIMINAR CONVERSACIÓN ---
+async function deleteConversation(conversationId, li) {
+  const confirmed = confirm('¿Eliminar esta conversación? No se puede deshacer.');
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${CONFIG.API_ENDPOINT}/clear`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId })
     });
 
-    input.addEventListener('blur', saveRename);
-  }
+    if (!response.ok) throw new Error('Error eliminando');
 
-  // --- ELIMINAR CONVERSACIÓN ---
-  async function deleteConversation(conversationId, li) {
-    const confirmed = confirm('¿Eliminar esta conversación? No se puede deshacer.');
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch(`${CONFIG.API_ENDPOINT}/clear`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation_id: conversationId })
-      });
-
-      if (!response.ok) throw new Error('Error eliminando');
-
-      // Si era la conversación activa, crear una nueva
-      if (conversationId === state.currentConversationId) {
-        await createNewConversation();
-      }
-
-      // Recargar lista
-      await loadConversations();
-
-    } catch (error) {
-      console.error('Error eliminando conversación:', error);
-      alert('Error al eliminar la conversación.');
+    // Si era la conversación activa, crear una nueva
+    if (conversationId === state.currentConversationId) {
+      await createNewConversation();
     }
+
+    // Recargar lista
+    await loadConversations();
+
+  } catch (error) {
+    console.error('Error eliminando conversación:', error);
+    alert('Error al eliminar la conversación.');
+  }
+}
+
+// --- ACTUALIZAR CLASE ACTIVA EN SIDEBAR ---
+function updateActiveConversation() {
+  const items = document.querySelectorAll('.conv-item');
+  items.forEach(item => {
+    if (item.dataset.id === state.currentConversationId) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+
+// --- FORMATEAR FECHA ---
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+
+  try {
+    const date = new Date(dateStr + 'Z'); // Agregar Z para UTC
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Hoy';
+    } else if (diffDays === 1) {
+      return 'Ayer';
+    } else if (diffDays < 7) {
+      return `Hace ${diffDays} días`;
+    } else {
+      return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+  } catch (e) {
+    return '';
+  }
+}
+
+
+// --- INICIALIZAR MODO AUDIO ---
+function initializeAudioMode() {
+  const savedMode = localStorage.getItem(CONFIG.TTS_MODE_KEY) || 'auto';
+  state.audioMode = savedMode;
+  updateAudioModeUI();
+
+  if (elements.audioModeToggle) {
+    elements.audioModeToggle.addEventListener('click', cycleAudioMode);
+  }
+}
+
+function cycleAudioMode() {
+  const modes = ['auto', 'always', 'never'];
+  const currentIndex = modes.indexOf(state.audioMode);
+  const nextIndex = (currentIndex + 1) % modes.length;
+  state.audioMode = modes[nextIndex];
+
+  localStorage.setItem(CONFIG.TTS_MODE_KEY, state.audioMode);
+  updateAudioModeUI();
+
+  // Feedback visual
+  const modeLabels = {
+    auto: '🔊 Modo automático',
+    always: '🎙️ Siempre audio',
+    never: '🔇 Solo texto'
+  };
+  appendMessage('system', modeLabels[state.audioMode]);
+}
+
+function updateAudioModeUI() {
+  if (!elements.audioModeToggle) return;
+
+  const btn = elements.audioModeToggle;
+  const label = btn.querySelector('.audio-mode-label');
+
+  const configs = {
+    auto: { icon: '🔊', label: 'Auto', class: '' },
+    always: { icon: '🎙️', label: 'Audio', class: 'active' },
+    never: { icon: '🔇', label: 'Texto', class: 'text-mode' },
+  };
+
+  const config = configs[state.audioMode];
+  btn.className = `audio-mode-toggle ${config.class}`;
+  if (label) label.textContent = config.label;
+  btn.title = `Modo: ${config.label} (clic para cambiar)`;
+}
+
+// --- CONFIGURAR REPRODUCTOR DE AUDIO ---
+function setupAudioPlayer(audioElement) {
+  if (!audioElement) return;
+
+  const container = audioElement.closest('.audio-player-container');
+  const currentTimeEl = container.querySelector('.audio-time-current');
+  const totalTimeEl = container.querySelector('.audio-time-total');
+
+  // Formatear tiempo (mm:ss)
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  // --- ACTUALIZAR CLASE ACTIVA EN SIDEBAR ---
-  function updateActiveConversation() {
-    const items = document.querySelectorAll('.conv-item');
-    items.forEach(item => {
-      if (item.dataset.id === state.currentConversationId) {
-        item.classList.add('active');
+  // Cuando se carga el metadato
+  audioElement.addEventListener('loadedmetadata', () => {
+    totalTimeEl.textContent = formatTime(audioElement.duration);
+  });
+
+  // Actualizar tiempo actual
+  audioElement.addEventListener('timeupdate', () => {
+    currentTimeEl.textContent = formatTime(audioElement.currentTime);
+  });
+
+  // Click en el contenedor para pausar/reproducir
+  container.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'AUDIO' && !e.target.closest('.audio-controls')) {
+      if (audioElement.paused) {
+        audioElement.play();
       } else {
-        item.classList.remove('active');
+        audioElement.pause();
       }
-    });
-  }
-
-  // --- FORMATEAR FECHA ---
-  function formatDate(dateStr) {
-    if (!dateStr) return '';
-
-    try {
-      const date = new Date(dateStr + 'Z'); // Agregar Z para UTC
-      const now = new Date();
-      const diffMs = now - date;
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        return 'Hoy';
-      } else if (diffDays === 1) {
-        return 'Ayer';
-      } else if (diffDays < 7) {
-        return `Hace ${diffDays} días`;
-      } else {
-        return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-      }
-    } catch (e) {
-      return '';
     }
-  }
+  });
+}
 
+// ============================================
+// LIGHTBOX / MODAL PARA IMÁGENES
+// ============================================
 
-  // --- INICIALIZAR MODO AUDIO ---
-  function initializeAudioMode() {
-    const savedMode = localStorage.getItem(CONFIG.TTS_MODE_KEY) || 'auto';
-    state.audioMode = savedMode;
-    updateAudioModeUI();
+function initializeLightbox() {
+  const lightbox = document.getElementById('image-lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxClose = document.querySelector('.lightbox-close');
+  const lightboxDownload = document.querySelector('.lightbox-download');
 
-    if (elements.audioModeToggle) {
-      elements.audioModeToggle.addEventListener('click', cycleAudioMode);
+  if (!lightbox || !lightboxImg) return;
+
+  // Abrir lightbox al hacer clic en imagen
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('lightbox-trigger')) {
+      const imageUrl = e.target.src;
+      lightboxImg.src = imageUrl;
+      lightbox.classList.remove('hidden');
+      document.body.style.overflow = 'hidden'; // Prevenir scroll
     }
+  });
+
+  // Cerrar lightbox
+  function closeLightbox() {
+    lightbox.classList.add('hidden');
+    lightboxImg.src = '';
+    document.body.style.overflow = '';
   }
 
-  function cycleAudioMode() {
-    const modes = ['auto', 'always', 'never'];
-    const currentIndex = modes.indexOf(state.audioMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    state.audioMode = modes[nextIndex];
+  lightboxClose.addEventListener('click', closeLightbox);
 
-    localStorage.setItem(CONFIG.TTS_MODE_KEY, state.audioMode);
-    updateAudioModeUI();
+  // Cerrar al hacer clic en el overlay
+  document.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);
+
+  // Cerrar con tecla ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
+      closeLightbox();
+    }
+  });
+
+  // Descargar imagen desde lightbox
+  lightboxDownload.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await downloadImage(lightboxImg.src, 'mirai-generated-image.png');
+  });
+}
+
+// Función para descargar imagen
+async function downloadImage(url, filename = 'imagen.png') {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(blobUrl);
 
     // Feedback visual
-    const modeLabels = {
-      auto: '🔊 Modo automático',
-      always: '🎙️ Siempre audio',
-      never: '🔇 Solo texto'
-    };
-    appendMessage('system', modeLabels[state.audioMode]);
+    console.log('✅ Imagen descargada correctamente');
+  } catch (error) {
+    console.error('❌ Error descargando imagen:', error);
+    alert('No se pudo descargar la imagen. Intenta hacer clic derecho y "Guardar imagen como..."');
   }
+}
 
-  function updateAudioModeUI() {
-    if (!elements.audioModeToggle) return;
+// Inicializar listeners para botones de descarga en el chat
+function initializeImageDownloadButtons() {
+  const downloadButtons = document.querySelectorAll('.image-download-btn');
 
-    const btn = elements.audioModeToggle;
-    const label = btn.querySelector('.audio-mode-label');
+  downloadButtons.forEach(btn => {
+    if (btn.dataset.initialized === 'true') return;
 
-    const configs = {
-      auto: { icon: '🔊', label: 'Auto', class: '' },
-      always: { icon: '🎙️', label: 'Audio', class: 'active' },
-      never: { icon: '🔇', label: 'Texto', class: 'text-mode' },
-    };
+    btn.dataset.initialized = 'true';
 
-    const config = configs[state.audioMode];
-    btn.className = `audio-mode-toggle ${config.class}`;
-    if (label) label.textContent = config.label;
-    btn.title = `Modo: ${config.label} (clic para cambiar)`;
-  }
-
-  // --- CONFIGURAR REPRODUCTOR DE AUDIO ---
-  function setupAudioPlayer(audioElement) {
-    if (!audioElement) return;
-
-    const container = audioElement.closest('.audio-player-container');
-    const currentTimeEl = container.querySelector('.audio-time-current');
-    const totalTimeEl = container.querySelector('.audio-time-total');
-
-    // Formatear tiempo (mm:ss)
-    function formatTime(seconds) {
-      if (isNaN(seconds)) return '0:00';
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    // Cuando se carga el metadato
-    audioElement.addEventListener('loadedmetadata', () => {
-      totalTimeEl.textContent = formatTime(audioElement.duration);
-    });
-
-    // Actualizar tiempo actual
-    audioElement.addEventListener('timeupdate', () => {
-      currentTimeEl.textContent = formatTime(audioElement.currentTime);
-    });
-
-    // Click en el contenedor para pausar/reproducir
-    container.addEventListener('click', (e) => {
-      if (e.target.tagName !== 'AUDIO' && !e.target.closest('.audio-controls')) {
-        if (audioElement.paused) {
-          audioElement.play();
-        } else {
-          audioElement.pause();
-        }
-      }
-    });
-  }
-
-  // ============================================
-  // LIGHTBOX / MODAL PARA IMÁGENES
-  // ============================================
-
-  function initializeLightbox() {
-    const lightbox = document.getElementById('image-lightbox');
-    const lightboxImg = document.getElementById('lightbox-img');
-    const lightboxClose = document.querySelector('.lightbox-close');
-    const lightboxDownload = document.querySelector('.lightbox-download');
-
-    if (!lightbox || !lightboxImg) return;
-
-    // Abrir lightbox al hacer clic en imagen
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('lightbox-trigger')) {
-        const imageUrl = e.target.src;
-        lightboxImg.src = imageUrl;
-        lightbox.classList.remove('hidden');
-        document.body.style.overflow = 'hidden'; // Prevenir scroll
-      }
-    });
-
-    // Cerrar lightbox
-    function closeLightbox() {
-      lightbox.classList.add('hidden');
-      lightboxImg.src = '';
-      document.body.style.overflow = '';
-    }
-
-    lightboxClose.addEventListener('click', closeLightbox);
-
-    // Cerrar al hacer clic en el overlay
-    document.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);
-
-    // Cerrar con tecla ESC
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
-        closeLightbox();
-      }
-    });
-
-    // Descargar imagen desde lightbox
-    lightboxDownload.addEventListener('click', async (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      await downloadImage(lightboxImg.src, 'mirai-generated-image.png');
-    });
-  }
-
-  // Función para descargar imagen
-  async function downloadImage(url, filename = 'imagen.png') {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      URL.revokeObjectURL(blobUrl);
+      const imageUrl = btn.dataset.imageUrl;
+      const filename = `mirai-image-${Date.now()}.png`;
 
       // Feedback visual
-      console.log('✅ Imagen descargada correctamente');
-    } catch (error) {
-      console.error('❌ Error descargando imagen:', error);
-      alert('No se pudo descargar la imagen. Intenta hacer clic derecho y "Guardar imagen como..."');
-    }
-  }
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<span>⏳ Descargando...</span>';
 
-  // Inicializar listeners para botones de descarga en el chat
-  function initializeImageDownloadButtons() {
-    const downloadButtons = document.querySelectorAll('.image-download-btn');
+      await downloadImage(imageUrl, filename);
 
-    downloadButtons.forEach(btn => {
-      if (btn.dataset.initialized === 'true') return;
-
-      btn.dataset.initialized = 'true';
-
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const imageUrl = btn.dataset.imageUrl;
-        const filename = `mirai-image-${Date.now()}.png`;
-
-        // Feedback visual
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<span>⏳ Descargando...</span>';
-
-        await downloadImage(imageUrl, filename);
-
-        // Restaurar botón
-        setTimeout(() => {
-          btn.innerHTML = originalHTML;
-        }, 2000);
-      });
+      // Restaurar botón
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+      }, 2000);
     });
-  }
+  });
+}
