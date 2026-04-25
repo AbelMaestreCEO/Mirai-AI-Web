@@ -1233,10 +1233,24 @@ function showActionFeedback(button, type) {
   }, 2000);
 }
 
-function showTypingIndicator() {
-  elements.typingIndicator.classList.remove('hidden');
+// Opción mejorada: Modificar showTypingIndicator para aceptar un tipo
+function showTypingIndicator(type = 'text') {
+  const indicator = elements.typingIndicator;
+  indicator.classList.remove('hidden');
+  
+  // Cambiar el contenido según el tipo
+  if (type === 'audio') {
+    // El HTML ya tiene el micrófono, solo aseguramos que se vea
+    indicator.querySelector('.typing-indicator')?.classList.add('hidden');
+    indicator.querySelector('.recording-indicator')?.classList.remove('hidden');
+  } else {
+    // Mostrar los 3 puntos
+    indicator.querySelector('.typing-indicator')?.classList.remove('hidden');
+    indicator.querySelector('.recording-indicator')?.classList.add('hidden');
+  }
+  
   setTimeout(() => {
-    elements.typingIndicator.scrollIntoView({ behavior: 'smooth' });
+    indicator.scrollIntoView({ behavior: 'smooth' });
   }, CONFIG.TYPING_DELAY);
 }
 

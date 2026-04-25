@@ -1996,3 +1996,67 @@ footer.footer {
 [data-theme='dark'] .audio-duration {
   color: #bbb;
 }
+
+/* ============================================
+   INDICADOR DE GRABACIÓN (MICRÓFONO)
+   ============================================ */
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--message-ai-bg);
+  border-radius: var(--border-radius-lg);
+  border-bottom-left-radius: 4px;
+  width: fit-content;
+  margin-left: 44px;
+  color: var(--text-primary);
+}
+
+.mic-icon {
+  color: #ff3b30; /* Rojo para indicar "grabando" */
+  animation: pulse-mic 1.5s infinite;
+}
+
+.mic-icon svg {
+  fill: currentColor;
+  width: 28px;
+  height: 28px;
+}
+
+@keyframes pulse-mic {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.sound-waves {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  height: 20px;
+}
+
+.sound-waves span {
+  width: 4px;
+  height: 100%;
+  background: var(--accent-color);
+  border-radius: 2px;
+  animation: wave 1s infinite ease-in-out;
+}
+
+.sound-waves span:nth-child(1) { animation-delay: 0s; }
+.sound-waves span:nth-child(2) { animation-delay: 0.2s; }
+.sound-waves span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes wave {
+  0%, 100% { height: 4px; }
+  50% { height: 20px; }
+}
+
+.recording-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
