@@ -1337,30 +1337,30 @@ function formatMessageContent(content) {
     formatted = formatted.replace(`__CODE_BLOCK_${block.id}__`, replacement);
   });
 
-  // 2. Procesar Imágenes (Markdown: ![alt](url))
-  // Ahora que el HTML está escapado, buscamos el patrón de texto y lo convertimos a HTML
-  // En la parte de imágenes de formatMessageContent:
+  // ⭐ IMÁGENES CON TOOLBAR DE DESCARGA (BOTÓN FUERA DE LA IMAGEN)
   formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
     const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
+    
     // Convertir URL absoluta a relativa si es necesario
     let displayUrl = url;
     if (url.startsWith('https://aiassets.aberumirai.com/')) {
       const r2Key = url.replace('https://aiassets.aberumirai.com/', '');
       displayUrl = `/api/image/${r2Key}`;
     }
-
+    
     return `
-    <div class="image-container" style="position: relative; display: inline-block; margin: 10px 0;">
-      <img src="${displayUrl}" alt="${alt}" class="md-image lightbox-trigger" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;" data-lightbox-id="${imageId}">
-      
-      <button class="image-download-btn" data-image-url="${displayUrl}" title="Descargar imagen" style="position: absolute; top: 8px; right: 8px; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-        <svg viewBox="0 0 24 24" width="20" height="20" style="fill: #007aff;">
-          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-        </svg>
-      </button>
-    </div>
-  `;
+      <div class="image-container">
+        <div class="image-toolbar">
+          <button class="image-download-btn" data-image-url="${displayUrl}" title="Descargar imagen">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            <span class="download-label">Descargar</span>
+          </button>
+        </div>
+        <img src="${displayUrl}" alt="${alt}" class="md-image lightbox-trigger" data-lightbox-id="${imageId}">
+      </div>
+    `;
   });
 
   // 3. Procesar otros elementos de Markdown (Negritas, Cursivas, etc.)
@@ -1921,26 +1921,37 @@ async function downloadImage(imageUrl, filename = 'imagen.png') {
 // Inicializar listeners para botones de descarga en el chat
 function initializeImageDownloadButtons() {
   const downloadButtons = document.querySelectorAll('.image-download-btn');
-
+  
   downloadButtons.forEach(btn => {
     if (btn.dataset.initialized === 'true') return;
-
+    
     btn.dataset.initialized = 'true';
-
+    
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      e.preventDefault();
+      
       const imageUrl = btn.dataset.imageUrl;
       const filename = `mirai-image-${Date.now()}.png`;
-
+      
       // Feedback visual
       const originalHTML = btn.innerHTML;
-      btn.innerHTML = '<span>⏳ Descargando...</span>';
-
+      btn.innerHTML = `
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        <span class="download-label">¡Listo!</span>
+      `;
+      btn.style.borderColor = '#34c759';
+      btn.style.color = '#34c759';
+      
       await downloadImage(imageUrl, filename);
-
-      // Restaurar botón
+      
+      // Restaurar después de 2 segundos
       setTimeout(() => {
         btn.innerHTML = originalHTML;
+        btn.style.borderColor = '';
+        btn.style.color = '';
       }, 2000);
     });
   });
