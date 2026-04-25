@@ -635,24 +635,21 @@ function setupEventListeners() {
   elements.messageInput.addEventListener('input', debounce(autoResizeTextarea, CONFIG.DEBOUNCE_DELAY));
   elements.themeToggle.addEventListener('click', toggleTheme);
   initializeAudioPlayers();
+  // Inicializar lightbox y botones de descarga
+  initializeLightbox();
+  initializeImageDownloadButtons();
   // Observador para nuevos mensajes
   const observer = new MutationObserver(() => {
     initializeAudioPlayers();
+    initializeImageDownloadButtons();
   });
 
   observer.observe(elements.chatMessages, {
     childList: true,
     subtree: true
   });
-    // Inicializar lightbox y botones de descarga
-  initializeLightbox();
-  initializeImageDownloadButtons();
-  
-  // Observador para nuevos mensajes
-  const observer = new MutationObserver(() => {
-    initializeImageDownloadButtons();
-  });
-  
+
+
   observer.observe(elements.chatMessages, {
     childList: true,
     subtree: true
@@ -672,7 +669,7 @@ function setupEventListeners() {
 
   elements.messageInput.focus();
 
-  
+
 }
 
 // --- LIMPIAR CONVERSACIÓN ---
@@ -1253,7 +1250,7 @@ function showTypingIndicator() {
   const indicator = elements.typingIndicator;
   const dotsContainer = indicator.querySelector('.typing-indicator');
   const micContainer = indicator.querySelector('.recording-indicator'); // Asegúrate de tener este div en el HTML
-  
+
   indicator.classList.remove('hidden');
 
   // Lógica: Si el modo es 'always' (siempre audio), mostramos el micrófono
@@ -1858,10 +1855,10 @@ function initializeLightbox() {
   }
 
   lightboxClose.addEventListener('click', closeLightbox);
-  
+
   // Cerrar al hacer clic en el overlay
   document.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);
-  
+
   // Cerrar con tecla ESC
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
@@ -1882,16 +1879,16 @@ async function downloadImage(url, filename = 'imagen.png') {
     const response = await fetch(url);
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = blobUrl;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     URL.revokeObjectURL(blobUrl);
-    
+
     // Feedback visual
     console.log('✅ Imagen descargada correctamente');
   } catch (error) {
@@ -1903,23 +1900,23 @@ async function downloadImage(url, filename = 'imagen.png') {
 // Inicializar listeners para botones de descarga en el chat
 function initializeImageDownloadButtons() {
   const downloadButtons = document.querySelectorAll('.image-download-btn');
-  
+
   downloadButtons.forEach(btn => {
     if (btn.dataset.initialized === 'true') return;
-    
+
     btn.dataset.initialized = 'true';
-    
+
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const imageUrl = btn.dataset.imageUrl;
       const filename = `mirai-image-${Date.now()}.png`;
-      
+
       // Feedback visual
       const originalHTML = btn.innerHTML;
       btn.innerHTML = '<span>⏳ Descargando...</span>';
-      
+
       await downloadImage(imageUrl, filename);
-      
+
       // Restaurar botón
       setTimeout(() => {
         btn.innerHTML = originalHTML;
