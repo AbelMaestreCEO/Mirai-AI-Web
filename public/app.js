@@ -383,10 +383,6 @@ async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
   if (!userInput && state.attachments.length === 0) return;
 
-  // 1. Detectar si es una petición de imagen
-  const imageKeywords = ['genera', 'dibuja', 'crea', 'imagen', 'foto', 'ilustración', 'render', 'make', 'draw', 'create'];
-  const isImageRequest = imageKeywords.some(keyword => userInput.toLowerCase().includes(keyword));
-
   // 2. Construir mensaje
   let fullMessage = userInput;
   let attachmentIds = [];
@@ -413,65 +409,42 @@ async function handleSendMessage() {
   showTypingIndicator();
 
   try {
-    let responseData;
-    // Asegurarse de que audioMode tenga un valor por defecto si no está definido
-    const audioModeToSend = state.audioMode || 'always';
+    const response = await fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: fullMessage,
+        conversation_id: state.currentConversationId,
+        audio_mode: state.audioMode || 'auto',
+        force_type: null  // ← NULL para dejar que DeepSeek decida
+      })
+    });
 
-    if (isImageRequest) {
-      // --- LLAMAR A GENERADOR DE IMÁGENES ---
-      const response = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: userInput,
-          conversation_id: state.currentConversationId
-        })
-      });
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    const responseData = await response.json();
 
-      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-      responseData = await response.json();
-
-      if (responseData.success && responseData.image_url) {
-        const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
-        // Las imágenes no tienen audio, así que pasamos null
-        appendMessage('assistant', imageMarkdown, {
-          audioUrl: null,
-          isAudio: false
-        });
-      } else {
-        throw new Error('No se generó imagen');
-      }
-
+    // ✨ MANEJAR SEGÚN TIPO DE RESPUESTA
+    if (responseData.type === 'image' && responseData.image_url) {
+      const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
+      appendMessage('assistant', imageMarkdown, true, null);
+    } else if (responseData.type === 'video' || responseData.type === 'music') {
+      appendMessage('assistant', responseData.response || responseData.response_text || 'Contenido en desarrollo 🚧', true, null);
+    } else if (responseData.response) {
+      appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
     } else {
-      // --- LLAMAR A DEEPSEEK (TEXTO NORMAL) ---
-      const response = await fetch(CONFIG.API_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: fullMessage,
-          conversation_id: state.currentConversationId,
-          audio_mode: state.audioMode || 'always'
-        })
-      });
-
-      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
-      responseData = await response.json();
-
-      if (responseData.response) {
-        // ✅ PASAR audioUrl COMO STRING, NO COMO OBJETO
-        appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
-      } else {
-        throw new Error('No se recibió respuesta válida');
-      }
+      throw new Error('No se recibió respuesta válida');
     }
 
+
     loadConversations();
-    saveToLocalHistory(responseData.response || responseData.response_text);
+    const textToSave = responseData.response || responseData.response_text || '';
+    if (textToSave) saveToLocalHistory(textToSave);
 
   } catch (error) {
     console.error('Error enviando mensaje:', error);
     appendMessage('system', `⚠️ Error: ${error.message}`);
   } finally {
+    hideTypingIndicator();
     state.isSending = false;
     updateSendButtonState();
     elements.messageInput.focus();
@@ -649,11 +622,6 @@ function setupEventListeners() {
     subtree: true
   });
 
-
-  observer.observe(elements.chatMessages, {
-    childList: true,
-    subtree: true
-  });
   // ← BOTÓN DE LIMPIAR CONVERSACIÓN
   if (elements.clearButton) {
     elements.clearButton.addEventListener('click', handleClearConversation);
@@ -1099,7 +1067,8 @@ async function modifyResponse(messageDiv, originalContent, action) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: prompt,
-        conversation_id: state.currentConversationId
+        conversation_id: state.currentConversationId,
+        audio_mode: state.audioMode || 'auto'
       })
     });
 
@@ -1178,7 +1147,8 @@ async function regenerateResponse(messageDiv, originalContent) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: userContent + '\n\n(Por favor, genera una respuesta diferente)',
-        conversation_id: state.currentConversationId
+        conversation_id: state.currentConversationId,
+        audio_mode: state.audioMode || 'auto'
       })
     });
 
@@ -1340,14 +1310,14 @@ function formatMessageContent(content) {
   // ⭐ IMÁGENES CON TOOLBAR DE DESCARGA (BOTÓN FUERA DE LA IMAGEN)
   formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
     const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Convertir URL absoluta a relativa si es necesario
     let displayUrl = url;
     if (url.startsWith('https://aiassets.aberumirai.com/')) {
       const r2Key = url.replace('https://aiassets.aberumirai.com/', '');
       displayUrl = `/api/image/${r2Key}`;
     }
-    
+
     return `
       <div class="image-container">
         <div class="image-toolbar">
@@ -1921,19 +1891,19 @@ async function downloadImage(imageUrl, filename = 'imagen.png') {
 // Inicializar listeners para botones de descarga en el chat
 function initializeImageDownloadButtons() {
   const downloadButtons = document.querySelectorAll('.image-download-btn');
-  
+
   downloadButtons.forEach(btn => {
     if (btn.dataset.initialized === 'true') return;
-    
+
     btn.dataset.initialized = 'true';
-    
+
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       e.preventDefault();
-      
+
       const imageUrl = btn.dataset.imageUrl;
       const filename = `mirai-image-${Date.now()}.png`;
-      
+
       // Feedback visual
       const originalHTML = btn.innerHTML;
       btn.innerHTML = `
@@ -1944,9 +1914,9 @@ function initializeImageDownloadButtons() {
       `;
       btn.style.borderColor = '#34c759';
       btn.style.color = '#34c759';
-      
+
       await downloadImage(imageUrl, filename);
-      
+
       // Restaurar después de 2 segundos
       setTimeout(() => {
         btn.innerHTML = originalHTML;
@@ -1955,24 +1925,4 @@ function initializeImageDownloadButtons() {
       }, 2000);
     });
   });
-}
-async function sendMessage(forceType = null) {
-  const message = elements.messageInput.value.trim();
-  if (!message) return;
-
-  const payload = {
-    message,
-    conversation_id: currentConversationId,
-    audio_mode: audioMode,
-    ...(forceType && { force_type: forceType })  // ✨ Solo si se fuerza
-  };
-
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-  displayMessage(data);
 }

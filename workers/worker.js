@@ -49,44 +49,6 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
 
-// --- HANDLER PRINCIPAL ---
-export default {
-  async fetch(request, env, ctx) {
-    try {
-      const url = new URL(request.url);
-      const path = url.pathname;
-
-      // Habilitar CORS para todas las rutas
-      const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Content-Type': 'application/json'
-      };
-
-      // Manejar preflight CORS
-      if (request.method === 'OPTIONS') {
-        return new Response(null, { headers: corsHeaders });
-      }
-
-      // Rutas de API
-      if (path.startsWith('/api/')) {
-        return handleApiRequest(request, env, corsHeaders);
-      }
-
-      // Servir archivos estáticos
-      return serveStatic(url, env, corsHeaders);
-
-    } catch (error) {
-      console.error('Worker error:', error);
-      return jsonResponse(
-        { error: 'Error interno del servidor' },
-        500,
-        corsHeaders
-      );
-    }
-  }
-};
 // --- CLASIFICAR INTENCIÓN DEL USUARIO ---
 async function classifyIntent(message, env) {
   try {
@@ -125,6 +87,274 @@ async function classifyIntent(message, env) {
     return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' }; // Fallback seguro
   }
 }
+
+// --- MANEJAR CHAT (DeepSeek API + TTS) ---
+async function handleChat(request, env, corsHeaders) {
+  console.log('🔍 handleChat llamado');
+  console.log('🔍 env.AI disponible:', !!env.AI);
+
+  try {
+    // ✨ LEER audio_mode DEL BODY
+    const { message, conversation_id, audio_mode, force_type } = await request.json();
+
+    // Validar entrada
+    if (!message || typeof message !== 'string') {
+      return jsonResponse({ error: 'El campo "message" es requerido' }, 400, corsHeaders);
+    }
+    if (!conversation_id || typeof conversation_id !== 'string') {
+      return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
+    }
+
+    console.log(`📩 Recibido: audio_mode = ${audio_mode}`);
+
+    // ✨ PASO 1: CLASIFICAR INTENCIÓN (o usar fuerza del frontend)
+    let classification;
+
+    if (force_type && [1, 2, 3, 4].includes(force_type)) {
+      classification = { intent: force_type, prompt: message };
+      console.log(`⚡ Tipo forzado desde frontend: intent=${force_type}`);
+    } else {
+      classification = await classifyIntent(message, env);
+    }
+
+    console.log(`🎯 Clasificación final: intent=${classification.intent}, prompt="${classification.prompt.substring(0, 80)}"`);
+
+    // ✨ PASO 2: ENRUTAR SEGÚN INTENCIÓN
+    switch (classification.intent) {
+
+      case INTENT_TYPES.IMAGE:
+        return await handleRoutedImageGeneration(
+          classification.prompt || message,
+          message,           // mensaje original para contexto
+          conversation_id,
+          env,
+          corsHeaders
+        );
+
+      case INTENT_TYPES.VIDEO:
+        return await handleVideoGeneration(
+          classification.prompt || message,
+          conversation_id,
+          env,
+          corsHeaders
+        );
+
+      case INTENT_TYPES.MUSIC:
+        return await handleMusicGeneration(
+          classification.prompt || message,
+          conversation_id,
+          env,
+          corsHeaders
+        );
+
+      case INTENT_TYPES.TEXT:
+      case INTENT_TYPES.TEXT_DEFAULT:
+      default:
+        // ✨ TU CÓDIGO ORIGINAL DE TEXTO (con audio_mode intacto)
+        return await handleTextChatInternal(
+          message,
+          conversation_id,
+          audio_mode,
+          env,
+          corsHeaders
+        );
+    }
+
+  } catch (error) {
+    console.error('Chat handler error:', error.message);
+    console.error('Stack:', error.stack);
+    return jsonResponse({ error: 'Error procesando el mensaje', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// --- GENERAR TTS Y GUARDAR EN R2 (CORREGIDO) ---
+async function generateAndStoreTTS(text, conversationId, env) {
+  try {
+    if (!env.AI) {
+      console.error('❌ CRÍTICO: env.AI no está definido.');
+      return null;
+    }
+
+    const cleanedText = cleanTextForTTS(text);
+    if (!cleanedText || cleanedText.length < 10) {
+      console.log('⚠️ Texto muy corto para TTS');
+      return null;
+    }
+
+    const segments = segmentTextForTTS(cleanedText);
+    console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
+
+    const audioBuffers = [];
+
+    for (const segment of segments) {
+      try {
+        const ttsResult = await env.AI.run('inworld/tts-1.5-max', {
+          text: segment,
+          voice_id: 'Julia',
+          output_format: 'mp3',
+          temperature: 1,
+          timestamp_type: 'none',
+        }, {
+          gateway: { id: 'default' },
+        });
+
+        console.log('🔍 ttsResult tipo:', typeof ttsResult);
+        console.log('🔍 ttsResult constructor:', ttsResult?.constructor?.name);
+        console.log('🔍 ttsResult completo:', JSON.stringify(ttsResult, null, 2));
+
+        let audioBuffer = null;
+        if (ttsResult && ttsResult.audio) {
+          audioBuffer = ttsResult.audio;
+        }
+        else if (ttsResult instanceof ReadableStream) {
+          // Si es stream, convertir a ArrayBuffer
+          const reader = ttsResult.getReader();
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+          }
+        }
+        // CASO 1: ArrayBuffer directo
+        else if (ttsResult instanceof ArrayBuffer && ttsResult.byteLength > 0) {
+          audioBuffer = ttsResult;
+          console.log('✅ ArrayBuffer directo capturado');
+        }
+        // CASO 2: Es un Response (objeto opaco sin claves enumerables)
+        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.arrayBuffer === 'function') {
+          console.log('🔍 ttsResult es un Response, llamando .arrayBuffer()...');
+          audioBuffer = await ttsResult.arrayBuffer();
+          console.log('✅ Audio extraído del Response:', audioBuffer.byteLength, 'bytes');
+        }
+        // CASO 3: Propiedad .audio
+        else if (ttsResult?.audio instanceof ArrayBuffer) {
+          audioBuffer = ttsResult.audio;
+          console.log('✅ Propiedad .audio capturada');
+        }
+        // CASO 4: Propiedad .result.audio
+        else if (ttsResult?.result?.audio instanceof ArrayBuffer) {
+          audioBuffer = ttsResult.result.audio;
+          console.log('✅ Propiedad .result.audio capturada');
+        }
+        // CASO 5: ReadableStream
+        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.getReader === 'function') {
+          console.log('🔍 ttsResult es un ReadableStream, consumiendo...');
+          const reader = ttsResult.getReader();
+          const chunks = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+          }
+          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+          const combined = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const chunk of chunks) {
+            combined.set(new Uint8Array(chunk), offset);
+            offset += chunk.byteLength;
+          }
+          audioBuffer = combined.buffer;
+          console.log('✅ Audio extraído del ReadableStream:', audioBuffer.byteLength, 'bytes');
+        }
+        // CASO 6: Objeto vacío (fallback)
+        else {
+          console.error('❌ Formato no reconocido');
+          console.error('❌ Constructor:', ttsResult?.constructor?.name);
+          console.error('❌ Tiene .arrayBuffer?:', typeof ttsResult?.arrayBuffer);
+          console.error('❌ Tiene .getReader?:', typeof ttsResult?.getReader);
+          console.error('❌ Tiene .body?:', typeof ttsResult?.body);
+        }
+
+        if (audioBuffer && audioBuffer.byteLength > 0) {
+          audioBuffers.push(audioBuffer);
+        } else {
+          console.warn('⚠️ Segmento sin audio válido');
+        }
+
+      } catch (segError) {
+        console.error('❌ Error en segmento TTS:', segError.message);
+      }
+    }
+
+    if (audioBuffers.length === 0) {
+      console.error('❌ TTS no generó audio válido');
+      return null;
+    }
+
+    // Combinar buffers si hay múltiples segmentos
+    let finalBuffer;
+    if (audioBuffers.length === 1) {
+      finalBuffer = audioBuffers[0];
+    } else {
+      const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+      const combined = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const buf of audioBuffers) {
+        combined.set(new Uint8Array(buf), offset);
+        offset += buf.byteLength;
+      }
+      finalBuffer = combined.buffer;
+    }
+
+    // Subir a R2
+    const audioId = crypto.randomUUID();
+    const r2Key = `tts/${conversationId}/${audioId}.mp3`;
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, finalBuffer, {
+      httpMetadata: { contentType: 'audio/mpeg' },
+      customMetadata: { conversation_id: conversationId }
+    });
+
+    console.log(`✅ Audio guardado en R2: ${r2Key}`);
+    return `/api/audio/${r2Key}`;
+
+  } catch (error) {
+    console.error('❌ Error en generateAndStoreTTS:', error.message);
+    console.error('Stack:', error.stack);
+    return null;
+  }
+}
+
+// --- HANDLER PRINCIPAL ---
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      const url = new URL(request.url);
+      const path = url.pathname;
+
+      // Habilitar CORS para todas las rutas
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Content-Type': 'application/json'
+      };
+
+      // Manejar preflight CORS
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { headers: corsHeaders });
+      }
+
+      // Rutas de API
+      if (path.startsWith('/api/')) {
+        return handleApiRequest(request, env, corsHeaders);
+      }
+
+      // Servir archivos estáticos
+      return serveStatic(url, env, corsHeaders);
+
+    } catch (error) {
+      console.error('Worker error:', error);
+      return jsonResponse(
+        { error: 'Error interno del servidor' },
+        500,
+        corsHeaders
+      );
+    }
+  }
+};
+
 
 // --- PARSEAR RESPUESTA DE CLASIFICACIÓN ---
 function parseClassification(content) {
@@ -238,83 +468,117 @@ async function handleApiRequest(request, env, corsHeaders) {
   }
 }
 
-// --- MANEJAR CHAT (DeepSeek API + TTS) ---
-async function handleChat(request, env, corsHeaders) {
-  console.log('🔍 handleChat llamado');
-  console.log('🔍 env.AI disponible:', !!env.AI);
 
+
+// --- HANDLER DE TEXTO INTERNO (lógica original de chat) ---
+async function handleTextChatInternal(message, conversationId, audioMode, env, corsHeaders) {
   try {
-    // ✨ LEER audio_mode DEL BODY
-    const { message, conversation_id, audio_mode, force_type } = await request.json();
+    await ensureConversationExists(conversationId, message, env);
+    const history = await getConversationHistory(conversationId, env);
 
-    // Validar entrada
-    if (!message || typeof message !== 'string') {
-      return jsonResponse({ error: 'El campo "message" es requerido' }, 400, corsHeaders);
+    const deepseekMessages = buildDeepseekMessages(message, history);
+    const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: deepseekMessages,
+        temperature: 0.7,
+        max_tokens: 2000,
+        stream: false
+      })
+    });
+
+    if (!deepseekResponse.ok) {
+      const errorData = await deepseekResponse.text();
+      console.error('DeepSeek API error:', errorData);
+      return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
     }
-    if (!conversation_id || typeof conversation_id !== 'string') {
-      return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
+
+    const deepseekData = await deepseekResponse.json();
+    const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
+
+    await saveMessage(conversationId, 'user', message, env);
+    await saveMessage(conversationId, 'assistant', aiResponse, env);
+    await updateConversationTimestamp(conversationId, env);
+
+    const shouldGenerateAudio = shouldSendAsAudio(aiResponse, audioMode);
+    let audioUrl = null;
+
+    if (shouldGenerateAudio) {
+      try {
+        audioUrl = await generateAndStoreTTS(aiResponse, conversationId, env);
+      } catch (ttsError) {
+        console.error('❌ Error TTS:', ttsError);
+      }
     }
 
-    console.log(`📩 Recibido: audio_mode = ${audio_mode}`);
-
-    // ✨ PASO 1: CLASIFICAR INTENCIÓN (o usar fuerza del frontend)
-    let classification;
-
-    if (force_type && [1, 2, 3, 4].includes(force_type)) {
-      classification = { intent: force_type, prompt: message };
-      console.log(`⚡ Tipo forzado desde frontend: intent=${force_type}`);
-    } else {
-      classification = await classifyIntent(message, env);
-    }
-
-    console.log(`🎯 Clasificación final: intent=${classification.intent}, prompt="${classification.prompt.substring(0, 80)}"`);
-
-    // ✨ PASO 2: ENRUTAR SEGÚN INTENCIÓN
-    switch (classification.intent) {
-
-      case INTENT_TYPES.IMAGE:
-        return await handleRoutedImageGeneration(
-          classification.prompt || message,
-          message,           // mensaje original para contexto
-          conversation_id,
-          env,
-          corsHeaders
-        );
-
-      case INTENT_TYPES.VIDEO:
-        return await handleVideoGeneration(
-          classification.prompt || message,
-          conversation_id,
-          env,
-          corsHeaders
-        );
-
-      case INTENT_TYPES.MUSIC:
-        return await handleMusicGeneration(
-          classification.prompt || message,
-          conversation_id,
-          env,
-          corsHeaders
-        );
-
-      case INTENT_TYPES.TEXT:
-      case INTENT_TYPES.TEXT_DEFAULT:
-      default:
-        // ✨ TU CÓDIGO ORIGINAL DE TEXTO (con audio_mode intacto)
-        return await handleTextChatInternal(
-          message,
-          conversation_id,
-          audio_mode,
-          env,
-          corsHeaders
-        );
-    }
+    return jsonResponse({
+      type: 'text',
+      response: aiResponse,
+      audio_url: audioUrl,
+      is_audio: !!audioUrl
+    }, 200, corsHeaders);
 
   } catch (error) {
-    console.error('Chat handler error:', error.message);
-    console.error('Stack:', error.stack);
-    return jsonResponse({ error: 'Error procesando el mensaje', details: error.message }, 500, corsHeaders);
+    console.error('❌ handleTextChatInternal error:', error.message);
+    return jsonResponse({ error: 'Error en chat de texto', details: error.message }, 500, corsHeaders);
   }
+}
+
+// --- GENERAR IMAGEN Y GUARDAR EN R2 (función reutilizable) ---
+async function generateAndStoreImage(prompt, conversationId, env) {
+  const promptParaIA = `${prompt}, captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.`;
+
+  const aiResponse = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt: promptParaIA,
+        seed: Math.floor(Math.random() * 1000000),
+      })
+    }
+  );
+
+  if (!aiResponse.ok) {
+    const errorText = await aiResponse.text();
+    throw new Error('Error API Image: ' + errorText);
+  }
+
+  const aiData = await aiResponse.json();
+  if (!aiData.success || !aiData.result || !aiData.result.image) {
+    throw new Error('Respuesta inválida de la API de AI');
+  }
+
+  const imageBase64 = aiData.result.image;
+  const uniqueId = crypto.randomUUID();
+  const filename = `images/${uniqueId}.png`;
+
+  const binaryString = atob(imageBase64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+    httpMetadata: { contentType: 'image/png' },
+    customMetadata: {
+      prompt: prompt.substring(0, 100),
+      conversation_id: conversationId,
+      generated_at: new Date().toISOString()
+    }
+  });
+
+  return `/api/image/${filename}`;
 }
 
 // --- GENERAR IMAGEN (VÍA ROUTER) ---
@@ -343,55 +607,37 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
   }
 }
 
-// --- GENERAR VIDEO (COMENTADO PARA FUTURO) ---
-/*
+// --- GENERAR VIDEO (PLACEHOLDER) ---
 async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
-  try {
-    await ensureConversationExists(conversationId, prompt, env);
-    await saveMessage(conversationId, 'user', prompt, env);
+  await ensureConversationExists(conversationId, prompt, env);
+  await saveMessage(conversationId, 'user', prompt, env);
 
-    // ✨ LÓGICA DE VIDEO (RunwayML, Pika, etc.)
-    const videoUrl = await generateAndStoreVideo(prompt, conversationId, env);
+  const responseText = "🎬 La generación de video aún no está disponible. ¡Próximamente!";
+  await saveMessage(conversationId, 'assistant', responseText, env);
+  await updateConversationTimestamp(conversationId, env);
 
-    await saveMessage(conversationId, 'assistant', `[Video generado: ${prompt}]`, env);
-
-    return jsonResponse({
-      type: 'video',
-      video_url: videoUrl,
-      prompt: prompt
-    }, 200, corsHeaders);
-
-  } catch (error) {
-    console.error('❌ handleVideoGeneration error:', error.message);
-    return jsonResponse({ error: 'Error generando video', details: error.message }, 500, corsHeaders);
-  }
+  return jsonResponse({
+    type: 'video',
+    status: 'coming_soon',
+    response: responseText
+  }, 200, corsHeaders);
 }
-*/
 
-// --- GENERAR MÚSICA (COMENTADO PARA FUTURO) ---
-/*
+// --- GENERAR MÚSICA (PLACEHOLDER) ---
 async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
-  try {
-    await ensureConversationExists(conversationId, prompt, env);
-    await saveMessage(conversationId, 'user', prompt, env);
+  await ensureConversationExists(conversationId, prompt, env);
+  await saveMessage(conversationId, 'user', prompt, env);
 
-    // ✨ LÓGICA DE MÚSICA (Suno, Stable Audio, etc.)
-    const audioUrl = await generateAndStoreMusic(prompt, conversationId, env);
+  const responseText = "🎵 La generación de música aún no está disponible. ¡Próximamente!";
+  await saveMessage(conversationId, 'assistant', responseText, env);
+  await updateConversationTimestamp(conversationId, env);
 
-    await saveMessage(conversationId, 'assistant', `[Música generada: ${prompt}]`, env);
-
-    return jsonResponse({
-      type: 'music',
-      audio_url: audioUrl,
-      prompt: prompt
-    }, 200, corsHeaders);
-
-  } catch (error) {
-    console.error('❌ handleMusicGeneration error:', error.message);
-    return jsonResponse({ error: 'Error generando música', details: error.message }, 500, corsHeaders);
-  }
+  return jsonResponse({
+    type: 'music',
+    status: 'coming_soon',
+    response: responseText
+  }, 200, corsHeaders);
 }
-*/
 
 // ============================================
 // FUNCIONES TTS (Text-to-Speech)
@@ -480,142 +726,6 @@ function segmentTextForTTS(text, maxLength = 2000) {
   }
 
   return segments.filter(s => s.length > 0);
-}
-
-// --- GENERAR TTS Y GUARDAR EN R2 (CORREGIDO) ---
-async function generateAndStoreTTS(text, conversationId, env) {
-  try {
-    if (!env.AI) {
-      console.error('❌ CRÍTICO: env.AI no está definido.');
-      return null;
-    }
-
-    const cleanedText = cleanTextForTTS(text);
-    if (!cleanedText || cleanedText.length < 10) {
-      console.log('⚠️ Texto muy corto para TTS');
-      return null;
-    }
-
-    const segments = segmentTextForTTS(cleanedText);
-    console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
-
-    const audioBuffers = [];
-
-    for (const segment of segments) {
-      try {
-        const ttsResult = await env.AI.run('inworld/tts-1.5-max', {
-          text: segment,
-          voice_id: 'Julia',
-          output_format: 'mp3',
-          temperature: 1,
-          timestamp_type: 'none',
-        }, {
-          gateway: { id: 'default' },
-        });
-
-        console.log('🔍 ttsResult tipo:', typeof ttsResult);
-        console.log('🔍 ttsResult constructor:', ttsResult?.constructor?.name);
-
-        let audioBuffer = null;
-
-        // CASO 1: ArrayBuffer directo
-        if (ttsResult instanceof ArrayBuffer && ttsResult.byteLength > 0) {
-          audioBuffer = ttsResult;
-          console.log('✅ ArrayBuffer directo capturado');
-        }
-        // CASO 2: Es un Response (objeto opaco sin claves enumerables)
-        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.arrayBuffer === 'function') {
-          console.log('🔍 ttsResult es un Response, llamando .arrayBuffer()...');
-          audioBuffer = await ttsResult.arrayBuffer();
-          console.log('✅ Audio extraído del Response:', audioBuffer.byteLength, 'bytes');
-        }
-        // CASO 3: Propiedad .audio
-        else if (ttsResult?.audio instanceof ArrayBuffer) {
-          audioBuffer = ttsResult.audio;
-          console.log('✅ Propiedad .audio capturada');
-        }
-        // CASO 4: Propiedad .result.audio
-        else if (ttsResult?.result?.audio instanceof ArrayBuffer) {
-          audioBuffer = ttsResult.result.audio;
-          console.log('✅ Propiedad .result.audio capturada');
-        }
-        // CASO 5: ReadableStream
-        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.getReader === 'function') {
-          console.log('🔍 ttsResult es un ReadableStream, consumiendo...');
-          const reader = ttsResult.getReader();
-          const chunks = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-          }
-          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-          const combined = new Uint8Array(totalLength);
-          let offset = 0;
-          for (const chunk of chunks) {
-            combined.set(new Uint8Array(chunk), offset);
-            offset += chunk.byteLength;
-          }
-          audioBuffer = combined.buffer;
-          console.log('✅ Audio extraído del ReadableStream:', audioBuffer.byteLength, 'bytes');
-        }
-        // CASO 6: Objeto vacío (fallback)
-        else {
-          console.error('❌ Formato no reconocido');
-          console.error('❌ Constructor:', ttsResult?.constructor?.name);
-          console.error('❌ Tiene .arrayBuffer?:', typeof ttsResult?.arrayBuffer);
-          console.error('❌ Tiene .getReader?:', typeof ttsResult?.getReader);
-          console.error('❌ Tiene .body?:', typeof ttsResult?.body);
-        }
-
-        if (audioBuffer && audioBuffer.byteLength > 0) {
-          audioBuffers.push(audioBuffer);
-        } else {
-          console.warn('⚠️ Segmento sin audio válido');
-        }
-
-      } catch (segError) {
-        console.error('❌ Error en segmento TTS:', segError.message);
-      }
-    }
-
-    if (audioBuffers.length === 0) {
-      console.error('❌ TTS no generó audio válido');
-      return null;
-    }
-
-    // Combinar buffers si hay múltiples segmentos
-    let finalBuffer;
-    if (audioBuffers.length === 1) {
-      finalBuffer = audioBuffers[0];
-    } else {
-      const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.byteLength, 0);
-      const combined = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const buf of audioBuffers) {
-        combined.set(new Uint8Array(buf), offset);
-        offset += buf.byteLength;
-      }
-      finalBuffer = combined.buffer;
-    }
-
-    // Subir a R2
-    const audioId = crypto.randomUUID();
-    const r2Key = `tts/${conversationId}/${audioId}.mp3`;
-
-    await env.MIRAI_AI_ASSETS.put(r2Key, finalBuffer, {
-      httpMetadata: { contentType: 'audio/mpeg' },
-      customMetadata: { conversation_id: conversationId }
-    });
-
-    console.log(`✅ Audio guardado en R2: ${r2Key}`);
-    return `/api/audio/${r2Key}`;
-
-  } catch (error) {
-    console.error('❌ Error en generateAndStoreTTS:', error.message);
-    console.error('Stack:', error.stack);
-    return null;
-  }
 }
 
 // --- MANEJAR HISTORIAL ---
