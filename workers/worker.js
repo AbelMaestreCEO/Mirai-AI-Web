@@ -323,14 +323,12 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run('minimax/speech-2.8-turbo', {
+        const ttsResult = await env.AI.run('inworld/tts-1.5-max', {
           text: segment,
-          voice_id: 'Spanish_expressive_narrator',
-          speed: 1,
-          volume: 1,
-          pitch: 0,
-          emotion: 'happy',
-          format: 'mp3',
+          voice_id: 'Julia',
+          output_format: 'mp3',
+          temperature: 1,
+          timestamp_type: 'none',
         }, {
           gateway: { id: 'default' },
         });
@@ -815,14 +813,14 @@ async function handleImageGeneration(request, env, corsHeaders) {
     // La API de Flux espera multipart/form-data, NO JSON
     const formData = new FormData();
     formData.append('prompt', prompt);
-    formData.append('width', '1024');
-    formData.append('height', '1024');
+    formData.append('width', '512');
+    formData.append('height', '512');
     formData.append('steps', '25');
     // Opcional: seed, negative_prompt, etc.
 
     // 3. Llamar a Cloudflare AI
     const aiResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-9b`,
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
       {
         method: 'POST',
         headers: {
