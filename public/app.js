@@ -1956,3 +1956,23 @@ function initializeImageDownloadButtons() {
     });
   });
 }
+async function sendMessage(forceType = null) {
+  const message = elements.messageInput.value.trim();
+  if (!message) return;
+
+  const payload = {
+    message,
+    conversation_id: currentConversationId,
+    audio_mode: audioMode,
+    ...(forceType && { force_type: forceType })  // ✨ Solo si se fuerza
+  };
+
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  displayMessage(data);
+}
