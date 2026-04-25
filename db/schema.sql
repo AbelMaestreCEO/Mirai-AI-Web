@@ -39,3 +39,26 @@ CREATE TABLE IF NOT EXISTS attachments (
 
 -- Índice para búsquedas rápidas
 CREATE INDEX IF NOT EXISTS idx_attachments_conversation_id ON attachments(conversation_id);
+
+CREATE TABLE courses (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT,
+  language TEXT,
+  level TEXT,  -- 'principiante', 'intermedio', 'avanzado'
+  lessons INTEGER DEFAULT 0,
+  duration TEXT,  -- '4 horas', '12 horas', etc.
+  icon TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE lessons (
+  id TEXT PRIMARY KEY,
+  course_id TEXT REFERENCES courses(id),
+  title TEXT NOT NULL,
+  content TEXT,
+  order_index INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

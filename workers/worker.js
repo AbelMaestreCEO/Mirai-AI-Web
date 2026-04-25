@@ -415,6 +415,10 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleChat(request, env, corsHeaders);
     }
 
+    if (path === '/api/courses' && request.method === 'GET') {
+      return await handleGetCourses(env, corsHeaders);
+    }
+
     // NUEVA RUTA: Subida de archivos
     if (path === '/api/upload' && request.method === 'POST') {
       return await handleUpload(request, env, corsHeaders);
@@ -1237,4 +1241,13 @@ async function handleServeImage(path, env) {
     console.error('Error sirviendo imagen:', error);
     return new Response('Error interno', { status: 500 });
   }
+}
+
+async function handleGetCourses(env, corsHeaders) {
+  const stmt = env.MIRAI_AI_DB.prepare(`
+    SELECT * FROM courses ORDER BY category, level
+  `);
+  
+  const { results } = await stmt.all();
+  return jsonResponse(results, 200, corsHeaders);
 }
