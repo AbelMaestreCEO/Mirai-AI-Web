@@ -325,8 +325,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
       try {
         const ttsResult = await env.AI.run('minimax/speech-2.8-turbo', {
           text: segment,
-          voice: 'female-young',
-          language: 'es',
+          voice: 'female_young',
           emotion: 'happy' // Si el modelo lo soporta
         }, {
           gateway: { id: 'default' },
