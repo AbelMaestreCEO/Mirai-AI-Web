@@ -1289,15 +1289,15 @@ function escapeHtml(text) {
 }
 
 // --- FORMATEO DE MARKDOWN MEJORADO (CON SOPORTE PARA COPIAR CÓDIGO) ---
+// --- FORMATEO DE MARKDOWN MEJORADO (CON SOPORTE PARA IMÁGENES) ---
 function formatMessageContent(content) {
   let formatted = content;
 
   // 1. Escapar HTML primero para prevenir XSS
   formatted = escapeHtml(formatted);
 
-  // 2. Bloques de código (```idiama\ncódigo```) - PRIMERO para evitar conflictos
+  // 2. Bloques de código (```idioma\ncódigo```)
   formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-    // Codificar el código para usarlo en atributo data
     const encodedCode = encodeURIComponent(code);
     return `
       <div class="code-block-wrapper">
@@ -1318,7 +1318,7 @@ function formatMessageContent(content) {
   // 3. Código inline (`texto`)
   formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
-  // 4. Encabezados Markdown (#, ##, ###, ####, #####)
+  // 4. Encabezados Markdown
   formatted = formatted.replace(/^###### (.+)$/gm, '<h6 class="md-heading">$1</h6>');
   formatted = formatted.replace(/^##### (.+)$/gm, '<h5 class="md-heading">$1</h5>');
   formatted = formatted.replace(/^#### (.+)$/gm, '<h4 class="md-heading">$1</h4>');
@@ -1326,39 +1326,45 @@ function formatMessageContent(content) {
   formatted = formatted.replace(/^## (.+)$/gm, '<h2 class="md-heading">$1</h2>');
   formatted = formatted.replace(/^# (.+)$/gm, '<h1 class="md-heading">$1</h1>');
 
-  // 5. Negritas (**texto**)
+  // 5. Negritas y cursivas
   formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-  // 6. Cursivas (*texto*)
   formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
 
-  // 7. Listas con guiones (- texto)
+  // 6. Listas
   formatted = formatted.replace(/^- (.+)$/gm, '<li class="md-list-item">$1</li>');
   formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
-
-  // 8. Listas numeradas (1. texto)
   formatted = formatted.replace(/^\d+\. (.+)$/gm, '<li class="md-list-item">$1</li>');
   formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ol class="md-list">$&</ol>');
 
-  // 9. Blockquotes (> texto)
+  // 7. Blockquotes y líneas horizontales
   formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
-
-  // 10. Líneas horizontales (---)
   formatted = formatted.replace(/^---$/gm, '<hr class="md-hr">');
 
-  // 12. IMÁGENES (AGREGAR ESTO ANTES DE LOS ENLACES)
-  // Convierte ![alt](url) en <img src="url" alt="alt">
+  // 8. ⭐ IMÁGENES CON LIGHTBOX Y DESCARGA
   formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
-    return `<img src="${url}" alt="${alt}" class="md-image" style="max-width: 100%; border-radius: 8px; margin: 10px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">`;
+    const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `
+      <div class="image-container" data-image-url="${url}">
+        <img src="${url}" alt="${alt}" class="md-image lightbox-trigger" 
+             style="max-width: 100%; border-radius: 8px; margin: 10px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+             data-lightbox-id="${imageId}">
+        <button class="image-download-btn" data-image-url="${url}" title="Descargar imagen">
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          <span>Descargar</span>
+        </button>
+      </div>
+    `;
   });
 
-  // 13. Enlaces ([texto](url))
+  // 9. Enlaces
   formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
 
-  // 14. Saltos de línea (convertir a <br>)
+  // 10. Saltos de línea
   formatted = formatted.replace(/\n/g, '<br>');
 
-  // 15. Limpiar <br> duplicados después de elementos de bloque
+  // 11. Limpiar <br> duplicados
   formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|div)>[ ]*<br>/g, '</$1>');
 
   return formatted;
@@ -1804,5 +1810,124 @@ function setupAudioPlayer(audioElement) {
         audioElement.pause();
       }
     }
+  });
+}
+
+// ============================================
+// LIGHTBOX / MODAL PARA IMÁGENES
+// ============================================
+
+function initializeLightbox() {
+  const lightbox = document.getElementById('image-lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxClose = document.querySelector('.lightbox-close');
+  const lightboxDownload = document.querySelector('.lightbox-download');
+
+  if (!lightbox || !lightboxImg) return;
+
+  // Abrir lightbox al hacer clic en imagen
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('lightbox-trigger')) {
+      const imageUrl = e.target.src;
+      lightboxImg.src = imageUrl;
+      lightbox.classList.remove('hidden');
+      document.body.style.overflow = 'hidden'; // Prevenir scroll
+    }
+  });
+
+  // Cerrar lightbox
+  function closeLightbox() {
+    lightbox.classList.add('hidden');
+    lightboxImg.src = '';
+    document.body.style.overflow = '';
+  }
+
+  lightboxClose.addEventListener('click', closeLightbox);
+  
+  // Cerrar al hacer clic en el overlay
+  document.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);
+  
+  // Cerrar con tecla ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) {
+      closeLightbox();
+    }
+  });
+
+  // Descargar imagen desde lightbox
+  lightboxDownload.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await downloadImage(lightboxImg.src, 'mirai-generated-image.png');
+  });
+}
+
+// Función para descargar imagen
+async function downloadImage(url, filename = 'imagen.png') {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    URL.revokeObjectURL(blobUrl);
+    
+    // Feedback visual
+    console.log('✅ Imagen descargada correctamente');
+  } catch (error) {
+    console.error('❌ Error descargando imagen:', error);
+    alert('No se pudo descargar la imagen. Intenta hacer clic derecho y "Guardar imagen como..."');
+  }
+}
+
+// Inicializar listeners para botones de descarga en el chat
+function initializeImageDownloadButtons() {
+  const downloadButtons = document.querySelectorAll('.image-download-btn');
+  
+  downloadButtons.forEach(btn => {
+    if (btn.dataset.initialized === 'true') return;
+    
+    btn.dataset.initialized = 'true';
+    
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const imageUrl = btn.dataset.imageUrl;
+      const filename = `mirai-image-${Date.now()}.png`;
+      
+      // Feedback visual
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<span>⏳ Descargando...</span>';
+      
+      await downloadImage(imageUrl, filename);
+      
+      // Restaurar botón
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+      }, 2000);
+    });
+  });
+}
+
+// Agregar al setupEventListeners()
+function setupEventListeners() {
+  // ... tu código existente ...
+  
+  // Inicializar lightbox y botones de descarga
+  initializeLightbox();
+  initializeImageDownloadButtons();
+  
+  // Observador para nuevos mensajes
+  const observer = new MutationObserver(() => {
+    initializeImageDownloadButtons();
+  });
+  
+  observer.observe(elements.chatMessages, {
+    childList: true,
+    subtree: true
   });
 }
