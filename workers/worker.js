@@ -814,8 +814,8 @@ async function handleImageGeneration(request, env, corsHeaders) {
     const formData = new FormData();
     formData.append('prompt', prompt);
     formData.append('seed', Math.floor(Math.random() * 10));
-    /*formData.append('width', '512');
-    formData.append('height', '512');
+    /*formData.append('width', '1024');
+    formData.append('height', '1024');
     formData.append('steps', '25');*/
     // Opcional: seed, negative_prompt, etc.
 
@@ -825,11 +825,11 @@ async function handleImageGeneration(request, env, corsHeaders) {
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`
-          // NO pongas 'Content-Type': 'application/json' aquí.
+          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+          'Content-Type': 'application/json'
           // El navegador/Worker lo pone automáticamente como multipart/form-data con boundary.
         },
-        body: formData // ¡Enviar FormData!
+        body: JSON.stringify({formData}) // ¡Enviar FormData!
       }
     );
 
