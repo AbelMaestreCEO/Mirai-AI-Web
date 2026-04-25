@@ -83,7 +83,9 @@ async function handleApiRequest(request, env, corsHeaders) {
     if (path === '/api/conversations' && request.method === 'GET') {
       return await handleListConversations(env, corsHeaders);
     }
-
+    if (path.startsWith('/api/image/') && request.method === 'GET') {
+      return await handleServeImage(path, env);
+    }
     // Nueva ruta: POST /api/generate-image
     if (path === '/api/generate-image' && request.method === 'POST') {
       return await handleImageGeneration(request, env, corsHeaders);
@@ -877,7 +879,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
 
     // 5. Construir URL
     // Ajusta esto a tu configuración de R2 (dominio público o privado)
-    const imageUrl = `https://aiassets.aberumirai.com/${filename}`;
+    const imageUrl = `/api/image/${filename}`;
 
     // 6. Guardar en D1 y responder
     await ensureConversationExists(conversation_id, prompt, env);
@@ -918,6 +920,33 @@ async function handleServeAudio(path, env) {
 
   } catch (error) {
     console.error('Error sirviendo audio:', error);
+    return new Response('Error interno', { status: 500 });
+  }
+}
+
+// --- SERVIR IMÁGENES DESDE R2 CON CORS ---
+async function handleServeImage(path, env) {
+  try {
+    const r2Key = path.replace('/api/image/', '');
+
+    const object = await env.MIRAI_AI_ASSETS.get(r2Key);
+
+    if (object === null) {
+      return new Response('Imagen no encontrada', { status: 404 });
+    }
+
+    const headers = new Headers();
+    headers.set('Content-Type', 'image/png');
+    headers.set('Cache-Control', 'public, max-age=86400');
+    headers.set('Access-Control-Allow-Origin', '*'); // ✨ CORS EXPLÍCITO
+    headers.set('Access-Control-Allow-Methods', 'GET, HEAD');
+    headers.set('Access-Control-Allow-Headers', '*');
+    headers.set('Access-Control-Max-Age', '86400');
+
+    return new Response(object.body, { headers });
+
+  } catch (error) {
+    console.error('Error sirviendo imagen:', error);
     return new Response('Error interno', { status: 500 });
   }
 }

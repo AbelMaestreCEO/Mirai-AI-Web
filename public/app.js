@@ -1307,7 +1307,7 @@ function formatMessageContent(content) {
   // 1. Escapar HTML primero para prevenir XSS en el texto normal
   // Pero NO escapas las partes que vamos a generar nosotros después
   // Estrategia: Escapamos todo, luego reemplazamos los patrones de markdown por HTML seguro
-  
+
   // Primero, protegemos los bloques de código para que no se escapen mal
   const codeBlocks = [];
   formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
@@ -1339,22 +1339,28 @@ function formatMessageContent(content) {
 
   // 2. Procesar Imágenes (Markdown: ![alt](url))
   // Ahora que el HTML está escapado, buscamos el patrón de texto y lo convertimos a HTML
+  // En la parte de imágenes de formatMessageContent:
   formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
     const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Generamos el HTML limpio SIN escapar (porque acabamos de construirlo)
+
+    // Convertir URL absoluta a relativa si es necesario
+    let displayUrl = url;
+    if (url.startsWith('https://aiassets.aberumirai.com/')) {
+      const r2Key = url.replace('https://aiassets.aberumirai.com/', '');
+      displayUrl = `/api/image/${r2Key}`;
+    }
+
     return `
-      <div class="image-container" style="position: relative; display: inline-block; margin: 10px 0;">
-        <img src="${url}" alt="${alt}" class="md-image lightbox-trigger" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;" data-lightbox-id="${imageId}">
-        
-        <!-- Botón de descarga flotante (Arriba Derecha) -->
-        <button class="image-download-btn" data-image-url="${url}" title="Descargar imagen" style="position: absolute; top: 8px; right: 8px; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <svg viewBox="0 0 24 24" width="20" height="20" style="fill: #007aff;">
-            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-          </svg>
-        </button>
-      </div>
-    `;
+    <div class="image-container" style="position: relative; display: inline-block; margin: 10px 0;">
+      <img src="${displayUrl}" alt="${alt}" class="md-image lightbox-trigger" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: block;" data-lightbox-id="${imageId}">
+      
+      <button class="image-download-btn" data-image-url="${displayUrl}" title="Descargar imagen" style="position: absolute; top: 8px; right: 8px; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <svg viewBox="0 0 24 24" width="20" height="20" style="fill: #007aff;">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        </svg>
+      </button>
+    </div>
+  `;
   });
 
   // 3. Procesar otros elementos de Markdown (Negritas, Cursivas, etc.)
@@ -1362,7 +1368,7 @@ function formatMessageContent(content) {
   formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
   formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-  
+
   // Encabezados
   formatted = formatted.replace(/^###### (.+)$/gm, '<h6 class="md-heading">$1</h6>');
   formatted = formatted.replace(/^##### (.+)$/gm, '<h5 class="md-heading">$1</h5>');
@@ -1876,10 +1882,23 @@ function initializeLightbox() {
   });
 }
 
-// Función para descargar imagen
-async function downloadImage(url, filename = 'imagen.png') {
+// --- DESCARGAR IMAGEN (USANDO WORKER COMO PROXY) ---
+async function downloadImage(imageUrl, filename = 'imagen.png') {
   try {
-    const response = await fetch(url);
+    // Si la URL ya es relativa (/api/image/...), usar directamente
+    // Si es absoluta (https://aiassets...), convertirla
+    let fetchUrl = imageUrl;
+    if (imageUrl.startsWith('http')) {
+      const r2Key = imageUrl.replace('https://aiassets.aberumirai.com/', '');
+      fetchUrl = `/api/image/${r2Key}`;
+    }
+
+    const response = await fetch(fetchUrl);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
 
@@ -1892,11 +1911,10 @@ async function downloadImage(url, filename = 'imagen.png') {
 
     URL.revokeObjectURL(blobUrl);
 
-    // Feedback visual
     console.log('✅ Imagen descargada correctamente');
   } catch (error) {
     console.error('❌ Error descargando imagen:', error);
-    alert('No se pudo descargar la imagen. Intenta hacer clic derecho y "Guardar imagen como..."');
+    alert('No se pudo descargar automáticamente. Haz clic derecho en la imagen y selecciona "Guardar imagen como..."');
   }
 }
 
