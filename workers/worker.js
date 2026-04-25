@@ -452,6 +452,10 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleHistory(conversationId, env, corsHeaders);
     }
 
+    if (path === '/api/course-details' && request.method === 'GET') {
+      return await handleGetCourseDetails(request, env, corsHeaders);
+    }
+
     // Ruta: DELETE /api/chat/clear
     if (path === ROUTES.CHAT + '/clear' && request.method === 'DELETE') {
       const { conversation_id } = await request.json();
@@ -1252,7 +1256,51 @@ async function handleGetCourses(env, corsHeaders) {
     FROM courses
     ORDER BY category, level
   `);
-  
+
   const { results } = await stmt.all();
   return jsonResponse(results, 200, corsHeaders);
+}
+
+async function handleGetCourseDetails(request, env, corsHeaders) {
+    const url = new URL(request.url);
+    const courseId = url.searchParams.get('id');
+
+    if (!courseId) {
+        return jsonResponse({ error: 'Falta el ID del curso' }, 400, corsHeaders);
+    }
+
+    try {
+        // 1. Obtener datos del curso
+        const courseStmt = env.MIRAI_AI_DB.prepare(`
+            SELECT id, title, description, category, level, lessons, duration, icon
+            FROM courses
+            WHERE id = ?
+        `);
+        const courseResult = await courseStmt.bind(courseId).first();
+
+        if (!courseResult) {
+            return jsonResponse({ error: 'Curso no encontrado' }, 404, corsHeaders);
+        }
+
+        // 2. Obtener lecciones ordenadas
+        const lessonsStmt = env.MIRAI_AI_DB.prepare(`
+            SELECT id, title, content, order_index
+            FROM lessons
+            WHERE course_id = ?
+            ORDER BY order_index ASC
+        `);
+        const lessonsResult = await lessonsStmt.bind(courseId).all();
+
+        // 3. Construir respuesta
+        const responseData = {
+            ...courseResult,
+            lessons_list: lessonsResult.results || []
+        };
+
+        return jsonResponse(responseData, 200, corsHeaders);
+
+    } catch (error) {
+        console.error('Error en course-details:', error);
+        return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+    }
 }

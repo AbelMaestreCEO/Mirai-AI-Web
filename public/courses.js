@@ -228,13 +228,8 @@ function setupCourseButtons() {
 }
 
 function startCourse(courseId, btn) {
-  const originalText = btn.textContent;
-  btn.textContent = 'Redirigiendo...';
-  btn.disabled = true;
-  
-  setTimeout(() => {
-    window.location.href = `index.html?course=${courseId}`;
-  }, 400);
+    // Redirigir a la página de detalles primero
+    window.location.href = `course_details.html?course=${courseId}`;
 }
 
 // --- TEMA ---
