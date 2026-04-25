@@ -1248,9 +1248,11 @@ async function handleServeImage(path, env) {
 
 async function handleGetCourses(env, corsHeaders) {
   const stmt = env.MIRAI_AI_DB.prepare(`
-    SELECT * FROM courses ORDER BY category, level
+    SELECT id, title, description, category, level, lessons, duration, icon
+    FROM courses
+    ORDER BY category, level
   `);
-
+  
   const { results } = await stmt.all();
   return jsonResponse(results, 200, corsHeaders);
 }

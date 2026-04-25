@@ -1,232 +1,303 @@
 /* ============================================
-           COURSES PAGE - Lógica de Filtrado y Búsqueda
-           ============================================ */
+   COURSES PAGE - Carga desde D1 + Filtros
+   ============================================ */
 
-        // --- ESTADO ---
-        const courseState = {
-            activeCategory: 'todos',
-            searchQuery: ''
-        };
+// --- ESTADO ---
+const courseState = {
+  activeCategory: 'todos',
+  searchQuery: '',
+  courses: []
+};
 
-        // --- ELEMENTOS DEL DOM ---
-        const courseElements = {
-            grid: document.getElementById('courses-grid'),
-            search: document.getElementById('course-search'),
-            filterPills: document.getElementById('filter-pills'),
-            countDisplay: document.getElementById('courses-count'),
-            noResults: document.getElementById('no-results'),
-            themeToggle: document.getElementById('theme-toggle'),
-            sunIcon: document.querySelector('.sun-icon'),
-            moonIcon: document.querySelector('.moon-icon')
-        };
+// --- ELEMENTOS DEL DOM ---
+const courseElements = {
+  grid: document.getElementById('courses-grid'),
+  search: document.getElementById('course-search'),
+  filterPills: document.getElementById('filter-pills'),
+  countDisplay: document.getElementById('courses-count'),
+  noResults: document.getElementById('no-results'),
+  themeToggle: document.getElementById('theme-toggle'),
+  sunIcon: document.querySelector('.sun-icon'),
+  moonIcon: document.querySelector('.moon-icon')
+};
 
-        // --- INICIALIZACIÓN ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeTheme();
-            setupCourseFilters();
-            setupCourseSearch();
-            setupMobileMenu();
-            setupCourseButtons();
-        });
+// --- INICIALIZACIÓN ---
+document.addEventListener('DOMContentLoaded', () => {
+  initializeTheme();
+  loadCoursesFromAPI();
+  setupCourseFilters();
+  setupCourseSearch();
+  setupMobileMenu();
+  setupCourseButtons();
+});
 
-        // --- GESTIÓN DE TEMA (Sincronizado con index.html) ---
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('mirai-ai-theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
-            applyTheme(theme);
-        }
-
-        function applyTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-
-            if (theme === 'dark') {
-                courseElements.sunIcon.classList.add('hidden');
-                courseElements.moonIcon.classList.remove('hidden');
-            } else {
-                courseElements.sunIcon.classList.remove('hidden');
-                courseElements.moonIcon.classList.add('hidden');
-            }
-
-            localStorage.setItem('mirai-ai-theme', theme);
-        }
-
-        if (courseElements.themeToggle) {
-            courseElements.themeToggle.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme');
-                applyTheme(current === 'light' ? 'dark' : 'light');
-            });
-        }
-
-        // --- FILTRADO POR CATEGORÍA ---
-        function setupCourseFilters() {
-            if (!courseElements.filterPills) return;
-
-            const pills = courseElements.filterPills.querySelectorAll('.filter-pill');
-
-            pills.forEach(pill => {
-                pill.addEventListener('click', () => {
-                    // Actualizar pill activa
-                    pills.forEach(p => p.classList.remove('active'));
-                    pill.classList.add('active');
-
-                    courseState.activeCategory = pill.dataset.category;
-                    applyFilters();
-                });
-            });
-        }
-
-        // --- BÚSQUEDA EN TIEMPO REAL ---
-        function setupCourseSearch() {
-            if (!courseElements.search) return;
-
-            let debounceTimer;
-            courseElements.search.addEventListener('input', (e) => {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                    courseState.searchQuery = e.target.value.trim().toLowerCase();
-                    applyFilters();
-                }, 200);
-            });
-        }
-
-        // --- APLICAR FILTROS COMBINADOS ---
-        function applyFilters() {
-            const cards = courseElements.grid.querySelectorAll('.course-card');
-            let visibleCount = 0;
-
-            cards.forEach(card => {
-                const category = card.dataset.category;
-                const title = card.querySelector('.course-title').textContent.toLowerCase();
-                const description = card.querySelector('.course-description').textContent.toLowerCase();
-
-                // Filtro de categoría
-                const matchesCategory = courseState.activeCategory === 'todos' || category === courseState.activeCategory;
-
-                // Filtro de búsqueda
-                const matchesSearch = !courseState.searchQuery ||
-                    title.includes(courseState.searchQuery) ||
-                    description.includes(courseState.searchQuery) ||
-                    category.includes(courseState.searchQuery);
-
-                if (matchesCategory && matchesSearch) {
-                    card.classList.remove('hidden-by-filter');
-                    card.style.display = '';
-                    visibleCount++;
-                } else {
-                    card.classList.add('hidden-by-filter');
-                    card.style.display = 'none';
-                }
-            });
-
-            // Actualizar contador
-            courseElements.countDisplay.textContent = `Mostrando ${visibleCount} curso${visibleCount !== 1 ? 's' : ''}`;
-
-            // Mostrar/ocultar "sin resultados"
-            courseElements.noResults.style.display = visibleCount === 0 ? 'block' : 'none';
-        }
-
-        // --- BOTONES "COMENZAR" ---
-        function setupCourseButtons() {
-            const buttons = courseElements.grid.querySelectorAll('.course-start-btn');
-
-            buttons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const courseId = btn.dataset.course;
-                    startCourse(courseId, btn);
-                });
-            });
-
-            // Click en tarjeta completa también inicia el curso
-            const cards = courseElements.grid.querySelectorAll('.course-card');
-            cards.forEach(card => {
-                card.addEventListener('click', () => {
-                    const btn = card.querySelector('.course-start-btn');
-                    if (btn) btn.click();
-                });
-            });
-        }
-
-        function startCourse(courseId, btn) {
-            // Feedback visual
-            const originalText = btn.textContent;
-            btn.textContent = 'Redirigiendo...';
-            btn.disabled = true;
-
-            // Redirigir al chat con contexto del curso
-            // Se abre index.html con un parámetro que indica qué curso iniciar
-            setTimeout(() => {
-                window.location.href = `index.html?course=${courseId}`;
-            }, 400);
-        }
-
-        // --- MENÚ LATERAL MÓVIL ---
-        function setupMobileMenu() {
-            const menuToggle = document.querySelector('.mobile-menu-toggle');
-            const closeMenu = document.querySelector('.close-menu');
-            const sidebar = document.querySelector('.mobile-sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-
-            if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
-
-            function toggleMenu() {
-                const isActive = sidebar.classList.contains('active');
-
-                if (isActive) {
-                    sidebar.classList.remove('active');
-                    overlay.classList.remove('active');
-                    menuToggle.classList.remove('active');
-                    document.body.style.overflow = '';
-                } else {
-                    sidebar.classList.add('active');
-                    overlay.classList.add('active');
-                    menuToggle.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                }
-            }
-
-            menuToggle.addEventListener('click', toggleMenu);
-            closeMenu.addEventListener('click', toggleMenu);
-            overlay.addEventListener('click', toggleMenu);
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                    toggleMenu();
-                }
-            });
-        }
-
-// Cargar cursos desde D1
-async function loadCourses() {
-  const response = await fetch('/api/courses');
-  const courses = await response.json();
-  renderCourses(courses);
-}
-
-function renderCourses(courses) {
-  const grid = document.querySelector('.courses-grid');
-  grid.innerHTML = courses.map(course => `
-    <div class="course-card" data-course-id="${course.id}">
-      <div class="course-icon">${course.icon || '📚'}</div>
-      <h3>${course.title}</h3>
-      <p>${course.description}</p>
-      <div class="course-meta">
-        <span>📚 ${course.lessons} lecciones</span>
-        <span>⏱️ ${course.duration}</span>
-      </div>
-      <button class="course-start-btn">Comenzar</button>
-    </div>
-  `).join('');
-}
-
-// En courses.js
-function syncTheme() {
-  const savedTheme = localStorage.getItem('mirai-ai-theme');
-  if (savedTheme) {
-    document.documentElement.setAttribute('data-theme', savedTheme);
+// --- CARGAR CURSOS DESDE D1 (VIA WORKER) ---
+async function loadCoursesFromAPI() {
+  try {
+    const response = await fetch('/api/courses');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const courses = await response.json();
+    courseState.courses = courses;
+    
+    if (courses.length === 0) {
+      console.warn('⚠️ No hay cursos en D1');
+      showEmptyState();
+      return;
+    }
+    
+    renderCourses(courses);
+    updateCourseCount(courses.length);
+    
+  } catch (error) {
+    console.error('❌ Error cargando cursos:', error);
+    showErrorState(error.message);
   }
 }
 
-document.addEventListener('DOMContentLoaded', syncTheme);
-document.addEventListener('DOMContentLoaded', loadCourses);
+// --- RENDERIZAR CURSOS ---
+function renderCourses(courses) {
+  const grid = courseElements.grid;
+  grid.innerHTML = '';
+  
+  courses.forEach((course, index) => {
+    const card = createCourseCard(course, index);
+    grid.appendChild(card);
+  });
+}
+
+function createCourseCard(course, index) {
+  const card = document.createElement('div');
+  card.className = 'course-card';
+  card.dataset.category = course.category;
+  card.dataset.level = course.level;
+  card.dataset.courseId = course.id;
+  
+  // Gradiente por categoría
+  const gradients = {
+    web: 'linear-gradient(135deg, #e44d26, #f16529)',
+    backend: 'linear-gradient(135deg, #3776ab, #ffd43b)',
+    datos: 'linear-gradient(135deg, #150458, #ff6600)',
+    movil: 'linear-gradient(135deg, #fa7343, #f5a623)',
+    devops: 'linear-gradient(135deg, #f05032, #de4c36)',
+    cloudflare: 'linear-gradient(135deg, #f48120, #fbad41)'
+  };
+  
+  card.style.setProperty('--card-accent', gradients[course.category] || 'var(--accent-gradient)');
+  
+  card.innerHTML = `
+    <span class="course-level ${course.level}">${capitalizeFirst(course.level)}</span>
+    <div class="course-icon">${course.icon || '📚'}</div>
+    <h3 class="course-title">${escapeHtml(course.title)}</h3>
+    <p class="course-description">${escapeHtml(course.description)}</p>
+    <div class="course-meta">
+      <span class="course-meta-item"><span>📚</span> ${course.lessons} lecciones</span>
+      <span class="course-meta-item"><span>⏱️</span> ${escapeHtml(course.duration)}</span>
+    </div>
+    <button class="course-start-btn" data-course="${course.id}">Comenzar</button>
+  `;
+  
+  // Animación escalonada
+  card.style.animationDelay = `${index * 0.05}s`;
+  
+  return card;
+}
+
+// --- UTILIDADES ---
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showEmptyState() {
+  courseElements.grid.innerHTML = `
+    <div class="no-results" style="display: block; grid-column: 1 / -1;">
+      <div class="no-results-icon">📚</div>
+      <p>No hay cursos disponibles todavía.</p>
+      <small>Verifica que los datos estén en D1</small>
+    </div>
+  `;
+}
+
+function showErrorState(message) {
+  courseElements.grid.innerHTML = `
+    <div class="no-results" style="display: block; grid-column: 1 / -1;">
+      <div class="no-results-icon">⚠️</div>
+      <p>Error cargando cursos</p>
+      <small>${escapeHtml(message)}</small>
+    </div>
+  `;
+}
+
+function updateCourseCount(count) {
+  courseElements.countDisplay.textContent = `Mostrando ${count} curso${count !== 1 ? 's' : ''}`;
+}
+
+// --- FILTRADO ---
+function setupCourseFilters() {
+  if (!courseElements.filterPills) return;
+  
+  const pills = courseElements.filterPills.querySelectorAll('.filter-pill');
+  
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      
+      courseState.activeCategory = pill.dataset.category;
+      applyFilters();
+    });
+  });
+}
+
+function setupCourseSearch() {
+  if (!courseElements.search) return;
+  
+  let debounceTimer;
+  courseElements.search.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      courseState.searchQuery = e.target.value.trim().toLowerCase();
+      applyFilters();
+    }, 200);
+  });
+}
+
+function applyFilters() {
+  const cards = courseElements.grid.querySelectorAll('.course-card');
+  let visibleCount = 0;
+  
+  cards.forEach(card => {
+    const category = card.dataset.category;
+    const title = card.querySelector('.course-title')?.textContent.toLowerCase() || '';
+    const description = card.querySelector('.course-description')?.textContent.toLowerCase() || '';
+    
+    const matchesCategory =
+      courseState.activeCategory === 'todos' ||
+      category === courseState.activeCategory;
+    
+    const matchesSearch =
+      !courseState.searchQuery ||
+      title.includes(courseState.searchQuery) ||
+      description.includes(courseState.searchQuery) ||
+      category.includes(courseState.searchQuery);
+    
+    if (matchesCategory && matchesSearch) {
+      card.classList.remove('hidden-by-filter');
+      card.style.display = '';
+      visibleCount++;
+    } else {
+      card.classList.add('hidden-by-filter');
+      card.style.display = 'none';
+    }
+  });
+  
+  courseElements.countDisplay.textContent =
+    `Mostrando ${visibleCount} curso${visibleCount !== 1 ? 's' : ''}`;
+  
+  courseElements.noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+}
+
+// --- BOTONES ---
+function setupCourseButtons() {
+  const buttons = courseElements.grid.querySelectorAll('.course-start-btn');
+  
+  buttons.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const courseId = btn.dataset.course;
+      startCourse(courseId, btn);
+    });
+  });
+  
+  const cards = courseElements.grid.querySelectorAll('.course-card');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      const btn = card.querySelector('.course-start-btn');
+      if (btn) btn.click();
+    });
+  });
+}
+
+function startCourse(courseId, btn) {
+  const originalText = btn.textContent;
+  btn.textContent = 'Redirigiendo...';
+  btn.disabled = true;
+  
+  setTimeout(() => {
+    window.location.href = `index.html?course=${courseId}`;
+  }, 400);
+}
+
+// --- TEMA ---
+function initializeTheme() {
+  const savedTheme = localStorage.getItem('mirai-ai-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+  applyTheme(theme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  
+  if (theme === 'dark') {
+    courseElements.sunIcon?.classList.add('hidden');
+    courseElements.moonIcon?.classList.remove('hidden');
+  } else {
+    courseElements.sunIcon?.classList.remove('hidden');
+    courseElements.moonIcon?.classList.add('hidden');
+  }
+  
+  localStorage.setItem('mirai-ai-theme', theme);
+}
+
+if (courseElements.themeToggle) {
+  courseElements.themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'light' ? 'dark' : 'light');
+  });
+}
+
+// --- MENÚ ---
+function setupMobileMenu() {
+  const menuToggle = document.querySelector('.mobile-menu-toggle');
+  const closeMenu = document.querySelector('.close-menu');
+  const sidebar = document.querySelector('.mobile-sidebar');
+  const overlay = document.querySelector('.mobile-overlay');
+  
+  if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
+  
+  function toggleMenu() {
+    const isActive = sidebar.classList.contains('active');
+    
+    if (isActive) {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+      menuToggle.classList.remove('active');
+      document.body.style.overflow = '';
+    } else {
+      sidebar.classList.add('active');
+      overlay.classList.add('active');
+      menuToggle.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+  
+  menuToggle.addEventListener('click', toggleMenu);
+  closeMenu.addEventListener('click', toggleMenu);
+  overlay.addEventListener('click', toggleMenu);
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+      toggleMenu();
+    }
+  });
+}
