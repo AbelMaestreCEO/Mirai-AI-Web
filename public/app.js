@@ -92,62 +92,54 @@ function detectEducationContext() {
 }
 
 function renderSuggestions(suggestions) {
-    const bar = document.getElementById('suggestions-bar');
-    if (!bar) return;
+  console.log('🎯 Renderizando sugerencias:', suggestions);
+  const bar = document.getElementById('suggestions-bar');
+  if (!bar) return;
 
-    // Limpiar sugerencias anteriores
-    bar.innerHTML = '';
+  // Limpiar sugerencias anteriores
+  bar.innerHTML = '';
 
-    if (!suggestions || suggestions.length === 0) {
-        bar.style.display = 'none';
-        return;
-    }
+  if (!suggestions || suggestions.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
 
-    bar.style.display = 'flex';
+  bar.style.display = 'flex';
 
-    suggestions.forEach((text, index) => {
-        const chip = document.createElement('button');
-        chip.className = 'suggestion-chip';
-        chip.style.animationDelay = `${index * 0.05}s`;
+  suggestions.forEach((text, index) => {
+    const chip = document.createElement('button');
+    chip.className = 'suggestion-chip';
+    chip.style.animationDelay = `${index * 0.05}s`;
 
-        const icon = ICONS_POOL[index % ICONS_POOL.length];
+    const icon = ICONS_POOL[index % ICONS_POOL.length];
 
-        chip.innerHTML = `
+    chip.innerHTML = `
             <span class="suggestion-icon">${icon}</span>
             <span class="suggestion-text">${escapeHtml(text)}</span>
         `;
 
-        chip.addEventListener('click', () => {
-            handleSuggestionClick(text, chip);
-        });
-
-        bar.appendChild(chip);
+    chip.addEventListener('click', () => {
+      handleSuggestionClick(text, chip);
     });
 
-    // Scroll al inicio
-    bar.scrollLeft = 0;
+    bar.appendChild(chip);
+  });
+
+  // Scroll al inicio
+  bar.scrollLeft = 0;
 }
 
 function handleSuggestionClick(text, chip) {
-    // Efecto visual de click
-    chip.style.transform = 'scale(0.95)';
-    chip.style.opacity = '0.6';
+  // Efecto visual de click
+  chip.style.transform = 'scale(0.95)';
+  chip.style.opacity = '0.6';
 
-    // Poner el texto en el input y enviar
-    if (elements.messageInput) {
-        elements.messageInput.value = text;
-        autoResizeTextarea();
-        handleSendMessage();
-    }
-
-    // Limpiar sugerencias después de usar una
-    setTimeout(() => {
-        const bar = document.getElementById('suggestions-bar');
-        if (bar) {
-            bar.innerHTML = '';
-            bar.style.display = 'none';
-        }
-    }, 300);
+  // Poner el texto en el input y enviar
+  if (elements.messageInput) {
+    elements.messageInput.value = text;
+    autoResizeTextarea();
+    handleSendMessage();
+  }
 }
 
 // --- GESTIÓN DE TEMA ---
