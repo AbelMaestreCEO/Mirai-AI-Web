@@ -597,19 +597,15 @@ async function loadOrCreateConversation() {
   const savedId = localStorage.getItem(CONFIG.STORAGE_KEY_CONVERSATION);
   const isEducationMode = detectEducationContext();
 
-  // Si hay contexto educativo, SIEMPRE crear conversación nueva
   if (isEducationMode) {
     const newId = crypto.randomUUID();
     state.currentConversationId = newId;
 
-    // Crear la conversación en D1
     await createNewConversation(newId);
+    console.log('🎓 Conversación educativa creada:', newId);
 
-    // Mostrar mensaje de bienvenida
-    showEducationWelcome();
-
-    // Enviar primer mensaje para activar el contexto
-    await sendEducationWelcomeMessage();
+    // Esta función muestra el mensaje Y envía el primer mensaje
+    await sendEducationWelcome();
     return;
   }
 
@@ -1980,25 +1976,6 @@ function initializeImageDownloadButtons() {
   });
 }
 
-async function sendEducationWelcome() {
-  if (!educationContext.isActive) return;
-
-  // Mostrar mensaje del sistema en el chat
-  const welcomeDiv = createMessageElement('system', null, true);
-  welcomeDiv.innerHTML = `
-        <div style="background: var(--accent-gradient); color: white; padding: 16px 20px; border-radius: var(--border-radius-md); margin-bottom: 8px;">
-            <strong>🎓 Modo Educactivo</strong><br>
-            Cargando lección...
-        </div>
-    `;
-  elements.chatMessages.appendChild(welcomeDiv);
-
-  // Enviar primer mensaje para activar el contexto
-  const firstMessage = `Hola, estoy listo para comenzar esta lección.`;
-
-  await sendMessageToAPI(firstMessage, state.currentConversationId);
-}
-
 async function sendMessageToAPI(message, conversationId) {
   const requestBody = {
     message: message,
@@ -2031,22 +2008,34 @@ async function sendMessageToAPI(message, conversationId) {
   }
 }
 
-function showEducationWelcome() {
-  const welcomeDiv = createMessageElement('system', null, true);
-  welcomeDiv.innerHTML = `
-        <div style="background: var(--accent-gradient); color: white; padding: 16px 20px; border-radius: var(--border-radius-md); margin-bottom: 8px;">
-            <strong>🎓 Modo Educativo Activado</strong><br>
-            Lección cargada. Mirai está listo para enseñarte.
-        </div>
-    `;
-  elements.chatMessages.appendChild(welcomeDiv);
-  scrollToBottom();
-}
-
-async function sendEducationWelcomeMessage() {
+async function sendEducationWelcome() {
   if (!educationContext.isActive) return;
 
-  const firstMessage = `Hola, estoy listo para comenzar esta lección.`;
+  // 1. Mostrar mensaje visual de bienvenida
+  if (elements.chatMessages) {
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.style.cssText = `
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        `;
+
+    welcomeDiv.innerHTML = `
+            <strong>🎓 Modo Educativo Activado</strong><br>
+            <small>Mirai está preparando tu lección...</small>
+        `;
+
+    elements.chatMessages.appendChild(welcomeDiv);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  }
+
+  // 2. Enviar primer mensaje para activar el contexto en el Worker
+  const firstMessage = 'Hola, estoy listo para comenzar esta lección.';
 
   await sendMessageToAPI(firstMessage, state.currentConversationId);
 }
