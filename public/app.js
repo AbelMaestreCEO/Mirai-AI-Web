@@ -92,41 +92,56 @@ function detectEducationContext() {
 }
 
 function renderSuggestions(suggestions) {
-  console.log('🎯 Renderizando sugerencias:', suggestions);
   const bar = document.getElementById('suggestions-bar');
   if (!bar) return;
 
-  // Limpiar sugerencias anteriores
-  bar.innerHTML = '';
+  // 1. Ocultar la barra momentáneamente para evitar parpadeo
+  bar.style.opacity = '0';
+  bar.style.transition = 'opacity 0.1s ease';
 
-  if (!suggestions || suggestions.length === 0) {
-    bar.style.display = 'none';
-    return;
-  }
+  setTimeout(() => {
+    // 2. Limpiar completamente el contenido
+    bar.innerHTML = '';
 
-  bar.style.display = 'flex';
+    if (!suggestions || suggestions.length === 0) {
+      bar.style.display = 'none';
+      bar.style.opacity = '1';
+      return;
+    }
 
-  suggestions.forEach((text, index) => {
-    const chip = document.createElement('button');
-    chip.className = 'suggestion-chip';
-    chip.style.animationDelay = `${index * 0.05}s`;
+    bar.style.display = 'flex';
 
-    const icon = ICONS_POOL[index % ICONS_POOL.length];
+    // 3. Crear nuevos elementos
+    suggestions.forEach((text, index) => {
+      const chip = document.createElement('button');
+      chip.className = 'suggestion-chip';
+      // Reiniciar animación forzando reflow
+      chip.style.animation = 'none';
+      chip.offsetHeight; /* trigger reflow */
+      chip.style.animation = `chipSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards`;
+      chip.style.animationDelay = `${index * 0.05}s`;
 
-    chip.innerHTML = `
-            <span class="suggestion-icon">${icon}</span>
-            <span class="suggestion-text">${escapeHtml(text)}</span>
-        `;
+      const icon = ICONS_POOL[index % ICONS_POOL.length];
 
-    chip.addEventListener('click', () => {
-      handleSuggestionClick(text, chip);
+      chip.innerHTML = `
+        <span class="suggestion-icon">${icon}</span>
+        <span class="suggestion-text">${escapeHtmlSuggestion(text)}</span>
+      `;
+
+      chip.addEventListener('click', (e) => {
+        e.preventDefault(); // Evitar comportamientos extraños
+        handleSuggestionClick(text, chip);
+      });
+
+      bar.appendChild(chip);
     });
 
-    bar.appendChild(chip);
-  });
+    // 4. Scroll al inicio y mostrar
+    bar.scrollLeft = 0;
+    bar.style.opacity = '1';
 
-  // Scroll al inicio
-  bar.scrollLeft = 0;
+    console.log('✨ Sugerencias actualizadas:', suggestions.length);
+  }, 100); // Pequeño delay para asegurar el cambio visual
 }
 
 function handleSuggestionClick(text, chip) {
