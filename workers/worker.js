@@ -454,31 +454,8 @@ async function handleApiRequest(request, env, corsHeaders) {
 
       return new Response(JSON.stringify({ conversation_id: convId }));
     }
-
-    // Ruta para obtener cursos iniciados
-    if (url.pathname === '/api/enrolled-courses' && request.method === 'GET') {
-      const userId = request.headers.get('CF-Connecting-IP');
-
-      const courses = await env.MIRAI_AI_DB.prepare(
-        `SELECT DISTINCT c.course_id, c.title as course_title, c.created_at as started_at FROM conversations c WHERE c.course_id IS NOT NULL`
-      ).all();
-
-      // Obtener información detallada de cada curso
-      const enrolled = await Promise.all(
-        courses.rows.map(async (row) => {
-          const courseInfo = await env.MIRAI_AI_DB.prepare(
-            `SELECT title, description, icon FROM courses WHERE id = ?`
-          ).bind(row.course_id).first();
-
-          return {
-            course_id: row.course_id,
-            title: courseInfo?.title || row.course_title,
-            started_at: row.started_at
-          };
-        })
-      );
-
-      return new Response(JSON.stringify(enrolled));
+    if (path === '/api/enrolled-courses' && request.method === 'GET') {
+      return await handleEnrolledCourses(env, corsHeaders);
     }
 
     if (path === '/api/courses' && request.method === 'GET') {
@@ -542,7 +519,39 @@ async function handleApiRequest(request, env, corsHeaders) {
   }
 }
 
+async function handleEnrolledCourses(env, corsHeaders) {
+  try {
+    const courses = await env.MIRAI_AI_DB.prepare(
+      `SELECT DISTINCT c.course_id, c.title as course_title, c.created_at as started_at
+       FROM conversations c
+       WHERE c.course_id IS NOT NULL`
+    ).all();
 
+    console.log('📊 Cursos raw:', courses);
+    console.log('📊 Results length:', courses.results?.length);
+
+    // ✅ Usa .results, no .rows
+    const enrolled = await Promise.all(
+      courses.results.map(async (row) => {
+        const courseInfo = await env.MIRAI_AI_DB.prepare(
+          `SELECT title, description, icon FROM courses WHERE id = ?`
+        ).bind(row.course_id).first();
+
+        return {
+          course_id: row.course_id,
+          title: courseInfo?.title || row.course_title,
+          started_at: row.started_at
+        };
+      })
+    );
+
+    return jsonResponse(enrolled, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ Error enrolled-courses:', error);
+    return jsonResponse({ error: error.message }, 500, corsHeaders);
+  }
+}
 
 async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, env, corsHeaders) {
   console.log('🔍 handleTextChatInternal llamado');
