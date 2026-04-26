@@ -322,3 +322,88 @@ function setupMobileMenu() {
 
 console.log('✅ courses.js cargado');
 console.log('Botones encontrados:', document.querySelectorAll('.course-start-btn').length);
+
+// --- LÓGICA DE CARGA ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 1. Obtener ID del curso de la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const courseId = urlParams.get('course');
+
+            if (!courseId) {
+                showError('No se especificó un curso. <a href="courses.html">Volver a Cursos</a>');
+                return;
+            }
+
+            // 2. Cargar datos del curso y lecciones desde D1 (via Worker)
+            try {
+                const response = await fetch(`/api/course-details?id=${encodeURIComponent(courseId)}`);
+                
+                if (!response.ok) {
+                    throw new Error('Curso no encontrado');
+                }
+
+                const data = await response.json();
+                renderCourse(data);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`Error cargando el curso: ${error.message}`);
+            }
+        });
+
+        function renderCourse(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('course-content').style.display = 'block';
+
+            // Renderizar Header
+            document.getElementById('detail-icon').textContent = data.icon || '📚';
+            document.getElementById('detail-title').textContent = data.title;
+            document.getElementById('detail-desc').textContent = data.description;
+            document.getElementById('detail-level').textContent = `Nivel: ${data.level}`;
+            document.getElementById('detail-lessons').textContent = `${data.lessons} lecciones`;
+            document.getElementById('detail-duration').textContent = data.duration;
+
+            // Renderizar Lecciones
+            const container = document.getElementById('lessons-container');
+            container.innerHTML = '';
+
+            if (!data.lessons_list || data.lessons_list.length === 0) {
+                container.innerHTML = '<div class="loading-state">No hay lecciones disponibles aún.</div>';
+                return;
+            }
+
+            data.lessons_list.forEach((lesson, index) => {
+                const card = document.createElement('div');
+                card.className = 'lesson-card';
+                card.onclick = () => startLesson(lesson.id, data.id);
+
+                card.innerHTML = `
+                    <div class="lesson-number">${index + 1}</div>
+                    <div class="lesson-info">
+                        <div class="lesson-title">${escapeHtml(lesson.title)}</div>
+                        <div class="lesson-desc">${escapeHtml(lesson.content || 'Sin descripción')}</div>
+                    </div>
+                    <button class="lesson-action">Comenzar</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function startLesson(lessonId, courseId) {
+            // Redirigir al chat con contexto específico
+            // index.html?course=html5&lesson=html5-01
+            window.location.href = `index.html?course=${courseId}&lesson=${lessonId}`;
+        }
+
+        function showError(msg) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-msg').style.display = 'block';
+            document.getElementById('error-msg').innerHTML = msg;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
