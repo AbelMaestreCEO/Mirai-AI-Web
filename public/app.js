@@ -43,6 +43,8 @@ const educationContext = {
   isActive: false
 };
 
+const ICONS_POOL = ['💡', '🤔', '🎯', '🧪', '📝', '🚀', '🔍', '✨'];
+
 // --- ESTADO DE LA APLICACIÓN ---
 let state = {
   isSending: false,
@@ -87,6 +89,65 @@ function detectEducationContext() {
   }
 
   return false;
+}
+
+function renderSuggestions(suggestions) {
+    const bar = document.getElementById('suggestions-bar');
+    if (!bar) return;
+
+    // Limpiar sugerencias anteriores
+    bar.innerHTML = '';
+
+    if (!suggestions || suggestions.length === 0) {
+        bar.style.display = 'none';
+        return;
+    }
+
+    bar.style.display = 'flex';
+
+    suggestions.forEach((text, index) => {
+        const chip = document.createElement('button');
+        chip.className = 'suggestion-chip';
+        chip.style.animationDelay = `${index * 0.05}s`;
+
+        const icon = ICONS_POOL[index % ICONS_POOL.length];
+
+        chip.innerHTML = `
+            <span class="suggestion-icon">${icon}</span>
+            <span class="suggestion-text">${escapeHtml(text)}</span>
+        `;
+
+        chip.addEventListener('click', () => {
+            handleSuggestionClick(text, chip);
+        });
+
+        bar.appendChild(chip);
+    });
+
+    // Scroll al inicio
+    bar.scrollLeft = 0;
+}
+
+function handleSuggestionClick(text, chip) {
+    // Efecto visual de click
+    chip.style.transform = 'scale(0.95)';
+    chip.style.opacity = '0.6';
+
+    // Poner el texto en el input y enviar
+    if (elements.messageInput) {
+        elements.messageInput.value = text;
+        autoResizeTextarea();
+        handleSendMessage();
+    }
+
+    // Limpiar sugerencias después de usar una
+    setTimeout(() => {
+        const bar = document.getElementById('suggestions-bar');
+        if (bar) {
+            bar.innerHTML = '';
+            bar.style.display = 'none';
+        }
+    }, 300);
 }
 
 // --- GESTIÓN DE TEMA ---
@@ -1314,6 +1375,7 @@ function autoResizeTextarea() {
 
 // --- UTILIDADES ---
 function escapeHtml(text) {
+  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
@@ -2001,6 +2063,18 @@ async function sendMessageToAPI(message, conversationId) {
     });
 
     const data = await response.json();
+
+    // ✨ Renderizar sugerencias si vienen en la respuesta
+    if (data.suggestions && data.suggestions.length > 0) {
+      renderSuggestions(data.suggestions);
+    } else {
+      const bar = document.getElementById('suggestions-bar');
+      if (bar) {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+      }
+    }
+
     return data.response;
   } catch (error) {
     console.error('❌ Error enviando mensaje:', error);

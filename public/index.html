@@ -157,7 +157,7 @@
 
 
         <div class="header-title">
-            
+
         </div>
 
         <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
@@ -226,7 +226,9 @@
 
             </div>
         </div>
-
+        <div class="suggestions-bar" id="suggestions-bar">
+            <!-- Las sugerencias se inyectan dinámicamente -->
+        </div>
         <!-- Área de Entrada -->
         <footer class="input-area">
             <div class="input-wrapper">
@@ -268,14 +270,14 @@
 
     </div>
 
-     <!-- Modal Lightbox para Imágenes -->
+    <!-- Modal Lightbox para Imágenes -->
     <div id="image-lightbox" class="image-lightbox hidden">
         <div class="lightbox-overlay"></div>
         <div class="lightbox-content">
             <button class="lightbox-close" aria-label="Cerrar">&times;</button>
             <button class="lightbox-download" aria-label="Descargar imagen">
                 <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
                 </svg>
             </button>
             <img id="lightbox-img" src="" alt="Imagen en pantalla completa">
