@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCourseSearch();
   setupMobileMenu();
   setupCourseButtons();
+  updateCourseCount();
 });
 
 // --- CARGAR CURSOS DESDE D1 (VIA WORKER) ---
@@ -206,25 +207,47 @@ function applyFilters() {
   courseElements.noResults.style.display = visibleCount === 0 ? 'block' : 'none';
 }
 
-// --- BOTONES ---
+// --- BOTONES "COMENZAR" (Delegación de eventos) ---
 function setupCourseButtons() {
-  const buttons = courseElements.grid.querySelectorAll('.course-start-btn');
+  const grid = courseElements.grid;
   
-  buttons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
+  if (!grid) {
+    console.error('❌ No se encontró #courses-grid');
+    return;
+  }
+
+  // Un solo listener en el contenedor padre
+  grid.addEventListener('click', (e) => {
+    // ¿Se clickeó un botón de comenzar?
+    const btn = e.target.closest('.course-start-btn');
+    if (btn) {
       e.stopPropagation();
       const courseId = btn.dataset.course;
-      startCourse(courseId, btn);
-    });
-  });
-  
-  const cards = courseElements.grid.querySelectorAll('.course-card');
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
+      console.log('🖱️ Click en curso:', courseId);
+      
+      if (courseId) {
+        btn.textContent = 'Redirigiendo...';
+        btn.disabled = true;
+        setTimeout(() => {
+          window.location.href = `course_details.html?course=${courseId}`;
+        }, 300);
+      } else {
+        console.error('❌ Botón sin data-course:', btn);
+      }
+      return;
+    }
+
+    // ¿Se clickeó la tarjeta completa?
+    const card = e.target.closest('.course-card');
+    if (card) {
       const btn = card.querySelector('.course-start-btn');
-      if (btn) btn.click();
-    });
+      if (btn) {
+        btn.click();
+      }
+    }
   });
+
+  console.log('✅ Delegación de eventos configurada');
 }
 
 function startCourse(courseId, btn) {
@@ -296,3 +319,6 @@ function setupMobileMenu() {
     }
   });
 }
+
+console.log('✅ courses.js cargado');
+console.log('Botones encontrados:', document.querySelectorAll('.course-start-btn').length);
