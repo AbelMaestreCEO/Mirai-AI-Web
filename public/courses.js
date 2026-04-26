@@ -137,13 +137,6 @@ function showError(msg) {
     document.getElementById('error-msg').innerHTML = msg;
 }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // --- RENDERIZAR CURSOS ---
 function renderCourses(courses) {
     const grid = courseElements.grid;
