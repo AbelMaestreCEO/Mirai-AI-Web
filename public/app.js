@@ -53,19 +53,17 @@ let state = {
 document.addEventListener('DOMContentLoaded', () => {
   initializeTheme();
   initializeVoiceRecognition();
+  setupMobileMenu();
   // ✨ Solo inicializar chat si existe el contenedor
   const isChatPage = !!document.getElementById('chat-messages');
   if (isChatPage) {
     initializeChat();
     loadOrCreateConversation();
     setupEventListeners();
-    setupMobileMenu();
     initializeFileUpload();
     loadConversations();
     initializeAudioMode();
   }
-
-  setupMobileMenu();
 });
 
 // --- GESTIÓN DE TEMA ---
