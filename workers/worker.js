@@ -440,7 +440,7 @@ async function handleApiRequest(request, env, corsHeaders) {
       }
 
       // Buscar conversación existente
-      const existing = await env.MIRAI_DB.prepare(
+      const existing = await env.MIRAI_AI_DB.prepare(
         `SELECT id FROM conversations WHERE course_id = ?`
       ).bind(courseId).first();
       if (existing) {
@@ -459,7 +459,7 @@ async function handleApiRequest(request, env, corsHeaders) {
     if (url.pathname === '/api/enrolled-courses' && request.method === 'GET') {
       const userId = request.headers.get('CF-Connecting-IP');
 
-      const courses = await env.MIRAI_DB.prepare(
+      const courses = await env.MIRAI_AI_DB.prepare(
         `SELECT DISTINCT c.course_id, c.title as course_title, c.created_at as started_at FROM conversations c WHERE c.course_id IS NOT NULL`
       ).all();
 
