@@ -448,7 +448,7 @@ async function handleApiRequest(request, env, corsHeaders) {
       }
 
       // Crear nueva
-      await env.MIRAI_DB.prepare(
+      await env.MIRAI_AI_DB.prepare(
         `INSERT INTO conversations (id, title, course_id, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))`
       ).bind(convId, `Curso: ${courseId}`, courseId).run();
 
@@ -466,7 +466,7 @@ async function handleApiRequest(request, env, corsHeaders) {
       // Obtener información detallada de cada curso
       const enrolled = await Promise.all(
         courses.rows.map(async (row) => {
-          const courseInfo = await env.MIRAI_DB.prepare(
+          const courseInfo = await env.MIRAI_AI_DB.prepare(
             `SELECT title, description, icon FROM courses WHERE id = ?`
           ).bind(row.course_id).first();
 
