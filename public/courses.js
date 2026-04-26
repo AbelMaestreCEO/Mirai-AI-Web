@@ -4,7 +4,7 @@
    ============================================ */
 
 // --- DETECCIÓN DE PÁGINA ---
-const currentPage = window.location.href.includes('course_details.html')
+const currentPage = window.location.href.includes('course_details')
     ? 'details'
     : 'courses';
 
