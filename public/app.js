@@ -1480,7 +1480,6 @@ function formatMessageContent(content) {
 
     // Convertir URL absoluta a relativa si es necesario
     let displayUrl = url;
-    let displayUrl = url;
     if (url.startsWith('https://aiassets.aberumirai.com/')) {
       const r2Key = url.replace('https://aiassets.aberumirai.com/', '');
       displayUrl = `/api/image/${r2Key}`;
