@@ -125,7 +125,7 @@ function renderSuggestions(suggestions) {
 
       chip.innerHTML = `
         <span class="suggestion-icon">${icon}</span>
-        <span class="suggestion-text">${escapeHtmlSuggestion(text)}</span>
+        <span class="suggestion-text">${escapeHtml(text)}</span>
       `;
 
       chip.addEventListener('click', (e) => {
