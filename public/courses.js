@@ -291,7 +291,7 @@ function initCoursesPage() {
                     btn.textContent = 'Redirigiendo...';
                     btn.disabled = true;
                     setTimeout(() => {
-                        window.location.href = `course_details.html?course=${courseId}`;
+                        window.location.href = `index.html?course=${courseId}&mode=education`;
                     }, 300);
                 }
                 return;

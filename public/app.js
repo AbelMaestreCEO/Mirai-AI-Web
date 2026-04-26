@@ -660,32 +660,64 @@ function initializeChat() {
   console.log('✨ Mirai AI inicializado correctamente');
 }
 
-// --- GESTIÓN DE CONVERSACIÓN ---
 async function loadOrCreateConversation() {
-  const savedId = localStorage.getItem(CONFIG.STORAGE_KEY_CONVERSATION);
-  const isEducationMode = detectEducationContext();
+  const urlParams = new URLSearchParams(window.location.search);
+  const courseId = urlParams.get('course');
+  const mode = urlParams.get('mode');
 
-  if (isEducationMode) {
-    const newId = crypto.randomUUID();
-    state.currentConversationId = newId;
+  if (mode === 'education' && courseId) {
+    // ✅ Detectar contexto educativo
+    educationContext.courseId = courseId;
+    educationContext.isActive = true;
 
-    await createNewConversation(newId);
-    console.log('🎓 Conversación educativa creada:', newId);
+    const convId = await getEducationConversation(courseId);
+    state.currentConversationId = convId;
+    state.currentCourseId = courseId;
 
-    // Esta función muestra el mensaje Y envía el primer mensaje
-    await sendEducationWelcome();
-    return;
-  }
+    localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, convId);
+    localStorage.setItem('mirai-ai-course-id', courseId);
 
-  if (savedId) {
-    state.currentConversationId = savedId;
-    await loadConversationHistory(savedId);
+    await loadConversationHistory(convId);
+
+    // Actualizar título
+    const courseName = await getCourseName(courseId);
+    const headerTitle = document.querySelector('.header-title');
+    if (headerTitle) {
+      headerTitle.textContent = `Mirai AI - ${courseName}`;
+    }
+
+    // Enviar mensaje de bienvenida si es el inicio
+    if (educationContext.isActive) {
+      await sendEducationWelcome();
+    }
+
   } else {
-    state.currentConversationId = crypto.randomUUID();
-    localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, state.currentConversationId);
+    // Conversación normal
+    const savedId = localStorage.getItem(CONFIG.STORAGE_KEY_CONVERSATION);
+    if (savedId) {
+      state.currentConversationId = savedId;
+      await loadConversationHistory(savedId);
+    } else {
+      state.currentConversationId = crypto.randomUUID();
+      localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, state.currentConversationId);
+    }
   }
 }
 
+// Función auxiliar para obtener o crear conversación de curso
+async function getEducationConversation(courseId) {
+  const response = await fetch(`/api/education-conversation?course=${courseId}`);
+  const data = await response.json();
+  return data.conversation_id;
+}
+
+// Función para obtener nombre del curso (puedes cachear esto)
+async function getCourseName(courseId) {
+  const response = await fetch(`/api/course-details?id=${courseId}`);
+  if (!response.ok) return "Curso";
+  const data = await response.json();
+  return data.title || "Curso";
+}
 async function loadConversationHistory(conversationId) {
   try {
     const response = await fetch(`/api/history/${conversationId}`);
@@ -784,9 +816,17 @@ async function handleClearConversation() {
       elements.chatMessages.innerHTML = '';
       state.currentConversationId = crypto.randomUUID();
       localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, state.currentConversationId);
+
+      // ✅ Resetear contexto educativo si estaba activo
+      if (state.currentCourseId) {
+        educationContext.courseId = null;
+        educationContext.lessonId = null;
+        educationContext.isActive = false;
+        state.currentCourseId = null;
+      }
+
       appendMessage('system', '✨ Conversación limpia. ¿En qué puedo ayudarte hoy?');
       loadConversations();
-      console.log('✅ Conversación limpiada correctamente');
     }
 
   } catch (error) {
@@ -1062,6 +1102,15 @@ function initializeAudioPlayers() {
 
       if (state.currentAudio === player) {
         state.currentAudio = null;
+      }
+    });
+
+    player.addEventListener('error', (e) => {
+      console.error('Error cargando audio:', e);
+      const wrapper = document.getElementById(player.dataset.playerId);
+      if (wrapper) {
+        wrapper.querySelector('.audio-status').textContent = 'Error al cargar';
+        wrapper.querySelector('.audio-status').style.color = 'red';
       }
     });
 
@@ -1431,9 +1480,16 @@ function formatMessageContent(content) {
 
     // Convertir URL absoluta a relativa si es necesario
     let displayUrl = url;
+    let displayUrl = url;
     if (url.startsWith('https://aiassets.aberumirai.com/')) {
       const r2Key = url.replace('https://aiassets.aberumirai.com/', '');
       displayUrl = `/api/image/${r2Key}`;
+    } else if (url.startsWith('/api/image/')) {
+      // Ya es relativa, no hacer nada
+      displayUrl = url;
+    } else if (url.startsWith('/')) {
+      // Relativa sin /api/image/, asumir que es imagen
+      displayUrl = url;
     }
 
     return `
@@ -1601,46 +1657,109 @@ function setupMobileMenu() {
 // GESTIÓN DE CONVERSACIONES (SIDEBAR)
 // ============================================
 
-// --- CARGAR LISTA DE CONVERSACIONES ---
 async function loadConversations() {
   if (!elements.conversationsList) return;
 
   try {
+    // Cargar conversaciones normales
     const response = await fetch('/api/conversations');
     if (!response.ok) return;
-
+    
     const conversations = await response.json();
-    renderConversationsList(conversations);
-
+    
+    // Cargar cursos iniciados
+    const coursesResponse = await fetch('/api/enrolled-courses');
+    let enrolledCourses = [];
+    if (coursesResponse.ok) {
+      enrolledCourses = await coursesResponse.json();
+    }
+    
+    renderConversationsList(conversations, enrolledCourses);
+    
   } catch (error) {
     console.error('Error cargando conversaciones:', error);
   }
 }
 
-// --- RENDERIZAR LISTA EN SIDEBAR ---
-function renderConversationsList(conversations) {
+function renderConversationsList(conversations, enrolledCourses) {
   const list = elements.conversationsList;
   list.innerHTML = '';
 
-  if (!conversations || conversations.length === 0) {
-    list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
-    return;
+  // SECCIÓN: Cursos Iniciados
+  if (enrolledCourses.length > 0) {
+    const sectionTitle = document.createElement('li');
+    sectionTitle.className = 'conv-section-title';
+    sectionTitle.innerHTML = `
+      <span>📚 Cursos Iniciados</span>
+    `;
+    list.appendChild(sectionTitle);
+
+    enrolledCourses.forEach(course => {
+      const li = document.createElement('li');
+      li.className = 'conv-item conv-course-item';
+      const courseId = course.course_id || course.metadata_course_id;
+      li.dataset.courseId = courseId;
+
+      if (courseId === state.currentCourseId) {
+        li.classList.add('active');
+      }
+
+      li.innerHTML = `
+        <span class="conv-item-icon">📖</span>
+        <div class="conv-item-info">
+          <span class="conv-item-title">${escapeHtml(course.title)}</span>
+          <span class="conv-item-date">Curso</span>
+        </div>
+        <div class="conv-item-actions">
+          <button class="conv-action-btn resume-btn" title="Continuar">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+        </div>
+      `;
+
+      li.addEventListener('click', (e) => {
+        if (e.target.closest('.conv-action-btn')) return;
+        switchToCourse(course.course_id);
+      });
+
+      list.appendChild(li);
+    });
+
+    // Separador
+    const separator = document.createElement('li');
+    separator.className = 'conv-separator';
+    separator.innerHTML = '<hr>';
+    list.appendChild(separator);
   }
 
-  conversations.forEach(conv => {
-    const li = document.createElement('li');
-    li.className = 'conv-item';
-    li.dataset.id = conv.id;
+  // SECCIÓN: Conversaciones Normales
+  if (conversations.length > 0) {
+    const sectionTitle = document.createElement('li');
+    sectionTitle.className = 'conv-section-title';
+    sectionTitle.innerHTML = `
+      <span>💬 Conversaciones</span>
+    `;
+    list.appendChild(sectionTitle);
 
-    // Marcar como activa si es la conversación actual
-    if (conv.id === state.currentConversationId) {
-      li.classList.add('active');
+    if (!conversations || conversations.length === 0) {
+      list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
+      return;
     }
 
-    // Formatear fecha
-    const dateStr = formatDate(conv.updated_at || conv.created_at);
+    conversations.forEach(conv => {
+      const li = document.createElement('li');
+      li.className = 'conv-item';
+      li.dataset.id = conv.id;
 
-    li.innerHTML = `
+      // Marcar como activa si es la conversación actual
+      if (conv.id === state.currentConversationId) {
+        li.classList.add('active');
+      }
+
+      // Formatear fecha
+      const dateStr = formatDate(conv.updated_at || conv.created_at);
+
+      li.innerHTML = `
       <span class="conv-item-icon">💬</span>
       <div class="conv-item-info">
         <span class="conv-item-title">${escapeHtml(conv.title)}</span>
@@ -1656,29 +1775,58 @@ function renderConversationsList(conversations) {
       </div>
     `;
 
-    // Click para cambiar de conversación
-    li.addEventListener('click', (e) => {
-      // Ignorar clicks en botones de acción
-      if (e.target.closest('.conv-action-btn')) return;
-      switchConversation(conv.id);
-    });
+      // Click para cambiar de conversación
+      li.addEventListener('click', (e) => {
+        // Ignorar clicks en botones de acción
+        if (e.target.closest('.conv-action-btn')) return;
+        switchConversation(conv.id);
+      });
 
-    // Botón renombrar
-    const renameBtn = li.querySelector('.rename-btn');
-    renameBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startRenameConversation(li, conv);
-    });
+      // Botón renombrar
+      const renameBtn = li.querySelector('.rename-btn');
+      renameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRenameConversation(li, conv);
+      });
 
-    // Botón eliminar
-    const deleteBtn = li.querySelector('.delete');
-    deleteBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await deleteConversation(conv.id, li);
-    });
+      // Botón eliminar
+      const deleteBtn = li.querySelector('.delete');
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await deleteConversation(conv.id, li);
+      });
 
-    list.appendChild(li);
-  });
+      list.appendChild(li);
+    });
+  }
+}
+
+async function switchToCourse(courseId) {
+  // Guardar conversación actual si es normal
+  if (!state.currentCourseId) {
+    localStorage.setItem('mirai-ai-last-normal-conv', state.currentConversationId);
+  }
+
+  // Cambiar a conversación del curso
+  const convId = await getEducationConversation(courseId);
+  state.currentConversationId = convId;
+  state.currentCourseId = courseId;
+
+  localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, convId);
+  localStorage.setItem('mirai-ai-course-id', courseId);
+
+  // Cargar historial
+  elements.chatMessages.innerHTML = '';
+  await loadConversationHistory(convId);
+
+  // Actualizar UI
+  updateActiveConversation();
+
+  // Cerrar sidebar en móvil
+  const sidebar = document.querySelector('.mobile-sidebar');
+  if (sidebar && sidebar.classList.contains('active')) {
+    document.querySelector('.mobile-overlay').click();
+  }
 }
 
 // --- CAMBIAR DE CONVERSACIÓN ---
@@ -1802,16 +1950,18 @@ async function deleteConversation(conversationId, li) {
 
 // --- ACTUALIZAR CLASE ACTIVA EN SIDEBAR ---
 function updateActiveConversation() {
-  const items = document.querySelectorAll('.conv-item');
-  items.forEach(item => {
-    if (item.dataset.id === state.currentConversationId) {
-      item.classList.add('active');
-    } else {
-      item.classList.remove('active');
-    }
+  // Limpiar todos
+  document.querySelectorAll('.conv-item').forEach(item => {
+    item.classList.remove('active');
   });
-}
 
+  // Buscar por ID en ambos tipos
+  const activeItem = document.querySelector(`.conv-item[data-id="${state.currentConversationId}"]`) || document.querySelector(`.conv-item[data-course-id="${state.currentCourseId}"]`);
+
+  if (activeItem) {
+    activeItem.classList.add('active');
+  }
+}
 // --- FORMATEAR FECHA ---
 function formatDate(dateStr) {
   if (!dateStr) return '';
