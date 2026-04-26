@@ -488,33 +488,21 @@ async function handleApiRequest(request, env, corsHeaders) {
 async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, env, corsHeaders) {
   console.log('🔍 handleTextChatInternal llamado');
 
-  // ✨ Extraer sugerencias de la respuesta
-const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
-
-// ✨ Guardar la respuesta LIMPIA (sin [SUGGESTIONS]) en D1
-await saveMessage(conversation_id, 'assistant', cleanResponse, env);
-await updateConversationTimestamp(conversation_id, env);
-
-  // ✨ PASO 1: ASEGURAR QUE LA CONVERSACIÓN EXISTA PRIMERO
+  // 1. Asegurar conversación
   await ensureConversationExists(conversation_id, message, env);
 
-  // ✨ PASO 2: GUARDAR CONTEXTO EDUCATIVO SI SE PROPORCIONA
+  // 2. Guardar contexto educativo si se proporciona
   if (course_id && lesson_id) {
     await saveConversationContext(conversation_id, course_id, lesson_id, env);
   }
 
-  // ✨ PASO 3: OBTENER CONTEXTO EDUCATIVO DE LA CONVERSACIÓN
-  let educationContext = null;
-  let lessonContext = null;
+  // 3. Obtener contexto educativo
   let systemPrompt = 'Eres Mirai AI, un asistente inteligente, amable y útil. Respondes en español de forma clara y concisa.';
 
-  // Intentar obtener contexto de la conversación (ya guardado)
   const convEducationContext = await getConversationEducationContext(conversation_id, env);
   
   if (convEducationContext && convEducationContext.course_id && convEducationContext.lesson_id) {
-    educationContext = convEducationContext;
-    lessonContext = await getLessonContext(convEducationContext.course_id, convEducationContext.lesson_id, env);
-    
+    const lessonContext = await getLessonContext(convEducationContext.course_id, convEducationContext.lesson_id, env);
     if (lessonContext) {
       const educationPrompt = buildEducationSystemPrompt(lessonContext);
       if (educationPrompt) {
@@ -524,19 +512,14 @@ await updateConversationTimestamp(conversation_id, env);
     }
   }
 
-  // ✨ PASO 4: OBTENER HISTORIAL
+  // 4. Obtener historial
   const history = await getConversationHistory(conversation_id, env);
 
-  // ✨ PASO 5: CONSTRUIR MENSAJES PARA DEEPSEEK
+  // 5. Construir mensajes
   const deepseekMessages = buildDeepseekMessages(message, history);
+  deepseekMessages.unshift({ role: 'system', content: systemPrompt });
 
-  // ✨ PASO 6: INSERTAR SYSTEM PROMPT AL INICIO
-  deepseekMessages.unshift({
-    role: 'system',
-    content: systemPrompt
-  });
-
-  // ✨ PASO 7: LLAMAR A DEEPSEEK
+  // 6. Llamar a DeepSeek
   const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
     method: 'POST',
     headers: {
@@ -558,23 +541,27 @@ await updateConversationTimestamp(conversation_id, env);
   }
 
   const deepseekData = await deepseekResponse.json();
-  const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
+  const aiResponse = deepseekData.choices?.[0]?.message?.content || '';  // ← AQUÍ se define
 
-  // ✨ PASO 8: GENERAR AUDIO (si aplica)
+  // 7. ✨ Extraer sugerencias DESPUÉS de tener aiResponse
+  const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
+
+  // 8. Generar audio (si aplica)
   let audio_url = null;
-  if (audio_mode === 'always' && aiResponse.length > 0) {
-    audio_url = await generateAndStoreTTS(aiResponse, conversation_id, env);
+  if (audio_mode === 'always' && cleanResponse.length > 0) {
+    audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
   }
 
-  // ✨ PASO 9: GUARDAR MENSAJES
+  // 9. Guardar mensajes (respuesta LIMPIA sin [SUGGESTIONS])
   await saveMessage(conversation_id, 'user', message, env);
-  await saveMessage(conversation_id, 'assistant', aiResponse, env);
+  await saveMessage(conversation_id, 'assistant', cleanResponse, env);
   await updateConversationTimestamp(conversation_id, env);
 
-  return jsonResponse({ 
-    response: aiResponse,
+  // 10. Devolver respuesta
+  return jsonResponse({
+    response: cleanResponse,
     audio_url: audio_url,
-    suggestions: suggestions  // ✨ Nuevo campo
+    suggestions: suggestions
   }, 200, corsHeaders);
 }
 
