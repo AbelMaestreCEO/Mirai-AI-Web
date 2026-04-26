@@ -51,6 +51,11 @@ let state = {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
+  const educationContext = {
+    courseId: null,
+    lessonId: null,
+    isActive: false
+  };
   initializeTheme();
   initializeVoiceRecognition();
   setupMobileMenu();
@@ -65,6 +70,22 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAudioMode();
   }
 });
+
+function detectEducationContext() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const courseId = urlParams.get('course');
+    const lessonId = urlParams.get('lesson');
+
+    if (courseId && lessonId) {
+        educationContext.courseId = courseId;
+        educationContext.lessonId = lessonId;
+        educationContext.isActive = true;
+        console.log('🎓 Modo educativo detectado:', courseId, lessonId);
+        return true;
+    }
+
+    return false;
+}
 
 // --- GESTIÓN DE TEMA ---
 function initializeTheme() {
@@ -572,6 +593,23 @@ function initializeChat() {
 // --- GESTIÓN DE CONVERSACIÓN ---
 async function loadOrCreateConversation() {
   const savedId = localStorage.getItem(CONFIG.STORAGE_KEY_CONVERSATION);
+  const isEducationMode = detectEducationContext();
+
+    // Si hay contexto educativo, SIEMPRE crear conversación nueva
+    if (isEducationMode) {
+        const newId = crypto.randomUUID();
+        state.currentConversationId = newId;
+
+        // Crear la conversación en D1
+        await createNewConversation(newId);
+
+        // Mostrar mensaje de bienvenida
+        showEducationWelcome();
+
+        // Enviar primer mensaje para activar el contexto
+        await sendEducationWelcomeMessage();
+        return;
+    }
 
   if (savedId) {
     state.currentConversationId = savedId;
@@ -1938,4 +1976,75 @@ function initializeImageDownloadButtons() {
       }, 2000);
     });
   });
+}
+
+async function sendEducationWelcome() {
+    if (!educationContext.isActive) return;
+
+    // Mostrar mensaje del sistema en el chat
+    const welcomeDiv = createMessageElement('system', null, true);
+    welcomeDiv.innerHTML = `
+        <div style="background: var(--accent-gradient); color: white; padding: 16px 20px; border-radius: var(--border-radius-md); margin-bottom: 8px;">
+            <strong>🎓 Modo Educactivo</strong><br>
+            Cargando lección...
+        </div>
+    `;
+    elements.chatMessages.appendChild(welcomeDiv);
+
+    // Enviar primer mensaje para activar el contexto
+    const firstMessage = `Hola, estoy listo para comenzar esta lección.`;
+
+    await sendMessageToAPI(firstMessage, state.currentConversationId);
+}
+
+async function sendMessageToAPI(message, conversationId) {
+    const requestBody = {
+        message: message,
+        conversation_id: conversationId
+    };
+
+    // Si hay contexto educativo, incluirlo (solo en el primer mensaje)
+    if (educationContext.isActive && educationContext.courseId && educationContext.lessonId) {
+        requestBody.course_id = educationContext.courseId;
+        requestBody.lesson_id = educationContext.lessonId;
+
+        // Limpiar para no enviar en cada mensaje (ya se guardó en D1)
+        educationContext.courseId = null;
+        educationContext.lessonId = null;
+        educationContext.isActive = false;
+    }
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+        return data.response;
+    } catch (error) {
+        console.error('❌ Error enviando mensaje:', error);
+        throw error;
+    }
+}
+
+function showEducationWelcome() {
+    const welcomeDiv = createMessageElement('system', null, true);
+    welcomeDiv.innerHTML = `
+        <div style="background: var(--accent-gradient); color: white; padding: 16px 20px; border-radius: var(--border-radius-md); margin-bottom: 8px;">
+            <strong>🎓 Modo Educativo Activado</strong><br>
+            Lección cargada. Mirai está listo para enseñarte.
+        </div>
+    `;
+    elements.chatMessages.appendChild(welcomeDiv);
+    scrollToBottom();
+}
+
+async function sendEducationWelcomeMessage() {
+    if (!educationContext.isActive) return;
+
+    const firstMessage = `Hola, estoy listo para comenzar esta lección.`;
+
+    await sendMessageToAPI(firstMessage, state.currentConversationId);
 }
