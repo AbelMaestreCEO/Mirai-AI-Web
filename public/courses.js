@@ -4,7 +4,7 @@
    ============================================ */
 
 // --- DETECCIÓN DE PÁGINA ---
-const currentPage = window.location.pathname.endsWith('course_details.html')
+const currentPage = window.location.href.includes('course_details.html')
     ? 'details'
     : 'courses';
 
@@ -470,14 +470,21 @@ function initCourseDetailsPage() {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 courses.js DOMContentLoaded');
+    console.log('🚀 URL completa:', window.location.href);
+    console.log('🚀 pathname:', window.location.pathname);
+    console.log('🚀 Página detectada:', currentPage);
 
     initializeTheme();
     setupThemeToggle();
     setupMobileMenu();
 
     if (currentPage === 'courses') {
+        console.log('📚 Iniciando página de cursos...');
         initCoursesPage();
     } else if (currentPage === 'details') {
+        console.log('📖 Iniciando página de detalles...');
         initCourseDetailsPage();
+    } else {
+        console.error('❌ Página no reconocida:', currentPage);
     }
 });
