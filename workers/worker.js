@@ -157,8 +157,8 @@ async function handleChat(request, env, corsHeaders) {
           message,
           conversation_id,
           audio_mode,
-          course_id,
-          lesson_id,
+          course_id || null,    // ← Asegurar que se pasa
+          lesson_id || null,    // ← Asegurar que se pasa
           env,
           corsHeaders
         );
@@ -430,29 +430,42 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleChat(request, env, corsHeaders);
     }
 
-    // Ruta para obtener o crear conversación de curso
-    if (url.pathname === '/api/education-conversation' && request.method === 'GET') {
+    // Dentro de handleApiRequest(request, env, corsHeaders)
+
+    if (path === '/api/education-conversation' && request.method === 'GET') {
       const courseId = url.searchParams.get('course');
-      const userId = request.headers.get('CF-Connecting-IP'); // O tu sistema de auth
 
       if (!courseId) {
-        return new Response(JSON.stringify({ error: 'course ID required' }), { status: 400 });
+        return jsonResponse({ error: 'course ID required' }, 400, corsHeaders);
       }
 
-      // Buscar conversación existente
-      const existing = await env.MIRAI_AI_DB.prepare(
-        `SELECT id FROM conversations WHERE course_id = ?`
-      ).bind(courseId).first();
-      if (existing) {
-        return new Response(JSON.stringify({ conversation_id: existing.id }));
+      try {
+        console.log('🎓 Buscando conversación para curso:', courseId);
+
+        // Buscar conversación existente
+        const existing = await env.MIRAI_AI_DB.prepare(
+          `SELECT id FROM conversations WHERE course_id = ? LIMIT 1`
+        ).bind(courseId).first();
+
+        if (existing) {
+          console.log('✅ Conversación existente:', existing.id);
+          return jsonResponse({ conversation_id: existing.id }, 200, corsHeaders);
+        }
+
+        // Crear nueva
+        const convId = crypto.randomUUID();
+        await env.MIRAI_AI_DB.prepare(
+          `INSERT INTO conversations (id, title, course_id, created_at, updated_at) 
+       VALUES (?, ?, ?, datetime('now'), datetime('now'))`
+        ).bind(convId, `Curso: ${courseId}`, courseId).run();
+
+        console.log('✅ Nueva conversación creada:', convId);
+        return jsonResponse({ conversation_id: convId }, 201, corsHeaders);
+
+      } catch (error) {
+        console.error('❌ Error education-conversation:', error.message);
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
       }
-
-      // Crear nueva
-      await env.MIRAI_AI_DB.prepare(
-        `INSERT INTO conversations (id, title, course_id, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))`
-      ).bind(convId, `Curso: ${courseId}`, courseId).run();
-
-      return new Response(JSON.stringify({ conversation_id: convId }));
     }
     if (path === '/api/enrolled-courses' && request.method === 'GET') {
       return await handleEnrolledCourses(env, corsHeaders);
@@ -557,7 +570,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   console.log('🔍 handleTextChatInternal llamado');
 
   // 1. Asegurar conversación
-  await ensureConversationExists(conversation_id, message, env);
+  await ensureConversationExists(conversation_id, message, env, course_id, lesson_id);
 
   // 2. Guardar contexto educativo si se proporciona
   if (course_id && lesson_id) {
@@ -917,21 +930,20 @@ async function saveMessage(conversationId, role, content, env) {
   }
 }
 
-// Asegurar que la conversación existe (Versión Robusta)
 async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null) {
   try {
-    const checkStmt = env.MIRAI_AI_DB.prepare(`SELECT id FROM conversations WHERE id = ?`);
-    const { results } = await checkStmt.bind(conversationId).all();
+    const { results } = await env.MIRAI_AI_DB.prepare(
+      `SELECT id FROM conversations WHERE id = ?`
+    ).bind(conversationId).all();
 
     if (results.length === 0) {
       const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
 
-      const createStmt = env.MIRAI_AI_DB.prepare(`
-        INSERT INTO conversations (id, title, model, course_id, lesson_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-      `);
+      await env.MIRAI_AI_DB.prepare(
+        `INSERT INTO conversations (id, title, model, course_id, lesson_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId).run();
 
-      await createStmt.bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId).run();
       console.log(`✅ Conversación creada: ${conversationId}`);
     }
   } catch (error) {
