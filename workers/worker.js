@@ -628,7 +628,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
 
     // 9. Guardar mensajes
     await saveMessage(conversation_id, 'user', message, env);
-    await saveMessage(conversation_id, 'assistant', cleanResponse, env);
+    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url);
     await updateConversationTimestamp(conversation_id, env);
 
     // 10. Devolver respuesta
@@ -703,15 +703,13 @@ async function generateAndStoreImage(prompt, conversationId, env) {
 // --- GENERAR IMAGEN (VÍA ROUTER) ---
 async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, env, corsHeaders) {
   try {
-    // Guardar el mensaje original
     await ensureConversationExists(conversationId, originalMessage, env);
     await saveMessage(conversationId, 'user', originalMessage, env);
 
-    // ✨ AQUÍ IRÍA TU LÓGICA DE GENERACIÓN DE IMAGEN (ej: Stability AI, DALL-E, etc.)
-    // Por ahora, devuelve placeholder
     const imageUrl = await generateAndStoreImage(prompt, conversationId, env);
 
-    await saveMessage(conversationId, 'assistant', `[Imagen generada: ${prompt}]`, env);
+    const assistantContent = `![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
+    await saveMessage(conversationId, 'assistant', assistantContent, env);
     await updateConversationTimestamp(conversationId, env);
 
     return jsonResponse({
@@ -876,13 +874,11 @@ async function handleHistory(conversationId, env, corsHeaders) {
   }
 }
 
-// --- FUNCIONES DE BASE DE DATOS (D1) ---
-
-// Obtener historial de una conversación
+// Obtener historial de una conversación (CON audio_url)
 async function getConversationHistory(conversationId, env) {
   try {
     const stmt = env.MIRAI_AI_DB.prepare(`
-      SELECT id, role, content, created_at
+      SELECT id, role, content, audio_url, created_at
       FROM messages
       WHERE conversation_id = ?
       ORDER BY created_at ASC
@@ -894,6 +890,7 @@ async function getConversationHistory(conversationId, env) {
       id: row.id,
       role: row.role,
       content: row.content,
+      audio_url: row.audio_url,  // ← INCLUIR audio_url
       created_at: row.created_at
     }));
 
@@ -904,16 +901,17 @@ async function getConversationHistory(conversationId, env) {
 }
 
 // Guardar un mensaje
-async function saveMessage(conversationId, role, content, env) {
+// Guardar un mensaje (CON audio_url)
+async function saveMessage(conversationId, role, content, env, audioUrl = null) {
   try {
     const messageId = crypto.randomUUID();
 
     const stmt = env.MIRAI_AI_DB.prepare(`
-      INSERT INTO messages (id, conversation_id, role, content, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      INSERT INTO messages (id, conversation_id, role, content, audio_url, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
     `);
 
-    await stmt.bind(messageId, conversationId, role, content).run();
+    await stmt.bind(messageId, conversationId, role, content, audioUrl).run();
 
     // Si es el primer mensaje de una conversación, crearla
     await ensureConversationExists(conversationId, content, env);

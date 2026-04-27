@@ -733,17 +733,28 @@ async function getCourseName(courseId) {
 async function loadConversationHistory(conversationId) {
   try {
     const response = await fetch(`/api/history/${conversationId}`);
-
     if (!response.ok) return;
 
     const messages = await response.json();
+
     elements.chatMessages.innerHTML = '';
 
     messages.forEach(msg => {
-      appendMessage(msg.role, msg.content, false);
+      if (msg.role === 'user') {
+        appendMessage('user', msg.content);
+      } else if (msg.role === 'assistant') {
+        // ✅ Si tiene audio_url, renderizar con reproductor
+        if (msg.audio_url) {
+          appendMessage('assistant', msg.content, true, msg.audio_url);
+        } else {
+          appendMessage('assistant', msg.content, true, null);
+        }
+      }
     });
 
-    scrollToBottom();
+    // Scroll al final
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
   } catch (error) {
     console.error('Error cargando historial:', error);
   }
