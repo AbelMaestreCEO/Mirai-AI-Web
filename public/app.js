@@ -663,12 +663,23 @@ function initializeChat() {
 async function loadOrCreateConversation() {
   const urlParams = new URLSearchParams(window.location.search);
   const courseId = urlParams.get('course');
+  const lessonId = urlParams.get('lesson');
   const mode = urlParams.get('mode');
 
   if (mode === 'education' && courseId) {
     // ✅ Detectar contexto educativo
     educationContext.courseId = courseId;
+    educationContext.lessonId = lessonId;  // ← AGREGAR ESTO
     educationContext.isActive = true;
+
+    console.log('🎓 Modo educativo:', { courseId, lessonId });
+
+    // Si NO hay lesson_id, redirigir a course_details.html para seleccionarla
+    if (!lessonId) {
+      console.warn('⚠️ No hay lesson_id. Redirigiendo a course_details.html');
+      window.location.href = `course_details.html?id=${courseId}`;
+      return;  // ← DETENER EJECUCIÓN
+    }
 
     const convId = await getEducationConversation(courseId);
     state.currentConversationId = convId;
@@ -676,6 +687,7 @@ async function loadOrCreateConversation() {
 
     localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, convId);
     localStorage.setItem('mirai-ai-course-id', courseId);
+    localStorage.setItem('mirai-ai-lesson-id', lessonId);  // ← GUARDAR lesson_id
 
     await loadConversationHistory(convId);
 
@@ -686,7 +698,7 @@ async function loadOrCreateConversation() {
       headerTitle.textContent = `Mirai AI - ${courseName}`;
     }
 
-    // Enviar mensaje de bienvenida si es el inicio
+    // Enviar mensaje de bienvenida
     if (educationContext.isActive) {
       await sendEducationWelcome();
     }
@@ -2197,18 +2209,14 @@ function initializeImageDownloadButtons() {
 async function sendMessageToAPI(message, conversationId) {
   const requestBody = {
     message: message,
-    conversation_id: conversationId
+    conversation_id: conversationId,
+    audio_mode: state.audioMode || 'auto'
   };
 
-  // Si hay contexto educativo, incluirlo (solo en el primer mensaje)
+  // ✅ Incluir contexto educativo si está activo
   if (educationContext.isActive && educationContext.courseId && educationContext.lessonId) {
     requestBody.course_id = educationContext.courseId;
     requestBody.lesson_id = educationContext.lessonId;
-
-    // Limpiar para no enviar en cada mensaje (ya se guardó en D1)
-    educationContext.courseId = null;
-    educationContext.lessonId = null;
-    educationContext.isActive = false;
   }
 
   try {
@@ -2220,7 +2228,6 @@ async function sendMessageToAPI(message, conversationId) {
 
     const data = await response.json();
 
-    // ✨ Renderizar sugerencias si vienen en la respuesta
     if (data.suggestions && data.suggestions.length > 0) {
       renderSuggestions(data.suggestions);
     } else {
@@ -2241,31 +2248,57 @@ async function sendMessageToAPI(message, conversationId) {
 async function sendEducationWelcome() {
   if (!educationContext.isActive) return;
 
-  // 1. Mostrar mensaje visual de bienvenida
+  // Mostrar mensaje visual de bienvenida
   if (elements.chatMessages) {
     const welcomeDiv = document.createElement('div');
     welcomeDiv.style.cssText = `
-            background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
-            color: white;
-            padding: 16px 20px;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            text-align: center;
-            font-size: 0.95rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        `;
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-secondary));
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      text-align: center;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    `;
 
     welcomeDiv.innerHTML = `
-            <strong>🎓 Modo Educativo Activado</strong><br>
-            <small>Mirai está preparando tu lección...</small>
-        `;
+      <strong>🎓 Modo Educativo Activado</strong><br>
+      <small>Curso: ${educationContext.courseId} | Lección: ${educationContext.lessonId}</small>
+    `;
 
     elements.chatMessages.appendChild(welcomeDiv);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
   }
 
-  // 2. Enviar primer mensaje para activar el contexto en el Worker
+  // ✅ ENVIAR contexto educativo en el primer mensaje
   const firstMessage = 'Hola, estoy listo para comenzar esta lección.';
 
-  await sendMessageToAPI(firstMessage, state.currentConversationId);
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: firstMessage,
+        conversation_id: state.currentConversationId,
+        course_id: educationContext.courseId,  // ← AGREGAR
+        lesson_id: educationContext.lessonId,  // ← AGREGAR
+        audio_mode: state.audioMode || 'auto'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.response) {
+      appendMessage('assistant', data.response, true, data.audio_url || null);
+      if (data.suggestions) renderSuggestions(data.suggestions);
+    }
+  } catch (error) {
+    console.error('❌ Error en welcome message:', error);
+    appendMessage('system', '⚠️ Error al cargar la lección. Intenta de nuevo.');
+  }
 }

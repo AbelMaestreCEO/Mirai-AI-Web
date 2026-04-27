@@ -488,3 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('❌ Página no reconocida:', currentPage);
     }
 });
+
+function startLesson(courseId, lessonId) {
+  // ✅ INCLUIR lesson_id en la URL
+  window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
+}

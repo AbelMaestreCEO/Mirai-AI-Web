@@ -561,89 +561,108 @@ async function handleApiRequest(request, env, corsHeaders) {
 }
 
 async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, env, corsHeaders) {
-  console.log('🔍 handleTextChatInternal llamado');
+  try {
+    console.log('🔍 handleTextChatInternal llamado');
+    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode });
 
-  // 1. Asegurar conversación
-  await ensureConversationExists(conversation_id, message, env, course_id, lesson_id);
+    // 1. Asegurar conversación (con course_id y lesson_id)
+    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id);
 
-  // 2. Guardar contexto educativo si se proporciona
-  if (course_id && lesson_id) {
-    await saveConversationContext(conversation_id, course_id, lesson_id, env);
-  }
-
-  // 3. Obtener contexto educativo
-  let systemPrompt = 'Eres Mirai AI, un asistente inteligente, amable y útil. Respondes en español de forma clara y concisa.';
-
-  const convEducationContext = await getConversationEducationContext(conversation_id, env);
-  console.log('🎓 Contexto educativo de la conversación:', JSON.stringify(convEducationContext));
-
-  if (convEducationContext && convEducationContext.course_id && convEducationContext.lesson_id) {
-    const lessonContext = await getLessonContext(convEducationContext.course_id, convEducationContext.lesson_id, env);
-    console.log('📖 Datos de lección obtenidos:', lessonContext ? lessonContext.title : 'NO ENCONTRADA');
-    if (lessonContext) {
-      const educationPrompt = buildEducationSystemPrompt(lessonContext);
-      if (educationPrompt) {
-        systemPrompt = educationPrompt;
-        console.log('🎓 Modo educativo activado:', lessonContext.title);
-      }
+    // 2. Guardar contexto educativo si se proporciona
+    if (course_id && lesson_id) {
+      await saveConversationContext(conversation_id, course_id, lesson_id, env);
     }
-  } else { console.log('ℹ️ Sin contexto educativo en esta conversación'); }
 
-  // 4. Obtener historial
-  const history = await getConversationHistory(conversation_id, env);
+    // 3. Obtener contexto educativo
+    let systemPrompt = 'Eres Mirai AI, un asistente inteligente, amable y útil. Respondes en español de forma clara y concisa.';
 
-  // 5. Construir mensajes
-  const deepseekMessages = buildDeepseekMessages(message, history, systemPrompt);
+    // Intentar obtener contexto de la conversación (guardado en D1)
+    const convEducationContext = await getConversationEducationContext(conversation_id, env);
+    console.log('🎓 Contexto educativo de la conversación:', JSON.stringify(convEducationContext));
 
-  // 6. Llamar a DeepSeek
-  const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      messages: deepseekMessages,
-      temperature: 0.7,
-      max_tokens: 2000
-    })
-  });
+    // Si hay contexto, cargar la lección
+    if (convEducationContext && convEducationContext.course_id && convEducationContext.lesson_id) {
+      const lessonContext = await getLessonContext(convEducationContext.course_id, convEducationContext.lesson_id, env);
+      console.log('📖 Datos de lección obtenidos:', lessonContext ? lessonContext.title : 'NO ENCONTRADA');
+      
+      if (lessonContext) {
+        const educationPrompt = buildEducationSystemPrompt(lessonContext);
+        if (educationPrompt) {
+          systemPrompt = educationPrompt;
+          console.log('🎓 Modo educativo activado:', lessonContext.title);
+        }
+      } else {
+        console.warn('⚠️ Lección no encontrada en DB:', convEducationContext.lesson_id);
+        // Continuar con prompt normal en lugar de fallar
+      }
+    } else {
+      console.log('ℹ️ Sin contexto educativo en esta conversación');
+    }
 
-  if (!deepseekResponse.ok) {
-    const errorData = await deepseekResponse.text();
-    console.error('DeepSeek API error:', errorData);
-    return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
+    // 4. Obtener historial
+    const history = await getConversationHistory(conversation_id, env);
+
+    // 5. Construir mensajes (con systemPrompt personalizado)
+    const deepseekMessages = buildDeepseekMessages(message, history, systemPrompt);
+
+    // 6. Llamar a DeepSeek
+    const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: deepseekMessages,
+        temperature: 0.7,
+        max_tokens: 2000
+      })
+    });
+
+    if (!deepseekResponse.ok) {
+      const errorData = await deepseekResponse.text();
+      console.error('DeepSeek API error:', errorData);
+      return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
+    }
+
+    const deepseekData = await deepseekResponse.json();
+    const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
+
+    // 7. Extraer sugerencias
+    const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
+
+    // Debug logs
+    console.log('📝 Respuesta completa de DeepSeek:', aiResponse.substring(0, 200));
+    console.log('🎯 Sugerencias extraídas:', JSON.stringify(suggestions));
+    console.log('📋 Respuesta limpia:', cleanResponse.substring(0, 200));
+
+    // 8. Generar audio (si aplica)
+    let audio_url = null;
+    if (audio_mode === 'always' && cleanResponse.length > 0) {
+      audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
+    }
+
+    // 9. Guardar mensajes
+    await saveMessage(conversation_id, 'user', message, env);
+    await saveMessage(conversation_id, 'assistant', cleanResponse, env);
+    await updateConversationTimestamp(conversation_id, env);
+
+    // 10. Devolver respuesta
+    return jsonResponse({
+      response: cleanResponse,
+      audio_url: audio_url,
+      suggestions: suggestions
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ Error en handleTextChatInternal:', error.message);
+    console.error('Stack:', error.stack);
+    return jsonResponse({ 
+      error: 'Error procesando mensaje',
+      details: error.message 
+    }, 500, corsHeaders);
   }
-
-  const deepseekData = await deepseekResponse.json();
-  const aiResponse = deepseekData.choices?.[0]?.message?.content || '';  // ← AQUÍ se define
-
-  // 7. ✨ Extraer sugerencias DESPUÉS de tener aiResponse
-  const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
-
-  // ✨ LOGS DE DEBUG
-  console.log('📝 Respuesta completa de DeepSeek:', aiResponse.substring(0, 200));
-  console.log('🎯 Sugerencias extraídas:', JSON.stringify(suggestions));
-  console.log('📋 Respuesta limpia:', cleanResponse.substring(0, 200));
-
-  // 8. Generar audio (si aplica)
-  let audio_url = null;
-  if (audio_mode === 'always' && cleanResponse.length > 0) {
-    audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
-  }
-
-  // 9. Guardar mensajes (respuesta LIMPIA sin [SUGGESTIONS])
-  await saveMessage(conversation_id, 'user', message, env);
-  await saveMessage(conversation_id, 'assistant', cleanResponse, env);
-  await updateConversationTimestamp(conversation_id, env);
-
-  // 10. Devolver respuesta
-  return jsonResponse({
-    response: cleanResponse,
-    audio_url: audio_url,
-    suggestions: suggestions
-  }, 200, corsHeaders);
 }
 
 // --- GENERAR IMAGEN Y GUARDAR EN R2 (función reutilizable) ---
@@ -939,6 +958,8 @@ async function ensureConversationExists(conversationId, firstMessage, env, cours
       ).bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId).run();
 
       console.log(`✅ Conversación creada: ${conversationId}`);
+    } else {
+      console.log(`ℹ️ Conversación ya existe: ${conversationId}`);
     }
   } catch (error) {
     console.error('❌ Error en ensureConversationExists:', error.message);
@@ -1417,23 +1438,16 @@ async function handleGetCourseDetails(request, env, corsHeaders) {
 
 async function getLessonContext(courseId, lessonId, env) {
   try {
-    const lessonStmt = env.MIRAI_AI_DB.prepare(`
-            SELECT l.id, l.title, l.content, l.order_index,
-                   c.title as course_title, c.level, c.category, c.icon
-            FROM lessons l
-            JOIN courses c ON l.course_id = c.id
-            WHERE l.course_id = ? AND l.id = ?
-        `);
-    const result = await lessonStmt.bind(courseId, lessonId).first();
-
-    if (!result) {
-      console.warn('⚠️ Lección no encontrada:', lessonId);
-      return null;
-    }
-
+    const result = await env.MIRAI_AI_DB.prepare(
+      `SELECT l.id, l.title, l.content, l.order_index,
+              c.title as course_title, c.level, c.category, c.icon
+       FROM lessons l
+       JOIN courses c ON l.course_id = c.id
+       WHERE l.course_id = ? AND l.id = ?`
+    ).bind(courseId, lessonId).first();
     return result;
   } catch (error) {
-    console.error('❌ Error obteniendo contexto de lección:', error);
+    console.error('❌ Error obteniendo contexto de lección:', error.message);
     return null;
   }
 }
@@ -1491,29 +1505,24 @@ ESTILO:
 }
 async function saveConversationContext(conversationId, courseId, lessonId, env) {
   try {
-    const stmt = env.MIRAI_AI_DB.prepare(`
-            UPDATE conversations
-            SET course_id = ?, lesson_id = ?
-            WHERE id = ?
-        `);
-    await stmt.bind(courseId, lessonId, conversationId).run();
+    await env.MIRAI_AI_DB.prepare(
+      `UPDATE conversations SET course_id = ?, lesson_id = ?, updated_at = datetime('now')
+       WHERE id = ?`
+    ).bind(courseId, lessonId, conversationId).run();
     console.log('🎓 Contexto educativo guardado:', courseId, lessonId);
   } catch (error) {
-    console.error('❌ Error guardando contexto educativo:', error);
+    console.error('❌ Error guardando contexto educativo:', error.message);
   }
 }
 
 async function getConversationEducationContext(conversationId, env) {
   try {
-    const stmt = env.MIRAI_AI_DB.prepare(`
-            SELECT course_id, lesson_id
-            FROM conversations
-            WHERE id = ?
-        `);
-    const result = await stmt.bind(conversationId).first();
+    const result = await env.MIRAI_AI_DB.prepare(
+      `SELECT course_id, lesson_id FROM conversations WHERE id = ?`
+    ).bind(conversationId).first();
     return result;
   } catch (error) {
-    console.error('❌ Error obteniendo contexto educativo:', error);
+    console.error('❌ Error obteniendo contexto educativo:', error.message);
     return null;
   }
 }
