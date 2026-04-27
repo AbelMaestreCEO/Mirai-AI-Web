@@ -197,7 +197,7 @@ async function generateAndStoreTTS(text, conversationId, env) {
           voice_id: 'Serena',
           output_format: 'mp3',
           temperature: 0.8,
-          speaking_rate: 1,
+          speaking_rate: 1.1,
           timestamp_type: 'none',
         }, {
           gateway: { id: 'default' },
