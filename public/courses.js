@@ -314,6 +314,7 @@ function initCoursesPage() {
     setupCourseButtons();
 }
 
+
 // ============================================
 // COURSE_DETAILS.HTML - Detalle y Lecciones
 // ============================================
@@ -464,6 +465,9 @@ function initCourseDetailsPage() {
     loadCourseDetails();
 }
 
+const urlParams = new URLSearchParams(window.location.search);
+const courseId = urlParams.get('id');
+
 // ============================================
 // INICIALIZACIÓN PRINCIPAL
 // ============================================
@@ -489,7 +493,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// En course_details.html, cuando se selecciona una lección
 function startLesson(courseId, lessonId) {
-  // ✅ INCLUIR lesson_id en la URL
+  // ✅ INCLUIR TODOS LOS PARÁMETROS
   window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
+}
+
+// En courses.js o course.html
+function selectCourse(courseId) {
+    // ✅ INCLUIR el id del curso en la URL
+    window.location.href = `course_details.html?id=${courseId}`;
 }
