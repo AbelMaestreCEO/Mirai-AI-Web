@@ -192,11 +192,12 @@ async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run('inworld/tts-1.5-max', {
+        const ttsResult = await env.AI.run('inworld/tts-1.5-mini', {
           text: segment,
-          voice_id: 'Julia',
+          voice_id: 'Pixie',
           output_format: 'mp3',
-          temperature: 1,
+          temperature: 1.3,
+          speaking_rate: 0.95,
           timestamp_type: 'none',
         }, {
           gateway: { id: 'default' },
