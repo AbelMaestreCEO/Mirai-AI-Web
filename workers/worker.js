@@ -203,53 +203,39 @@ async function generateAndStoreTTS(text, conversationId, env) {
         });
 
         console.log('🔍 ttsResult tipo:', typeof ttsResult);
-        console.log('🔍 ttsResult constructor:', ttsResult?.constructor?.name);
         console.log('🔍 ttsResult completo:', JSON.stringify(ttsResult, null, 2));
 
         let audioBuffer = null;
-        if (ttsResult && ttsResult.audio) {
-          audioBuffer = ttsResult.audio;
-        }
-        else if (ttsResult instanceof ReadableStream) {
-          const reader = ttsResult.getReader();
-          const chunks = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
+
+        // CASO 1: La API devuelve una URL en result.audio (Lo que está pasando ahora)
+        if (ttsResult?.result?.audio && typeof ttsResult.result.audio === 'string') {
+          console.log('🔗 Detectada URL de audio:', ttsResult.result.audio);
+          
+          try {
+            // Descargar el audio desde la URL
+            const downloadResponse = await fetch(ttsResult.result.audio);
+            
+            if (!downloadResponse.ok) {
+              throw new Error(`Error descargando audio: ${downloadResponse.status}`);
+            }
+            
+            audioBuffer = await downloadResponse.arrayBuffer();
+            console.log('✅ Audio descargado y convertido a ArrayBuffer:', audioBuffer.byteLength, 'bytes');
+          } catch (downloadError) {
+            console.error('❌ Error descargando audio desde URL:', downloadError.message);
           }
-          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-          const combined = new Uint8Array(totalLength);
-          let offset = 0;
-          for (const chunk of chunks) {
-            combined.set(new Uint8Array(chunk), offset);
-            offset += chunk.byteLength;
-          }
-          audioBuffer = combined.buffer;
-          console.log('✅ Audio extraído del ReadableStream:', audioBuffer.byteLength, 'bytes');
         }
-        // CASO 1: ArrayBuffer directo
+        // CASO 2: ArrayBuffer directo (caso antiguo)
         else if (ttsResult instanceof ArrayBuffer && ttsResult.byteLength > 0) {
           audioBuffer = ttsResult;
           console.log('✅ ArrayBuffer directo capturado');
         }
-        // CASO 2: Es un Response (objeto opaco sin claves enumerables)
-        else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.arrayBuffer === 'function') {
-          console.log('🔍 ttsResult es un Response, llamando .arrayBuffer()...');
-          audioBuffer = await ttsResult.arrayBuffer();
-          console.log('✅ Audio extraído del Response:', audioBuffer.byteLength, 'bytes');
-        }
-        // CASO 3: Propiedad .audio
+        // CASO 3: Propiedad .audio directa (si la API cambia)
         else if (ttsResult?.audio instanceof ArrayBuffer) {
           audioBuffer = ttsResult.audio;
           console.log('✅ Propiedad .audio capturada');
         }
-        // CASO 4: Propiedad .result.audio
-        else if (ttsResult?.result?.audio instanceof ArrayBuffer) {
-          audioBuffer = ttsResult.result.audio;
-          console.log('✅ Propiedad .result.audio capturada');
-        }
-        // CASO 5: ReadableStream
+        // CASO 4: ReadableStream
         else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.getReader === 'function') {
           console.log('🔍 ttsResult es un ReadableStream, consumiendo...');
           const reader = ttsResult.getReader();
@@ -269,13 +255,9 @@ async function generateAndStoreTTS(text, conversationId, env) {
           audioBuffer = combined.buffer;
           console.log('✅ Audio extraído del ReadableStream:', audioBuffer.byteLength, 'bytes');
         }
-        // CASO 6: Objeto vacío (fallback)
         else {
           console.error('❌ Formato no reconocido');
-          console.error('❌ Constructor:', ttsResult?.constructor?.name);
-          console.error('❌ Tiene .arrayBuffer?:', typeof ttsResult?.arrayBuffer);
-          console.error('❌ Tiene .getReader?:', typeof ttsResult?.getReader);
-          console.error('❌ Tiene .body?:', typeof ttsResult?.body);
+          console.error('❌ Estructura:', JSON.stringify(ttsResult, null, 2));
         }
 
         if (audioBuffer && audioBuffer.byteLength > 0) {
