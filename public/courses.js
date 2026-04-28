@@ -1,10 +1,12 @@
 /* ============================================
    MIRAI EDUCATION - courses.js
-   Maneja courses.html Y course_details.html
+   Maneja courses.html, course_details.html Y course_category.html
    ============================================ */
 
 // --- DETECCIÓN DE PÁGINA ---
-const currentPage = window.location.href.includes('course_details')
+const currentPage = window.location.pathname.includes('course_category')
+    ? 'categories'
+    : window.location.pathname.includes('course_details')
     ? 'details'
     : 'courses';
 
@@ -14,10 +16,14 @@ console.log(`📄 Página detectada: ${currentPage}`);
 const courseState = {
     activeCategory: 'todos',
     searchQuery: '',
-    courses: []
+    courses: [],
+    categories: []
 };
 
-// --- TEMA (COMPARTIDO) ---
+// ============================================
+// FUNCIONES COMPARTIDAS (Tema, Menú, Utilidades)
+// ============================================
+
 function initializeTheme() {
     const savedTheme = localStorage.getItem('mirai-ai-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -52,7 +58,6 @@ function setupThemeToggle() {
     }
 }
 
-// --- MENÚ MÓVIL (COMPARTIDO) ---
 function setupMobileMenu() {
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const closeMenu = document.querySelector('.close-menu');
@@ -93,7 +98,6 @@ function setupMobileMenu() {
     console.log('✅ Menú móvil configurado');
 }
 
-// --- UTILIDADES (COMPARTIDO) ---
 function capitalizeFirst(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -121,7 +125,6 @@ function initCoursesPage() {
         noResults: document.getElementById('no-results')
     };
 
-    // Verificar elementos críticos
     if (!courseElements.grid) {
         console.error('❌ No se encontró #courses-grid');
         return;
@@ -150,6 +153,20 @@ function initCoursesPage() {
                 return;
             }
 
+            // Verificar si hay categoría en la URL (desde course_category.html)
+            const urlParams = new URLSearchParams(window.location.search);
+            const categoryFilter = urlParams.get('category');
+            
+            if (categoryFilter) {
+                courseState.activeCategory = categoryFilter;
+                // Actualizar el pill activo
+                const activePill = courseElements.filterPills?.querySelector(`[data-category="${categoryFilter}"]`);
+                if (activePill) {
+                    courseElements.filterPills.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+                    activePill.classList.add('active');
+                }
+            }
+
             renderCourses(courses);
             updateCourseCount(courses.length);
 
@@ -164,7 +181,6 @@ function initCoursesPage() {
         }
     }
 
-    // --- RENDERIZAR CURSOS ---
     function renderCourses(courses) {
         courseElements.grid.innerHTML = '';
 
@@ -202,14 +218,12 @@ function initCoursesPage() {
         });
     }
 
-    // --- CONTAR CURSOS ---
     function updateCourseCount(count) {
         if (courseElements.countDisplay) {
             courseElements.countDisplay.textContent = `Mostrando ${count} curso${count !== 1 ? 's' : ''}`;
         }
     }
 
-    // --- FILTRADO POR CATEGORÍA ---
     function setupCourseFilters() {
         if (!courseElements.filterPills) return;
 
@@ -225,7 +239,6 @@ function initCoursesPage() {
         });
     }
 
-    // --- BÚSQUEDA ---
     function setupCourseSearch() {
         if (!courseElements.search) return;
 
@@ -239,7 +252,6 @@ function initCoursesPage() {
         });
     }
 
-    // --- APLICAR FILTROS ---
     function applyFilters() {
         const cards = courseElements.grid.querySelectorAll('.course-card');
         let visibleCount = 0;
@@ -278,7 +290,6 @@ function initCoursesPage() {
         }
     }
 
-    // --- BOTONES "COMENZAR" (Delegación) ---
     function setupCourseButtons() {
         courseElements.grid.addEventListener('click', (e) => {
             const btn = e.target.closest('.course-start-btn');
@@ -307,13 +318,11 @@ function initCoursesPage() {
         console.log('✅ Botones de cursos configurados');
     }
 
-    // --- EJECUTAR ---
     loadCoursesFromAPI();
     setupCourseFilters();
     setupCourseSearch();
     setupCourseButtons();
 }
-
 
 // ============================================
 // COURSE_DETAILS.HTML - Detalle y Lecciones
@@ -337,10 +346,9 @@ function initCourseDetailsPage() {
         lessonsGrid: document.getElementById('lessons-grid')
     };
 
-    // --- CARGAR DATOS DEL CURSO ---
     async function loadCourseDetails() {
         const urlParams = new URLSearchParams(window.location.search);
-        const courseId = urlParams.get('id') || urlParams.get('course'); // ✅ CORREGIDO: leer 'id' primero
+        const courseId = urlParams.get('id') || urlParams.get('course');
 
         console.log('🔍 Course ID detectado:', courseId);
 
@@ -365,7 +373,6 @@ function initCourseDetailsPage() {
         }
     }
 
-    // --- RENDERIZAR CURSO Y LECCIONES ---
     function renderCourse(data) {
         if (detailElements.loadingState) detailElements.loadingState.style.display = 'none';
         if (detailElements.courseContent) detailElements.courseContent.style.display = 'block';
@@ -424,7 +431,6 @@ function initCourseDetailsPage() {
         setupLessonButtons();
     }
 
-    // --- BOTONES DE LECCIONES (Delegación) ---
     function setupLessonButtons() {
         if (!detailElements.lessonsGrid) return;
 
@@ -440,7 +446,6 @@ function initCourseDetailsPage() {
                     btn.textContent = 'Redirigiendo...';
                     btn.disabled = true;
                     setTimeout(() => {
-                        // ✅ CORREGIDO: Incluir mode=education
                         window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
                     }, 300);
                 }
@@ -457,19 +462,148 @@ function initCourseDetailsPage() {
         console.log('✅ Botones de lecciones configurados');
     }
 
-    // --- ERROR ---
     function showError(message) {
         if (detailElements.loadingState) detailElements.loadingState.style.display = 'none';
         if (detailElements.errorState) detailElements.errorState.style.display = 'block';
         if (detailElements.errorMessage) detailElements.errorMessage.textContent = message;
     }
 
-    // --- EJECUTAR ---
     loadCourseDetails();
 }
 
-const urlParams = new URLSearchParams(window.location.search);
-const courseId = urlParams.get('id');
+// ============================================
+// COURSE_CATEGORY.HTML - Página de Categorías
+// ============================================
+
+function initCategoriesPage() {
+    console.log('🗂️ Inicializando página de categorías...');
+
+    const categoriesData = [
+        {
+            id: 'programacion',
+            title: 'Programación',
+            description: 'Desarrollo web, backend, lenguajes de sistemas y más.',
+            icon: '💻',
+            color: 'linear-gradient(135deg, #667eea, #764ba2)',
+            courses: 18,
+            students: '2.4k'
+        },
+        {
+            id: 'microsoft-office',
+            title: 'Microsoft Office',
+            description: 'Excel, Word, PowerPoint y herramientas de productividad.',
+            icon: '📊',
+            color: 'linear-gradient(135deg, #2b5876, #4e4376)',
+            courses: 8,
+            students: '1.2k'
+        },
+        {
+            id: 'diseno',
+            title: 'Diseño Gráfico',
+            description: 'Adobe Creative Suite, UI/UX, ilustración digital.',
+            icon: '🎨',
+            color: 'linear-gradient(135deg, #f093fb, #f5576c)',
+            courses: 12,
+            students: '980'
+        },
+        {
+            id: 'datos',
+            title: 'Ciencia de Datos',
+            description: 'Análisis de datos, Machine Learning, Big Data.',
+            icon: '📈',
+            color: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+            courses: 10,
+            students: '1.5k'
+        },
+        {
+            id: 'cloud',
+            title: 'Cloud & DevOps',
+            description: 'AWS, Azure, Docker, Kubernetes, Cloudflare.',
+            icon: '☁️',
+            color: 'linear-gradient(135deg, #fa709a, #fee140)',
+            courses: 14,
+            students: '1.8k'
+        },
+        {
+            id: 'negocios',
+            title: 'Negocios',
+            description: 'Marketing, emprendimiento, gestión de proyectos.',
+            icon: '💼',
+            color: 'linear-gradient(135deg, #a8edea, #fed6e3)',
+            courses: 6,
+            students: '750'
+        }
+    ];
+
+    // Función para renderizar categorías
+    function renderCategories(categories) {
+        const grid = document.getElementById('categories-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        if (categories.length === 0) {
+            grid.innerHTML = `
+                <div class="no-categories">
+                    <span class="no-categories-icon">🔍</span>
+                    <p>No se encontraron categorías con ese nombre</p>
+                </div>
+            `;
+            return;
+        }
+
+        categories.forEach(category => {
+            const card = document.createElement('div');
+            card.className = 'category-card';
+            card.style.setProperty('--card-accent', category.color);
+            card.dataset.id = category.id;
+
+            card.innerHTML = `
+                <div class="category-icon">${category.icon}</div>
+                <h3 class="category-title">${category.title}</h3>
+                <p class="category-desc">${category.description}</p>
+                <div class="category-stats">
+                    <span class="category-stat-item">
+                        <span>📚</span> ${category.courses} cursos
+                    </span>
+                    <span class="category-stat-item">
+                        <span>👥</span> ${category.students} alumnos
+                    </span>
+                </div>
+            `;
+
+            // Click en la categoría -> Redirige a courses.html con filtro
+            card.addEventListener('click', () => {
+                window.location.href = `courses.html?category=${category.id}`;
+            });
+
+            grid.appendChild(card);
+        });
+    }
+
+    // Cargar categorías iniciales
+    renderCategories(categoriesData);
+
+    // Configurar búsqueda
+    const searchInput = document.getElementById('category-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = categoriesData.filter(cat =>
+                cat.title.toLowerCase().includes(query) ||
+                cat.description.toLowerCase().includes(query)
+            );
+            renderCategories(filtered);
+        });
+    }
+
+    // TODO: En producción, cargar desde API en lugar de datos estáticos
+    // async function loadCategoriesFromAPI() {
+    //     const response = await fetch('/api/categories');
+    //     const categories = await response.json();
+    //     renderCategories(categories);
+    // }
+}
 
 // ============================================
 // INICIALIZACIÓN PRINCIPAL
@@ -481,29 +615,31 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 pathname:', window.location.pathname);
     console.log('🚀 Página detectada:', currentPage);
 
+    // Inicializar funciones compartidas
     initializeTheme();
     setupThemeToggle();
     setupMobileMenu();
 
+    // Inicializar según la página
     if (currentPage === 'courses') {
         console.log('📚 Iniciando página de cursos...');
         initCoursesPage();
     } else if (currentPage === 'details') {
         console.log('📖 Iniciando página de detalles...');
         initCourseDetailsPage();
+    } else if (currentPage === 'categories') {
+        console.log('🗂️ Iniciando página de categorías...');
+        initCategoriesPage();
     } else {
         console.error('❌ Página no reconocida:', currentPage);
     }
 });
 
-// En course_details.html, cuando se selecciona una lección
+// Funciones globales para acceso desde HTML
 function startLesson(courseId, lessonId) {
-  // ✅ INCLUIR TODOS LOS PARÁMETROS
-  window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
+    window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
 }
 
-// En courses.js o course.html
 function selectCourse(courseId) {
-    // ✅ INCLUIR el id del curso en la URL
     window.location.href = `course_details.html?id=${courseId}`;
 }
