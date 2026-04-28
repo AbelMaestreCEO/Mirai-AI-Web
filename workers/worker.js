@@ -665,56 +665,87 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   }
 }
 
-// --- GENERAR IMAGEN Y GUARDAR EN R2 (función reutilizable) ---
+// --- GENERAR IMAGEN CON FLUX.2 KLEIN (CORREGIDO) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
-  const promptParaIA = `${prompt}, captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.`;
+  try {
+    // 1. Preparar el prompt mejorado
+    const universalBase = "captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.";
+    const promptParaIA = `${prompt}, ${universalBase}`;
 
-  const aiResponse = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt: promptParaIA,
-        seed: Math.floor(Math.random() * 1000000),
-      })
+    // 2. Construir FormData (Requerido por Flux.2 Klein)
+    const formData = new FormData();
+    formData.append('prompt', promptParaIA);
+    
+    // Parámetros opcionales según la doc de Flux.2
+    formData.append('seed', Math.floor(Math.random() * 1000000));
+    // formData.append('width', '1024'); // Opcional si quieres forzar resolución
+    // formData.append('height', '1024');
+    // formData.append('steps', '25');
+
+    // 3. Ejecutar la llamada a Cloudflare AI
+    // NOTA: Usamos env.AI.run() si está disponible (más eficiente en Workers) 
+    // O fetch directo a la API REST si prefieres control total.
+    // Aquí uso fetch directo para mantener consistencia con tu código actual, 
+    // pero asegurando el formato correcto.
+    
+    const aiResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`
+          // IMPORTANTE: NO pongas 'Content-Type': 'application/json' ni 'multipart/form-data' manualmente.
+          // El navegador/Worker lo detecta automáticamente al pasar un objeto FormData como body.
+        },
+        body: formData // <-- Aquí va el FormData directo, NO JSON.stringify
+      }
+    );
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Error API Flux.2:', aiResponse.status, errorText);
+      throw new Error('Error generando imagen (Flux.2): ' + errorText);
     }
-  );
 
-  if (!aiResponse.ok) {
-    const errorText = await aiResponse.text();
-    throw new Error('Error API Image: ' + errorText);
-  }
+    const aiData = await aiResponse.json();
 
-  const aiData = await aiResponse.json();
-  if (!aiData.success || !aiData.result || !aiData.result.image) {
-    throw new Error('Respuesta inválida de la API de AI');
-  }
-
-  const imageBase64 = aiData.result.image;
-  const uniqueId = crypto.randomUUID();
-  const filename = `images/${uniqueId}.png`;
-
-  const binaryString = atob(imageBase64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-
-  await env.MIRAI_AI_ASSETS.put(filename, bytes, {
-    httpMetadata: { contentType: 'image/png' },
-    customMetadata: {
-      prompt: prompt.substring(0, 100),
-      conversation_id: conversationId,
-      generated_at: new Date().toISOString()
+    // 4. Validar respuesta
+    // Flux.2 suele devolver: { success: true, result: { image: "base64..." } }
+    if (!aiData.success || !aiData.result || !aiData.result.image) {
+      throw new Error('Respuesta inválida de Flux.2: ' + JSON.stringify(aiData));
     }
-  });
 
-  return `/api/image/${filename}`;
+    const imageBase64 = aiData.result.image;
+
+    // 5. Convertir Base64 a Blob/ArrayBuffer
+    const uniqueId = crypto.randomUUID();
+    const filename = `images/${uniqueId}.png`;
+
+    const binaryString = atob(imageBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // 6. Guardar en R2
+    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+      httpMetadata: { contentType: 'image/png' },
+      customMetadata: {
+        prompt: prompt.substring(0, 100),
+        conversation_id: conversationId,
+        generated_at: new Date().toISOString(),
+        model: 'flux-2-klein-4b' // Nuevo metadata para trazabilidad
+      }
+    });
+
+    console.log(`✅ Imagen generada con Flux.2 y guardada: ${filename}`);
+    return `/api/image/${filename}`;
+
+  } catch (error) {
+    console.error('❌ Error en generateAndStoreImage (Flux.2):', error);
+    throw error; // Dejar que el handler principal maneje el error
+  }
 }
 
 // --- GENERAR IMAGEN (VÍA ROUTER) ---
@@ -1254,7 +1285,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
 
     // 3. Llamar a Cloudflare AI
     const aiResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
       {
         method: 'POST',
         headers: {
