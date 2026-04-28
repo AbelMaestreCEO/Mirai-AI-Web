@@ -8,8 +8,8 @@
 const currentPage = window.location.pathname.includes('course_category')
     ? 'categories'
     : window.location.pathname.includes('course_details')
-    ? 'details'
-    : 'courses';
+        ? 'details'
+        : 'courses';
 
 console.log(`📄 Página detectada: ${currentPage}`);
 
@@ -20,6 +20,39 @@ const courseState = {
     courses: [],
     categories: [], // Aquí cargaremos las categorías desde D1
     isLoading: false
+};
+
+// ============================================
+// Mapeo de Subcategorías Visuales a Categorías Principales
+// ============================================
+const SUBCATEGORY_MAP = {
+    // Categoría: Programación
+    'web': 'programacion',
+    'backend': 'programacion',
+    'datos': 'programacion',
+    'movil': 'programacion',
+    'devops': 'programacion',
+    'cloudflare': 'programacion',
+
+    // Categoría: Ofimática (Ejemplo futuro)
+    'office': 'ofimatica',
+    'excel': 'ofimatica',
+
+    // Categoría: Negocios
+    'marketing': 'negocios',
+    'emprendimiento': 'negocios',
+
+    // Categoría: Historia
+    'universal': 'historia',
+    'antigua': 'historia',
+
+    // Categoría: Humanidades
+    'literatura': 'humanidades',
+    'filosofia': 'humanidades',
+
+    // Categoría: Ciencias
+    'biologia': 'ciencias',
+    'fisica': 'ciencias'
 };
 
 // ============================================
@@ -112,7 +145,7 @@ async function loadCategoriesFromAPI() {
     try {
         const response = await fetch('/api/categories');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
         const data = await response.json();
         courseState.categories = data;
         console.log(`✅ ${data.length} categorías cargadas desde D1`);
@@ -141,7 +174,7 @@ async function loadCoursesFromAPI() {
     try {
         const response = await fetch('/api/courses');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
         const data = await response.json();
         courseState.courses = data;
         console.log(`✅ ${data.length} cursos cargados desde D1`);
@@ -161,7 +194,7 @@ async function initCategoriesPage() {
 
     // 1. Cargar categorías desde D1
     const categories = await loadCategoriesFromAPI();
-    
+
     // 2. Renderizar
     renderCategories(categories);
 
@@ -293,7 +326,9 @@ function initCoursesPage() {
     });
 }
 
+// ============================================
 // Renderiza los "pills" de filtro dinámicamente
+// ============================================
 function renderFilterPills(categories) {
     const container = document.getElementById('filter-pills');
     if (!container) return;
@@ -303,12 +338,24 @@ function renderFilterPills(categories) {
     container.innerHTML = '';
     if (todosBtn) container.appendChild(todosBtn.cloneNode(true));
 
-    // Añadir categorías PRINCIPALES (no subcategorías)
+    // Iterar sobre las categorías PRINCIPALES de la DB
     categories.forEach(cat => {
+        // Solo mostramos categorías que tengan cursos asociados (opcional, pero recomendado)
+        // Por ahora mostramos todas las categorías principales
         const btn = document.createElement('button');
         btn.className = 'filter-pill';
-        btn.dataset.category = cat.id;  // ← id de la categoría principal (programacion, historia, etc.)
+
+        // IMPORTANTE: El dataset ahora guarda la CATEGORÍA PRINCIPAL (ej: 'programacion')
+        btn.dataset.category = cat.id;
         btn.textContent = cat.title;
+
+        // Asignar color de fondo basado en la categoría
+        if (cat.color) {
+            btn.style.background = cat.color;
+            btn.style.color = 'white';
+            btn.style.border = 'none';
+        }
+
         container.appendChild(btn);
     });
 
@@ -317,7 +364,10 @@ function renderFilterPills(categories) {
         pill.addEventListener('click', () => {
             container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
             pill.classList.add('active');
+
+            // Guardamos la categoría principal seleccionada
             courseState.activeCategory = pill.dataset.category;
+
             applyFilters({
                 grid: document.getElementById('courses-grid'),
                 countDisplay: document.getElementById('courses-count'),
@@ -326,7 +376,7 @@ function renderFilterPills(categories) {
         });
     });
 
-    // Verificar si hay categoría en URL
+    // Verificar si hay categoría en URL (para navegación directa)
     const urlParams = new URLSearchParams(window.location.search);
     const urlCategory = urlParams.get('category');
     if (urlCategory) {
@@ -337,14 +387,16 @@ function renderFilterPills(categories) {
     }
 }
 
-// En renderCourses(courses) - Actualizar para mostrar subcategoría opcionalmente
+// ============================================
+// Renderiza las tarjetas de cursos
+// ============================================
 function renderCourses(courses) {
     const grid = document.getElementById('courses-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Mapeo de subcategorías a gradientes (seguir usando esto para los colores)
-    const gradients = {
+    // Mapeo de subcategorías a gradientes (para el color de la tarjeta)
+    const subGradients = {
         web: 'linear-gradient(135deg, #e44d26, #f16529)',
         backend: 'linear-gradient(135deg, #3776ab, #ffd43b)',
         datos: 'linear-gradient(135deg, #150458, #ff6600)',
@@ -356,50 +408,62 @@ function renderCourses(courses) {
     courses.forEach((course, index) => {
         const card = document.createElement('div');
         card.className = 'course-card';
-        card.dataset.category = course.category;       // ← AHORA FILTRA POR CATEGORY PRINCIPAL
-        card.dataset.subcategory = course.subcategory; // ← NUEVO: SUBCATEGORÍA
+
+        // DATASET CORREGIDO:
+        // 1. category: Guarda la categoría PRINCIPAL (ej: 'programacion') -> Para filtrar
+        // 2. subcategory: Guarda la subcategoría (ej: 'web') -> Solo para visualización/color
+        card.dataset.category = course.category;
+        card.dataset.subcategory = course.subcategory;
+
         card.dataset.level = course.level;
         card.dataset.courseId = course.id;
-        
+
         // Usar gradiente basado en subcategoría (para mantener los colores actuales)
-        const grad = gradients[course.subcategory] || 'var(--accent-gradient)';
+        const grad = subGradients[course.subcategory] || 'var(--accent-gradient)';
         card.style.setProperty('--card-accent', grad);
         card.style.animationDelay = `${index * 0.05}s`;
 
         card.innerHTML = `
-            <span class="course-level ${course.level}">${capitalizeFirst(course.level)}</span>
-            <div class="course-icon">${course.icon || '📚'}</div>
-            <h3 class="course-title">${escapeHtml(course.title)}</h3>
-            <p class="course-description">${escapeHtml(course.description)}</p>
-            <div class="course-meta">
-                <span class="course-meta-item"><span>📚</span> ${course.lessons} lecciones</span>
-                <span class="course-meta-item"><span>⏱️</span> ${escapeHtml(course.duration)}</span>
-            </div>
-            <button class="course-start-btn" data-course="${course.id}">Comenzar</button>
-        `;
+      <span class="course-level ${course.level}">${capitalizeFirst(course.level)}</span>
+      <div class="course-icon">${course.icon || '📚'}</div>
+      <h3 class="course-title">${escapeHtml(course.title)}</h3>
+      <p class="course-description">${escapeHtml(course.description)}</p>
+      <div class="course-meta">
+        <span class="course-meta-item"><span>📚</span> ${course.lessons} lecciones</span>
+        <span class="course-meta-item"><span>⏱️</span> ${escapeHtml(course.duration)}</span>
+      </div>
+      <button class="course-start-btn" data-course="${course.id}">Comenzar</button>
+    `;
 
         grid.appendChild(card);
     });
 }
 
-// En applyFilters(elements) - Actualizar para filtrar por category principal
+// ============================================
+// Aplica los filtros (Corregido)
+// ============================================
 function applyFilters(elements) {
     const cards = elements.grid.querySelectorAll('.course-card');
     let visibleCount = 0;
 
     cards.forEach(card => {
-        const category = card.dataset.category;        // ← Categoría principal
-        const subcategory = card.dataset.subcategory;  // ← Subcategoría
+        // 1. Obtener la categoría PRINCIPAL del curso (ej: 'programacion')
+        const courseMainCategory = card.dataset.category;
+
+        // 2. Obtener la categoría seleccionada en el filtro (ej: 'programacion')
+        const selectedCategory = courseState.activeCategory;
+
+        // 3. Lógica de filtrado
+        // Si seleccionaste 'todos' -> muestra todo
+        // Si seleccionaste 'programacion' -> muestra solo cursos donde category === 'programacion'
+        const matchesCategory = selectedCategory === 'todos' || courseMainCategory === selectedCategory;
+
+        // 4. Lógica de búsqueda (texto)
         const title = card.querySelector('.course-title')?.textContent.toLowerCase() || '';
         const description = card.querySelector('.course-description')?.textContent.toLowerCase() || '';
-
-        // Filtrar por categoría PRINCIPAL
-        const matchesCategory = courseState.activeCategory === 'todos' || 
-                                category === courseState.activeCategory;
-
-        const matchesSearch = !courseState.searchQuery || 
-                              title.includes(courseState.searchQuery) || 
-                              description.includes(courseState.searchQuery);
+        const matchesSearch = !courseState.searchQuery ||
+            title.includes(courseState.searchQuery) ||
+            description.includes(courseState.searchQuery);
 
         if (matchesCategory && matchesSearch) {
             card.style.display = '';
@@ -526,7 +590,7 @@ function showError(els, msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 courses.js iniciado');
-    
+
     initializeTheme();
     setupThemeToggle();
     setupMobileMenu();
