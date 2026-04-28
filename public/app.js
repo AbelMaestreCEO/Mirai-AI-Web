@@ -684,6 +684,8 @@ function initializeChat() {
   console.log('✨ Mirai AI inicializado correctamente');
 }
 
+// En app.js, dentro de la función loadOrCreateConversation()
+
 async function loadOrCreateConversation() {
   const urlParams = new URLSearchParams(window.location.search);
   const courseId = urlParams.get('course');
@@ -693,16 +695,21 @@ async function loadOrCreateConversation() {
   if (mode === 'education' && courseId) {
     // ✅ Detectar contexto educativo
     educationContext.courseId = courseId;
-    educationContext.lessonId = lessonId;  // ← AGREGAR ESTO
+    educationContext.lessonId = lessonId;  
     educationContext.isActive = true;
 
     console.log('🎓 Modo educativo:', { courseId, lessonId });
+
+    // ✨ NUEVO: Forzar modo "solo texto" en clases
+    state.audioMode = 'never'; 
+    localStorage.setItem(CONFIG.TTS_MODE_KEY, 'never');
+    updateAudioModeUI(); // Actualizar la interfaz visual inmediatamente
 
     // Si NO hay lesson_id, redirigir a course_details.html para seleccionarla
     if (!lessonId) {
       console.warn('⚠️ No hay lesson_id. Redirigiendo a course_details.html');
       window.location.href = `course_details.html?id=${courseId}`;
-      return;  // ← DETENER EJECUCIÓN
+      return;  
     }
 
     const convId = await getEducationConversation(courseId);
@@ -711,7 +718,7 @@ async function loadOrCreateConversation() {
 
     localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, convId);
     localStorage.setItem('mirai-ai-course-id', courseId);
-    localStorage.setItem('mirai-ai-lesson-id', lessonId);  // ← GUARDAR lesson_id
+    localStorage.setItem('mirai-ai-lesson-id', lessonId);  
 
     await loadConversationHistory(convId);
 
@@ -728,7 +735,7 @@ async function loadOrCreateConversation() {
     }
 
   } else {
-    // Conversación normal
+    // Conversación normal (mantener comportamiento anterior)
     const savedId = localStorage.getItem(CONFIG.STORAGE_KEY_CONVERSATION);
     if (savedId) {
       state.currentConversationId = savedId;
