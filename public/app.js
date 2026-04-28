@@ -1703,20 +1703,24 @@ async function loadConversations() {
   }
 }
 
-function renderConversationsList(conversations, enrolledCourses) {
+function renderConversationsList(conversationsData, enrolledCourses) {
   const list = elements.conversationsList;
   list.innerHTML = '';
 
-  // SECCIÓN: Cursos Iniciados
+  // conversationsData viene como { regular: [...], courses: [...] }
+  const regularConvs = conversationsData.regular || [];
+  const courseConvs = conversationsData.courses || []; // Aunque ya usas enrolledCourses, esto es por seguridad
+
+  // SECCIÓN: Cursos Iniciados (Ya lo tenías bien con enrolledCourses)
   if (enrolledCourses.length > 0) {
+    // ... (Tu código existente para cursos se mantiene igual)
     const sectionTitle = document.createElement('li');
     sectionTitle.className = 'conv-section-title';
-    sectionTitle.innerHTML = `
-      <span>📚 Cursos Iniciados</span>
-    `;
+    sectionTitle.innerHTML = `<span>📚 Cursos Iniciados</span>`;
     list.appendChild(sectionTitle);
 
     enrolledCourses.forEach(course => {
+      // ... (Tu código existente para renderizar cursos)
       const li = document.createElement('li');
       li.className = 'conv-item conv-course-item';
       const courseId = course.course_id || course.metadata_course_id;
@@ -1747,71 +1751,57 @@ function renderConversationsList(conversations, enrolledCourses) {
       list.appendChild(li);
     });
 
-    // Separador
     const separator = document.createElement('li');
     separator.className = 'conv-separator';
     separator.innerHTML = '<hr>';
     list.appendChild(separator);
   }
 
-  // SECCIÓN: Conversaciones Normales
-  if (conversations.length > 0) {
+  // SECCIÓN: Conversaciones Normales (CORREGIDO)
+  if (regularConvs.length > 0) { // ✅ Ahora verificamos regularConvs.length
     const sectionTitle = document.createElement('li');
     sectionTitle.className = 'conv-section-title';
-    sectionTitle.innerHTML = `
-      <span>💬 Conversaciones</span>
-    `;
+    sectionTitle.innerHTML = `<span>💬 Conversaciones</span>`;
     list.appendChild(sectionTitle);
 
-    if (!conversations || conversations.length === 0) {
-      list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
-      return;
-    }
-
-    conversations.forEach(conv => {
+    regularConvs.forEach(conv => { // ✅ Iteramos sobre regularConvs
       const li = document.createElement('li');
       li.className = 'conv-item';
       li.dataset.id = conv.id;
 
-      // Marcar como activa si es la conversación actual
       if (conv.id === state.currentConversationId) {
         li.classList.add('active');
       }
 
-      // Formatear fecha
       const dateStr = formatDate(conv.updated_at || conv.created_at);
 
       li.innerHTML = `
-      <span class="conv-item-icon">💬</span>
-      <div class="conv-item-info">
-        <span class="conv-item-title">${escapeHtml(conv.title)}</span>
-        <span class="conv-item-date">${dateStr}</span>
-      </div>
-      <div class="conv-item-actions">
-        <button class="conv-action-btn rename-btn" title="Renombrar">
-          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-        </button>
-        <button class="conv-action-btn delete" title="Eliminar">
-          <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-        </button>
-      </div>
-    `;
+        <span class="conv-item-icon">💬</span>
+        <div class="conv-item-info">
+          <span class="conv-item-title">${escapeHtml(conv.title)}</span>
+          <span class="conv-item-date">${dateStr}</span>
+        </div>
+        <div class="conv-item-actions">
+          <button class="conv-action-btn rename-btn" title="Renombrar">
+            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          </button>
+          <button class="conv-action-btn delete" title="Eliminar">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+      `;
 
-      // Click para cambiar de conversación
       li.addEventListener('click', (e) => {
-        // Ignorar clicks en botones de acción
         if (e.target.closest('.conv-action-btn')) return;
         switchConversation(conv.id);
       });
 
-      // Botón renombrar
       const renameBtn = li.querySelector('.rename-btn');
       renameBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         startRenameConversation(li, conv);
       });
 
-      // Botón eliminar
       const deleteBtn = li.querySelector('.delete');
       deleteBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -1820,6 +1810,9 @@ function renderConversationsList(conversations, enrolledCourses) {
 
       list.appendChild(li);
     });
+  } else if (enrolledCourses.length === 0) {
+    // Solo mostrar mensaje vacío si no hay NADA (ni cursos ni chats)
+    list.innerHTML = '<li class="conv-empty">No hay conversaciones aún</li>';
   }
 }
 
