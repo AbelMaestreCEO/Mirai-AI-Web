@@ -320,9 +320,9 @@ export default {
 
       // ✅ VERIFICACIÓN DE SEGURIDAD (AHORA DESPUÉS DE DEFINIR url)
       if (path.startsWith('/.') ||
-          path.includes('.env') ||
-          path.includes('.aws') ||
-          path.includes('.git')) {
+        path.includes('.env') ||
+        path.includes('.aws') ||
+        path.includes('.git')) {
         return new Response('Not Found', { status: 404 });
       }
 
@@ -493,6 +493,10 @@ async function handleApiRequest(request, env, corsHeaders) {
         console.error('❌ [Enrolled] Error:', error.message);
         return jsonResponse({ error: error.message }, 500, corsHeaders);
       }
+    }
+
+    if (path === '/api/categories' && request.method === 'GET') {
+      return await handleGetCategories(env, corsHeaders);
     }
 
     if (path === '/api/courses' && request.method === 'GET') {
@@ -1381,6 +1385,17 @@ async function handleGetCourses(env, corsHeaders) {
     SELECT id, title, description, category, level, lessons, duration, icon
     FROM courses
     ORDER BY category, level
+  `);
+
+  const { results } = await stmt.all();
+  return jsonResponse(results, 200, corsHeaders);
+}
+
+async function handleGetCategories(env, corsHeaders) {
+  const stmt = env.MIRAI_AI_DB.prepare(`
+    SELECT id, title, description, icon, color
+    FROM categories
+    ORDER BY title ASC
   `);
 
   const { results } = await stmt.all();
