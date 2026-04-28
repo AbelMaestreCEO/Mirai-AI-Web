@@ -1382,9 +1382,18 @@ async function handleServeImage(path, env) {
 
 async function handleGetCourses(env, corsHeaders) {
   const stmt = env.MIRAI_AI_DB.prepare(`
-    SELECT id, title, description, category, level, lessons, duration, icon
+    SELECT 
+      id, 
+      title, 
+      description, 
+      category,      -- Categoría principal (programacion, ofimatica, historia)
+      subcategory,   -- Subcategoría (web, backend, datos, movil, etc.)
+      level, 
+      lessons, 
+      duration, 
+      icon
     FROM courses
-    ORDER BY category, level
+    ORDER BY category, subcategory, level
   `);
 
   const { results } = await stmt.all();

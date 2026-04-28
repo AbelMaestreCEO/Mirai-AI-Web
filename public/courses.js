@@ -303,16 +303,16 @@ function renderFilterPills(categories) {
     container.innerHTML = '';
     if (todosBtn) container.appendChild(todosBtn.cloneNode(true));
 
-    // Añadir categorías
+    // Añadir categorías PRINCIPALES (no subcategorías)
     categories.forEach(cat => {
         const btn = document.createElement('button');
         btn.className = 'filter-pill';
-        btn.dataset.category = cat.id;
+        btn.dataset.category = cat.id;  // ← id de la categoría principal (programacion, historia, etc.)
         btn.textContent = cat.title;
         container.appendChild(btn);
     });
 
-    // Re-asignar listeners (porque clonamos el DOM)
+    // Re-asignar listeners
     container.querySelectorAll('.filter-pill').forEach(pill => {
         pill.addEventListener('click', () => {
             container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
@@ -326,7 +326,7 @@ function renderFilterPills(categories) {
         });
     });
 
-    // Verificar si hay categoría en URL (desde category page)
+    // Verificar si hay categoría en URL
     const urlParams = new URLSearchParams(window.location.search);
     const urlCategory = urlParams.get('category');
     if (urlCategory) {
@@ -337,29 +337,32 @@ function renderFilterPills(categories) {
     }
 }
 
+// En renderCourses(courses) - Actualizar para mostrar subcategoría opcionalmente
 function renderCourses(courses) {
     const grid = document.getElementById('courses-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
+    // Mapeo de subcategorías a gradientes (seguir usando esto para los colores)
     const gradients = {
-        programacion: 'linear-gradient(135deg, #667eea, #764ba2)',
-        ofimatica: 'linear-gradient(135deg, #2b5876, #4e4376)',
-        negocios: 'linear-gradient(135deg, #f093fb, #f5576c)',
-        historia: 'linear-gradient(135deg, #4facfe, #00f2fe)',
-        humanidades: 'linear-gradient(135deg, #fa709a, #fee140)',
-        ciencias: 'linear-gradient(135deg, #a8edea, #fed6e3)'
+        web: 'linear-gradient(135deg, #e44d26, #f16529)',
+        backend: 'linear-gradient(135deg, #3776ab, #ffd43b)',
+        datos: 'linear-gradient(135deg, #150458, #ff6600)',
+        movil: 'linear-gradient(135deg, #fa7343, #f5a623)',
+        devops: 'linear-gradient(135deg, #f05032, #de4c36)',
+        cloudflare: 'linear-gradient(135deg, #f48120, #fbad41)'
     };
 
     courses.forEach((course, index) => {
         const card = document.createElement('div');
         card.className = 'course-card';
-        card.dataset.category = course.category;
+        card.dataset.category = course.category;       // ← AHORA FILTRA POR CATEGORY PRINCIPAL
+        card.dataset.subcategory = course.subcategory; // ← NUEVO: SUBCATEGORÍA
         card.dataset.level = course.level;
         card.dataset.courseId = course.id;
         
-        // Usar gradiente de la categoría o fallback
-        const grad = course.category_color || 'var(--accent-gradient)'; 
+        // Usar gradiente basado en subcategoría (para mantener los colores actuales)
+        const grad = gradients[course.subcategory] || 'var(--accent-gradient)';
         card.style.setProperty('--card-accent', grad);
         card.style.animationDelay = `${index * 0.05}s`;
 
@@ -379,16 +382,21 @@ function renderCourses(courses) {
     });
 }
 
+// En applyFilters(elements) - Actualizar para filtrar por category principal
 function applyFilters(elements) {
     const cards = elements.grid.querySelectorAll('.course-card');
     let visibleCount = 0;
 
     cards.forEach(card => {
-        const category = card.dataset.category;
+        const category = card.dataset.category;        // ← Categoría principal
+        const subcategory = card.dataset.subcategory;  // ← Subcategoría
         const title = card.querySelector('.course-title')?.textContent.toLowerCase() || '';
         const description = card.querySelector('.course-description')?.textContent.toLowerCase() || '';
 
-        const matchesCategory = courseState.activeCategory === 'todos' || category === courseState.activeCategory;
+        // Filtrar por categoría PRINCIPAL
+        const matchesCategory = courseState.activeCategory === 'todos' || 
+                                category === courseState.activeCategory;
+
         const matchesSearch = !courseState.searchQuery || 
                               title.includes(courseState.searchQuery) || 
                               description.includes(courseState.searchQuery);
