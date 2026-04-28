@@ -211,15 +211,15 @@ async function generateAndStoreTTS(text, conversationId, env) {
         // CASO 1: La API devuelve una URL en result.audio (Lo que está pasando ahora)
         if (ttsResult?.result?.audio && typeof ttsResult.result.audio === 'string') {
           console.log('🔗 Detectada URL de audio:', ttsResult.result.audio);
-          
+
           try {
             // Descargar el audio desde la URL
             const downloadResponse = await fetch(ttsResult.result.audio);
-            
+
             if (!downloadResponse.ok) {
               throw new Error(`Error descargando audio: ${downloadResponse.status}`);
             }
-            
+
             audioBuffer = await downloadResponse.arrayBuffer();
             console.log('✅ Audio descargado y convertido a ArrayBuffer:', audioBuffer.byteLength, 'bytes');
           } catch (downloadError) {
@@ -318,6 +318,14 @@ export default {
       const url = new URL(request.url);
       const path = url.pathname;
 
+      // ✅ VERIFICACIÓN DE SEGURIDAD (AHORA DESPUÉS DE DEFINIR url)
+      if (path.startsWith('/.') ||
+          path.includes('.env') ||
+          path.includes('.aws') ||
+          path.includes('.git')) {
+        return new Response('Not Found', { status: 404 });
+      }
+
       // Habilitar CORS para todas las rutas
       const corsHeaders = {
         'Access-Control-Allow-Origin': '*',
@@ -344,10 +352,15 @@ export default {
 
     } catch (error) {
       console.error('Worker error:', error);
+      // ✅ Definir corsHeaders mínimos para el catch
+      const fallbackCorsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      };
       return jsonResponse(
         { error: 'Error interno del servidor' },
         500,
-        corsHeaders
+        fallbackCorsHeaders
       );
     }
   }
@@ -414,73 +427,73 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
 
     if (path === '/api/education-conversation' && request.method === 'GET') {
-    const courseId = url.searchParams.get('course');
+      const courseId = url.searchParams.get('course');
 
-    if (!courseId) {
-      return jsonResponse({ error: 'course ID required' }, 400, corsHeaders);
-    }
-
-    try {
-      console.log('🎓 [Education] Buscando curso:', courseId);
-
-      // Usar MIRAI_AI_DB (el correcto)
-      const existing = await env.MIRAI_AI_DB.prepare(
-        `SELECT id FROM conversations WHERE course_id = ? LIMIT 1`
-      ).bind(courseId).first();
-
-      if (existing) {
-        console.log('✅ [Education] Encontrada:', existing.id);
-        return jsonResponse({ conversation_id: existing.id }, 200, corsHeaders);
+      if (!courseId) {
+        return jsonResponse({ error: 'course ID required' }, 400, corsHeaders);
       }
 
-      // Crear nueva
-      const convId = crypto.randomUUID();
-      await env.MIRAI_AI_DB.prepare(
-        `INSERT INTO conversations (id, title, course_id, created_at, updated_at) 
+      try {
+        console.log('🎓 [Education] Buscando curso:', courseId);
+
+        // Usar MIRAI_AI_DB (el correcto)
+        const existing = await env.MIRAI_AI_DB.prepare(
+          `SELECT id FROM conversations WHERE course_id = ? LIMIT 1`
+        ).bind(courseId).first();
+
+        if (existing) {
+          console.log('✅ [Education] Encontrada:', existing.id);
+          return jsonResponse({ conversation_id: existing.id }, 200, corsHeaders);
+        }
+
+        // Crear nueva
+        const convId = crypto.randomUUID();
+        await env.MIRAI_AI_DB.prepare(
+          `INSERT INTO conversations (id, title, course_id, created_at, updated_at) 
          VALUES (?, ?, ?, datetime('now'), datetime('now'))`
-      ).bind(convId, `Curso: ${courseId}`, courseId).run();
+        ).bind(convId, `Curso: ${courseId}`, courseId).run();
 
-      console.log('✅ [Education] Creada:', convId);
-      return jsonResponse({ conversation_id: convId }, 201, corsHeaders);
+        console.log('✅ [Education] Creada:', convId);
+        return jsonResponse({ conversation_id: convId }, 201, corsHeaders);
 
-    } catch (error) {
-      console.error('❌ [Education] Error:', error.message);
-      return jsonResponse({ error: error.message }, 500, corsHeaders);
+      } catch (error) {
+        console.error('❌ [Education] Error:', error.message);
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
     }
-  }
     if (path === '/api/enrolled-courses' && request.method === 'GET') {
-    try {
-      console.log('📚 [Enrolled] Obteniendo lista...');
+      try {
+        console.log('📚 [Enrolled] Obteniendo lista...');
 
-      const result = await env.MIRAI_AI_DB.prepare(
-        `SELECT DISTINCT c.course_id, c.title as course_title, c.created_at as started_at
+        const result = await env.MIRAI_AI_DB.prepare(
+          `SELECT DISTINCT c.course_id, c.title as course_title, c.created_at as started_at
          FROM conversations c
          WHERE c.course_id IS NOT NULL`
-      ).all();
+        ).all();
 
-      // Usar .results, no .rows
-      const enrolled = await Promise.all(
-        result.results.map(async (row) => {
-          const courseInfo = await env.MIRAI_AI_DB.prepare(
-            `SELECT title, description, icon FROM courses WHERE id = ?`
-          ).bind(row.course_id).first();
+        // Usar .results, no .rows
+        const enrolled = await Promise.all(
+          result.results.map(async (row) => {
+            const courseInfo = await env.MIRAI_AI_DB.prepare(
+              `SELECT title, description, icon FROM courses WHERE id = ?`
+            ).bind(row.course_id).first();
 
-          return {
-            course_id: row.course_id,
-            title: courseInfo?.title || row.course_title,
-            started_at: row.started_at
-          };
-        })
-      );
+            return {
+              course_id: row.course_id,
+              title: courseInfo?.title || row.course_title,
+              started_at: row.started_at
+            };
+          })
+        );
 
-      console.log('✅ [Enrolled] Lista obtenida:', enrolled.length);
-      return jsonResponse(enrolled, 200, corsHeaders);
+        console.log('✅ [Enrolled] Lista obtenida:', enrolled.length);
+        return jsonResponse(enrolled, 200, corsHeaders);
 
-    } catch (error) {
-      console.error('❌ [Enrolled] Error:', error.message);
-      return jsonResponse({ error: error.message }, 500, corsHeaders);
+      } catch (error) {
+        console.error('❌ [Enrolled] Error:', error.message);
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
     }
-  }
 
     if (path === '/api/courses' && request.method === 'GET') {
       return await handleGetCourses(env, corsHeaders);
@@ -567,7 +580,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     if (convEducationContext && convEducationContext.course_id && convEducationContext.lesson_id) {
       const lessonContext = await getLessonContext(convEducationContext.course_id, convEducationContext.lesson_id, env);
       console.log('📖 Datos de lección obtenidos:', lessonContext ? lessonContext.title : 'NO ENCONTRADA');
-      
+
       if (lessonContext) {
         const educationPrompt = buildEducationSystemPrompt(lessonContext);
         if (educationPrompt) {
@@ -641,9 +654,9 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   } catch (error) {
     console.error('❌ Error en handleTextChatInternal:', error.message);
     console.error('Stack:', error.stack);
-    return jsonResponse({ 
+    return jsonResponse({
       error: 'Error procesando mensaje',
-      details: error.message 
+      details: error.message
     }, 500, corsHeaders);
   }
 }
@@ -1383,37 +1396,47 @@ async function handleGetCourseDetails(request, env, corsHeaders) {
   }
 
   try {
+    console.log('📡 Buscando curso:', courseId);
+
     // 1. Obtener datos del curso
     const courseStmt = env.MIRAI_AI_DB.prepare(`
-            SELECT id, title, description, category, level, lessons, duration, icon
-            FROM courses
-            WHERE id = ?
-        `);
+      SELECT id, title, description, category, level, lessons, duration, icon
+      FROM courses
+      WHERE id = ?
+    `);
     const courseResult = await courseStmt.bind(courseId).first();
 
     if (!courseResult) {
+      console.warn('⚠️ Curso no encontrado:', courseId);
       return jsonResponse({ error: 'Curso no encontrado' }, 404, corsHeaders);
     }
 
     // 2. Obtener lecciones ordenadas
     const lessonsStmt = env.MIRAI_AI_DB.prepare(`
-            SELECT id, title, content, order_index
-            FROM lessons
-            WHERE course_id = ?
-            ORDER BY order_index ASC
-        `);
+      SELECT id, title, content, order_index
+      FROM lessons
+      WHERE course_id = ?
+      ORDER BY order_index ASC
+    `);
     const lessonsResult = await lessonsStmt.bind(courseId).all();
+
+    const lessonsList = lessonsResult.results || [];
 
     // 3. Construir respuesta
     const responseData = {
       ...courseResult,
-      lessons_list: lessonsResult.results || []
+      lessons_list: lessonsList,
+      // ✅ Asegurar que 'lessons' tenga el valor correcto (conteo real)
+      // Si la columna 'lessons' en DB es NULL o no coincide, usamos el conteo real
+      lessons: courseResult.lessons !== undefined ? courseResult.lessons : lessonsList.length
     };
+
+    console.log('✅ Curso encontrado:', responseData.title, '| Lecciones:', lessonsList.length);
 
     return jsonResponse(responseData, 200, corsHeaders);
 
   } catch (error) {
-    console.error('Error en course-details:', error);
+    console.error('❌ Error en course-details:', error.message);
     return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
   }
 }

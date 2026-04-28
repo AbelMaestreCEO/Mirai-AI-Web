@@ -340,7 +340,9 @@ function initCourseDetailsPage() {
     // --- CARGAR DATOS DEL CURSO ---
     async function loadCourseDetails() {
         const urlParams = new URLSearchParams(window.location.search);
-        const courseId = urlParams.get('course');
+        const courseId = urlParams.get('id') || urlParams.get('course'); // ✅ CORREGIDO: leer 'id' primero
+
+        console.log('🔍 Course ID detectado:', courseId);
 
         if (!courseId) {
             showError('No se especificó un curso. <a href="courses.html">Volver a Cursos</a>');
@@ -438,7 +440,8 @@ function initCourseDetailsPage() {
                     btn.textContent = 'Redirigiendo...';
                     btn.disabled = true;
                     setTimeout(() => {
-                        window.location.href = `index.html?course=${courseId}&lesson=${lessonId}`;
+                        // ✅ CORREGIDO: Incluir mode=education
+                        window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
                     }, 300);
                 }
                 return;
