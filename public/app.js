@@ -73,6 +73,30 @@ document.addEventListener('DOMContentLoaded', () => {
     loadConversations();
     initializeAudioMode();
   }
+  const headers = document.querySelectorAll('.collapsible-header');
+  // Configurar estado inicial (opcional: cerrar todos excepto uno)
+  // headers.forEach(h => h.parentElement.classList.remove('active'));
+
+  headers.forEach(header => {
+    header.addEventListener('click', () => {
+      const section = header.parentElement;
+
+      // Opcional: Cerrar otros abiertos (comportamiento de acordeón estricto)
+      // document.querySelectorAll('.collapsible-section').forEach(s => {
+      //     if (s !== section) s.classList.remove('active');
+      // });
+
+      section.classList.toggle('active');
+    });
+
+    // Soporte para teclado (accesibilidad)
+    header.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        section.classList.toggle('active');
+      }
+    });
+  });
 });
 
 function detectEducationContext() {
@@ -1686,18 +1710,18 @@ async function loadConversations() {
     // Cargar conversaciones normales
     const response = await fetch('/api/conversations');
     if (!response.ok) return;
-    
+
     const conversations = await response.json();
-    
+
     // Cargar cursos iniciados
     const coursesResponse = await fetch('/api/enrolled-courses');
     let enrolledCourses = [];
     if (coursesResponse.ok) {
       enrolledCourses = await coursesResponse.json();
     }
-    
+
     renderConversationsList(conversations, enrolledCourses);
-    
+
   } catch (error) {
     console.error('Error cargando conversaciones:', error);
   }

@@ -3578,3 +3578,59 @@ svg {
   background: linear-gradient(135deg, rgba(244, 129, 32, 0.2), rgba(251, 173, 65, 0.1));
   border-left-color: var(--cloudflare-orange);
 }
+
+/* Estilos para secciones desplegables */
+.collapsible-section {
+    margin-bottom: 1rem;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    user-select: none;
+    transition: color 0.2s ease;
+}
+
+.collapsible-header:hover {
+    color: var(--primary-color, #61dafb); /* Ajusta según tu variable de color */
+}
+
+.collapsible-header h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.chevron-icon {
+    transition: transform 0.3s ease;
+    fill: currentColor;
+}
+
+/* Estado expandido */
+.collapsible-section.active .collapsible-content {
+    max-height: 500px; /* Altura suficiente para el contenido */
+    opacity: 1;
+    margin-top: 0.5rem;
+}
+
+.collapsible-section.active .chevron-icon {
+    transform: rotate(180deg);
+}
+
+/* Contenido colapsado por defecto */
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin-top 0.3s ease;
+}
+
+/* Opcional: Asegurar que Navegación y Conversaciones sigan visibles siempre */
+.sidebar-section:not(.collapsible-section) {
+    margin-bottom: 1.5rem;
+}
