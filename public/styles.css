@@ -481,13 +481,15 @@ body::before {
 }
 
 .send-button svg {
-  width: 20px;
-  height: 20px;
-  fill: white;
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
   margin-left: 2px;
   position: relative;
   z-index: 1;
+  transition: all 0.2s ease;
 }
+
 
 /* --- ESTADO DE CARGA --- */
 .typing-indicator {
@@ -4045,12 +4047,6 @@ svg {
   }
 }
 
-/* Estado de grabación en el botón de envío */
-.send-button.recording {
-  background-color: #ff4757; /* Rojo para indicar grabación */
-  animation: pulse 1.5s infinite;
-}
-
 @keyframes pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.1); opacity: 0.8; }
@@ -4060,4 +4056,16 @@ svg {
 /* Ocultar el botón de micrófono antiguo si aún existe en el HTML */
 #voice-btn {
   display: none !important;
+}
+
+/* Estado de grabación en el botón de envío */
+.send-button.recording {
+  background-color: #ff4757 !important; /* Rojo intenso */
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
 }

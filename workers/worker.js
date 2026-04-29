@@ -730,6 +730,42 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary); // btoa() es global en Workers, NO usar window.btoa()
 }
 
+// --- ACTUALIZAR ICONO DEL BOTÓN DE ENVÍO ---
+function updateSendButtonIcon() {
+  if (!elements.sendButton) return;
+
+  const hasText = elements.messageInput.value.trim().length > 0;
+  const isRecording = isRecording; // Variable global definida en initializeVoiceRecorder
+
+  // Resetear clases y contenido base
+  elements.sendButton.classList.remove('recording');
+  
+  if (isRecording) {
+    // ESTADO: GRABANDO
+    elements.sendButton.classList.add('recording');
+    elements.sendButton.innerHTML = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+      </svg>
+    `;
+  } else if (hasText) {
+    // ESTADO: CON TEXTO (Enviar)
+    elements.sendButton.innerHTML = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+      </svg>
+    `;
+  } else {
+    // ESTADO: SIN TEXTO (Micrófono)
+    elements.sendButton.innerHTML = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+      </svg>
+    `;
+  }
+}
+
 // --- GENERAR IMAGEN CON FLUX.2 KLEIN (CORREGIDO) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {

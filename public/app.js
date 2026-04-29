@@ -576,17 +576,18 @@ let isRecording = false;
 async function initializeVoiceRecorder() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     console.warn('⚠️ Acceso al micrófono no soportado en este navegador.');
-    if (elements.voiceBtn) elements.voiceBtn.style.display = 'none';
+    // Opcional: ocultar el botón si no hay soporte
+    // if (elements.sendButton) elements.sendButton.style.display = 'none';
     return;
   }
 
-  // Configurar evento click del botón (ahora compartido con send)
+  // Inicializar icono al cargar
+  updateSendButtonIcon();
+
+  // Configurar evento click del botón
   if (elements.sendButton) {
     elements.sendButton.addEventListener('click', handleSendOrRecord);
   }
-
-  // Si quieres mantener un botón de micrófono dedicado (opcional, según tu diseño)
-  // Pero según tu petición, usaremos el botón SEND.
 }
 
 async function handleSendOrRecord() {
@@ -619,21 +620,19 @@ async function startRecording() {
     };
 
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // O 'audio/mp4' según soporte
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       await processAudioBlob(audioBlob);
-
-      // Detener tracks para liberar el micrófono
       stream.getTracks().forEach(track => track.stop());
     };
 
     mediaRecorder.start();
     isRecording = true;
-
-    // Feedback visual en el botón
-    elements.sendButton.classList.add('recording');
-    elements.sendButton.innerHTML = '⏹️'; // Icono de parar
+    
+    // Actualizar icono inmediatamente
+    updateSendButtonIcon();
+    
     elements.messageInput.placeholder = "Grabando... (Haz clic para enviar)";
-
+    
   } catch (err) {
     console.error('Error accediendo al micrófono:', err);
     alert('No se pudo acceder al micrófono. Verifica los permisos.');
@@ -644,12 +643,10 @@ async function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
     isRecording = false;
-    elements.sendButton.classList.remove('recording');
-    elements.sendButton.innerHTML = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-      </svg>
-    `;
+    
+    // Actualizar icono inmediatamente
+    updateSendButtonIcon();
+    
     elements.messageInput.placeholder = "Escribe tu mensaje aquí...";
   }
 }
@@ -850,14 +847,19 @@ function setupEventListeners() {
   if (!elements.chatMessages) return;
   elements.sendButton.addEventListener('click', handleSendMessage);
 
+  // Listener para detectar cambios en el input y actualizar el icono
+  elements.messageInput.addEventListener('input', () => {
+    updateSendButtonIcon();
+    autoResizeTextarea();
+  });
+
+  // Listener para Enter
   elements.messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   });
-
-  elements.messageInput.addEventListener('input', debounce(autoResizeTextarea, CONFIG.DEBOUNCE_DELAY));
   elements.themeToggle.addEventListener('click', toggleTheme);
   initializeAudioPlayers();
   // Inicializar lightbox y botones de descarga
