@@ -425,7 +425,7 @@ function renderCourses(courses) {
         card.dataset.category = course.category;
         card.dataset.level = course.level;
         card.dataset.courseId = course.id;
-        const sub = course.subcategory ? course.subcategory.toLowerCase() : 'general';
+        const sub = course.category ? course.category.toLowerCase() : 'general';
         card.dataset.category = sub;
 
         const grad = subGradients[course.subcategory] || 'var(--accent-gradient)';
