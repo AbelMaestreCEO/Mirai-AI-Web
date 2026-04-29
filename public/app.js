@@ -691,17 +691,17 @@ async function processAudioBlob(audioBlob) {
   showTypingIndicator();
 
   try {
-    // 1. Subir audio a R2 primero
-    const formData = new FormData();
-    formData.append('audio', audioBlob, `voice-${Date.now()}.webm`);
-    formData.append('conversation_id', state.currentConversationId);
+    // 1. Subir audio a R2
+    const uploadFormData = new FormData();
+    uploadFormData.append('audio', audioBlob, `voice-${Date.now()}.webm`);
+    uploadFormData.append('conversation_id', state.currentConversationId);
 
     const uploadResponse = await fetch('/api/upload-audio', {
       method: 'POST',
-      body: formData
+      body: uploadFormData
     });
 
-    if (!uploadResponse.ok) throw new Error(`Error HTTP: ${uploadResponse.status}`);
+    if (!uploadResponse.ok) throw new Error(`Error subiendo audio: ${uploadResponse.status}`);
 
     const uploadData = await uploadResponse.json();
 
@@ -712,13 +712,17 @@ async function processAudioBlob(audioBlob) {
     // 2. Mostrar mensaje de audio del usuario en el chat
     appendUserAudioMessage(uploadData.audio_url);
 
-    // 3. Transcribir el audio con Whisper
+    // 3. Transcribir con FormData NUEVO (no reutilizar)
+    const transcribeFormData = new FormData();
+    transcribeFormData.append('audio', audioBlob, `voice-${Date.now()}.webm`);
+    transcribeFormData.append('conversation_id', state.currentConversationId);
+
     const transcriptionResponse = await fetch('/api/transcribe', {
       method: 'POST',
-      body: formData // Reutilizamos el mismo FormData
+      body: transcribeFormData
     });
 
-    if (!transcriptionResponse.ok) throw new Error(`Error HTTP: ${transcriptionResponse.status}`);
+    if (!transcriptionResponse.ok) throw new Error(`Error transcribiendo: ${transcriptionResponse.status}`);
 
     const transcriptionData = await transcriptionResponse.json();
     const transcription = transcriptionData.transcription || '';
@@ -729,9 +733,9 @@ async function processAudioBlob(audioBlob) {
       return;
     }
 
-    console.log(`🎤 Audio transcrito: "${transcription}"`);
+    console.log(`🎤 Transcripción: "${transcription}"`);
 
-    // 4. Enviar transcripción a DeepSeek (como si el usuario hubiera escrito)
+    // 4. Enviar transcripción a DeepSeek
     await sendTextToAI(transcription);
 
   } catch (error) {
