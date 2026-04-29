@@ -318,80 +318,85 @@ function initCoursesPage() {
 }
 
 // ============================================
-// 2. RENDERIZAR PILLS DE SUBCATEGORÍAS (CORREGIDO)
+// 2. RENDERIZAR PILLS DE CATEGORÍAS (CORREGIDO)
 // ============================================
 function renderFilterPills(categories, courses) {
-    const container = document.getElementById('filter-pills');
-    if (!container) return;
+  const container = document.getElementById('filter-pills');
+  if (!container) return;
 
-    // 1. Limpiar TODO el contenido previo (incluyendo los botones hardcoded del HTML)
-    container.innerHTML = '';
+  // 1. Limpiar todo
+  container.innerHTML = '';
 
-    // 2. Crear botón "Todos"
-    const todosBtn = document.createElement('button');
-    todosBtn.className = 'filter-pill active';
-    todosBtn.dataset.category = 'todos';
-    todosBtn.textContent = 'Todos';
-    container.appendChild(todosBtn);
+  // 2. Crear botón "Todos"
+  const todosBtn = document.createElement('button');
+  todosBtn.className = 'filter-pill active';
+  todosBtn.dataset.category = 'todos';
+  todosBtn.textContent = 'Todos';
+  container.appendChild(todosBtn);
 
-    // 3. Obtener subcategorías ÚNICAS de los cursos cargados
-    const subcategories = getUniqueSubcategories(courses);
-
-    // Mapeo de etiquetas bonitas (puedes añadir 'historia' aquí si no aparece automático)
-    const subLabels = {
-        'web': '🌐 Web',
-        'backend': '⚙️ Backend',
-        'datos': '📊 Datos',
-        'movil': '📱 Móvil',
-        'devops': '🚀 DevOps',
-        'cloudflare': '☁️ Cloudflare',
-        'historia': '📜 Historia', // Asegúrate de que esto coincida con tu DB
-        'ofimatica': '📝 Ofimática',
-        'negocios': '💼 Negocios'
-    };
-
-    // 4. Crear botones dinámicos
-    subcategories.forEach(sub => {
-        const btn = document.createElement('button');
-        btn.className = 'filter-pill';
-        btn.dataset.category = sub; // ¡CRÍTICO: El valor debe ser EXACTAMENTE el de la DB!
-
-        // Texto: Emoji si existe, sino capitalizado
-        const label = subLabels[sub] || (sub.charAt(0).toUpperCase() + sub.slice(1));
-        btn.textContent = label;
-
-        container.appendChild(btn);
-    });
-
-    // 5. Asignar eventos de clic (Lógica de filtrado)
-    container.querySelectorAll('.filter-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            // UI: Actualizar clase active
-            container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-
-            // Estado: Guardar la selección
-            courseState.activeCategory = pill.dataset.category;
-
-            // Acción: Aplicar filtros inmediatamente
-            applyFilters({
-                grid: document.getElementById('courses-grid'),
-                countDisplay: document.getElementById('courses-count'),
-                noResults: document.getElementById('no-results')
-            });
-        });
-    });
-
-    // 6. Verificar URL (Si llegas con ?category=historia)
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlSub = urlParams.get('category');
-    if (urlSub) {
-        const activePill = container.querySelector(`[data-category="${urlSub}"]`);
-        if (activePill) {
-            // Simular clic para activar
-            activePill.click();
-        }
+  // 3. Obtener categorías ÚNICAS (NO subcategorías)
+  // Extraemos el campo 'category' de cada curso
+  const uniqueCategories = new Set();
+  courses.forEach(course => {
+    if (course.category) {
+      uniqueCategories.add(course.category);
     }
+  });
+
+  // Convertir a array y ordenar
+  const sortedCategories = Array.from(uniqueCategories).sort();
+
+  // Mapeo de etiquetas bonitas para las categorías principales
+  const categoryLabels = {
+    'programacion': '💻 Programación',
+    'historia': '📜 Historia',
+    'ofimatica': '📝 Ofimática',
+    'negocios': '💼 Negocios',
+    'ciencias': '🔬 Ciencias',
+    'humanidades': '📚 Humanidades'
+  };
+
+  // 4. Crear botones para cada categoría principal
+  sortedCategories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-pill';
+    btn.dataset.category = cat; // Guardamos la categoría principal (ej: 'historia')
+    
+    // Texto con emoji si existe, sino capitalizado
+    const label = categoryLabels[cat] || (cat.charAt(0).toUpperCase() + cat.slice(1));
+    btn.textContent = label;
+    
+    container.appendChild(btn);
+  });
+
+  // 5. Asignar eventos de clic
+  container.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      // UI: Actualizar clase active
+      container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      
+      // Estado: Guardar la categoría seleccionada
+      courseState.activeCategory = pill.dataset.category;
+      
+      // Acción: Aplicar filtros
+      applyFilters({
+        grid: document.getElementById('courses-grid'),
+        countDisplay: document.getElementById('courses-count'),
+        noResults: document.getElementById('no-results')
+      });
+    });
+  });
+
+  // 6. Verificar URL (Si llegas con ?category=historia)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlCat = urlParams.get('category'); 
+  if (urlCat) {
+    const activePill = container.querySelector(`[data-category="${urlCat}"]`);
+    if (activePill) {
+      activePill.click();
+    }
+  }
 }
 
 // ============================================
@@ -417,7 +422,7 @@ function renderCourses(courses) {
         card.className = 'course-card';
 
         // IMPORTANTE: Guardamos la SUBCATEGORÍA en dataset.category para filtrar fácilmente
-        card.dataset.category = course.subcategory;
+        card.dataset.category = course.category;
         card.dataset.level = course.level;
         card.dataset.courseId = course.id;
         const sub = course.subcategory ? course.subcategory.toLowerCase() : 'general';
