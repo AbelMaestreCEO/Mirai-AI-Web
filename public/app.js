@@ -61,7 +61,6 @@ let state = {
 document.addEventListener('DOMContentLoaded', () => {
 
   initializeTheme();
-  initializeVoiceRecognition();
   setupMobileMenu();
   // ✨ Solo inicializar chat si existe el contenedor
   const isChatPage = !!document.getElementById('chat-messages');
@@ -568,73 +567,128 @@ async function handleSendMessage() {
     elements.messageInput.focus();
   }
 }
-// --- INICIALIZACIÓN DE VOZ (WEB SPEECH API) ---
-function initializeVoiceRecognition() {
-  // Detectar soporte del navegador
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  if (!SpeechRecognition) {
-    console.warn('⚠️ Web Speech API no soportada en este navegador.');
-    if (elements.voiceBtn) {
-      elements.voiceBtn.style.display = 'none'; // Ocultar si no hay soporte
-    }
+// --- NUEVO: GESTIÓN DE GRABADORA DE VOZ (WHISPER) ---
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+
+async function initializeVoiceRecorder() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.warn('⚠️ Acceso al micrófono no soportado en este navegador.');
+    if (elements.voiceBtn) elements.voiceBtn.style.display = 'none';
     return;
   }
 
-  // Crear instancia
-  state.recognition = new SpeechRecognition();
-  state.recognition.lang = CONFIG.VOICE_LANG;
-  state.recognition.continuous = false;
-  state.recognition.interimResults = true;
+  // Configurar evento click del botón (ahora compartido con send)
+  if (elements.sendButton) {
+    elements.sendButton.addEventListener('click', handleSendOrRecord);
+  }
 
-  // Evento: Inicio
-  state.recognition.onstart = () => {
-    state.isListening = true;
-    elements.voiceBtn.classList.add('listening');
-    elements.messageInput.placeholder = "Escuchando...";
-  };
+  // Si quieres mantener un botón de micrófono dedicado (opcional, según tu diseño)
+  // Pero según tu petición, usaremos el botón SEND.
+}
 
-  // Evento: Resultados
-  state.recognition.onresult = (event) => {
-    let finalTranscript = '';
+async function handleSendOrRecord() {
+  const currentText = elements.messageInput.value.trim();
 
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+  // CASO 1: Hay texto -> Enviar mensaje
+  if (currentText) {
+    await handleSendMessage();
+    return;
+  }
+
+  // CASO 2: No hay texto -> Iniciar/Detener grabación
+  if (!isRecording) {
+    await startRecording();
+  } else {
+    await stopRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
       }
-    }
+    };
 
-    // Inyectar texto en el input
-    if (finalTranscript) {
-      const currentText = elements.messageInput.value;
-      const separator = currentText.length > 0 ? ' ' : '';
-      elements.messageInput.value = currentText + separator + finalTranscript;
-      autoResizeTextarea();
-    }
-  };
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // O 'audio/mp4' según soporte
+      await processAudioBlob(audioBlob);
 
-  // Evento: Fin
-  state.recognition.onend = () => {
-    state.isListening = false;
-    elements.voiceBtn.classList.remove('listening');
+      // Detener tracks para liberar el micrófono
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+
+    // Feedback visual en el botón
+    elements.sendButton.classList.add('recording');
+    elements.sendButton.innerHTML = '⏹️'; // Icono de parar
+    elements.messageInput.placeholder = "Grabando... (Haz clic para enviar)";
+
+  } catch (err) {
+    console.error('Error accediendo al micrófono:', err);
+    alert('No se pudo acceder al micrófono. Verifica los permisos.');
+  }
+}
+
+async function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    isRecording = false;
+    elements.sendButton.classList.remove('recording');
+    elements.sendButton.innerHTML = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+      </svg>
+    `;
     elements.messageInput.placeholder = "Escribe tu mensaje aquí...";
-  };
+  }
+}
 
-  // Evento: Error
-  state.recognition.onerror = (event) => {
-    console.error('Error de reconocimiento de voz:', event.error);
-    state.isListening = false;
-    elements.voiceBtn.classList.remove('listening');
-    elements.messageInput.placeholder = "Error de voz. Inténtalo de nuevo.";
+async function processAudioBlob(audioBlob) {
+  showTypingIndicator();
 
-    setTimeout(() => {
-      elements.messageInput.placeholder = "Escribe tu mensaje aquí...";
-    }, 2000);
-  };
+  try {
+    // 1. Preparar FormData para Cloudflare Workers
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
 
-  // Configurar evento click del botón
-  if (elements.voiceBtn) {
-    elements.voiceBtn.addEventListener('click', toggleVoiceRecognition);
+    // 2. Llamar a tu Worker (debes crear esta ruta en worker.js)
+    // Asumimos que creaste una ruta /api/transcribe en worker.js
+    const response = await fetch('/api/transcribe', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+    const data = await response.json();
+
+    if (data.transcription) {
+      // Insertar texto en el input
+      elements.messageInput.value = data.transcription;
+      autoResizeTextarea();
+
+      // Opcional: Enviar automáticamente si quieres flujo rápido
+      // await handleSendMessage(); 
+    } else {
+      throw new Error('No se recibió transcripción');
+    }
+
+  } catch (error) {
+    console.error('Error transcribiendo audio:', error);
+    appendMessage('system', `⚠️ Error de voz: ${error.message}`);
+  } finally {
+    hideTypingIndicator();
   }
 }
 
@@ -695,13 +749,13 @@ async function loadOrCreateConversation() {
   if (mode === 'education' && courseId) {
     // ✅ Detectar contexto educativo
     educationContext.courseId = courseId;
-    educationContext.lessonId = lessonId;  
+    educationContext.lessonId = lessonId;
     educationContext.isActive = true;
 
     console.log('🎓 Modo educativo:', { courseId, lessonId });
 
     // ✨ NUEVO: Forzar modo "solo texto" en clases
-    state.audioMode = 'never'; 
+    state.audioMode = 'never';
     localStorage.setItem(CONFIG.TTS_MODE_KEY, 'never');
     updateAudioModeUI(); // Actualizar la interfaz visual inmediatamente
 
@@ -709,7 +763,7 @@ async function loadOrCreateConversation() {
     if (!lessonId) {
       console.warn('⚠️ No hay lesson_id. Redirigiendo a course_details.html');
       window.location.href = `course_details.html?id=${courseId}`;
-      return;  
+      return;
     }
 
     const convId = await getEducationConversation(courseId);
@@ -718,7 +772,7 @@ async function loadOrCreateConversation() {
 
     localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, convId);
     localStorage.setItem('mirai-ai-course-id', courseId);
-    localStorage.setItem('mirai-ai-lesson-id', lessonId);  
+    localStorage.setItem('mirai-ai-lesson-id', lessonId);
 
     await loadConversationHistory(convId);
 
@@ -808,6 +862,7 @@ function setupEventListeners() {
   initializeAudioPlayers();
   // Inicializar lightbox y botones de descarga
   initializeLightbox();
+  initializeVoiceRecorder();
   initializeImageDownloadButtons();
   // Observador para nuevos mensajes
   const observer = new MutationObserver(() => {

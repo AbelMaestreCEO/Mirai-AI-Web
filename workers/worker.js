@@ -499,6 +499,10 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleGetCategories(env, corsHeaders);
     }
 
+    if (path === '/api/transcribe' && request.method === 'POST') {
+      return await handleTranscribeAudio(request, env, corsHeaders);
+    }
+
     if (path === '/api/courses' && request.method === 'GET') {
       return await handleGetCourses(env, corsHeaders);
     }
@@ -665,6 +669,70 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   }
 }
 
+// --- MANEJAR TRANSCRIPCIÓN CON WHISPER ---
+async function handleTranscribeAudio(request, env, corsHeaders) {
+  try {
+    const formData = await request.formData();
+    const audioFile = formData.get('audio');
+
+    if (!audioFile) {
+      return jsonResponse({ error: 'Falta el archivo de audio' }, 400, corsHeaders);
+    }
+
+    // Convertir Blob a ArrayBuffer y luego a Base64
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const base64Audio = bufferToBase64(arrayBuffer);
+
+    // Llamar a Cloudflare AI (Whisper)
+    const aiResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/openai/whisper-large-v3-turbo`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          audio: base64Audio,
+          language: 'es', // Forzamos español, o déjalo null para auto-detección
+          task: 'transcribe'
+        })
+      }
+    );
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Error Whisper API:', errorText);
+      return jsonResponse({ error: 'Error en transcripción', details: errorText }, aiResponse.status, corsHeaders);
+    }
+
+    const aiData = await aiResponse.json();
+    
+    // Whisper suele devolver { text: "..." }
+    const transcription = aiData.text || aiData.transcription || '';
+
+    return jsonResponse({
+      success: true,
+      transcription: transcription
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error en handleTranscribeAudio:', error);
+    return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// Utilidad para convertir ArrayBuffer a Base64
+function bufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
 // --- GENERAR IMAGEN CON FLUX.2 KLEIN (CORREGIDO) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
@@ -675,7 +743,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     // 2. Construir FormData (Requerido por Flux.2 Klein)
     const formData = new FormData();
     formData.append('prompt', promptParaIA);
-    
+
     // Parámetros opcionales según la doc de Flux.2
     formData.append('seed', Math.floor(Math.random() * 1000000));
     // formData.append('width', '1024'); // Opcional si quieres forzar resolución
@@ -687,7 +755,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     // O fetch directo a la API REST si prefieres control total.
     // Aquí uso fetch directo para mantener consistencia con tu código actual, 
     // pero asegurando el formato correcto.
-    
+
     const aiResponse = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
       {
