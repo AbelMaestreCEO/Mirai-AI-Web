@@ -511,6 +511,10 @@ async function handleApiRequest(request, env, corsHeaders) {
     if (path === '/api/upload' && request.method === 'POST') {
       return await handleUpload(request, env, corsHeaders);
     }
+
+    if (path === '/api/upload-audio' && request.method === 'POST') {
+      return await handleUploadUserAudio(request, env, corsHeaders);
+    }
     if (path.startsWith('/api/audio/') && request.method === 'GET') {
       return await handleServeAudio(path, env);
     }
@@ -561,6 +565,45 @@ async function handleApiRequest(request, env, corsHeaders) {
       500,
       corsHeaders
     );
+  }
+}
+
+// --- MANEJAR SUBIDA DE AUDIO DE USUARIO ---
+async function handleUploadUserAudio(request, env, corsHeaders) {
+  try {
+    const formData = await request.formData();
+    const audioFile = formData.get('audio');
+    const conversationId = formData.get('conversation_id');
+
+    if (!audioFile || !conversationId) {
+      return jsonResponse({ error: 'Faltan el audio o conversation_id' }, 400, corsHeaders);
+    }
+
+    // Generar nombre único
+    const uniqueId = crypto.randomUUID();
+    const filename = `user-audio/${conversationId}/${uniqueId}.webm`;
+
+    // Subir a R2
+    await env.MIRAI_AI_ASSETS.put(filename, audioFile.stream(), {
+      httpMetadata: { contentType: audioFile.type },
+      customMetadata: {
+        conversation_id: conversationId,
+        uploaded_at: new Date().toISOString()
+      }
+    });
+
+    // Construir URL relativa
+    const audioUrl = `/api/audio/${filename}`;
+
+    return jsonResponse({
+      success: true,
+      audio_url: audioUrl,
+      r2_key: filename
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error subiendo audio de usuario:', error);
+    return jsonResponse({ error: 'Error al subir audio', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -669,33 +712,28 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   }
 }
 
-// --- MANEJAR TRANSCRIPCIÓN CON WHISPER (CORREGIDO) ---
+// --- MANEJAR TRANSCRIPCIÓN CON WHISPER (ACTUALIZADO) ---
 async function handleTranscribeAudio(request, env, corsHeaders) {
   try {
     const formData = await request.formData();
     const audioFile = formData.get('audio');
+    const conversationId = formData.get('conversation_id');
 
     if (!audioFile) {
       return jsonResponse({ error: 'Falta el archivo de audio' }, 400, corsHeaders);
     }
 
-    // 1. Convertir el archivo a ArrayBuffer y luego a Base64
     const arrayBuffer = await audioFile.arrayBuffer();
     const base64Audio = arrayBufferToBase64(arrayBuffer);
 
     console.log(`🎤 Audio recibido: ${arrayBuffer.byteLength} bytes`);
 
-    // 2. Usar env.AI.run() (binding directo, sin REST API)
     const whisperResult = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
       audio: base64Audio,
       language: "es",
       task: "transcribe"
     });
 
-    console.log(`📝 Resultado Whisper:`, JSON.stringify(whisperResult).substring(0, 300));
-
-    // 3. Extraer transcripción
-    // Whisper devuelve: { text: "..." } o { transcription: "..." }
     const transcription = whisperResult.text || whisperResult.transcription || '';
 
     if (!transcription || transcription.trim().length === 0) {
@@ -705,6 +743,11 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
       }, 200, corsHeaders);
     }
 
+    // Guardar mensaje de usuario en D1 (con el texto transcrito)
+    if (conversationId) {
+      await saveMessage(conversationId, 'user', transcription, env);
+    }
+
     return jsonResponse({
       success: true,
       transcription: transcription.trim()
@@ -712,7 +755,6 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
 
   } catch (error) {
     console.error('❌ Error en handleTranscribeAudio:', error.message);
-    console.error('Stack:', error.stack);
     return jsonResponse({ 
       error: 'Error en transcripción', 
       details: error.message 
@@ -739,7 +781,7 @@ function updateSendButtonIcon() {
 
   // Resetear clases y contenido base
   elements.sendButton.classList.remove('recording');
-  
+
   if (isRecording) {
     // ESTADO: GRABANDO
     elements.sendButton.classList.add('recording');

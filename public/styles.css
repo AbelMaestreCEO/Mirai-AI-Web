@@ -4069,3 +4069,42 @@ svg {
   50% { transform: scale(1.05); opacity: 0.8; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+
+/* Audio del usuario (derecha) */
+.message.user .audio-player-container {
+  background: var(--user-message-bg, #dcf8c6);
+  border-radius: 12px;
+  padding: 12px;
+  max-width: 300px;
+}
+
+.message.user .audio-player-container .audio-player-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.message.user .custom-audio-player {
+  width: 100%;
+  height: 36px;
+}
+
+.message.user .audio-duration {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 6px;
+}
+
+/* Ajuste para audio de IA (izquierda) */
+.message.assistant .audio-player-container {
+  background: var(--assistant-message-bg, #f1f0f0);
+  border-radius: 12px;
+  padding: 12px;
+  max-width: 300px;
+}

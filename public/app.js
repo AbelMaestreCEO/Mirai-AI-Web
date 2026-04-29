@@ -514,10 +514,10 @@ async function handleSendMessage() {
 
   // Limpiar UI
   elements.messageInput.value = '';
-  updateSendButtonIcon();
   state.attachments = [];
   elements.attachmentsArea.innerHTML = '';
   autoResizeTextarea();
+  updateSendButtonIcon();
 
   // Mostrar mensaje del usuario
   appendMessage('user', fullMessage);
@@ -691,38 +691,130 @@ async function processAudioBlob(audioBlob) {
   showTypingIndicator();
 
   try {
-    // 1. Preparar FormData para Cloudflare Workers
+    // 1. Subir audio a R2 primero
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.webm');
+    formData.append('audio', audioBlob, `voice-${Date.now()}.webm`);
+    formData.append('conversation_id', state.currentConversationId);
 
-    // 2. Llamar a tu Worker (debes crear esta ruta en worker.js)
-    // Asumimos que creaste una ruta /api/transcribe en worker.js
-    const response = await fetch('/api/transcribe', {
+    const uploadResponse = await fetch('/api/upload-audio', {
       method: 'POST',
       body: formData
     });
 
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    if (!uploadResponse.ok) throw new Error(`Error HTTP: ${uploadResponse.status}`);
 
-    const data = await response.json();
+    const uploadData = await uploadResponse.json();
 
-    if (data.transcription) {
-      // Insertar texto en el input
-      elements.messageInput.value = data.transcription;
-      autoResizeTextarea();
-
-      // Opcional: Enviar automáticamente si quieres flujo rápido
-      // await handleSendMessage(); 
-    } else {
-      throw new Error('No se recibió transcripción');
+    if (!uploadData.audio_url) {
+      throw new Error('No se recibió URL de audio');
     }
 
+    // 2. Mostrar mensaje de audio del usuario en el chat
+    appendUserAudioMessage(uploadData.audio_url);
+
+    // 3. Transcribir el audio con Whisper
+    const transcriptionResponse = await fetch('/api/transcribe', {
+      method: 'POST',
+      body: formData // Reutilizamos el mismo FormData
+    });
+
+    if (!transcriptionResponse.ok) throw new Error(`Error HTTP: ${transcriptionResponse.status}`);
+
+    const transcriptionData = await transcriptionResponse.json();
+    const transcription = transcriptionData.transcription || '';
+
+    if (!transcription.trim()) {
+      appendMessage('system', '⚠️ No se detectó voz en el audio');
+      hideTypingIndicator();
+      return;
+    }
+
+    console.log(`🎤 Audio transcrito: "${transcription}"`);
+
+    // 4. Enviar transcripción a DeepSeek (como si el usuario hubiera escrito)
+    await sendTextToAI(transcription);
+
   } catch (error) {
-    console.error('Error transcribiendo audio:', error);
-    appendMessage('system', `⚠️ Error de voz: ${error.message}`);
-  } finally {
+    console.error('Error procesando audio:', error);
+    appendMessage('system', `⚠️ Error de audio: ${error.message}`);
     hideTypingIndicator();
   }
+}
+
+async function sendTextToAI(text) {
+  try {
+    const response = await fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: text,
+        conversation_id: state.currentConversationId,
+        audio_mode: state.audioMode || 'auto',
+        force_type: null
+      })
+    });
+
+    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+    const responseData = await response.json();
+
+    // Manejar respuesta según tipo
+    if (responseData.type === 'image' && responseData.image_url) {
+      const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${text}_`;
+      appendMessage('assistant', imageMarkdown, true, null);
+    } else if (responseData.type === 'video' || responseData.type === 'music') {
+      appendMessage('assistant', responseData.response || responseData.response_text || 'Contenido en desarrollo 🚧', true, null);
+    } else if (responseData.response) {
+      appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
+    } else {
+      throw new Error('No se recibió respuesta válida');
+    }
+
+    loadConversations();
+
+  } catch (error) {
+    console.error('Error enviando a IA:', error);
+    appendMessage('system', `⚠️ Error: ${error.message}`);
+  } finally {
+    hideTypingIndicator();
+    updateSendButtonIcon();
+  }
+}
+
+function appendUserAudioMessage(audioUrl) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message user';
+
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  messageDiv.innerHTML = `
+    <div class="message-avatar">U</div>
+    <div class="message-content">
+      <div class="audio-player-container user-audio">
+        <div class="audio-player-header">
+          <span class="audio-icon">🎤</span>
+          <span class="audio-label">Mensaje de voz</span>
+        </div>
+        <audio controls class="custom-audio-player" preload="metadata" src="${audioUrl}">
+          Tu navegador no soporta el elemento de audio.
+        </audio>
+        <div class="audio-duration">
+          <span class="audio-time-current">0:00</span>
+          <span class="audio-time-total">--:--</span>
+        </div>
+      </div>
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+      </div>
+    </div>
+  `;
+
+  elements.chatMessages.appendChild(messageDiv);
+  scrollToBottom();
+
+  // Inicializar reproductor
+  const audioElement = messageDiv.querySelector('audio');
+  setupAudioPlayer(audioElement);
 }
 
 function toggleVoiceRecognition() {
