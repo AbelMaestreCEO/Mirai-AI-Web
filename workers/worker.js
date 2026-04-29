@@ -669,7 +669,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   }
 }
 
-// --- MANEJAR TRANSCRIPCIÓN CON WHISPER ---
+// --- MANEJAR TRANSCRIPCIÓN CON WHISPER (CORREGIDO) ---
 async function handleTranscribeAudio(request, env, corsHeaders) {
   try {
     const formData = await request.formData();
@@ -679,58 +679,55 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
       return jsonResponse({ error: 'Falta el archivo de audio' }, 400, corsHeaders);
     }
 
-    // Convertir Blob a ArrayBuffer y luego a Base64
+    // 1. Convertir el archivo a ArrayBuffer y luego a Base64
     const arrayBuffer = await audioFile.arrayBuffer();
-    const base64Audio = bufferToBase64(arrayBuffer);
+    const base64Audio = arrayBufferToBase64(arrayBuffer);
 
-    // Llamar a Cloudflare AI (Whisper)
-    const aiResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/openai/whisper-large-v3-turbo`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          audio: base64Audio,
-          language: 'es', // Forzamos español, o déjalo null para auto-detección
-          task: 'transcribe'
-        })
-      }
-    );
+    console.log(`🎤 Audio recibido: ${arrayBuffer.byteLength} bytes`);
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Error Whisper API:', errorText);
-      return jsonResponse({ error: 'Error en transcripción', details: errorText }, aiResponse.status, corsHeaders);
+    // 2. Usar env.AI.run() (binding directo, sin REST API)
+    const whisperResult = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
+      audio: base64Audio,
+      language: "es",
+      task: "transcribe"
+    });
+
+    console.log(`📝 Resultado Whisper:`, JSON.stringify(whisperResult).substring(0, 300));
+
+    // 3. Extraer transcripción
+    // Whisper devuelve: { text: "..." } o { transcription: "..." }
+    const transcription = whisperResult.text || whisperResult.transcription || '';
+
+    if (!transcription || transcription.trim().length === 0) {
+      return jsonResponse({ 
+        success: false, 
+        error: 'No se detectó voz en el audio' 
+      }, 200, corsHeaders);
     }
-
-    const aiData = await aiResponse.json();
-    
-    // Whisper suele devolver { text: "..." }
-    const transcription = aiData.text || aiData.transcription || '';
 
     return jsonResponse({
       success: true,
-      transcription: transcription
+      transcription: transcription.trim()
     }, 200, corsHeaders);
 
   } catch (error) {
-    console.error('Error en handleTranscribeAudio:', error);
-    return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+    console.error('❌ Error en handleTranscribeAudio:', error.message);
+    console.error('Stack:', error.stack);
+    return jsonResponse({ 
+      error: 'Error en transcripción', 
+      details: error.message 
+    }, 500, corsHeaders);
   }
 }
 
-// Utilidad para convertir ArrayBuffer a Base64
-function bufferToBase64(buffer) {
-  let binary = '';
+// --- Utilidad: ArrayBuffer a Base64 (SIN window) ---
+function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return window.btoa(binary);
+  return btoa(binary); // btoa() es global en Workers, NO usar window.btoa()
 }
 
 // --- GENERAR IMAGEN CON FLUX.2 KLEIN (CORREGIDO) ---
