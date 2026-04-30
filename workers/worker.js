@@ -18,14 +18,6 @@ const VIDEO_CONFIG = {
   MAX_PROMPT_LENGTH: 2000,
 };
 
-// ✨ NUEVO: Configuración TTS
-const TTS_CONFIG = {
-  MODEL: 'minimax/speech-2.8-turbo',
-  VOICE_ID: 'female-young',
-  CHAR_LIMIT: 2000,
-  THRESHOLD: 300,
-};
-
 // --- RUTAS ---
 const ROUTES = {
   CHAT: '/api/chat',
@@ -1150,43 +1142,6 @@ function buildVideoFirstFramePrompt(videoPrompt) {
 function simplifyVideoPrompt(prompt) {
   return prompt.length <= VIDEO_CONFIG.MAX_PROMPT_LENGTH ? prompt : prompt.substring(0, VIDEO_CONFIG.MAX_PROMPT_LENGTH);
 }
-
-// ============================================
-// FUNCIONES TTS (Text-to-Speech)
-// ============================================
-
-// --- DECIDIR SI LA RESPUESTA DEBE SER AUDIO ---
-function shouldSendAsAudio(text, audioMode) {
-  // Si el usuario forzó modo texto
-  if (audioMode === 'never') return false;
-
-  // Si el usuario forzó modo audio
-  if (audioMode === 'always') {
-    // Pero incluso en "always", si es mayormente código → texto
-    if (isMostlyCode(text)) return false;
-    return true;
-  }
-
-  // Modo 'auto' (por defecto): decidir por contenido
-  if (isMostlyCode(text)) return false;
-
-  const textWithoutCode = stripCodeBlocks(text);
-  if (textWithoutCode.length < TTS_CONFIG.THRESHOLD) return false;
-
-  return true;
-}
-// --- DETECTAR SI EL CONTENIDO ES MAYORMENTE CÓDIGO ---
-function isMostlyCode(text) {
-  const codeBlockMatches = text.match(/```[\s\S]*?```/g) || [];
-  const codeChars = codeBlockMatches.reduce((sum, block) => sum + block.length, 0);
-  return text.length > 0 && (codeChars / text.length) > 0.6;
-}
-
-// --- REMOVER BLOQUES DE CÓDIGO ---
-function stripCodeBlocks(text) {
-  return text.replace(/```[\s\S]*?```/g, '').trim();
-}
-
 
 // --- LIMPIAR TEXTO PARA TTS ---
 function cleanTextForTTS(text) {
