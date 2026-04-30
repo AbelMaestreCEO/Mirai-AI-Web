@@ -531,6 +531,7 @@ async function handleSendMessage() {
   showTypingIndicator(isMusicRequest ? 'music' : 'text');
 
   try {
+    const selectedModel = elements.modelSelector?.value || 'deepseek';
     const response = await fetch(CONFIG.API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
