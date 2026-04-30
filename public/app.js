@@ -691,7 +691,7 @@ async function processAudioBlob(audioBlob) {
   showTypingIndicator();
 
   try {
-    // 1. Subir audio a R2
+    // 1. Subir audio a R2 (igual que antes)
     const uploadFormData = new FormData();
     uploadFormData.append('audio', audioBlob, `voice-${Date.now()}.webm`);
     uploadFormData.append('conversation_id', state.currentConversationId);
@@ -702,17 +702,9 @@ async function processAudioBlob(audioBlob) {
     });
 
     if (!uploadResponse.ok) throw new Error(`Error subiendo audio: ${uploadResponse.status}`);
-
     const uploadData = await uploadResponse.json();
 
-    if (!uploadData.audio_url) {
-      throw new Error('No se recibió URL de audio');
-    }
-
-    // 2. Mostrar mensaje de audio del usuario en el chat
-    appendUserAudioMessage(uploadData.audio_url);
-
-    // 3. Transcribir con FormData NUEVO (no reutilizar)
+    // 2. Transcribir con FormData (NUEVO: ahora devuelve audio_url también)
     const transcribeFormData = new FormData();
     transcribeFormData.append('audio', audioBlob, `voice-${Date.now()}.webm`);
     transcribeFormData.append('conversation_id', state.currentConversationId);
@@ -723,20 +715,21 @@ async function processAudioBlob(audioBlob) {
     });
 
     if (!transcriptionResponse.ok) throw new Error(`Error transcribiendo: ${transcriptionResponse.status}`);
-
     const transcriptionData = await transcriptionResponse.json();
-    const transcription = transcriptionData.transcription || '';
 
-    if (!transcription.trim()) {
-      appendMessage('system', '⚠️ No se detectó voz en el audio');
+    if (!transcriptionData.success || !transcriptionData.audio_url) {
+      appendMessage('system', '⚠️ Error procesando audio');
       hideTypingIndicator();
       return;
     }
 
-    console.log(`🎤 Transcripción: "${transcription}"`);
+    console.log(`🎤 Audio procesado: ${transcriptionData.audio_url}`);
 
-    // 4. Enviar transcripción a DeepSeek
-    await sendTextToAI(transcription);
+    // 3. MOSTRAR el audio en el chat (usando la URL devuelta)
+    appendUserAudioMessage(transcriptionData.audio_url);
+
+    // 4. Enviar la transcripción a DeepSeek para la respuesta de la IA
+    await sendTextToAI(transcriptionData.transcription);
 
   } catch (error) {
     console.error('Error procesando audio:', error);
@@ -955,9 +948,23 @@ async function loadConversationHistory(conversationId) {
 
     messages.forEach(msg => {
       if (msg.role === 'user') {
-        appendMessage('user', msg.content);
+        // ✅ NUEVO: Si tiene audio_url, mostrar reproductor, NO el texto
+        if (msg.audio_url) {
+          appendUserAudioMessage(msg.audio_url);
+          // Opcional: Mostrar el texto transcrito como un pequeño detalle debajo del audio
+          // si quieres que el usuario pueda leer lo que dijo.
+          // if (msg.content) {
+          //   const transcriptSpan = document.createElement('span');
+          //   transcriptSpan.className = 'audio-transcript';
+          //   transcriptSpan.textContent = msg.content;
+          //   // ... añadir al DOM
+          // }
+        } else {
+          // Fallback: si no hay audio, mostrar texto normal
+          appendMessage('user', msg.content);
+        }
       } else if (msg.role === 'assistant') {
-        // ✅ Si tiene audio_url, renderizar con reproductor
+        // Mantener lógica existente para respuestas de la IA
         if (msg.audio_url) {
           appendMessage('assistant', msg.content, true, msg.audio_url);
         } else {
@@ -966,7 +973,6 @@ async function loadConversationHistory(conversationId) {
       }
     });
 
-    // Scroll al final
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
   } catch (error) {

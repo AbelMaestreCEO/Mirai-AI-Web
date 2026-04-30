@@ -723,10 +723,23 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
       return jsonResponse({ error: 'Falta el archivo de audio' }, 400, corsHeaders);
     }
 
+    // 1. Subir el audio a R2 PRIMERO (igual que antes)
+    const uniqueId = crypto.randomUUID();
+    const filename = `user-audio/${conversationId}/${uniqueId}.webm`;
+
+    await env.MIRAI_AI_ASSETS.put(filename, audioFile.stream(), {
+      httpMetadata: { contentType: audioFile.type },
+      customMetadata: {
+        conversation_id: conversationId,
+        uploaded_at: new Date().toISOString()
+      }
+    });
+
+    const audioUrl = `/api/audio/${filename}`; // URL relativa para guardar en DB
+
+    // 2. Transcribir el audio (para procesar la intención, pero NO guardar el texto como mensaje principal)
     const arrayBuffer = await audioFile.arrayBuffer();
     const base64Audio = arrayBufferToBase64(arrayBuffer);
-
-    console.log(`🎤 Audio recibido: ${arrayBuffer.byteLength} bytes`);
 
     const whisperResult = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
       audio: base64Audio,
@@ -743,14 +756,20 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
       }, 200, corsHeaders);
     }
 
-    // Guardar mensaje de usuario en D1 (con el texto transcrito)
+    // 3. Guardar el mensaje en D1 con la URL del audio
+    // NOTA: Guardamos el texto transcrito en 'content' para referencia, 
+    // pero la URL del audio es lo importante para la reproducción.
     if (conversationId) {
-      await saveMessage(conversationId, 'user', transcription, env);
+      // Usamos saveMessage para guardar tanto el texto (como metadata) como la URL del audio
+      await saveMessage(conversationId, 'user', transcription, env, audioUrl);
     }
 
+    // 4. Devolver la respuesta al frontend
+    // El frontend usará 'audio_url' para mostrar el reproductor
     return jsonResponse({
       success: true,
-      transcription: transcription.trim()
+      transcription: transcription.trim(),
+      audio_url: audioUrl // ← DEVOLVER LA URL DEL AUDIO AL FRONTEND
     }, 200, corsHeaders);
 
   } catch (error) {
