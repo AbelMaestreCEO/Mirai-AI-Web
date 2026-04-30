@@ -37,14 +37,14 @@ Categories:
 1 = TEXT: Questions, conversations, explanations, code, analysis, greetings, opinions, translations, math, help requests
 2 = IMAGE: User explicitly wants to generate, create, draw, render, illustrate, paint, design an image/picture/artwork/photo/illustration
 3 = VIDEO: User explicitly wants to generate, create, animate a video/animation/GIF/motion clip
-4 = MUSIC: User explicitly wants to generate, create, compose music/audio/song/melody/soundtrack/beat/SFX
+4 = MUSIC: User explicitly wants to generate, create, compose music/audio/song/melody/soundtrack/beat/SFX, or describes a musical style
 5 = TEXT (default): When ambiguous or unclear, ALWAYS default to text
 
 Rules:
 - If the user asks to "explain AND draw", classify as IMAGE (the text part comes naturally with the image)
 - If the user says something casual like "hola" or "qué es X", it's TEXT
 - Only classify as 2/3/4 when the user CLEARLY wants generated media
-- When intent is 2/3/4, write a detailed English prompt for the generation
+- When intent is 2/3/4, write a detailed English prompt for the generation. For music, include style, mood, instruments, tempo (BPM), and optionally lyrics.
 
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
@@ -1777,4 +1777,81 @@ function extractSuggestions(aiResponse) {
   console.log('✅ Sugerencias encontradas:', suggestions.length);
 
   return { cleanResponse, suggestions };
+}
+
+// --- GENERAR MÚSICA CON MINIMAX 2.6 ---
+async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
+  try {
+    console.log('🎵 Iniciando generación de música con MiniMax 2.6');
+
+    // 1. Asegurar conversación y guardar mensaje de usuario
+    await ensureConversationExists(conversationId, prompt, env);
+    await saveMessage(conversationId, 'user', prompt, env);
+
+    // 2. Preparar parámetros para MiniMax
+    // El prompt recibido ya debería estar optimizado por el clasificador (en inglés)
+    const musicPrompt = prompt;
+
+    // Opciones avanzadas (puedes ajustarlas según necesites)
+    const musicParams = {
+      prompt: musicPrompt,
+      lyrics_optimizer: true, // Deja que la IA genere letras si no se especifican
+      is_instrumental: false, // Cambia a true si quieres solo instrumental por defecto
+      // sample_rate: 44100, // Opcional
+      // format: 'mp3',      // Opcional
+    };
+
+    // 3. Llamar a Cloudflare AI
+    const aiResponse = await env.AI.run('minimax/music-2.6', musicParams, {
+      gateway: { id: 'default' },
+    });
+
+    // 4. Validar respuesta
+    // MiniMax suele devolver: { success: true, result: { audio: "base64..." } }
+    if (!aiResponse.success || !aiResponse.result || !aiResponse.result.audio) {
+      console.error('Respuesta inválida de MiniMax:', aiResponse);
+      throw new Error('Error generando música: respuesta inválida de la API');
+    }
+
+    const audioBase64 = aiResponse.result.audio;
+
+    // 5. Convertir Base64 a ArrayBuffer
+    const uniqueId = crypto.randomUUID();
+    const filename = `music/${uniqueId}.mp3`; // Asumimos MP3 por defecto
+
+    const binaryString = atob(audioBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // 6. Guardar en R2
+    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+      httpMetadata: { contentType: 'audio/mpeg' },
+      customMetadata: {
+        prompt: prompt.substring(0, 100),
+        conversation_id: conversationId,
+        generated_at: new Date().toISOString(),
+        model: 'minimax/music-2.6'
+      }
+    });
+
+    console.log(`✅ Música generada y guardada: ${filename}`);
+    const audioUrl = `/api/audio/${filename}`;
+
+    // 7. Guardar respuesta en D1 y devolver al frontend
+    const assistantContent = `🎵 Aquí tienes la canción que creaste:\n\n[Audio generado]\n\n_Prompt: ${prompt}_`;
+    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl); // Guardamos audio_url
+
+    return jsonResponse({
+      type: 'music',
+      audio_url: audioUrl,
+      prompt: prompt
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ handleMusicGeneration error:', error.message);
+    return jsonResponse({ error: 'Error generando música', details: error.message }, 500, corsHeaders);
+  }
 }

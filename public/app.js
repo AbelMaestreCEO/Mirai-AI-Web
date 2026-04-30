@@ -545,7 +545,13 @@ async function handleSendMessage() {
     if (responseData.type === 'image' && responseData.image_url) {
       const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
       appendMessage('assistant', imageMarkdown, true, null);
-    } else if (responseData.type === 'video' || responseData.type === 'music') {
+    } else if (responseData.type === 'music' && responseData.audio_url) {
+      // Usamos appendMessage con el audio_url
+      // El contenido puede ser un placeholder o el prompt
+      const content = `🎵 Canción generada: ${userInput}`;
+      appendMessage('assistant', content, true, responseData.audio_url);
+    }
+    else if (responseData.type === 'video') {
       appendMessage('assistant', responseData.response || responseData.response_text || 'Contenido en desarrollo 🚧', true, null);
     } else if (responseData.response) {
       appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
@@ -663,12 +669,12 @@ async function startRecording() {
 
     mediaRecorder.start();
     isRecording = true;
-    
+
     // Actualizar icono inmediatamente
     updateSendButtonIcon();
-    
+
     elements.messageInput.placeholder = "Grabando... (Haz clic para enviar)";
-    
+
   } catch (err) {
     console.error('Error accediendo al micrófono:', err);
     alert('No se pudo acceder al micrófono. Verifica los permisos.');
@@ -679,10 +685,10 @@ async function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
     isRecording = false;
-    
+
     // Actualizar icono inmediatamente
     updateSendButtonIcon();
-    
+
     elements.messageInput.placeholder = "Escribe tu mensaje aquí...";
   }
 }
