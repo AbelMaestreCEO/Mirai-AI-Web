@@ -6,6 +6,7 @@
 // --- CONFIGURACIÓN ---
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
+const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 
 // ✨ NUEVO: Configuración TTS
 const TTS_CONFIG = {
@@ -95,7 +96,7 @@ async function handleChat(request, env, corsHeaders) {
 
   try {
     // ✨ LEER audio_mode, course_id, lesson_id DEL BODY
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -159,7 +160,8 @@ async function handleChat(request, env, corsHeaders) {
           conversation_id,
           audio_mode,
           course_id || null,    // ← Asegurar que se pasa
-          lesson_id || null,    // ← Asegurar que se pasa
+          lesson_id || null,
+          model || 'deepseek',    // ← Asegurar que se pasa
           env,
           corsHeaders
         );
@@ -608,12 +610,12 @@ async function handleUploadUserAudio(request, env, corsHeaders) {
   }
 }
 
-async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, env, corsHeaders) {
+async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
-    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode });
+    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model });
 
-    // 1. Asegurar conversación (con course_id y lesson_id)
+    // 1. Asegurar conversación
     await ensureConversationExists(conversation_id, message, env, course_id, lesson_id);
 
     // 2. Guardar contexto educativo si se proporciona
@@ -623,80 +625,88 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
 
     // 3. Obtener contexto educativo
     let systemPrompt = 'Eres Mirai AI, un asistente inteligente, amable y útil. Respondes en español de forma clara y concisa.';
-
-    // Intentar obtener contexto de la conversación (guardado en D1)
+    
+    // ... (El resto de la lógica educativa se mantiene igual hasta obtener el historial) ...
     const convEducationContext = await getConversationEducationContext(conversation_id, env);
-    console.log('🎓 Contexto educativo de la conversación:', JSON.stringify(convEducationContext));
-
-    // Si hay contexto, cargar la lección
     if (convEducationContext && convEducationContext.course_id && convEducationContext.lesson_id) {
       const lessonContext = await getLessonContext(convEducationContext.course_id, convEducationContext.lesson_id, env);
-      console.log('📖 Datos de lección obtenidos:', lessonContext ? lessonContext.title : 'NO ENCONTRADA');
-
       if (lessonContext) {
         const educationPrompt = buildEducationSystemPrompt(lessonContext);
         if (educationPrompt) {
           systemPrompt = educationPrompt;
-          console.log('🎓 Modo educativo activado:', lessonContext.title);
         }
-      } else {
-        console.warn('⚠️ Lección no encontrada en DB:', convEducationContext.lesson_id);
-        // Continuar con prompt normal en lugar de fallar
       }
-    } else {
-      console.log('ℹ️ Sin contexto educativo en esta conversación');
     }
 
-    // 4. Obtener historial
     const history = await getConversationHistory(conversation_id, env);
 
-    // 5. Construir mensajes (con systemPrompt personalizado)
-    const deepseekMessages = buildDeepseekMessages(message, history, systemPrompt);
+    // 4. ENRUTAR SEGÚN EL MODELO
+    let aiResponse = '';
+    
+    if (model === 'llama') {
+      // --- LLAMADA A LLAMA (Cloudflare Workers AI) ---
+      console.log('🦙 Usando modelo Llama 3.3');
+      
+      // Construir el prompt para Llama (formato simple o chat template)
+      // Llama 3.3 funciona bien con un prompt estructurado
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...history.map(msg => ({ role: msg.role, content: msg.content })),
+        { role: "user", content: message }
+      ];
 
-    // 6. Llamar a DeepSeek
-    const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: deepseekMessages,
+      const response = await env.AI.run(LLAMA_MODEL, {
+        messages: messages,
+        max_tokens: 2000,
         temperature: 0.7,
-        max_tokens: 2000
-      })
-    });
+        top_p: 0.9
+      });
 
-    if (!deepseekResponse.ok) {
-      const errorData = await deepseekResponse.text();
-      console.error('DeepSeek API error:', errorData);
-      return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
+      // La respuesta de env.AI.run suele venir en .response o .text
+      aiResponse = response.response || response.text || '';
+
+    } else {
+      // --- LLAMADA A DEEPSEEK (API Externa) ---
+      console.log('🚀 Usando modelo DeepSeek');
+      
+      const deepseekMessages = buildDeepseekMessages(message, history, systemPrompt);
+      
+      const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_MODEL,
+          messages: deepseekMessages,
+          temperature: 0.7,
+          max_tokens: 2000
+        })
+      });
+
+      if (!deepseekResponse.ok) {
+        const errorData = await deepseekResponse.text();
+        console.error('DeepSeek API error:', errorData);
+        return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
+      }
+
+      const deepseekData = await deepseekResponse.json();
+      aiResponse = deepseekData.choices?.[0]?.message?.content || '';
     }
 
-    const deepseekData = await deepseekResponse.json();
-    const aiResponse = deepseekData.choices?.[0]?.message?.content || '';
-
-    // 7. Extraer sugerencias
+    // 5. Procesar respuesta (extraer sugerencias, TTS, guardar)
     const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
-
-    // Debug logs
-    console.log('📝 Respuesta completa de DeepSeek:', aiResponse.substring(0, 200));
-    console.log('🎯 Sugerencias extraídas:', JSON.stringify(suggestions));
-    console.log('📋 Respuesta limpia:', cleanResponse.substring(0, 200));
-
-    // 8. Generar audio (si aplica)
+    
     let audio_url = null;
     if (audio_mode === 'always' && cleanResponse.length > 0) {
       audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
     }
 
-    // 9. Guardar mensajes
     await saveMessage(conversation_id, 'user', message, env);
     await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url);
     await updateConversationTimestamp(conversation_id, env);
 
-    // 10. Devolver respuesta
     return jsonResponse({
       response: cleanResponse,
       audio_url: audio_url,
@@ -705,11 +715,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
 
   } catch (error) {
     console.error('❌ Error en handleTextChatInternal:', error.message);
-    console.error('Stack:', error.stack);
-    return jsonResponse({
-      error: 'Error procesando mensaje',
-      details: error.message
-    }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error procesando mensaje', details: error.message }, 500, corsHeaders);
   }
 }
 

@@ -35,6 +35,7 @@ const elements = {
   conversationsList: document.getElementById('conversations-list'),
   newConversationBtn: document.getElementById('new-conversation-btn'),
   audioModeToggle: document.getElementById('audio-mode-toggle'),
+  modelSelector: document.getElementById('model-selector'),
 };
 
 const educationContext = {
@@ -537,7 +538,8 @@ async function handleSendMessage() {
         message: fullMessage,
         conversation_id: state.currentConversationId,
         audio_mode: state.audioMode || 'auto',
-        force_type: null  // ← NULL para dejar que DeepSeek decida
+        force_type: null, // ← NULL para dejar que DeepSeek decida
+        model: selectedModel // ← AGREGAR ESTO
       })
     });
 
@@ -756,7 +758,8 @@ async function sendTextToAI(text) {
         message: text,
         conversation_id: state.currentConversationId,
         audio_mode: state.audioMode || 'auto',
-        force_type: null
+        force_type: null,
+        model: elements.modelSelector?.value || 'deepseek' // ← AGREGAR ESTO
       })
     });
 
@@ -866,6 +869,19 @@ function initializeChat() {
     elements.messageInput.focus();
     autoResizeTextarea();
   }
+  if (elements.modelSelector) {
+    // Cargar preferencia guardada
+    const savedModel = localStorage.getItem('mirai-ai-model') || 'deepseek';
+    elements.modelSelector.value = savedModel;
+
+    elements.modelSelector.addEventListener('change', (e) => {
+        const selectedModel = e.target.value;
+        localStorage.setItem('mirai-ai-model', selectedModel);
+        
+        // Feedback visual opcional
+        console.log(`🔄 Modelo cambiado a: ${selectedModel}`);
+    });
+}
   console.log('✨ Mirai AI inicializado correctamente');
 }
 

@@ -4167,3 +4167,24 @@ svg {
 .music-indicator.hidden {
   display: none;
 }
+
+.model-selector {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+    margin-right: 10px;
+}
+
+.model-selector:hover {
+    border-color: var(--accent-color);
+}
+
+.model-selector:focus {
+    box-shadow: 0 0 0 2px rgba(100, 149, 237, 0.3);
+}
