@@ -752,6 +752,7 @@ async function processAudioBlob(audioBlob) {
 
 async function sendTextToAI(text) {
   try {
+    const selectedModel = elements.modelSelector?.value || 'deepseek';
     const response = await fetch(CONFIG.API_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -760,7 +761,7 @@ async function sendTextToAI(text) {
         conversation_id: state.currentConversationId,
         audio_mode: state.audioMode || 'auto',
         force_type: null,
-        model: elements.modelSelector?.value || 'deepseek' // ← AGREGAR ESTO
+        model: selectedModel  // ← Usar la variable declarada
       })
     });
 
