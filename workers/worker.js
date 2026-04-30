@@ -1138,11 +1138,13 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null) 
 
 async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null) {
   try {
-    const { results } = await env.MIRAI_AI_DB.prepare(
+    // Verificar si ya existe
+    const existing = await env.MIRAI_AI_DB.prepare(
       `SELECT id FROM conversations WHERE id = ?`
-    ).bind(conversationId).all();
+    ).bind(conversationId).first();
 
-    if (results.length === 0) {
+    if (!existing) {
+      // No existe → crearla
       const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
 
       await env.MIRAI_AI_DB.prepare(
@@ -1151,12 +1153,10 @@ async function ensureConversationExists(conversationId, firstMessage, env, cours
       ).bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId).run();
 
       console.log(`✅ Conversación creada: ${conversationId}`);
-    } else {
-      console.log(`ℹ️ Conversación ya existe: ${conversationId}`);
     }
   } catch (error) {
     console.error('❌ Error en ensureConversationExists:', error.message);
-    throw error;
+    throw error; // ← Importante: propagar el error para que saveMessage sepa que falló
   }
 }
 
