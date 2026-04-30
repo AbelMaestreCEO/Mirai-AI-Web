@@ -44,7 +44,8 @@ Rules:
 - If the user asks to "explain AND draw", classify as IMAGE (the text part comes naturally with the image)
 - If the user says something casual like "hola" or "qué es X", it's TEXT
 - Only classify as 2/3/4 when the user CLEARLY wants generated media
-- When intent is 2/3/4, write a detailed English prompt for the generation. For music, include style, mood, instruments, tempo (BPM), and optionally lyrics.
+- When intent is 2, write a detailed English prompt for image generation.
+- When intent is 4, write a CONCISE English prompt for music generation (max 200 chars). Include: genre, mood, and key instruments. Do NOT include lyrics or vocal instructions. Example: "Smooth jazz ballad with saxophone and piano, slow tempo, romantic mood"
 
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
@@ -1767,66 +1768,110 @@ function extractSuggestions(aiResponse) {
 async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
   try {
     console.log('🎵 Iniciando generación de música con MiniMax 2.6');
+    console.log('🎵 Prompt original:', prompt);
 
     // 1. Asegurar conversación y guardar mensaje de usuario
     await ensureConversationExists(conversationId, prompt, env);
     await saveMessage(conversationId, 'user', prompt, env);
 
-    // 2. Preparar parámetros para MiniMax
-    // El prompt recibido ya debería estar optimizado por el clasificador (en inglés)
-    const musicPrompt = prompt;
+    // 2. Limpiar y simplificar el prompt para MiniMax
+    // MiniMax funciona mejor con prompts cortos de estilo/mood
+    const cleanPrompt = simplifyMusicPrompt(prompt);
+    console.log('🎵 Prompt simplificado:', cleanPrompt);
 
-    // Opciones avanzadas (puedes ajustarlas según necesites)
+    // 3. Preparar parámetros para MiniMax
     const musicParams = {
-      prompt: musicPrompt,
-      lyrics_optimizer: true, // Deja que la IA genere letras si no se especifican
-      is_instrumental: false, // Cambia a true si quieres solo instrumental por defecto
-      // sample_rate: 44100, // Opcional
-      // format: 'mp3',      // Opcional
+      prompt: cleanPrompt,
+      is_instrumental: true,  // ← Empezar con instrumental (más estable)
     };
 
-    // 3. Llamar a Cloudflare AI
+    console.log('🎵 Parámetros enviados:', JSON.stringify(musicParams));
+
+    // 4. Llamar a Cloudflare AI
     const aiResponse = await env.AI.run('minimax/music-2.6', musicParams, {
       gateway: { id: 'default' },
     });
 
-    // 4. Validar respuesta
-    // MiniMax suele devolver: { success: true, result: { audio: "base64..." } }
-    if (!aiResponse.success || !aiResponse.result || !aiResponse.result.audio) {
-      console.error('Respuesta inválida de MiniMax:', aiResponse);
-      throw new Error('Error generando música: respuesta inválida de la API');
+    console.log('🎵 Tipo de respuesta:', typeof aiResponse);
+    console.log('🎵 Respuesta completa:', JSON.stringify(aiResponse).substring(0, 500));
+
+    // 5. Extraer audio de la respuesta (múltiples formatos posibles)
+    let audioBuffer = null;
+
+    // CASO A: Respuesta directa como ArrayBuffer o Uint8Array
+    if (aiResponse instanceof ArrayBuffer && aiResponse.byteLength > 0) {
+      audioBuffer = aiResponse;
+      console.log('✅ Audio recibido como ArrayBuffer directo:', audioBuffer.byteLength, 'bytes');
+    }
+    // CASO B: Uint8Array
+    else if (aiResponse instanceof Uint8Array && aiResponse.byteLength > 0) {
+      audioBuffer = aiResponse.buffer;
+      console.log('✅ Audio recibido como Uint8Array:', audioBuffer.byteLength, 'bytes');
+    }
+    // CASO C: Respuesta JSON con { success, result: { audio } }
+    else if (aiResponse?.success && aiResponse?.result?.audio) {
+      const audioData = aiResponse.result.audio;
+      
+      if (typeof audioData === 'string') {
+        // Es base64
+        const binaryString = atob(audioData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        audioBuffer = bytes.buffer;
+        console.log('✅ Audio decodificado de base64:', audioBuffer.byteLength, 'bytes');
+      } else if (audioData instanceof ArrayBuffer) {
+        audioBuffer = audioData;
+        console.log('✅ Audio como ArrayBuffer en result.audio');
+      }
+    }
+    // CASO D: Respuesta con error
+    else if (aiResponse?.success === false) {
+      const errorMsg = aiResponse.error?.[0]?.message || 'Unknown error';
+      const errorCode = aiResponse.error?.[0]?.code || 'unknown';
+      console.error(`❌ MiniMax API error: code=${errorCode}, message=${errorMsg}`);
+
+      // Si es error interno, intentar con instrumental como fallback
+      if (errorCode === 2002) {
+        console.log('🔄 Reintentando con parámetros simplificados...');
+        return await handleMusicGenerationFallback(cleanPrompt, conversationId, env, corsHeaders);
+      }
+
+      throw new Error(`MiniMax error ${errorCode}: ${errorMsg}`);
+    }
+    // CASO E: Formato desconocido
+    else {
+      console.error('❌ Formato de respuesta no reconocido');
+      console.error('❌ Keys:', Object.keys(aiResponse || {}));
+      throw new Error('Formato de respuesta de audio no reconocido');
     }
 
-    const audioBase64 = aiResponse.result.audio;
-
-    // 5. Convertir Base64 a ArrayBuffer
-    const uniqueId = crypto.randomUUID();
-    const filename = `music/${uniqueId}.mp3`; // Asumimos MP3 por defecto
-
-    const binaryString = atob(audioBase64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    if (!audioBuffer || audioBuffer.byteLength === 0) {
+      throw new Error('No se recibió audio válido de MiniMax');
     }
 
     // 6. Guardar en R2
-    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+    const uniqueId = crypto.randomUUID();
+    const filename = `music/${uniqueId}.mp3`;
+
+    await env.MIRAI_AI_ASSETS.put(filename, audioBuffer, {
       httpMetadata: { contentType: 'audio/mpeg' },
       customMetadata: {
-        prompt: prompt.substring(0, 100),
+        prompt: prompt.substring(0, 200),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
         model: 'minimax/music-2.6'
       }
     });
 
-    console.log(`✅ Música generada y guardada: ${filename}`);
+    console.log(`✅ Música guardada en R2: ${filename} (${audioBuffer.byteLength} bytes)`);
     const audioUrl = `/api/audio/${filename}`;
 
-    // 7. Guardar respuesta en D1 y devolver al frontend
-    const assistantContent = `🎵 Aquí tienes la canción que creaste:\n\n[Audio generado]\n\n_Prompt: ${prompt}_`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl); // Guardamos audio_url
+    // 7. Guardar respuesta en D1
+    const assistantContent = `🎵 Aquí tienes la canción que pediste:\n\n_Prompt: ${prompt}_`;
+    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl);
+    await updateConversationTimestamp(conversationId, env);
 
     return jsonResponse({
       type: 'music',
@@ -1836,6 +1881,133 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
 
   } catch (error) {
     console.error('❌ handleMusicGeneration error:', error.message);
-    return jsonResponse({ error: 'Error generando música', details: error.message }, 500, corsHeaders);
+    return jsonResponse({ 
+      error: 'Error generando música', 
+      details: error.message 
+    }, 500, corsHeaders);
   }
+}
+
+// --- FALLBACK: Reintento con parámetros mínimos ---
+async function handleMusicGenerationFallback(prompt, conversationId, env, corsHeaders) {
+  try {
+    // Prompt ultra-simple (máximo 200 caracteres)
+    const simplePrompt = prompt.substring(0, 200);
+    
+    console.log('🔄 Fallback con prompt:', simplePrompt);
+
+    const aiResponse = await env.AI.run('minimax/music-2.6', {
+      prompt: simplePrompt,
+      is_instrumental: true,
+    }, {
+      gateway: { id: 'default' },
+    });
+
+    console.log('🔄 Fallback respuesta:', JSON.stringify(aiResponse).substring(0, 300));
+
+    // Mismo parsing que arriba...
+    let audioBuffer = null;
+
+    if (aiResponse instanceof ArrayBuffer && aiResponse.byteLength > 0) {
+      audioBuffer = aiResponse;
+    } else if (aiResponse instanceof Uint8Array && aiResponse.byteLength > 0) {
+      audioBuffer = aiResponse.buffer;
+    } else if (aiResponse?.success && aiResponse?.result?.audio) {
+      const audioData = aiResponse.result.audio;
+      if (typeof audioData === 'string') {
+        const binaryString = atob(audioData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        audioBuffer = bytes.buffer;
+      } else if (audioData instanceof ArrayBuffer) {
+        audioBuffer = audioData;
+      }
+    } else if (aiResponse?.success === false) {
+      const errorMsg = aiResponse.error?.[0]?.message || 'Unknown';
+      throw new Error(`Fallback también falló: ${errorMsg}`);
+    }
+
+    if (!audioBuffer || audioBuffer.byteLength === 0) {
+      throw new Error('Fallback: No se recibió audio válido');
+    }
+
+    // Guardar en R2
+    const uniqueId = crypto.randomUUID();
+    const filename = `music/${uniqueId}.mp3`;
+
+    await env.MIRAI_AI_ASSETS.put(filename, audioBuffer, {
+      httpMetadata: { contentType: 'audio/mpeg' },
+      customMetadata: {
+        prompt: prompt.substring(0, 200),
+        conversation_id: conversationId,
+        generated_at: new Date().toISOString(),
+        model: 'minimax/music-2.6-fallback'
+      }
+    });
+
+    const audioUrl = `/api/audio/${filename}`;
+
+    const assistantContent = `🎵 Aquí tienes la canción que pediste:\n\n_Prompt: ${prompt}_`;
+    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl);
+    await updateConversationTimestamp(conversationId, env);
+
+    return jsonResponse({
+      type: 'music',
+      audio_url: audioUrl,
+      prompt: prompt
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ Fallback error:', error.message);
+    return jsonResponse({ 
+      error: 'Error generando música (fallback)', 
+      details: error.message 
+    }, 500, corsHeaders);
+  }
+}
+
+// --- SIMPLIFICAR PROMPT PARA MINIMAX ---
+function simplifyMusicPrompt(prompt) {
+  // Si el prompt es corto, usarlo tal cual
+  if (prompt.length <= 200) return prompt;
+
+  // Extraer palabras clave: género, mood, instrumentos
+  const genreKeywords = ['jazz', 'pop', 'rock', 'classical', 'electronic', 'hip hop', 'r&b', 
+    'country', 'blues', 'reggae', 'latin', 'folk', 'metal', 'punk', 'soul', 'funk',
+    'ballad', 'waltz', 'techno', 'house', 'ambient', 'lo-fi', 'lofi', 'edm', 'trap',
+    'orchestral', 'acoustic', 'romantic', 'melancholic', 'upbeat', 'chill', 'dark'];
+  
+  const instrumentKeywords = ['piano', 'guitar', 'violin', 'saxophone', 'drums', 'bass',
+    'flute', 'cello', 'trumpet', 'synth', 'strings', 'orchestra', 'horn', 'clarinet'];
+
+  const lowerPrompt = prompt.toLowerCase();
+  
+  const foundGenres = genreKeywords.filter(g => lowerPrompt.includes(g));
+  const foundInstruments = instrumentKeywords.filter(i => lowerPrompt.includes(i));
+
+  // Construir prompt simplificado
+  let simplified = '';
+  if (foundGenres.length > 0) {
+    simplified += foundGenres.join(' ') + ' ';
+  }
+  
+  // Extraer mood si existe
+  const moodMatch = prompt.match(/mood\s*(?:is|:)\s*([\w\s,]+)/i) || 
+                    prompt.match(/(tender|nostalgic|elegant|romantic|upbeat|dark|chill|happy|sad|energetic)/i);
+  if (moodMatch) {
+    simplified += (moodMatch[1] || moodMatch[0]).trim() + ' ';
+  }
+
+  if (foundInstruments.length > 0) {
+    simplified += 'with ' + foundInstruments.join(' and ') + ' ';
+  }
+
+  // Si no pudimos extraer nada útil, truncar
+  if (!simplified || simplified.trim().length < 10) {
+    simplified = prompt.substring(0, 180);
+  }
+
+  return simplified.trim().substring(0, 500); // Límite seguro
 }

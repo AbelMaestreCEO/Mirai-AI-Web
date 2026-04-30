@@ -524,7 +524,10 @@ async function handleSendMessage() {
 
   state.isSending = true;
   updateSendButtonState();
-  showTypingIndicator();
+
+  // ✨ DETECTAR SI ES SOLICITUD DE MÚSICA
+  const isMusicRequest = detectMusicRequest(userInput);
+  showTypingIndicator(isMusicRequest ? 'music' : 'text');
 
   try {
     const response = await fetch(CONFIG.API_ENDPOINT, {
@@ -1632,24 +1635,43 @@ function showActionFeedback(button, type) {
 }
 
 // --- MOSTRAR INDICADOR DINÁMICO (Puntos o Micrófono) ---
-function showTypingIndicator() {
+// --- MOSTRAR INDICADOR DINÁMICO (Puntos, Micrófono o Música) ---
+function showTypingIndicator(contentType = 'text') {
   if (!elements.typingIndicator) return;
   const indicator = elements.typingIndicator;
   const dotsContainer = indicator.querySelector('.typing-indicator');
-  const micContainer = indicator.querySelector('.recording-indicator'); // Asegúrate de tener este div en el HTML
+  const micContainer = indicator.querySelector('.recording-indicator');
+  const musicContainer = indicator.querySelector('.music-indicator');
 
   indicator.classList.remove('hidden');
 
-  // Lógica: Si el modo es 'always' (siempre audio), mostramos el micrófono
-  // Si el modo es 'auto' o 'never', mostramos los puntos (y luego el reproductor si hay audio)
-  if (state.audioMode === 'always') {
-    // Mostrar Micrófono
-    if (dotsContainer) dotsContainer.classList.add('hidden');
+  // Ocultar todos los indicadores primero
+  if (dotsContainer) dotsContainer.classList.add('hidden');
+  if (micContainer) micContainer.classList.add('hidden');
+  if (musicContainer) musicContainer.classList.add('hidden');
+
+  // Mostrar el indicador correcto según el tipo
+  if (contentType === 'music') {
+    // Mostrar indicador de música
+    if (musicContainer) {
+      musicContainer.classList.remove('hidden');
+      // Reiniciar animación
+      const musicNote = musicContainer.querySelector('.music-note');
+      if (musicNote) {
+        musicNote.style.animation = 'none';
+        musicNote.offsetHeight; // trigger reflow
+        musicNote.style.animation = 'musicFloat 1.5s ease-in-out infinite';
+      }
+    }
+  } else if (contentType === 'audio') {
+    // Mostrar micrófono (grabando)
     if (micContainer) micContainer.classList.remove('hidden');
+    if (dotsContainer) dotsContainer.classList.add('hidden');
   } else {
-    // Mostrar Puntos (Escribiendo)
-    if (micContainer) micContainer.classList.add('hidden');
+    // Mostrar puntos (escribiendo) - por defecto
     if (dotsContainer) dotsContainer.classList.remove('hidden');
+    if (micContainer) micContainer.classList.add('hidden');
+    if (musicContainer) musicContainer.classList.add('hidden');
   }
 
   setTimeout(() => {
@@ -2537,4 +2559,32 @@ async function sendEducationWelcome() {
     console.error('❌ Error en welcome message:', error);
     appendMessage('system', '⚠️ Error al cargar la lección. Intenta de nuevo.');
   }
+}
+
+// --- DETECTAR SI EL MENSAJE ES UNA SOLICITUD DE MÚSICA ---
+function detectMusicRequest(text) {
+  if (!text) return false;
+
+  const lowerText = text.toLowerCase();
+
+  // Palabras clave en español
+  const spanishKeywords = [
+    'canción', 'cancion', 'música', 'musica', 'melodía', 'melodia',
+    'canto', 'cantar', 'componer', 'componer música', 'hacer música',
+    'crear música', 'generar música', 'tocar música', 'instrumental',
+    'balada', 'rumba', 'ritmo', 'beat', 'tema', 'pieza musical',
+    'sonido', 'audio', 'canción de', 'música de'
+  ];
+
+  // Palabras clave en inglés
+  const englishKeywords = [
+    'song', 'music', 'melody', 'compose', 'create music', 'make music',
+    'generate music', 'play music', 'instrumental', 'ballad', 'track',
+    'beat', 'tune', 'piece', 'soundtrack', 'audio', 'song about',
+    'music about', 'create a song', 'write a song'
+  ];
+
+  // Verificar si alguna palabra clave está presente
+  const allKeywords = [...spanishKeywords, ...englishKeywords];
+  return allKeywords.some(keyword => lowerText.includes(keyword));
 }
