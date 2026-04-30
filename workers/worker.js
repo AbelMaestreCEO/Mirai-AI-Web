@@ -750,9 +750,9 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
     const transcription = whisperResult.text || whisperResult.transcription || '';
 
     if (!transcription || transcription.trim().length === 0) {
-      return jsonResponse({ 
-        success: false, 
-        error: 'No se detectó voz en el audio' 
+      return jsonResponse({
+        success: false,
+        error: 'No se detectó voz en el audio'
       }, 200, corsHeaders);
     }
 
@@ -774,9 +774,9 @@ async function handleTranscribeAudio(request, env, corsHeaders) {
 
   } catch (error) {
     console.error('❌ Error en handleTranscribeAudio:', error.message);
-    return jsonResponse({ 
-      error: 'Error en transcripción', 
-      details: error.message 
+    return jsonResponse({
+      error: 'Error en transcripción',
+      details: error.message
     }, 500, corsHeaders);
   }
 }
@@ -1110,10 +1110,13 @@ async function getConversationHistory(conversationId, env) {
   }
 }
 
-// Guardar un mensaje
-// Guardar un mensaje (CON audio_url)
+// Guardar un mensaje (CON audio_url) — ORDEN CORREGIDO
 async function saveMessage(conversationId, role, content, env, audioUrl = null) {
   try {
+    // ✅ PASO 1: ASEGURAR que la conversación EXISTE antes de insertar el mensaje
+    await ensureConversationExists(conversationId, content, env);
+
+    // ✅ PASO 2: AHORA sí, insertar el mensaje
     const messageId = crypto.randomUUID();
 
     const stmt = env.MIRAI_AI_DB.prepare(`
@@ -1123,8 +1126,7 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null) 
 
     await stmt.bind(messageId, conversationId, role, content, audioUrl).run();
 
-    // Si es el primer mensaje de una conversación, crearla
-    await ensureConversationExists(conversationId, content, env);
+    console.log(`💾 Mensaje guardado: ${role} | conv: ${conversationId} | audio: ${audioUrl || 'no'}`);
 
     return messageId;
 
