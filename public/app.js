@@ -1010,7 +1010,7 @@ async function loadConversationHistory(conversationId) {
 // --- MANEJO DE EVENTOS ---
 function setupEventListeners() {
   if (!elements.chatMessages) return;
-  elements.sendButton.addEventListener('click', handleSendMessage);
+  //elements.sendButton.addEventListener('click', handleSendMessage);
 
   // Listener para detectar cambios en el input y actualizar el icono
   elements.messageInput.addEventListener('input', () => {
