@@ -556,9 +556,10 @@ async function handleSendMessage() {
       // El contenido puede ser un placeholder o el prompt
       const content = `🎵 Canción generada: ${userInput}`;
       appendMessage('assistant', content, true, responseData.audio_url);
-    }
-    else if (responseData.type === 'video') {
-      appendMessage('assistant', responseData.response || responseData.response_text || 'Contenido en desarrollo 🚧', true, null);
+    } else if (responseData.type === 'video' && responseData.video_url) {
+      appendVideoMessage(responseData.video_url, responseData.thumbnail_url, userInput);
+    } else if (responseData.type === 'video') {
+      appendMessage('assistant', responseData.response || '🎬 Video no disponible', true, null);
     } else if (responseData.response) {
       appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
     } else {
@@ -773,8 +774,15 @@ async function sendTextToAI(text) {
     if (responseData.type === 'image' && responseData.image_url) {
       const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${text}_`;
       appendMessage('assistant', imageMarkdown, true, null);
-    } else if (responseData.type === 'video' || responseData.type === 'music') {
-      appendMessage('assistant', responseData.response || responseData.response_text || 'Contenido en desarrollo 🚧', true, null);
+    } else if (responseData.type === 'music' && responseData.audio_url) {
+      // Usamos appendMessage con el audio_url
+      // El contenido puede ser un placeholder o el prompt
+      const content = `🎵 Canción generada: ${userInput}`;
+      appendMessage('assistant', content, true, responseData.audio_url);
+    } else if (responseData.type === 'video' && responseData.video_url) {
+      appendVideoMessage(responseData.video_url, responseData.thumbnail_url, userInput);
+    } else if (responseData.type === 'video') {
+      appendMessage('assistant', responseData.response || '🎬 Video no disponible', true, null);
     } else if (responseData.response) {
       appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
     } else {
@@ -789,6 +797,98 @@ async function sendTextToAI(text) {
   } finally {
     hideTypingIndicator();
     updateSendButtonIcon();
+  }
+}
+
+// --- APENDAR MENSAJE DE VIDEO ---
+function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message assistant fade-in';
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const videoId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  messageDiv.innerHTML = `
+    <div class="message-avatar">M</div>
+    <div class="message-content">
+      <div class="video-container" id="${videoId}">
+        <div class="video-thumbnail-wrapper">
+          <img src="${thumbnailUrl || ''}" alt="Thumbnail" class="video-thumbnail" loading="lazy">
+          <button class="video-play-overlay" title="Reproducir">
+            <svg viewBox="0 0 24 24" width="48" height="48"><circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.5)" stroke="white" stroke-width="1"/><path d="M8 5v14l11-7z" fill="white"/></svg>
+          </button>
+        </div>
+        <video class="video-player hidden" controls preload="metadata" poster="${thumbnailUrl || ''}">
+          <source src="${videoUrl}" type="video/mp4">
+          Tu navegador no soporta video.
+        </video>
+        <div class="video-info">
+          <span class="video-badge">🎬 Video generado</span>
+          <span class="video-prompt">${escapeHtml(prompt || '')}</span>
+        </div>
+        <div class="video-actions">
+          <button class="video-download-btn" data-video-url="${videoUrl}" title="Descargar">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/></svg>
+            <span>Descargar</span>
+          </button>
+        </div>
+      </div>
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+        <div class="message-actions">
+          <button class="msg-action copy-full-btn" title="Copiar prompt" data-content="${escapeHtml(prompt || '')}">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  elements.chatMessages.appendChild(messageDiv);
+  scrollToBottom();
+
+  // Inicializar reproductor
+  const videoEl = messageDiv.querySelector('video');
+  const thumbWrapper = messageDiv.querySelector('.video-thumbnail-wrapper');
+  const playOverlay = messageDiv.querySelector('.video-play-overlay');
+
+  if (thumbWrapper && playOverlay) {
+    thumbWrapper.addEventListener('click', () => {
+      videoEl.classList.remove('hidden');
+      thumbWrapper.classList.add('hidden');
+      videoEl.play();
+    });
+  }
+
+  const downloadBtn = messageDiv.querySelector('.video-download-btn');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', async () => {
+      await downloadVideo(videoUrl, `mirai-video-${Date.now()}.mp4`);
+    });
+  }
+}
+
+// --- DESCARGAR VIDEO ---
+async function downloadVideo(videoUrl, filename) {
+  try {
+    let fetchUrl = videoUrl;
+    if (videoUrl.startsWith('http')) {
+      const r2Key = videoUrl.replace('https://aiassets.aberumirai.com/', '');
+      fetchUrl = `/api/video/${r2Key}`;
+    }
+    const res = await fetch(fetchUrl);
+    if (!res.ok) throw new Error('Error al descargar');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error descargando video:', err);
+    alert('No se pudo descargar automáticamente. Haz clic derecho y "Guardar como..."');
   }
 }
 
@@ -877,13 +977,13 @@ function initializeChat() {
     elements.modelSelector.value = savedModel;
 
     elements.modelSelector.addEventListener('change', (e) => {
-        const selectedModel = e.target.value;
-        localStorage.setItem('mirai-ai-model', selectedModel);
-        
-        // Feedback visual opcional
-        console.log(`🔄 Modelo cambiado a: ${selectedModel}`);
+      const selectedModel = e.target.value;
+      localStorage.setItem('mirai-ai-model', selectedModel);
+
+      // Feedback visual opcional
+      console.log(`🔄 Modelo cambiado a: ${selectedModel}`);
     });
-}
+  }
   console.log('✨ Mirai AI inicializado correctamente');
 }
 
