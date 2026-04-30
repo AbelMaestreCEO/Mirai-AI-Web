@@ -527,8 +527,10 @@ async function handleSendMessage() {
   updateSendButtonState();
 
   // ✨ DETECTAR SI ES SOLICITUD DE MÚSICA
+  // ✨ DETECTAR SI ES SOLICITUD DE MÚSICA O VIDEO
   const isMusicRequest = detectMusicRequest(userInput);
-  showTypingIndicator(isMusicRequest ? 'music' : 'text');
+  const isVideoRequest = detectVideoRequest(userInput); // Necesitas añadir esta función
+  showTypingIndicator(isVideoRequest ? 'video' : (isMusicRequest ? 'music' : 'text'));
 
   try {
     const selectedModel = elements.modelSelector?.value || 'deepseek';
@@ -1752,14 +1754,29 @@ function showActionFeedback(button, type) {
   }, 2000);
 }
 
-// --- MOSTRAR INDICADOR DINÁMICO (Puntos o Micrófono) ---
-// --- MOSTRAR INDICADOR DINÁMICO (Puntos, Micrófono o Música) ---
+// --- MOSTRAR INDICADOR DINÁMICO (Puntos, Micrófono o Video) ---
 function showTypingIndicator(contentType = 'text') {
   if (!elements.typingIndicator) return;
   const indicator = elements.typingIndicator;
   const dotsContainer = indicator.querySelector('.typing-indicator');
   const micContainer = indicator.querySelector('.recording-indicator');
   const musicContainer = indicator.querySelector('.music-indicator');
+  const videoContainer = indicator.querySelector('.video-indicator');
+
+  // Asegurar que el contenedor de video exista (si no, crearlo)
+  if (!videoContainer && contentType === 'video') {
+    const newVideoContainer = document.createElement('div');
+    newVideoContainer.className = 'video-indicator hidden';
+    newVideoContainer.innerHTML = `
+      <div class="video-loader">
+        <svg viewBox="0 0 24 24" width="24" height="24" class="video-icon">
+          <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" fill="currentColor"/>
+        </svg>
+        <div class="video-spinner"></div>
+      </div>
+    `;
+    indicator.appendChild(newVideoContainer);
+  }
 
   indicator.classList.remove('hidden');
 
@@ -1767,29 +1784,26 @@ function showTypingIndicator(contentType = 'text') {
   if (dotsContainer) dotsContainer.classList.add('hidden');
   if (micContainer) micContainer.classList.add('hidden');
   if (musicContainer) musicContainer.classList.add('hidden');
+  if (videoContainer) videoContainer.classList.add('hidden');
 
-  // Mostrar el indicador correcto según el tipo
-  if (contentType === 'music') {
-    // Mostrar indicador de música
-    if (musicContainer) {
-      musicContainer.classList.remove('hidden');
-      // Reiniciar animación
-      const musicNote = musicContainer.querySelector('.music-note');
-      if (musicNote) {
-        musicNote.style.animation = 'none';
-        musicNote.offsetHeight; // trigger reflow
-        musicNote.style.animation = 'musicFloat 1.5s ease-in-out infinite';
+  // Mostrar el indicador correcto
+  if (contentType === 'video') {
+    if (videoContainer) {
+      videoContainer.classList.remove('hidden');
+      // Reiniciar animación del spinner
+      const spinner = videoContainer.querySelector('.video-spinner');
+      if (spinner) {
+        spinner.style.animation = 'none';
+        spinner.offsetHeight; // trigger reflow
+        spinner.style.animation = 'videoSpin 1s linear infinite';
       }
     }
+  } else if (contentType === 'music') {
+    if (musicContainer) musicContainer.classList.remove('hidden');
   } else if (contentType === 'audio') {
-    // Mostrar micrófono (grabando)
     if (micContainer) micContainer.classList.remove('hidden');
-    if (dotsContainer) dotsContainer.classList.add('hidden');
   } else {
-    // Mostrar puntos (escribiendo) - por defecto
     if (dotsContainer) dotsContainer.classList.remove('hidden');
-    if (micContainer) micContainer.classList.add('hidden');
-    if (musicContainer) musicContainer.classList.add('hidden');
   }
 
   setTimeout(() => {
@@ -2705,4 +2719,18 @@ function detectMusicRequest(text) {
   // Verificar si alguna palabra clave está presente
   const allKeywords = [...spanishKeywords, ...englishKeywords];
   return allKeywords.some(keyword => lowerText.includes(keyword));
+}
+
+// --- DETECTAR SI EL MENSAJE ES UNA SOLICITUD DE VIDEO ---
+function detectVideoRequest(text) {
+  if (!text) return false;
+  const lowerText = text.toLowerCase();
+  
+  const keywords = [
+    'video', 'vídeo', 'clip', 'película', 'corto', 'animación', 
+    'animar', 'movimiento', 'cámara', 'cine', 'film', 'movie',
+    'generar video', 'crear video', 'hacer video', 'producir video'
+  ];
+  
+  return keywords.some(keyword => lowerText.includes(keyword));
 }
