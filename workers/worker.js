@@ -1766,6 +1766,16 @@ function extractSuggestions(aiResponse) {
 
 // --- GENERAR MÚSICA CON MINIMAX 2.6 ---
 async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
+  const isAvailable = await checkModelAvailability('minimax/music-2.6', env);
+  if (!isAvailable) {
+    const fallbackMessage = "🎵 El servicio de generación de música está temporalmente no disponible. ¡Prueba en unos minutos!";
+    await saveMessage(conversationId, 'assistant', fallbackMessage, env);
+    return jsonResponse({
+      type: 'music',
+      response: fallbackMessage,
+      status: 'service_unavailable'
+    }, 200, corsHeaders);
+  }
   try {
     console.log('🎵 Iniciando generación de música con MiniMax 2.6');
     console.log('🎵 Prompt original:', prompt);
@@ -1775,14 +1785,13 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
     await saveMessage(conversationId, 'user', prompt, env);
 
     // 2. Limpiar y simplificar el prompt para MiniMax
-    // MiniMax funciona mejor con prompts cortos de estilo/mood
     const cleanPrompt = simplifyMusicPrompt(prompt);
     console.log('🎵 Prompt simplificado:', cleanPrompt);
 
     // 3. Preparar parámetros para MiniMax
     const musicParams = {
       prompt: cleanPrompt,
-      is_instrumental: true,  // ← Empezar con instrumental (más estable)
+      is_instrumental: true,
     };
 
     console.log('🎵 Parámetros enviados:', JSON.stringify(musicParams));
@@ -1795,25 +1804,21 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
     console.log('🎵 Tipo de respuesta:', typeof aiResponse);
     console.log('🎵 Respuesta completa:', JSON.stringify(aiResponse).substring(0, 500));
 
-    // 5. Extraer audio de la respuesta (múltiples formatos posibles)
+    // 5. Extraer audio de la respuesta
     let audioBuffer = null;
 
-    // CASO A: Respuesta directa como ArrayBuffer o Uint8Array
     if (aiResponse instanceof ArrayBuffer && aiResponse.byteLength > 0) {
       audioBuffer = aiResponse;
       console.log('✅ Audio recibido como ArrayBuffer directo:', audioBuffer.byteLength, 'bytes');
     }
-    // CASO B: Uint8Array
     else if (aiResponse instanceof Uint8Array && aiResponse.byteLength > 0) {
       audioBuffer = aiResponse.buffer;
       console.log('✅ Audio recibido como Uint8Array:', audioBuffer.byteLength, 'bytes');
     }
-    // CASO C: Respuesta JSON con { success, result: { audio } }
     else if (aiResponse?.success && aiResponse?.result?.audio) {
       const audioData = aiResponse.result.audio;
-      
+
       if (typeof audioData === 'string') {
-        // Es base64
         const binaryString = atob(audioData);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -1826,21 +1831,29 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
         console.log('✅ Audio como ArrayBuffer en result.audio');
       }
     }
-    // CASO D: Respuesta con error
-    else if (aiResponse?.success === false) {
-      const errorMsg = aiResponse.error?.[0]?.message || 'Unknown error';
-      const errorCode = aiResponse.error?.[0]?.code || 'unknown';
+    else if (aiResponse?.error) {
+      // ✨ MANEJO DE ERRORES DEL PROVEEDOR
+      const errorMsg = aiResponse.error?.message || 'Error desconocido';
+      const errorCode = aiResponse.error?.code || 'unknown';
+
       console.error(`❌ MiniMax API error: code=${errorCode}, message=${errorMsg}`);
 
-      // Si es error interno, intentar con instrumental como fallback
-      if (errorCode === 2002) {
-        console.log('🔄 Reintentando con parámetros simplificados...');
-        return await handleMusicGenerationFallback(cleanPrompt, conversationId, env, corsHeaders);
+      // Si el proveedor no está disponible, dar mensaje amigable
+      if (errorMsg.includes('unavailable') || errorMsg.includes('provider')) {
+        const fallbackMessage = "🎵 El servicio de generación de música está temporalmente no disponible. ¡Prueba en unos minutos! Mientras tanto, ¿quieres que genere una imagen o hablemos de algo?";
+
+        await saveMessage(conversationId, 'assistant', fallbackMessage, env);
+        await updateConversationTimestamp(conversationId, env);
+
+        return jsonResponse({
+          type: 'music',
+          response: fallbackMessage,
+          status: 'service_unavailable'
+        }, 200, corsHeaders);
       }
 
       throw new Error(`MiniMax error ${errorCode}: ${errorMsg}`);
     }
-    // CASO E: Formato desconocido
     else {
       console.error('❌ Formato de respuesta no reconocido');
       console.error('❌ Keys:', Object.keys(aiResponse || {}));
@@ -1881,10 +1894,41 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
 
   } catch (error) {
     console.error('❌ handleMusicGeneration error:', error.message);
-    return jsonResponse({ 
-      error: 'Error generando música', 
-      details: error.message 
+
+    // Si es error del proveedor, dar mensaje amigable
+    if (error.message.includes('unavailable') || error.message.includes('provider')) {
+      const fallbackMessage = "🎵 El servicio de generación de música está temporalmente no disponible. ¡Prueba en unos minutos!";
+
+      return jsonResponse({
+        type: 'music',
+        response: fallbackMessage,
+        status: 'service_unavailable'
+      }, 200, corsHeaders);
+    }
+
+    return jsonResponse({
+      error: 'Error generando música',
+      details: error.message
     }, 500, corsHeaders);
+  }
+}
+
+// Agrega esta función para verificar si el modelo está disponible
+async function checkModelAvailability(modelName, env) {
+  try {
+    // Intenta una llamada mínima
+    const testResponse = await env.AI.run(modelName, {
+      prompt: 'test',
+      is_instrumental: true
+    }, {
+      gateway: { id: 'default' },
+    });
+
+    // Si llega aquí, el modelo está disponible
+    return true;
+  } catch (error) {
+    console.warn(`⚠️ Modelo ${modelName} no disponible:`, error.message);
+    return false;
   }
 }
 
@@ -1893,7 +1937,7 @@ async function handleMusicGenerationFallback(prompt, conversationId, env, corsHe
   try {
     // Prompt ultra-simple (máximo 200 caracteres)
     const simplePrompt = prompt.substring(0, 200);
-    
+
     console.log('🔄 Fallback con prompt:', simplePrompt);
 
     const aiResponse = await env.AI.run('minimax/music-2.6', {
@@ -1961,9 +2005,9 @@ async function handleMusicGenerationFallback(prompt, conversationId, env, corsHe
 
   } catch (error) {
     console.error('❌ Fallback error:', error.message);
-    return jsonResponse({ 
-      error: 'Error generando música (fallback)', 
-      details: error.message 
+    return jsonResponse({
+      error: 'Error generando música (fallback)',
+      details: error.message
     }, 500, corsHeaders);
   }
 }
@@ -1974,16 +2018,16 @@ function simplifyMusicPrompt(prompt) {
   if (prompt.length <= 200) return prompt;
 
   // Extraer palabras clave: género, mood, instrumentos
-  const genreKeywords = ['jazz', 'pop', 'rock', 'classical', 'electronic', 'hip hop', 'r&b', 
+  const genreKeywords = ['jazz', 'pop', 'rock', 'classical', 'electronic', 'hip hop', 'r&b',
     'country', 'blues', 'reggae', 'latin', 'folk', 'metal', 'punk', 'soul', 'funk',
     'ballad', 'waltz', 'techno', 'house', 'ambient', 'lo-fi', 'lofi', 'edm', 'trap',
     'orchestral', 'acoustic', 'romantic', 'melancholic', 'upbeat', 'chill', 'dark'];
-  
+
   const instrumentKeywords = ['piano', 'guitar', 'violin', 'saxophone', 'drums', 'bass',
     'flute', 'cello', 'trumpet', 'synth', 'strings', 'orchestra', 'horn', 'clarinet'];
 
   const lowerPrompt = prompt.toLowerCase();
-  
+
   const foundGenres = genreKeywords.filter(g => lowerPrompt.includes(g));
   const foundInstruments = instrumentKeywords.filter(i => lowerPrompt.includes(i));
 
@@ -1992,10 +2036,10 @@ function simplifyMusicPrompt(prompt) {
   if (foundGenres.length > 0) {
     simplified += foundGenres.join(' ') + ' ';
   }
-  
+
   // Extraer mood si existe
-  const moodMatch = prompt.match(/mood\s*(?:is|:)\s*([\w\s,]+)/i) || 
-                    prompt.match(/(tender|nostalgic|elegant|romantic|upbeat|dark|chill|happy|sad|energetic)/i);
+  const moodMatch = prompt.match(/mood\s*(?:is|:)\s*([\w\s,]+)/i) ||
+    prompt.match(/(tender|nostalgic|elegant|romantic|upbeat|dark|chill|happy|sad|energetic)/i);
   if (moodMatch) {
     simplified += (moodMatch[1] || moodMatch[0]).trim() + ' ';
   }
