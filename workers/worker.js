@@ -950,22 +950,6 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
   }, 200, corsHeaders);
 }
 
-// --- GENERAR MÚSICA (PLACEHOLDER) ---
-async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
-  await ensureConversationExists(conversationId, prompt, env);
-  await saveMessage(conversationId, 'user', prompt, env);
-
-  const responseText = "🎵 La generación de música aún no está disponible. ¡Próximamente!";
-  await saveMessage(conversationId, 'assistant', responseText, env);
-  await updateConversationTimestamp(conversationId, env);
-
-  return jsonResponse({
-    type: 'music',
-    status: 'coming_soon',
-    response: responseText
-  }, 200, corsHeaders);
-}
-
 // ============================================
 // FUNCIONES TTS (Text-to-Speech)
 // ============================================
