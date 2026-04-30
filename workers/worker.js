@@ -1428,71 +1428,169 @@ async function handleDeleteConversation(conversationId, env, corsHeaders) {
   }
 }
 
-// --- MANEJAR SUBIDA DE ARCHIVOS A R2 ---
-async function handleUpload(request, env, corsHeaders) {
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Método no permitido' }, 405, corsHeaders);
-  }
-
+async function loadConversationHistory(conversationId) {
   try {
-    // 1. Obtener el archivo del FormData
-    const formData = await request.formData();
-    const file = formData.get('file');
-    const conversationId = formData.get('conversation_id');
-
-    if (!file || !conversationId) {
-      return jsonResponse({ error: 'Faltan el archivo o el conversation_id' }, 400, corsHeaders);
+    const response = await fetch(`/api/history/${conversationId}`);
+    if (!response.ok) {
+      console.error('Error al cargar historial:', response.status);
+      return;
     }
 
-    // 2. Validar tipo y tamaño (opcional pero recomendado)
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
-      return jsonResponse({ error: 'Tipo de archivo no soportado' }, 400, corsHeaders);
-    }
+    const messages = await response.json();
+    elements.chatMessages.innerHTML = '';
 
-    // 3. Generar nombre único para el archivo
-    const uniqueId = crypto.randomUUID();
-    const extension = file.name.split('.').pop();
-    const filename = `${uniqueId}.${extension}`;
-
-    // 4. Subir a R2
-    await env.MIRAI_AI_ASSETS.put(filename, file.stream(), {
-      httpMetadata: { contentType: file.type },
-      customMetadata: {
-        conversation_id: conversationId,
-        original_name: file.name,
-        uploaded_at: new Date().toISOString()
+    messages.forEach(msg => {
+      if (msg.role === 'user') {
+        if (msg.audio_url) {
+          appendUserAudioMessage(msg.audio_url);
+        } else {
+          appendMessage('user', msg.content);
+        }
+      } else if (msg.role === 'assistant') {
+        // ✨ PRIORIDAD: Si hay video_url, mostrar video (ignorar audio/texto)
+        if (msg.video_url) {
+          // Extraer el prompt del contenido (formato: "🎬 Aquí tienes el video que pediste:\n\n_Prompt: ..._$")
+          let prompt = msg.content;
+          const match = msg.content.match(/_Prompt:\s*(.+?)_\s*$/);
+          if (match) {
+            prompt = match[1];
+          }
+          
+          // Usar el thumbnail_url guardado en la DB
+          const thumbnail = msg.thumbnail_url || null;
+          
+          console.log('🎬 Cargando video histórico:', {
+            video: msg.video_url,
+            thumb: thumbnail,
+            prompt: prompt
+          });
+          
+          appendVideoMessage(msg.video_url, thumbnail, prompt);
+        } 
+        // Si no hay video, pero hay audio (TTS)
+        else if (msg.audio_url) {
+          appendMessage('assistant', msg.content, true, msg.audio_url);
+        } 
+        // Solo texto
+        else {
+          appendMessage('assistant', msg.content, true, null);
+        }
+      } else if (msg.role === 'system') {
+        appendMessage('system', msg.content);
       }
     });
 
-    // 5. Guardar referencia en D1 (Opcional: si quieres un historial de archivos)
-    // Si prefieres guardar en la tabla messages, puedes hacerlo aquí o en handleChat
-    const stmt = env.MIRAI_AI_DB.prepare(`
-      INSERT INTO attachments (id, conversation_id, r2_key, original_name, file_type, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `);
-
-    // NOTA: Necesitarás crear la tabla 'attachments' en D1 (ver Paso 4)
-    // Si no quieres tabla extra, guarda el r2_key en el campo 'content' de messages con un prefijo
-    await stmt.bind(uniqueId, conversationId, filename, file.name, file.type).run();
-
-    // 6. Devolver la URL pública (si el bucket es público) o el key
-    // Si el bucket es privado, solo devuelve el key y el Worker servirá el archivo
-    const publicUrl = `https://pub-${env.ACCOUNT_ID}.r2.cloudflarestorage.com/mirai-ai-assets/${filename}`;
-    // Nota: Reemplaza ACCOUNT_ID con tu ID real o usa una ruta de acceso directo si configuras un dominio
-
-    return jsonResponse({
-      success: true,
-      file_id: uniqueId,
-      r2_key: filename,
-      original_name: file.name,
-      // Si configuras un dominio personalizado para R2, usa esa URL
-      url: `https://aiassets.aberumirai.com/${filename}`
-    }, 200, corsHeaders);
+    // Scroll al final
+    setTimeout(() => {
+      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }, 100);
 
   } catch (error) {
-    console.error('Error uploading file:', error);
-    return jsonResponse({ error: 'Error al subir archivo', details: error.message }, 500, corsHeaders);
+    console.error('❌ Error crítico cargando historial:', error);
+  }
+}
+
+// --- APENDAR MENSAJE DE VIDEO (Versión final corregida) ---
+function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message assistant fade-in';
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const videoId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Determinar si hay thumbnail válido
+  const hasThumbnail = thumbnailUrl && thumbnailUrl.startsWith('/api/image/');
+  const finalPoster = hasThumbnail ? thumbnailUrl : '';
+
+  messageDiv.innerHTML = `
+    <div class="message-avatar">M</div>
+    <div class="message-content">
+      <div class="video-container" id="${videoId}">
+        <div class="video-thumbnail-wrapper" style="${!hasThumbnail ? 'background: #222;' : ''}">
+          ${hasThumbnail ? `
+            <img 
+              src="${thumbnailUrl}" 
+              alt="Video thumbnail" 
+              class="video-thumbnail"
+              loading="lazy"
+              onerror="this.style.display='none'; this.parentElement.style.background='#222';"
+            >
+          ` : `
+            <div class="video-placeholder-icon" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#222; color:#666;">
+              <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor">
+                <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/>
+              </svg>
+            </div>
+          `}
+          <button class="video-play-overlay" title="Reproducir video">
+            <svg viewBox="0 0 24 24" width="48" height="48">
+              <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.6)" stroke="white" stroke-width="1.5"/>
+              <path d="M8 5v14l11-7z" fill="white"/>
+            </svg>
+          </button>
+        </div>
+        
+        <video 
+          class="video-player hidden" 
+          controls 
+          preload="metadata"
+          poster="${finalPoster}"
+          playsinline
+        >
+          <source src="${videoUrl}" type="video/mp4">
+          Tu navegador no soporta el elemento de video.
+        </video>
+
+        <div class="video-info">
+          <span class="video-badge">🎬 Video generado</span>
+          <span class="video-prompt">${escapeHtml(prompt || 'Sin descripción')}</span>
+        </div>
+
+        <div class="video-actions">
+          <button class="video-download-btn" data-video-url="${videoUrl}" title="Descargar video">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            <span>Descargar</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+        <div class="message-actions">
+          <button class="msg-action copy-full-btn" title="Copiar prompt" data-content="${escapeHtml(prompt || '')}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  elements.chatMessages.appendChild(messageDiv);
+  scrollToBottom();
+
+  // Lógica del reproductor
+  const videoEl = messageDiv.querySelector('video');
+  const thumbWrapper = messageDiv.querySelector('.video-thumbnail-wrapper');
+  const playOverlay = messageDiv.querySelector('.video-play-overlay');
+
+  if (thumbWrapper && playOverlay && videoEl) {
+    thumbWrapper.addEventListener('click', () => {
+      thumbWrapper.classList.add('hidden');
+      videoEl.classList.remove('hidden');
+      videoEl.play().catch(err => console.error('Error al reproducir:', err));
+    });
+  }
+
+  // Botón de descarga
+  const downloadBtn = messageDiv.querySelector('.video-download-btn');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await downloadVideo(videoUrl, `mirai-video-${Date.now()}.mp4`);
+    });
   }
 }
 
