@@ -1094,7 +1094,10 @@ async function loadConversationHistory(conversationId) {
         }
       } else if (msg.role === 'assistant') {
         // Mantener lógica existente para respuestas de la IA
-        if (msg.audio_url) {
+        if (msg.video_url) {
+          const prompt = msg.content.replace('🎬 Aquí tienes el video que pediste:\n\n_Prompt: ', '').replace('_$', '');
+          appendVideoMessage(msg.video_url, msg.thumbnail_url, prompt);
+        } else if (msg.audio_url) {
           appendMessage('assistant', msg.content, true, msg.audio_url);
         } else {
           appendMessage('assistant', msg.content, true, null);
@@ -2725,12 +2728,12 @@ function detectMusicRequest(text) {
 function detectVideoRequest(text) {
   if (!text) return false;
   const lowerText = text.toLowerCase();
-  
+
   const keywords = [
-    'video', 'vídeo', 'clip', 'película', 'corto', 'animación', 
+    'video', 'vídeo', 'clip', 'película', 'corto', 'animación',
     'animar', 'movimiento', 'cámara', 'cine', 'film', 'movie',
     'generar video', 'crear video', 'hacer video', 'producir video'
   ];
-  
+
   return keywords.some(keyword => lowerText.includes(keyword));
 }

@@ -1069,7 +1069,7 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
 
     // 8. Guardar respuesta en D1
     const assistantContent = `🎬 Aquí tienes el video que pediste:\n\n_Prompt: ${prompt}_`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl);
+    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, thumbnailUrl);
 
     return jsonResponse({
       type: 'video',
@@ -1242,17 +1242,17 @@ async function getConversationHistory(conversationId, env) {
   }));
 }
 
-async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null) {
+async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null) {
   try {
     await ensureConversationExists(conversationId, content, env);
     const messageId = crypto.randomUUID();
 
     const stmt = env.MIRAI_AI_DB.prepare(`
-      INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-    `);
+    INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+    await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl).run();
 
-    await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl).run();
     return messageId;
   } catch (error) {
     console.error('Error saving message:', error);
