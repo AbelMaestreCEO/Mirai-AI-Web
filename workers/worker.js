@@ -315,6 +315,7 @@ async function handleChat(request, env, corsHeaders) {
           classification.prompt || message,
           message,
           conversation_id,
+          userDni,
           env,
           corsHeaders
         );
@@ -323,6 +324,7 @@ async function handleChat(request, env, corsHeaders) {
         return await handleVideoGeneration(
           classification.prompt || message,
           conversation_id,
+          userDni,
           env,
           corsHeaders
         );
@@ -331,6 +333,7 @@ async function handleChat(request, env, corsHeaders) {
         return await handleMusicGeneration(
           classification.prompt || message,
           conversation_id,
+          userDni,
           env,
           corsHeaders
         );
@@ -740,7 +743,7 @@ async function handleApiRequest(request, env, corsHeaders) {
     // Ruta: GET /api/history/:conversationId
     if (path.startsWith(ROUTES.HISTORY) && request.method === 'GET') {
       const conversationId = path.split('/').pop();
-      return await handleHistory(conversationId, env, corsHeaders);
+      return await handleHistory(request, conversationId, env, corsHeaders);
     }
 
     if (path === '/api/course-details' && request.method === 'GET') {
@@ -750,7 +753,7 @@ async function handleApiRequest(request, env, corsHeaders) {
     // Ruta: DELETE /api/chat/clear
     if (path === ROUTES.CHAT + '/clear' && request.method === 'DELETE') {
       const { conversation_id } = await request.json();
-      return await handleDeleteConversation(conversation_id, env, corsHeaders);
+      return await handleDeleteConversation(request, conversation_id, env, corsHeaders);
     }
 
     // Ruta no encontrada
@@ -924,8 +927,8 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
     }
 
-    await saveMessage(conversation_id, 'user', message, env);
-    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url);
+    await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
+    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url, null, null, userDni);
     await updateConversationTimestamp(conversation_id, env);
 
     return jsonResponse({
@@ -1150,16 +1153,19 @@ async function generateAndStoreImage(prompt, conversationId, env) {
   }
 }
 
-// --- GENERAR IMAGEN (VÍA ROUTER) ---
-async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, env, corsHeaders) {
+async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders) {
   try {
-    await ensureConversationExists(conversationId, originalMessage, env);
-    await saveMessage(conversationId, 'user', originalMessage, env);
+    // PASAR userDni a ensureConversationExists
+    await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni);
+
+    // PASAR userDni a saveMessage
+    await saveMessage(conversationId, 'user', originalMessage, env, null, null, null, userDni);
 
     const imageUrl = await generateAndStoreImage(prompt, conversationId, env);
 
     const assistantContent = `![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env);
+    await saveMessage(conversationId, 'assistant', assistantContent, env, null, null, null, userDni);
+
     await updateConversationTimestamp(conversationId, env);
 
     return jsonResponse({
@@ -1174,15 +1180,14 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
   }
 }
 
-// --- GENERAR VIDEO CON HAILUO 2.3 FAST ---
-async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
+async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders) {
   try {
     console.log('🎬 Iniciando generación de video con Hailuo 2.3 Fast');
     console.log('🎬 Prompt:', prompt);
 
-    // 1. Asegurar conversación y guardar mensaje de usuario
-    await ensureConversationExists(conversationId, prompt, env);
-    await saveMessage(conversationId, 'user', prompt, env);
+    // PASAR userDni
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
+    await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     // 2. Generar imagen base (primer frame) con Flux.2
     console.log('🖼️ Generando primer frame con Flux.2...');
@@ -1271,9 +1276,8 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
     const videoUrl = `/api/video/${videoFilename}`;
     const thumbnailUrl = `/api/image/${imageR2Key}`;
 
-    // 8. Guardar respuesta en D1
     const assistantContent = `🎬 Aquí tienes el video que pediste:\n\n_Prompt: ${prompt}_`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, thumbnailUrl);
+    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, thumbnailUrl, userDni);
 
     return jsonResponse({
       type: 'video',
@@ -1289,7 +1293,7 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
 }
 
 // --- GENERAR PRIMER FRAME PARA VIDEO (FLUX.2 KLEIN 9B) ---
-async function generateFirstFrameImage(prompt, conversationId, env) {
+async function generateFirstFrameImage(prompt, conversationId, userDni, env) {
   try {
     const framePrompt = `${prompt}, cinematic still frame, frozen moment in time, high detail`;
 
@@ -1343,12 +1347,13 @@ async function generateFirstFrameImage(prompt, conversationId, env) {
       customMetadata: {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
+        user_dni: userDni,  // ← AGREGAR ESTO PARA TRAZABILIDAD
         purpose: 'video_first_frame',
         model: 'flux-2-klein-9b'
       }
     });
 
-    console.log(`✅ Frame inicial generado con Flux.2 Klein 9B: ${filename}`);
+    console.log(`✅ Frame inicial generado para usuario ${userDni}: ${filename}`);
     return filename;
 
   } catch (error) {
@@ -1420,32 +1425,40 @@ function segmentTextForTTS(text, maxLength = 2000) {
   return segments.filter(s => s.length > 0);
 }
 
-// --- MANEJAR HISTORIAL ---
-async function handleHistory(conversationId, env, corsHeaders) {
+// --- MANEJAR HISTORIAL (CORREGIDO) ---
+async function handleHistory(request, conversationId, env, corsHeaders) {
   try {
-    if (!conversationId) {
-      return jsonResponse(
-        { error: 'conversation_id es requerido' },
-        400,
-        corsHeaders
-      );
+    // 1. AUTENTICAR
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
     }
 
+    if (!conversationId) {
+      return jsonResponse({ error: 'conversation_id es requerido' }, 400, corsHeaders);
+    }
+
+    // 2. VERIFICAR PROPIEDAD
+    const conv = await env.MIRAI_AI_DB.prepare(
+      "SELECT user_dni FROM conversations WHERE id = ?"
+    ).bind(conversationId).first();
+
+    if (!conv) {
+      return jsonResponse({ error: 'Conversación no encontrada' }, 404, corsHeaders);
+    }
+
+    if (conv.user_dni !== userDni) {
+      return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
+    }
+
+    // 3. OBTENER HISTORIAL (solo si es dueño)
     const messages = await getConversationHistory(conversationId, env);
 
-    return jsonResponse(
-      messages,
-      200,
-      corsHeaders
-    );
+    return jsonResponse(messages, 200, corsHeaders);
 
   } catch (error) {
     console.error('History handler error:', error);
-    return jsonResponse(
-      { error: 'Error obteniendo historial' },
-      500,
-      corsHeaders
-    );
+    return jsonResponse({ error: 'Error obteniendo historial' }, 500, corsHeaders);
   }
 }
 
@@ -1467,15 +1480,28 @@ async function getConversationHistory(conversationId, env) {
   }));
 }
 
-async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null) {
+// --- GUARDAR MENSAJE (CORREGIDO) ---
+async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null, userDni = null) {
   try {
-    await ensureConversationExists(conversationId, content, env);
+    await ensureConversationExists(conversationId, content, env, null, null, userDni);
+
+    // VERIFICAR PROPIEDAD antes de guardar
+    if (userDni) {
+      const conv = await env.MIRAI_AI_DB.prepare(
+        "SELECT user_dni FROM conversations WHERE id = ?"
+      ).bind(conversationId).first();
+
+      if (conv && conv.user_dni && conv.user_dni !== userDni) {
+        throw new Error('Acceso denegado: no puedes escribir en esta conversación');
+      }
+    }
+
     const messageId = crypto.randomUUID();
 
     const stmt = env.MIRAI_AI_DB.prepare(`
-    INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `);
+      INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `);
     await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl).run();
 
     return messageId;
@@ -1485,27 +1511,24 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null, 
   }
 }
 
-async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null) {
+async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null, userDni = null) {
   try {
-    // Verificar si ya existe
     const existing = await env.MIRAI_AI_DB.prepare(
-      `SELECT id FROM conversations WHERE id = ?`
+      "SELECT id FROM conversations WHERE id = ?"
     ).bind(conversationId).first();
 
     if (!existing) {
-      // No existe → crearla
       const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
 
       await env.MIRAI_AI_DB.prepare(
-        `INSERT INTO conversations (id, title, model, course_id, lesson_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
-      ).bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId).run();
+        "INSERT INTO conversations (id, title, model, course_id, lesson_id, user_dni, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
+      ).bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId, userDni).run();
 
-      console.log(`✅ Conversación creada: ${conversationId}`);
+      console.log(`✅ Conversación creada para usuario ${userDni}: ${conversationId}`);
     }
   } catch (error) {
     console.error('❌ Error en ensureConversationExists:', error.message);
-    throw error; // ← Importante: propagar el error para que saveMessage sepa que falló
+    throw error;
   }
 }
 
@@ -1626,27 +1649,42 @@ function jsonResponse(data, status = 200, headers = {}) {
 }
 
 
-async function handleDeleteConversation(conversationId, env, corsHeaders) {
+// --- ELIMINAR CONVERSACIÓN (CORREGIDO) ---
+async function handleDeleteConversation(request, conversationId, env, corsHeaders) {
   try {
-    // Primero verificar si era conversación de curso
+    // 1. AUTENTICAR
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+    }
+
+    // 2. VERIFICAR PROPIEDAD
     const conv = await env.MIRAI_AI_DB.prepare(
-      `SELECT course_id FROM conversations WHERE id = ?`
+      "SELECT user_dni, course_id FROM conversations WHERE id = ?"
     ).bind(conversationId).first();
 
-    // Eliminar mensajes
+    if (!conv) {
+      return jsonResponse({ error: 'Conversación no encontrada' }, 404, corsHeaders);
+    }
+
+    if (conv.user_dni !== userDni) {
+      return jsonResponse({ error: 'No puedes eliminar conversaciones de otros usuarios' }, 403, corsHeaders);
+    }
+
+    // 3. ELIMINAR (solo si es dueño)
     await env.MIRAI_AI_DB.prepare(
-      `DELETE FROM messages WHERE conversation_id = ?`
+      "DELETE FROM messages WHERE conversation_id = ?"
     ).bind(conversationId).run();
 
-    // Eliminar conversación
     await env.MIRAI_AI_DB.prepare(
-      `DELETE FROM conversations WHERE id = ?`
-    ).bind(conversationId).run();
+      "DELETE FROM conversations WHERE id = ? AND user_dni = ?"
+    ).bind(conversationId, userDni).run();
 
     return jsonResponse({
       success: true,
-      was_course: !!conv?.course_id
+      was_course: !!conv.course_id
     }, 200, corsHeaders);
+
   } catch (error) {
     console.error('Error deleting conversation:', error);
     return jsonResponse({ error: error.message }, 500, corsHeaders);
@@ -1819,17 +1857,27 @@ function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
   }
 }
 
-// --- LISTAR CONVERSACIONES ---
-async function handleListConversations(env, corsHeaders) {
+// --- LISTAR CONVERSACIONES (CORREGIDO) ---
+async function handleListConversations(request, env, corsHeaders) {
   try {
+    // 1. AUTENTICAR USUARIO
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+    }
+
+    console.log(`🔍 Listando conversaciones para usuario: ${userDni}`);
+
+    // 2. FILTRAR POR USUARIO (¡CRÍTICO!)
     const stmt = env.MIRAI_AI_DB.prepare(`
       SELECT id, title, created_at, updated_at, course_id
       FROM conversations
+      WHERE user_dni = ?
       ORDER BY updated_at DESC
       LIMIT 50
     `);
 
-    const { results } = await stmt.all();
+    const { results } = await stmt.bind(userDni).all();
 
     // Separar para el frontend
     const regular = results.filter(r => !r.course_id);
@@ -2159,11 +2207,11 @@ function extractSuggestions(aiResponse) {
 }
 
 // --- GENERAR MÚSICA CON MINIMAX 2.6 ---
-async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
+async function handleMusicGeneration(prompt, conversationId, userDni, env, corsHeaders) {
   const isAvailable = await checkModelAvailability('minimax/music-2.6', env);
   if (!isAvailable) {
     const fallbackMessage = "🎵 El servicio de generación de música está temporalmente no disponible. ¡Prueba en unos minutos!";
-    await saveMessage(conversationId, 'assistant', fallbackMessage, env);
+    await saveMessage(conversationId, 'assistant', fallbackMessage, env, null, null, null, userDni);
     return jsonResponse({
       type: 'music',
       response: fallbackMessage,
@@ -2174,9 +2222,9 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
     console.log('🎵 Iniciando generación de música con MiniMax 2.6');
     console.log('🎵 Prompt original:', prompt);
 
-    // 1. Asegurar conversación y guardar mensaje de usuario
-    await ensureConversationExists(conversationId, prompt, env);
-    await saveMessage(conversationId, 'user', prompt, env);
+    // PASAR userDni
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
+    await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     // 2. Limpiar y simplificar el prompt para MiniMax
     const cleanPrompt = simplifyMusicPrompt(prompt);
@@ -2277,7 +2325,7 @@ async function handleMusicGeneration(prompt, conversationId, env, corsHeaders) {
 
     // 7. Guardar respuesta en D1
     const assistantContent = `🎵 Aquí tienes la canción que pediste:\n\n_Prompt: ${prompt}_`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl);
+    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl, null, null, userDni);
     await updateConversationTimestamp(conversationId, env);
 
     return jsonResponse({
