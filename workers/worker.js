@@ -863,93 +863,72 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON GOOGLE IMAGEN 4 (CORREGIDO PARA URL) ---
+// --- GENERAR IMAGEN CON BYTEDANCE SEEDREAM 5 LITE ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
-    console.log('🖼️ Iniciando generación con Google Imagen 4');
+    console.log('🖼️ Iniciando generación con Seedream 5 Lite');
     console.log('🖼️ Prompt original:', prompt);
 
     // 1. Preparar el prompt
     const enhancedPrompt = `${prompt}, high quality, photorealistic, 8k resolution`;
 
-    // 2. Definir parámetros
-    const params = {
+    // 2. Llamar a Seedream 5 Lite
+    const aiResponse = await env.AI.run('bytedance/seedream-5-lite', {
       prompt: enhancedPrompt,
-      aspect_ratio: '16:9', 
-      person_generation: 'allow_adult'
-    };
-
-    console.log('🚀 Enviando a Imagen 4:', params);
-
-    // 3. Ejecutar llamada a Cloudflare AI
-    const aiResponse = await env.AI.run('google/imagen-4', params, {
+    }, {
       gateway: { id: 'default' },
     });
 
-    console.log('✅ Respuesta recibida de Imagen 4');
-    
-    // 4. EXTRAER LA IMAGEN (LÓGICA CRÍTICA CORREGIDA)
-    let imageBuffer = null;
+    console.log('✅ Respuesta recibida de Seedream 5 Lite');
+    console.log('🔍 Estructura:', Object.keys(aiResponse || {}));
 
-    // CASO A: La API devuelve una URL (Lo que está pasando ahora)
-    if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
-      const imageUrl = aiResponse.result.image;
-      console.log('🔗 Detectada URL de imagen:', imageUrl);
+    // 3. Extraer imagen Base64
+    // Puede venir en aiResponse.image o en aiResponse.result.image
+    let imageBase64 = null;
 
-      try {
-        // Descargar el contenido de la URL
-        const downloadResponse = await fetch(imageUrl);
-        
-        if (!downloadResponse.ok) {
-          throw new Error(`Error descargando imagen: ${downloadResponse.status}`);
-        }
-
-        // Convertir a ArrayBuffer
-        imageBuffer = await downloadResponse.arrayBuffer();
-        console.log('✅ Imagen descargada y convertida a ArrayBuffer:', imageBuffer.byteLength, 'bytes');
-      } catch (downloadError) {
-        console.error('❌ Error descargando imagen desde URL:', downloadError.message);
-        throw downloadError;
-      }
-    } 
-    // CASO B: La API devuelve Base64 directamente (por si acaso en el futuro cambia)
-    else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string' && aiResponse.result.image.length > 100) {
-      // Asumimos que es base64 si no empieza con http
-      if (!aiResponse.result.image.startsWith('http')) {
-        const binaryString = atob(aiResponse.result.image);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        imageBuffer = bytes.buffer;
-        console.log('✅ Imagen decodificada de Base64');
-      }
+    if (aiResponse?.image && typeof aiResponse.image === 'string') {
+      imageBase64 = aiResponse.image;
+      console.log('✅ Imagen encontrada en aiResponse.image (directa)');
+    } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
+      imageBase64 = aiResponse.result.image;
+      console.log('✅ Imagen encontrada en aiResponse.result.image (anidada)');
     }
 
-    if (!imageBuffer || imageBuffer.byteLength === 0) {
-      throw new Error('No se pudo obtener datos de imagen válidos de la respuesta');
+    // Verificar que sea Base64 y no una URL
+    if (!imageBase64 || imageBase64.startsWith('http')) {
+      console.error('❌ Respuesta inesperada:', JSON.stringify(aiResponse).substring(0, 500));
+      throw new Error('Seedream 5 Lite no devolvió una imagen Base64 válida');
     }
 
-    // 5. Guardar en R2
+    // 4. Decodificar Base64 a ArrayBuffer
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
-    await env.MIRAI_AI_ASSETS.put(filename, imageBuffer, {
+    const binaryString = atob(imageBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    console.log('📦 Tamaño de imagen:', bytes.byteLength, 'bytes');
+
+    // 5. Guardar en R2
+    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: 'google/imagen-4'
+        model: 'bytedance/seedream-5-lite'
       }
     });
 
-    console.log(`✅ Imagen generada con Imagen 4 y guardada en R2: ${filename}`);
+    console.log(`✅ Imagen generada con Seedream 5 Lite y guardada en R2: ${filename}`);
     return `/api/image/${filename}`;
 
   } catch (error) {
-    console.error('❌ Error en generateAndStoreImage (Imagen 4):', error.message);
+    console.error('❌ Error en generateAndStoreImage (Seedream 5 Lite):', error.message);
     console.error('Stack:', error.stack);
     throw error;
   }
@@ -1093,28 +1072,32 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
   }
 }
 
-// --- GENERAR PRIMER FRAME PARA VIDEO (ACTUALIZADO A IMAGEN 4) ---
+// --- GENERAR PRIMER FRAME PARA VIDEO (SEEDREAM 5 LITE) ---
 async function generateFirstFrameImage(prompt, conversationId, env) {
   try {
-    // Creamos un prompt estático para el frame inicial
     const framePrompt = `${prompt}, cinematic still frame, frozen moment in time, high detail`;
 
-    const params = {
+    const aiResponse = await env.AI.run('bytedance/seedream-5-lite', {
       prompt: framePrompt,
-      aspect_ratio: '16:9', // Ajusta según necesites para el video
-      person_generation: 'allow_adult'
-    };
-
-    const aiResponse = await env.AI.run('google/imagen-4', params, {
+    }, {
       gateway: { id: 'default' },
     });
 
-    if (!aiResponse || !aiResponse.image) {
-      console.error('❌ Error generando frame inicial:', aiResponse);
+    // Extraer imagen Base64
+    let imageBase64 = null;
+
+    if (aiResponse?.image && typeof aiResponse.image === 'string') {
+      imageBase64 = aiResponse.image;
+    } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
+      imageBase64 = aiResponse.result.image;
+    }
+
+    if (!imageBase64 || imageBase64.startsWith('http')) {
+      console.error('❌ Error generando frame inicial - respuesta inesperada');
       return null;
     }
 
-    const imageBase64 = aiResponse.image;
+    // Decodificar y guardar
     const binaryString = atob(imageBase64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
@@ -1131,11 +1114,13 @@ async function generateFirstFrameImage(prompt, conversationId, env) {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         purpose: 'video_first_frame',
-        model: 'google/imagen-4'
+        model: 'bytedance/seedream-5-lite'
       }
     });
 
+    console.log(`✅ Frame inicial generado con Seedream 5 Lite: ${filename}`);
     return filename;
+
   } catch (error) {
     console.error('❌ Error generando primer frame:', error.message);
     return null;
@@ -1652,14 +1637,13 @@ async function handleRenameConversation(request, env, corsHeaders) {
   }
 }
 
-// --- GENERAR IMAGEN CON FLUX.2 (CORREGIDO) ---
+// --- GENERAR IMAGEN (RUTA DIRECTA /api/generate-image) ---
 async function handleImageGeneration(request, env, corsHeaders) {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Método no permitido' }, 405, corsHeaders);
   }
 
   try {
-    // 1. Obtener el JSON del cliente (prompt y conversation_id)
     const { prompt, conversation_id } = await request.json();
 
     if (!prompt) {
@@ -1668,80 +1652,12 @@ async function handleImageGeneration(request, env, corsHeaders) {
 
     console.log('🎨 Generando imagen para:', prompt);
 
-    // 2. Crear FormData para la petición a Cloudflare AI
-    // La API de Flux espera multipart/form-data, NO JSON
-    const formData = new FormData();
-    const universalBase = "captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.";
-    const promptParaIA = `${prompt}, ${universalBase}`;
-    formData.append('prompt', promptParaIA);
-    formData.append('seed', Math.floor(Math.random() * 10));
-    /*formData.append('width', '1024');
-    formData.append('height', '1024');
-    formData.append('steps', '25');*/
-    // Opcional: seed, negative_prompt, etc.
+    // Usar la misma función centralizada
+    const imageUrl = await generateAndStoreImage(prompt, conversation_id, env);
 
-    // 3. Llamar a Cloudflare AI
-    const aiResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
-          'Content-Type': 'application/json'
-          // El navegador/Worker lo pone automáticamente como multipart/form-data con boundary.
-        },
-        body: JSON.stringify({
-          prompt: promptParaIA,
-          seed: Math.floor(Math.random() * 1000000),
-        }) // ¡Enviar FormData!
-      }
-    );
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Error AI Response:', aiResponse.status, errorText);
-      return jsonResponse({ error: 'Error generando imagen', details: errorText }, aiResponse.status, corsHeaders);
-    }
-
-    const aiData = await aiResponse.json();
-
-    // Verificar estructura de respuesta
-    // Cloudflare AI suele devolver: { success: true, result: { image: "base64..." } }
-    if (!aiData.success || !aiData.result || !aiData.result.image) {
-      throw new Error('Respuesta inválida de la API de AI: ' + JSON.stringify(aiData));
-    }
-
-    const imageBase64 = aiData.result.image;
-
-    // 4. Guardar en R2
-    const uniqueId = crypto.randomUUID();
-    const filename = `images/${uniqueId}.png`;
-
-    // Convertir base64 a ArrayBuffer
-    const binaryString = atob(imageBase64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
-      httpMetadata: { contentType: 'image/png' },
-      customMetadata: {
-        prompt: prompt.substring(0, 100),
-        conversation_id: conversation_id,
-        generated_at: new Date().toISOString()
-      }
-    });
-
-    // 5. Construir URL
-    // Ajusta esto a tu configuración de R2 (dominio público o privado)
-    const imageUrl = `/api/image/${filename}`;
-
-    // 6. Guardar en D1 y responder
+    // Guardar en D1
     await ensureConversationExists(conversation_id, prompt, env);
     const aiResponseText = `Aquí tienes la imagen que pediste:\n\n![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
-
     await saveMessage(conversation_id, 'assistant', aiResponseText, env);
 
     return jsonResponse({
