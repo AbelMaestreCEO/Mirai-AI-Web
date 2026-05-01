@@ -114,22 +114,22 @@ async function requireAuth(request, env) {
   return session.user_dni;
 }
 
-// --- MODIFICAR: REGISTRO (NUEVA RUTA) ---
 async function handleRegister(request, env, corsHeaders) {
   try {
-    const { dni, email, password } = await request.json();
+    // ✨ AGREGAR: Desestructurar nombre y apellido
+    const { dni, email, password, first_name, last_name } = await request.json();
 
-    // Validaciones
-    if (!dni || !email || !password) {
-      return jsonResponse({ error: 'DNI, correo y contraseña son requeridos' }, 400, corsHeaders);
+    // Validaciones básicas
+    if (!dni || !email || !password || !first_name || !last_name) {
+      return jsonResponse({ error: 'Todos los campos son requeridos (incluye nombre y apellido)' }, 400, corsHeaders);
     }
+    // ... (resto de validaciones de email, password, dni) ...
     if (!isValidEmail(email)) {
       return jsonResponse({ error: 'Correo inválido' }, 400, corsHeaders);
     }
     if (password.length < 8) {
       return jsonResponse({ error: 'La contraseña debe tener al menos 8 caracteres' }, 400, corsHeaders);
     }
-    // Validación básica de DNI (ajustar según país)
     if (!/^[A-Z0-9]{7,10}$/.test(dni.toUpperCase())) {
       return jsonResponse({ error: 'Formato de DNI inválido' }, 400, corsHeaders);
     }
@@ -147,16 +147,90 @@ async function handleRegister(request, env, corsHeaders) {
     const salt = generateSalt();
     const passwordHash = await hashPassword(password, salt);
 
-    // Guardar usuario (guardamos el salt junto con el hash en un campo separado o combinado)
-    // Para simplificar, guardaremos "salt:hash" en password_hash
+    // ✨ AGREGAR: Guardar nombre y apellido
     await env.MIRAI_AI_DB.prepare(
-      "INSERT INTO users (dni, email, password_hash) VALUES (?, ?, ?)"
-    ).bind(dni.toUpperCase(), email.toLowerCase(), `${salt}:${passwordHash}`).run();
+      "INSERT INTO users (dni, email, password_hash, first_name, last_name) VALUES (?, ?, ?, ?, ?)"
+    ).bind(dni.toUpperCase(), email.toLowerCase(), `${salt}:${passwordHash}`, first_name.trim(), last_name.trim()).run();
 
     return jsonResponse({ success: true, message: 'Registro exitoso' }, 201, corsHeaders);
 
   } catch (error) {
     console.error('Error registro:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// --- NUEVO: SOLICITAR RECUPERACIÓN ---
+async function handleForgotPassword(request, env, corsHeaders) {
+  try {
+    const { email } = await request.json();
+
+    if (!email || !isValidEmail(email)) {
+      return jsonResponse({ error: 'Correo inválido' }, 400, corsHeaders);
+    }
+
+    // Buscar usuario
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT dni, first_name FROM users WHERE email = ?"
+    ).bind(email.toLowerCase()).first();
+
+    if (!user) {
+      // Por seguridad, no revelamos si el email existe o no
+      // Pero siempre devolvemos éxito para evitar enumeración de usuarios
+      return jsonResponse({ success: true, message: 'Si el correo existe, recibirás instrucciones.' }, 200, corsHeaders);
+    }
+
+    // Generar token
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+
+    // Guardar token en DB
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET recovery_token = ?, recovery_expires_at = ? WHERE email = ?"
+    ).bind(token, expiresAt, email.toLowerCase()).run();
+
+    // Enviar correo
+    await sendRecoveryEmail(email, token, env);
+
+    return jsonResponse({ success: true, message: 'Si el correo existe, recibirás instrucciones.' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error forgot password:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// --- NUEVO: RESETEAR CONTRASEÑA ---
+async function handleResetPassword(request, env, corsHeaders) {
+  try {
+    const { token, new_password } = await request.json();
+
+    if (!token || !new_password || new_password.length < 8) {
+      return jsonResponse({ error: 'Token o contraseña inválidos' }, 400, corsHeaders);
+    }
+
+    // Buscar usuario con token válido
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT dni, password_hash FROM users WHERE recovery_token = ? AND recovery_expires_at > datetime('now')"
+    ).bind(token).first();
+
+    if (!user) {
+      return jsonResponse({ error: 'Token inválido o expirado' }, 400, corsHeaders);
+    }
+
+    // Generar nuevo hash
+    const salt = generateSalt();
+    const newHash = await hashPassword(new_password, salt);
+
+    // Actualizar contraseña y limpiar token
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET password_hash = ?, recovery_token = NULL, recovery_expires_at = NULL WHERE dni = ?"
+    ).bind(`${salt}:${newHash}`, user.dni).run();
+
+    return jsonResponse({ success: true, message: 'Contraseña actualizada correctamente' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error reset password:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }
@@ -706,7 +780,13 @@ async function handleApiRequest(request, env, corsHeaders) {
     if (path === '/api/courses' && request.method === 'GET') {
       return await handleGetCourses(env, corsHeaders);
     }
+    if (path === '/api/forgot-password' && request.method === 'POST') {
+      return await handleForgotPassword(request, env, corsHeaders);
+    }
 
+    if (path === '/api/reset-password' && request.method === 'POST') {
+      return await handleResetPassword(request, env, corsHeaders);
+    }
     // NUEVA RUTA: Subida de archivos
     if (path === '/api/upload' && request.method === 'POST') {
       return await handleUpload(request, env, corsHeaders);
@@ -1177,6 +1257,28 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
   } catch (error) {
     console.error('❌ handleRoutedImageGeneration error:', error.message);
     return jsonResponse({ error: 'Error generando imagen', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// --- NUEVO: ENVIAR CORREO DE RECUPERACIÓN ---
+async function sendRecoveryEmail(email, token, env) {
+  try {
+    // Nota: Para enviar correos reales necesitas configurar un servicio SMTP 
+    // o usar una API como SendGrid/Resend. Aquí simulamos la lógica.
+    // Si usas Proton Mail, podrías integrar su API o un worker SMTP.
+
+    const recoveryLink = `https://aberumirai.com/reset-password?token=${token}`;
+
+    console.log(`📧 [Recovery] Enviando correo a ${email} con link: ${recoveryLink}`);
+
+    // AQUÍ IRÍA TU LÓGICA DE ENVÍO DE CORREO REAL
+    // Ejemplo con una API genérica:
+    // await fetch('https://api.sendgrid.com/v3/mail/send', { ... });
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error enviando correo de recuperación:', error);
+    return false;
   }
 }
 
