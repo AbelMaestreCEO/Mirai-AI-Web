@@ -1192,7 +1192,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     // 2. Generar imagen base (primer frame) con Flux.2
     console.log('🖼️ Generando primer frame con Flux.2...');
     const imagePrompt = buildVideoFirstFramePrompt(prompt);
-    const imageR2Key = await generateFirstFrameImage(imagePrompt, conversationId, env);
+    const imageR2Key = await generateFirstFrameImage(imagePrompt, conversationId, userDni, env);
 
     if (!imageR2Key) {
       throw new Error('No se pudo generar la imagen base para el video');
