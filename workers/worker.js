@@ -863,62 +863,51 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON FLUX.2 KLEIN (CORREGIDO) ---
+// --- GENERAR IMAGEN CON GOOGLE IMAGEN 4 (NUEVO) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
-    // 1. Preparar el prompt mejorado
-    const universalBase = "captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.";
-    const promptParaIA = `${prompt}, ${universalBase}`;
+    console.log('🖼️ Iniciando generación con Google Imagen 4');
+    console.log('🖼️ Prompt original:', prompt);
 
-    // 2. Construir FormData (Requerido por Flux.2 Klein)
-    const formData = new FormData();
-    formData.append('prompt', promptParaIA);
+    // 1. Preparar el prompt (Imagen 4 suele funcionar bien con prompts directos, 
+    // pero podemos añadir un poco de estilo si quieres mantener la consistencia)
+    // Nota: Imagen 4 es muy bueno entendiendo instrucciones naturales.
+    const enhancedPrompt = `${prompt}, high quality, photorealistic, 8k resolution`;
 
-    // Parámetros opcionales según la doc de Flux.2
-    formData.append('seed', Math.floor(Math.random() * 1000000));
-    // formData.append('width', '1024'); // Opcional si quieres forzar resolución
-    // formData.append('height', '1024');
-    // formData.append('steps', '25');
+    // 2. Definir parámetros (Opcionales pero recomendados)
+    // Puedes hacer esto dinámico si quieres que el usuario elija el ratio, 
+    // pero por ahora usaremos 16:9 para vistas panorámicas o 1:1 para generales.
+    const params = {
+      prompt: enhancedPrompt,
+      aspect_ratio: '16:9', // Opciones: 1:1, 3:4, 4:3, 9:16, 16:9
+      person_generation: 'allow_adult' // Opciones: dont_allow, allow_adult, allow_all
+    };
 
-    // 3. Ejecutar la llamada a Cloudflare AI
-    // NOTA: Usamos env.AI.run() si está disponible (más eficiente en Workers) 
-    // O fetch directo a la API REST si prefieres control total.
-    // Aquí uso fetch directo para mantener consistencia con tu código actual, 
-    // pero asegurando el formato correcto.
+    console.log('🚀 Enviando a Imagen 4:', params);
 
-    const aiResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}`
-          // IMPORTANTE: NO pongas 'Content-Type': 'application/json' ni 'multipart/form-data' manualmente.
-          // El navegador/Worker lo detecta automáticamente al pasar un objeto FormData como body.
-        },
-        body: formData // <-- Aquí va el FormData directo, NO JSON.stringify
-      }
-    );
+    // 3. Ejecutar llamada a Cloudflare AI
+    // Imagen 4 devuelve un objeto con la propiedad 'image' (base64)
+    const aiResponse = await env.AI.run('google/imagen-4', params, {
+      gateway: { id: 'default' },
+    });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Error API Flux.2:', aiResponse.status, errorText);
-      throw new Error('Error generando imagen (Flux.2): ' + errorText);
+    console.log('✅ Respuesta recibida de Imagen 4');
+    console.log('🔍 Estructura de respuesta:', Object.keys(aiResponse || {}));
+
+    // 4. Validar y extraer la imagen
+    // Cloudflare AI suele devolver: { image: "base64_string..." }
+    if (!aiResponse || !aiResponse.image) {
+      console.error('❌ Respuesta inválida:', aiResponse);
+      throw new Error('La API de Imagen 4 no devolvió una imagen válida');
     }
 
-    const aiData = await aiResponse.json();
+    const imageBase64 = aiResponse.image;
 
-    // 4. Validar respuesta
-    // Flux.2 suele devolver: { success: true, result: { image: "base64..." } }
-    if (!aiData.success || !aiData.result || !aiData.result.image) {
-      throw new Error('Respuesta inválida de Flux.2: ' + JSON.stringify(aiData));
-    }
-
-    const imageBase64 = aiData.result.image;
-
-    // 5. Convertir Base64 a Blob/ArrayBuffer
+    // 5. Convertir Base64 a ArrayBuffer para guardar en R2
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
+    // Decodificar base64 a binario
     const binaryString = atob(imageBase64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
@@ -933,15 +922,17 @@ async function generateAndStoreImage(prompt, conversationId, env) {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: 'flux-2-klein-4b' // Nuevo metadata para trazabilidad
+        model: 'google/imagen-4',
+        aspect_ratio: params.aspect_ratio
       }
     });
 
-    console.log(`✅ Imagen generada con Flux.2 y guardada: ${filename}`);
+    console.log(`✅ Imagen generada con Imagen 4 y guardada en R2: ${filename}`);
     return `/api/image/${filename}`;
 
   } catch (error) {
-    console.error('❌ Error en generateAndStoreImage (Flux.2):', error);
+    console.error('❌ Error en generateAndStoreImage (Imagen 4):', error.message);
+    console.error('Stack:', error.stack);
     throw error; // Dejar que el handler principal maneje el error
   }
 }
@@ -1084,34 +1075,34 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
   }
 }
 
-// --- GENERAR PRIMER FRAME PARA VIDEO ---
+// --- GENERAR PRIMER FRAME PARA VIDEO (ACTUALIZADO A IMAGEN 4) ---
 async function generateFirstFrameImage(prompt, conversationId, env) {
   try {
-    const universalBase = "captured in a breathtaking masterpiece composition, hyper-detailed textures, professional cinematic lighting with rim light and soft shadows, volumetric atmosphere, sharp focus with natural depth of field, 8k resolution, elegant color grading, intricate fine details, stunning visual storytelling, high-end digital art finish, polished and sophisticated aesthetic.";
-    const enhancedPrompt = `${prompt}, ${universalBase}`;
+    // Creamos un prompt estático para el frame inicial
+    const framePrompt = `${prompt}, cinematic still frame, frozen moment in time, high detail`;
 
-    const formData = new FormData();
-    formData.append('prompt', enhancedPrompt);
-    formData.append('seed', Math.floor(Math.random() * 1000000));
+    const params = {
+      prompt: framePrompt,
+      aspect_ratio: '16:9', // Ajusta según necesites para el video
+      person_generation: 'allow_adult'
+    };
 
-    const aiResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`,
-      {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
-        body: formData
-      }
-    );
+    const aiResponse = await env.AI.run('google/imagen-4', params, {
+      gateway: { id: 'default' },
+    });
 
-    if (!aiResponse.ok) return null;
-    const aiData = await aiResponse.json();
+    if (!aiResponse || !aiResponse.image) {
+      console.error('❌ Error generando frame inicial:', aiResponse);
+      return null;
+    }
 
-    if (!aiData.success || !aiData.result?.image) return null;
-
-    const imageBase64 = aiData.result.image;
+    const imageBase64 = aiResponse.image;
     const binaryString = atob(imageBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
 
     const uniqueId = crypto.randomUUID();
     const filename = `images/video-frame-${uniqueId}.png`;
@@ -1121,7 +1112,8 @@ async function generateFirstFrameImage(prompt, conversationId, env) {
       customMetadata: {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
-        purpose: 'video_first_frame'
+        purpose: 'video_first_frame',
+        model: 'google/imagen-4'
       }
     });
 
