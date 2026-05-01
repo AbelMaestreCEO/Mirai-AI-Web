@@ -863,93 +863,96 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON BYTEDANCE SEEDREAM 5 LITE (CORREGIDO PARA ARRAY URL) ---
+// --- GENERAR IMAGEN CON FLUX.2 KLEIN 9B (MULTIPART) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
-    console.log('🖼️ Iniciando generación con Seedream 5 Lite');
+    console.log('🖼️ Iniciando generación con Flux.2 Klein 9B');
     console.log('🖼️ Prompt original:', prompt);
 
     // 1. Preparar el prompt
     const enhancedPrompt = `${prompt}, high quality, photorealistic, 8k resolution`;
 
-    // 2. Llamar a Seedream 5 Lite
-    const aiResponse = await env.AI.run('bytedance/seedream-5-lite', {
-      prompt: enhancedPrompt,
-    }, {
-      gateway: { id: 'default' },
+    // 2. Construir FormData (Requisito obligatorio para Flux.2)
+    const form = new FormData();
+    form.append('prompt', enhancedPrompt);
+    
+    // Parámetros opcionales (Flux suele aceptar width/height)
+    // Puedes ajustar esto si quieres forzar un ratio específico
+    form.append('width', '1024');
+    form.append('height', '1024');
+    // form.append('seed', Math.floor(Math.random() * 1000000)); // Opcional
+
+    // 3. Serializar FormData para obtener el stream y el content-type correcto
+    // Esto es CRÍTICO: FormData no expone su cuerpo serializado directamente.
+    // Creamos un Response temporal para extraer el stream y el header.
+    const tempResponse = new Response(form);
+    const formStream = tempResponse.body;
+    const formContentType = tempResponse.headers.get('content-type');
+
+    if (!formStream || !formContentType) {
+      throw new Error('Error al serializar FormData para Flux.2');
+    }
+
+    console.log('📦 Enviando FormData a Flux.2 Klein 9B...');
+
+    // 4. Ejecutar llamada a Cloudflare AI con el formato multipart
+    const aiResponse = await env.AI.run('@cf/black-forest-labs/flux-2-klein-9b', {
+      multipart: {
+        body: formStream,
+        contentType: formContentType
+      }
     });
 
-    console.log('✅ Respuesta recibida de Seedream 5 Lite');
-    console.log('🔍 Estructura completa:', JSON.stringify(aiResponse).substring(0, 300));
+    console.log('✅ Respuesta recibida de Flux.2 Klein 9B');
+    console.log('🔍 Estructura:', Object.keys(aiResponse || {}));
 
-    // 3. EXTRAER LA IMAGEN (LÓGICA CORREGIDA)
-    let imageBuffer = null;
-    let imageUrl = null;
+    // 5. Extraer la imagen Base64
+    // Según la documentación, viene en aiResponse.image
+    let imageBase64 = null;
 
-    // CASO A: La API devuelve un array de URLs en result.images (Lo que está pasando ahora)
-    if (aiResponse?.result?.images && Array.isArray(aiResponse.result.images) && aiResponse.result.images.length > 0) {
-      imageUrl = aiResponse.result.images[0];
-      console.log('🔗 Detectada URL en array result.images[0]:', imageUrl);
-
-      try {
-        // Descargar el contenido de la URL
-        const downloadResponse = await fetch(imageUrl);
-        
-        if (!downloadResponse.ok) {
-          throw new Error(`Error descargando imagen: ${downloadResponse.status}`);
-        }
-
-        // Convertir a ArrayBuffer
-        imageBuffer = await downloadResponse.arrayBuffer();
-        console.log('✅ Imagen descargada y convertida a ArrayBuffer:', imageBuffer.byteLength, 'bytes');
-      } catch (downloadError) {
-        console.error('❌ Error descargando imagen desde URL:', downloadError.message);
-        throw downloadError;
-      }
-    } 
-    // CASO B: La API devuelve una URL directa en result.image (por si acaso)
-    else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
-      imageUrl = aiResponse.result.image;
-      console.log('🔗 Detectada URL en result.image:', imageUrl);
-      
-      const downloadResponse = await fetch(imageUrl);
-      if (!downloadResponse.ok) throw new Error(`Error descargando: ${downloadResponse.status}`);
-      imageBuffer = await downloadResponse.arrayBuffer();
-    }
-    // CASO C: La API devuelve Base64 directo (según documentación antigua)
-    else if (aiResponse?.image && typeof aiResponse.image === 'string' && !aiResponse.image.startsWith('http')) {
-      console.log('📜 Detectado Base64 directo en aiResponse.image');
-      const binaryString = atob(aiResponse.image);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-      imageBuffer = bytes.buffer;
+    if (aiResponse?.image && typeof aiResponse.image === 'string') {
+      imageBase64 = aiResponse.image;
+      console.log('✅ Imagen encontrada en aiResponse.image (Base64 directo)');
+    } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
+      // Por si acaso la estructura cambia a result.image
+      imageBase64 = aiResponse.result.image;
+      console.log('✅ Imagen encontrada en aiResponse.result.image (Base64 anidado)');
     }
 
-    if (!imageBuffer || imageBuffer.byteLength === 0) {
+    if (!imageBase64) {
       console.error('❌ Respuesta inesperada:', JSON.stringify(aiResponse).substring(0, 500));
-      throw new Error('Seedream 5 Lite no devolvió una imagen válida (ni URL ni Base64)');
+      throw new Error('Flux.2 Klein 9B no devolvió una imagen Base64 válida');
     }
 
-    // 4. Guardar en R2
+    // 6. Decodificar Base64 a ArrayBuffer
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
-    await env.MIRAI_AI_ASSETS.put(filename, imageBuffer, {
+    const binaryString = atob(imageBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    console.log('📦 Tamaño de imagen:', bytes.byteLength, 'bytes');
+
+    // 7. Guardar en R2
+    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: 'bytedance/seedream-5-lite'
+        model: 'flux-2-klein-9b'
       }
     });
 
-    console.log(`✅ Imagen generada con Seedream 5 Lite y guardada en R2: ${filename}`);
+    console.log(`✅ Imagen generada con Flux.2 Klein 9B y guardada en R2: ${filename}`);
     return `/api/image/${filename}`;
 
   } catch (error) {
-    console.error('❌ Error en generateAndStoreImage (Seedream 5 Lite):', error.message);
+    console.error('❌ Error en generateAndStoreImage (Flux.2 Klein 9B):', error.message);
     console.error('Stack:', error.stack);
     throw error;
   }
@@ -1093,27 +1096,41 @@ async function handleVideoGeneration(prompt, conversationId, env, corsHeaders) {
   }
 }
 
-// --- GENERAR PRIMER FRAME PARA VIDEO (SEEDREAM 5 LITE) ---
+// --- GENERAR PRIMER FRAME PARA VIDEO (FLUX.2 KLEIN 9B) ---
 async function generateFirstFrameImage(prompt, conversationId, env) {
   try {
     const framePrompt = `${prompt}, cinematic still frame, frozen moment in time, high detail`;
 
-    const aiResponse = await env.AI.run('bytedance/seedream-5-lite', {
-      prompt: framePrompt,
-    }, {
-      gateway: { id: 'default' },
+    // Construir FormData
+    const form = new FormData();
+    form.append('prompt', framePrompt);
+    form.append('width', '1024');
+    form.append('height', '1024');
+
+    const tempResponse = new Response(form);
+    const formStream = tempResponse.body;
+    const formContentType = tempResponse.headers.get('content-type');
+
+    if (!formStream || !formContentType) {
+      throw new Error('Error al serializar FormData para frame inicial');
+    }
+
+    const aiResponse = await env.AI.run('@cf/black-forest-labs/flux-2-klein-9b', {
+      multipart: {
+        body: formStream,
+        contentType: formContentType
+      }
     });
 
-    // Extraer imagen Base64
+    // Extraer Base64
     let imageBase64 = null;
-
     if (aiResponse?.image && typeof aiResponse.image === 'string') {
       imageBase64 = aiResponse.image;
     } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
       imageBase64 = aiResponse.result.image;
     }
 
-    if (!imageBase64 || imageBase64.startsWith('http')) {
+    if (!imageBase64) {
       console.error('❌ Error generando frame inicial - respuesta inesperada');
       return null;
     }
@@ -1135,11 +1152,11 @@ async function generateFirstFrameImage(prompt, conversationId, env) {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         purpose: 'video_first_frame',
-        model: 'bytedance/seedream-5-lite'
+        model: 'flux-2-klein-9b'
       }
     });
 
-    console.log(`✅ Frame inicial generado con Seedream 5 Lite: ${filename}`);
+    console.log(`✅ Frame inicial generado con Flux.2 Klein 9B: ${filename}`);
     return filename;
 
   } catch (error) {
