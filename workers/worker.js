@@ -3,9 +3,6 @@
    Backend para integración con DeepSeek API
    ============================================ */
 
-// --- NUEVO: UTILIDADES DE SEGURIDAD ---
-import { randomBytes, createHash } from 'crypto'; // O usar Web Crypto API nativo
-
 // --- CONFIGURACIÓN ---
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
@@ -56,18 +53,19 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
 
-// Usaremos Web Crypto API para no depender de paquetes npm en Workers
+// Hash de contraseña usando PBKDF2 nativo
 async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(password + salt),
+    data,
     { name: "PBKDF2" },
     false,
-    ["deriveBits", "deriveKey"]
+    ["deriveBits"]
   );
 
-  const key = await crypto.subtle.deriveKey(
+  const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
       salt: encoder.encode(salt),
@@ -75,16 +73,13 @@ async function hashPassword(password, salt) {
       hash: "SHA-256"
     },
     keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt"]
+    256 // bits
   );
-
-  const exported = await crypto.subtle.exportKey("raw", key);
-  const buffer = new Uint8Array(exported);
-  return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+  // Convertir ArrayBuffer a string hex
+  const bytes = new Uint8Array(derivedBits);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-
+// Generar salt aleatorio usando crypto.getRandomValues (nativo en Workers)
 function generateSalt() {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
