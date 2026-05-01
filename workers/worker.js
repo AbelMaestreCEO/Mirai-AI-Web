@@ -863,7 +863,7 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON BYTEDANCE SEEDREAM 5 LITE ---
+// --- GENERAR IMAGEN CON BYTEDANCE SEEDREAM 5 LITE (CORREGIDO PARA ARRAY URL) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
     console.log('🖼️ Iniciando generación con Seedream 5 Lite');
@@ -880,41 +880,62 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     });
 
     console.log('✅ Respuesta recibida de Seedream 5 Lite');
-    console.log('🔍 Estructura:', Object.keys(aiResponse || {}));
+    console.log('🔍 Estructura completa:', JSON.stringify(aiResponse).substring(0, 300));
 
-    // 3. Extraer imagen Base64
-    // Puede venir en aiResponse.image o en aiResponse.result.image
-    let imageBase64 = null;
+    // 3. EXTRAER LA IMAGEN (LÓGICA CORREGIDA)
+    let imageBuffer = null;
+    let imageUrl = null;
 
-    if (aiResponse?.image && typeof aiResponse.image === 'string') {
-      imageBase64 = aiResponse.image;
-      console.log('✅ Imagen encontrada en aiResponse.image (directa)');
-    } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
-      imageBase64 = aiResponse.result.image;
-      console.log('✅ Imagen encontrada en aiResponse.result.image (anidada)');
+    // CASO A: La API devuelve un array de URLs en result.images (Lo que está pasando ahora)
+    if (aiResponse?.result?.images && Array.isArray(aiResponse.result.images) && aiResponse.result.images.length > 0) {
+      imageUrl = aiResponse.result.images[0];
+      console.log('🔗 Detectada URL en array result.images[0]:', imageUrl);
+
+      try {
+        // Descargar el contenido de la URL
+        const downloadResponse = await fetch(imageUrl);
+        
+        if (!downloadResponse.ok) {
+          throw new Error(`Error descargando imagen: ${downloadResponse.status}`);
+        }
+
+        // Convertir a ArrayBuffer
+        imageBuffer = await downloadResponse.arrayBuffer();
+        console.log('✅ Imagen descargada y convertida a ArrayBuffer:', imageBuffer.byteLength, 'bytes');
+      } catch (downloadError) {
+        console.error('❌ Error descargando imagen desde URL:', downloadError.message);
+        throw downloadError;
+      }
+    } 
+    // CASO B: La API devuelve una URL directa en result.image (por si acaso)
+    else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
+      imageUrl = aiResponse.result.image;
+      console.log('🔗 Detectada URL en result.image:', imageUrl);
+      
+      const downloadResponse = await fetch(imageUrl);
+      if (!downloadResponse.ok) throw new Error(`Error descargando: ${downloadResponse.status}`);
+      imageBuffer = await downloadResponse.arrayBuffer();
+    }
+    // CASO C: La API devuelve Base64 directo (según documentación antigua)
+    else if (aiResponse?.image && typeof aiResponse.image === 'string' && !aiResponse.image.startsWith('http')) {
+      console.log('📜 Detectado Base64 directo en aiResponse.image');
+      const binaryString = atob(aiResponse.image);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+      imageBuffer = bytes.buffer;
     }
 
-    // Verificar que sea Base64 y no una URL
-    if (!imageBase64 || imageBase64.startsWith('http')) {
+    if (!imageBuffer || imageBuffer.byteLength === 0) {
       console.error('❌ Respuesta inesperada:', JSON.stringify(aiResponse).substring(0, 500));
-      throw new Error('Seedream 5 Lite no devolvió una imagen Base64 válida');
+      throw new Error('Seedream 5 Lite no devolvió una imagen válida (ni URL ni Base64)');
     }
 
-    // 4. Decodificar Base64 a ArrayBuffer
+    // 4. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
-    const binaryString = atob(imageBase64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    console.log('📦 Tamaño de imagen:', bytes.byteLength, 'bytes');
-
-    // 5. Guardar en R2
-    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+    await env.MIRAI_AI_ASSETS.put(filename, imageBuffer, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
         prompt: prompt.substring(0, 100),
