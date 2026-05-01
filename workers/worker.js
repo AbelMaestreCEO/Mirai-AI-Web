@@ -863,67 +863,85 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON GOOGLE IMAGEN 4 (NUEVO) ---
+// --- GENERAR IMAGEN CON GOOGLE IMAGEN 4 (CORREGIDO PARA URL) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
     console.log('🖼️ Iniciando generación con Google Imagen 4');
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Preparar el prompt (Imagen 4 suele funcionar bien con prompts directos, 
-    // pero podemos añadir un poco de estilo si quieres mantener la consistencia)
-    // Nota: Imagen 4 es muy bueno entendiendo instrucciones naturales.
+    // 1. Preparar el prompt
     const enhancedPrompt = `${prompt}, high quality, photorealistic, 8k resolution`;
 
-    // 2. Definir parámetros (Opcionales pero recomendados)
-    // Puedes hacer esto dinámico si quieres que el usuario elija el ratio, 
-    // pero por ahora usaremos 16:9 para vistas panorámicas o 1:1 para generales.
+    // 2. Definir parámetros
     const params = {
       prompt: enhancedPrompt,
-      aspect_ratio: '16:9', // Opciones: 1:1, 3:4, 4:3, 9:16, 16:9
-      person_generation: 'allow_adult' // Opciones: dont_allow, allow_adult, allow_all
+      aspect_ratio: '16:9', 
+      person_generation: 'allow_adult'
     };
 
     console.log('🚀 Enviando a Imagen 4:', params);
 
     // 3. Ejecutar llamada a Cloudflare AI
-    // Imagen 4 devuelve un objeto con la propiedad 'image' (base64)
     const aiResponse = await env.AI.run('google/imagen-4', params, {
       gateway: { id: 'default' },
     });
 
     console.log('✅ Respuesta recibida de Imagen 4');
-    console.log('🔍 Estructura de respuesta:', Object.keys(aiResponse || {}));
+    
+    // 4. EXTRAER LA IMAGEN (LÓGICA CRÍTICA CORREGIDA)
+    let imageBuffer = null;
 
-    // 4. Validar y extraer la imagen
-    // Cloudflare AI suele devolver: { image: "base64_string..." }
-    if (!aiResponse || !aiResponse.image) {
-      console.error('❌ Respuesta inválida:', aiResponse);
-      throw new Error('La API de Imagen 4 no devolvió una imagen válida');
+    // CASO A: La API devuelve una URL (Lo que está pasando ahora)
+    if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
+      const imageUrl = aiResponse.result.image;
+      console.log('🔗 Detectada URL de imagen:', imageUrl);
+
+      try {
+        // Descargar el contenido de la URL
+        const downloadResponse = await fetch(imageUrl);
+        
+        if (!downloadResponse.ok) {
+          throw new Error(`Error descargando imagen: ${downloadResponse.status}`);
+        }
+
+        // Convertir a ArrayBuffer
+        imageBuffer = await downloadResponse.arrayBuffer();
+        console.log('✅ Imagen descargada y convertida a ArrayBuffer:', imageBuffer.byteLength, 'bytes');
+      } catch (downloadError) {
+        console.error('❌ Error descargando imagen desde URL:', downloadError.message);
+        throw downloadError;
+      }
+    } 
+    // CASO B: La API devuelve Base64 directamente (por si acaso en el futuro cambia)
+    else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string' && aiResponse.result.image.length > 100) {
+      // Asumimos que es base64 si no empieza con http
+      if (!aiResponse.result.image.startsWith('http')) {
+        const binaryString = atob(aiResponse.result.image);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        imageBuffer = bytes.buffer;
+        console.log('✅ Imagen decodificada de Base64');
+      }
     }
 
-    const imageBase64 = aiResponse.image;
+    if (!imageBuffer || imageBuffer.byteLength === 0) {
+      throw new Error('No se pudo obtener datos de imagen válidos de la respuesta');
+    }
 
-    // 5. Convertir Base64 a ArrayBuffer para guardar en R2
+    // 5. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
-    // Decodificar base64 a binario
-    const binaryString = atob(imageBase64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
-    // 6. Guardar en R2
-    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+    await env.MIRAI_AI_ASSETS.put(filename, imageBuffer, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: 'google/imagen-4',
-        aspect_ratio: params.aspect_ratio
+        model: 'google/imagen-4'
       }
     });
 
@@ -933,7 +951,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
   } catch (error) {
     console.error('❌ Error en generateAndStoreImage (Imagen 4):', error.message);
     console.error('Stack:', error.stack);
-    throw error; // Dejar que el handler principal maneje el error
+    throw error;
   }
 }
 
