@@ -58,8 +58,37 @@ let state = {
   audioMode: 'auto',              // 'auto' | 'always' | 'never'
 };
 
+function checkAuth() {
+  const token = localStorage.getItem('mirai_auth_token');
+  const dni = localStorage.getItem('mirai_user_dni');
+
+  if (!token || !dni) {
+    // Si no hay sesión, redirigir a login
+    window.location.href = 'login.html';
+    return false;
+  }
+  return true;
+}
+
+// Modificar fetch requests para incluir el token
+const originalFetch = window.fetch;
+window.fetch = async function (url, options = {}) {
+  // Solo agregar token a rutas de API, no a estáticas
+  if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
+    const token = localStorage.getItem('mirai_auth_token');
+    if (token) {
+      options.headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+      };
+    }
+  }
+  return originalFetch.call(this, url, options);
+};
+
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
+  if (!checkAuth()) return;
 
   initializeTheme();
   setupMobileMenu();

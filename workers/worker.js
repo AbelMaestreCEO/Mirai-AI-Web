@@ -3,6 +3,9 @@
    Backend para integración con DeepSeek API
    ============================================ */
 
+// --- NUEVO: UTILIDADES DE SEGURIDAD ---
+import { randomBytes, createHash } from 'crypto'; // O usar Web Crypto API nativo
+
 // --- CONFIGURACIÓN ---
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
@@ -53,6 +56,168 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
 
+// Usaremos Web Crypto API para no depender de paquetes npm en Workers
+async function hashPassword(password, salt) {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password + salt),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits", "deriveKey"]
+  );
+
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+
+  const exported = await crypto.subtle.exportKey("raw", key);
+  const buffer = new Uint8Array(exported);
+  return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function generateSalt() {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// --- NUEVO: VALIDACIÓN DE EMAIL ---
+function isValidEmail(email) {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
+// --- NUEVO: INTERCEPTOR DE AUTENTICACIÓN ---
+async function requireAuth(request, env) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  // Verificar token en KV (recomendado para sesiones) o D1
+  // Para simplicidad, asumiremos que el token es el DNI + un hash temporal 
+  // O mejor: implementar un sistema simple de JWT o sesiones en D1.
+
+  // IMPLEMENTACIÓN SIMPLE: Guardar sesión en D1
+  const session = await env.MIRAI_AI_DB.prepare(
+    "SELECT user_dni FROM sessions WHERE token = ? AND expires_at > datetime('now')"
+  ).bind(token).first();
+
+  if (!session) return null;
+  return session.user_dni;
+}
+
+// --- MODIFICAR: REGISTRO (NUEVA RUTA) ---
+async function handleRegister(request, env, corsHeaders) {
+  try {
+    const { dni, email, password } = await request.json();
+
+    // Validaciones
+    if (!dni || !email || !password) {
+      return jsonResponse({ error: 'DNI, correo y contraseña son requeridos' }, 400, corsHeaders);
+    }
+    if (!isValidEmail(email)) {
+      return jsonResponse({ error: 'Correo inválido' }, 400, corsHeaders);
+    }
+    if (password.length < 8) {
+      return jsonResponse({ error: 'La contraseña debe tener al menos 8 caracteres' }, 400, corsHeaders);
+    }
+    // Validación básica de DNI (ajustar según país)
+    if (!/^[A-Z0-9]{7,10}$/.test(dni.toUpperCase())) {
+      return jsonResponse({ error: 'Formato de DNI inválido' }, 400, corsHeaders);
+    }
+
+    // Verificar si existe
+    const existing = await env.MIRAI_AI_DB.prepare(
+      "SELECT dni FROM users WHERE dni = ? OR email = ?"
+    ).bind(dni.toUpperCase(), email.toLowerCase()).first();
+
+    if (existing) {
+      return jsonResponse({ error: 'Usuario ya registrado' }, 409, corsHeaders);
+    }
+
+    // Hash de contraseña
+    const salt = generateSalt();
+    const passwordHash = await hashPassword(password, salt);
+
+    // Guardar usuario (guardamos el salt junto con el hash en un campo separado o combinado)
+    // Para simplificar, guardaremos "salt:hash" en password_hash
+    await env.MIRAI_AI_DB.prepare(
+      "INSERT INTO users (dni, email, password_hash) VALUES (?, ?, ?)"
+    ).bind(dni.toUpperCase(), email.toLowerCase(), `${salt}:${passwordHash}`).run();
+
+    return jsonResponse({ success: true, message: 'Registro exitoso' }, 201, corsHeaders);
+
+  } catch (error) {
+    console.error('Error registro:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// --- MODIFICAR: LOGIN (NUEVA RUTA) ---
+async function handleLogin(request, env, corsHeaders) {
+  try {
+    const { dni, password } = await request.json();
+
+    if (!dni || !password) {
+      return jsonResponse({ error: 'DNI y contraseña requeridos' }, 400, corsHeaders);
+    }
+
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT password_hash FROM users WHERE dni = ?"
+    ).bind(dni.toUpperCase()).first();
+
+    if (!user) {
+      return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
+    }
+
+    // Separar salt y hash
+    const [storedSalt, storedHash] = user.password_hash.split(':');
+    const inputHash = await hashPassword(password, storedSalt);
+
+    if (inputHash !== storedHash) {
+      return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
+    }
+
+    // Generar token de sesión simple (UUID)
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 días
+
+    // Guardar sesión (necesitas crear tabla sessions si no existe)
+    // CREATE TABLE sessions (token TEXT PRIMARY KEY, user_dni TEXT, expires_at DATETIME)
+    await env.MIRAI_AI_DB.prepare(
+      "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
+    ).bind(token, dni.toUpperCase(), expiresAt).run();
+
+    // Actualizar último login
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET last_login = datetime('now') WHERE dni = ?"
+    ).bind(dni.toUpperCase()).run();
+
+    return jsonResponse({
+      success: true,
+      token: token,
+      dni: dni.toUpperCase()
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error login:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
 // --- CLASIFICAR INTENCIÓN DEL USUARIO ---
 async function classifyIntent(message, env) {
   try {
@@ -93,11 +258,17 @@ async function classifyIntent(message, env) {
 }
 
 async function handleChat(request, env, corsHeaders) {
+  // 1. Autenticar
+  const userDni = await requireAuth(request, env);
+  if (!userDni) {
+    return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+  }
+
   console.log('🔍 handleChat llamado');
   console.log('🔍 env.AI disponible:', !!env.AI);
 
   try {
-    // ✨ LEER audio_mode, course_id, lesson_id DEL BODY
+    // ✨ LEER body UNA SOLA VEZ
     const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model } = await request.json();
 
     // Validar entrada
@@ -106,6 +277,22 @@ async function handleChat(request, env, corsHeaders) {
     }
     if (!conversation_id || typeof conversation_id !== 'string') {
       return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
+    }
+
+    // 2. ASEGURAR QUE LA CONVERSACIÓN PERTENECE AL USUARIO
+    const convOwner = await env.MIRAI_AI_DB.prepare(
+      "SELECT user_dni FROM conversations WHERE id = ?"
+    ).bind(conversation_id).first();
+
+    if (convOwner && convOwner.user_dni !== userDni) {
+      return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
+    }
+
+    // Si es nueva conversación, asignar usuario
+    if (!convOwner) {
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE conversations SET user_dni = ? WHERE id = ?"
+      ).bind(userDni, conversation_id).run();
     }
 
     console.log(`📩 Recibido: audio_mode = ${audio_mode}`);
@@ -161,9 +348,9 @@ async function handleChat(request, env, corsHeaders) {
           message,
           conversation_id,
           audio_mode,
-          course_id || null,    // ← Asegurar que se pasa
+          course_id || null,
           lesson_id || null,
-          model || 'deepseek',    // ← Asegurar que se pasa
+          model || 'deepseek',
           env,
           corsHeaders
         );
@@ -349,6 +536,9 @@ export default {
 
       // Rutas de API
       if (path.startsWith('/api/')) {
+        if (path === '/api/login' || path === '/api/register') {
+          return await handlePublicRoute(request, env, corsHeaders);
+        }
         return handleApiRequest(request, env, corsHeaders);
       }
 
@@ -426,6 +616,8 @@ async function handleApiRequest(request, env, corsHeaders) {
   const path = url.pathname;
 
   try {
+
+
     // Ruta: POST /api/chat
     if (path === ROUTES.CHAT && request.method === 'POST') {
       return await handleChat(request, env, corsHeaders);
@@ -875,7 +1067,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     // 2. Construir FormData (Requisito obligatorio para Flux.2)
     const form = new FormData();
     form.append('prompt', enhancedPrompt);
-    
+
     // Parámetros opcionales (Flux suele aceptar width/height)
     // Puedes ajustar esto si quieres forzar un ratio específico
     form.append('width', '1024');
@@ -1488,22 +1680,22 @@ async function loadConversationHistory(conversationId) {
           if (match) {
             prompt = match[1];
           }
-          
+
           // Usar el thumbnail_url guardado en la DB
           const thumbnail = msg.thumbnail_url || null;
-          
+
           console.log('🎬 Cargando video histórico:', {
             video: msg.video_url,
             thumb: thumbnail,
             prompt: prompt
           });
-          
+
           appendVideoMessage(msg.video_url, thumbnail, prompt);
-        } 
+        }
         // Si no hay video, pero hay audio (TTS)
         else if (msg.audio_url) {
           appendMessage('assistant', msg.content, true, msg.audio_url);
-        } 
+        }
         // Solo texto
         else {
           appendMessage('assistant', msg.content, true, null);
