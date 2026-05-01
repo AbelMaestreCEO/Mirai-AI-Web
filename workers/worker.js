@@ -531,9 +531,6 @@ export default {
 
       // Rutas de API
       if (path.startsWith('/api/')) {
-        if (path === '/api/login' || path === '/api/register') {
-          return await handlePublicRoute(request, env, corsHeaders);
-        }
         return handleApiRequest(request, env, corsHeaders);
       }
 
@@ -693,6 +690,14 @@ async function handleApiRequest(request, env, corsHeaders) {
 
     if (path === '/api/transcribe' && request.method === 'POST') {
       return await handleTranscribeAudio(request, env, corsHeaders);
+    }
+
+    if (path === '/api/register' && request.method === 'POST') {
+      return await handleRegister(request, env, corsHeaders);
+    }
+
+    if (path === '/api/login' && request.method === 'POST') {
+      return await handleLogin(request, env, corsHeaders);
     }
 
     if (path === '/api/courses' && request.method === 'GET') {
