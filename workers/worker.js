@@ -366,7 +366,7 @@ async function handleChat(request, env, corsHeaders) {
     }
 
     // Si es nueva conversación, asignar usuario
-    if (!convOwner) {
+    if (!convData) {
       await env.MIRAI_AI_DB.prepare(
         "UPDATE conversations SET user_dni = ? WHERE id = ?"
       ).bind(userDni, conversation_id).run();
