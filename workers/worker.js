@@ -809,7 +809,7 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
     // Ruta: GET /api/conversations
     if (path === '/api/conversations' && request.method === 'GET') {
-      return await handleListConversations(env, corsHeaders);
+      return await handleListConversations(request, env, corsHeaders);
     }
     if (path.startsWith('/api/image/') && request.method === 'GET') {
       return await handleServeImage(path, env);
