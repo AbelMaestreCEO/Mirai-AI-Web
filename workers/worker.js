@@ -1981,7 +1981,6 @@ function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
   }
 }
 
-// --- LISTAR CONVERSACIONES (CORREGIDO) ---
 async function handleListConversations(request, env, corsHeaders) {
   try {
     // 1. AUTENTICAR USUARIO
@@ -1992,26 +1991,43 @@ async function handleListConversations(request, env, corsHeaders) {
 
     console.log(`🔍 Listando conversaciones para usuario: ${userDni}`);
 
-    // 2. FILTRAR POR USUARIO (¡CRÍTICO!)
+    // 2. EJECUTAR CONSULTA
     const stmt = env.MIRAI_AI_DB.prepare(`
       SELECT id, title, created_at, updated_at, course_id
       FROM conversations
-      WHERE user_dni = ?
+      WHERE user_dni = ? OR course_id IS NOT NULL
       ORDER BY updated_at DESC
       LIMIT 50
     `);
 
-    const { results } = await stmt.bind(userDni).all();
+    // ⚠️ IMPORTANTE: .all() devuelve { results: [...] }
+    const queryResult = await stmt.bind(userDni).all();
 
-    // Separar para el frontend
-    const regular = results.filter(r => !r.course_id);
-    const courses = results.filter(r => r.course_id);
+    // Verificar si hay resultados
+    if (!queryResult || !queryResult.results) {
+      console.warn('⚠️ No se encontraron conversaciones o estructura inválida');
+      return jsonResponse({ regular: [], courses: [] }, 200, corsHeaders);
+    }
+
+    const allConversations = queryResult.results;
+
+    // 3. FILTRAR Y SEPARAR
+    // Conversaciones normales: tienen user_dni (que coincide con el actual) y NO tienen course_id
+    // Conversaciones de curso: tienen course_id (compartidas)
+    const regular = allConversations.filter(r => !r.course_id && r.user_dni === userDni);
+    const courses = allConversations.filter(r => !!r.course_id);
+
+    console.log(`✅ Encontradas: ${regular.length} normales, ${courses.length} de cursos`);
 
     return jsonResponse({ regular, courses }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Error listing conversations:', error);
-    return jsonResponse({ error: 'Error obteniendo conversaciones' }, 500, corsHeaders);
+    // Loguear el error específico para depuración
+    if (error.message.includes('get')) {
+      console.error('Detalles del error:', error.stack);
+    }
+    return jsonResponse({ error: 'Error obteniendo conversaciones', details: error.message }, 500, corsHeaders);
   }
 }
 
