@@ -424,7 +424,8 @@ async function handleChat(request, env, corsHeaders) {
           lesson_id || null,
           model || 'deepseek',
           env,
-          corsHeaders
+          corsHeaders,
+          userDni
         );
     }
 
@@ -913,13 +914,13 @@ async function handleUploadUserAudio(request, env, corsHeaders) {
   }
 }
 
-async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders) {
+async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
-    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model });
+    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni});
 
     // 1. Asegurar conversación
-    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id);
+    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni );
 
     // 2. Guardar contexto educativo si se proporciona
     if (course_id && lesson_id) {

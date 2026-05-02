@@ -1137,6 +1137,12 @@ async function loadConversationHistory(conversationId) {
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
   } catch (error) {
+    if (error.status === 403 || error.status === 500) {
+      console.warn('⚠️ Sesión inválida detectada. Limpiando...');
+      localStorage.removeItem('mirai_auth_token');
+      localStorage.removeItem('mirai_user_dni');
+      window.location.href = 'login.html';
+    }
     console.error('Error cargando historial:', error);
   }
 }
@@ -2117,6 +2123,12 @@ async function loadConversations() {
     renderConversationsList(conversations, enrolledCourses);
 
   } catch (error) {
+    if (error.status === 403 || error.status === 500) {
+      console.warn('⚠️ Sesión inválida detectada. Limpiando...');
+      localStorage.removeItem('mirai_auth_token');
+      localStorage.removeItem('mirai_user_dni');
+      window.location.href = 'login.html';
+    }
     console.error('Error cargando conversaciones:', error);
   }
 }
