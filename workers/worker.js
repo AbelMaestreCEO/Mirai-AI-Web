@@ -348,12 +348,20 @@ async function handleChat(request, env, corsHeaders) {
       return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
     }
 
-    // 2. ASEGURAR QUE LA CONVERSACIÓN PERTENECE AL USUARIO
-    const convOwner = await env.MIRAI_AI_DB.prepare(
-      "SELECT user_dni FROM conversations WHERE id = ?"
+    // 2. ASEGURAR PERMISO DE ACCESO (MODIFICADO)
+    const convData = await env.MIRAI_AI_DB.prepare(
+      "SELECT user_dni, course_id FROM conversations WHERE id = ?"
     ).bind(conversation_id).first();
 
-    if (convOwner && convOwner.user_dni !== userDni) {
+    if (!convData) {
+      return jsonResponse({ error: 'Conversación no encontrada' }, 404, corsHeaders);
+    }
+
+    const isSharedCourseConv = !!convData.course_id;
+    const isOwnedByUser = convData.user_dni === userDni;
+
+    // Si no es curso compartido Y no soy el dueño -> Bloqueo
+    if (!isSharedCourseConv && !isOwnedByUser) {
       return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
     }
 
@@ -917,10 +925,10 @@ async function handleUploadUserAudio(request, env, corsHeaders) {
 async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
-    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni});
+    console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
 
     // 1. Asegurar conversación
-    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni );
+    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni);
 
     // 2. Guardar contexto educativo si se proporciona
     if (course_id && lesson_id) {
@@ -1541,9 +1549,9 @@ async function handleHistory(request, conversationId, env, corsHeaders) {
       return jsonResponse({ error: 'conversation_id es requerido' }, 400, corsHeaders);
     }
 
-    // 2. VERIFICAR PROPIEDAD
+    // 2. VERIFICAR PROPIEDAD (MODIFICADO)
     const conv = await env.MIRAI_AI_DB.prepare(
-      "SELECT user_dni FROM conversations WHERE id = ?"
+      "SELECT user_dni, course_id FROM conversations WHERE id = ?"
     ).bind(conversationId).first();
 
     if (!conv) {
@@ -1551,6 +1559,15 @@ async function handleHistory(request, conversationId, env, corsHeaders) {
     }
 
     if (conv.user_dni !== userDni) {
+      return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
+    }
+
+    // ✅ PERMITIR ACCESO SI ES CONVERSACIÓN DE CURSO (Compartida)
+    // O SI EL USUARIO ES EL DUEÑO (Conversación normal)
+    const isSharedCourseConv = !!conv.course_id;
+    const isOwnedByUser = conv.user_dni === userDni;
+    if (!isSharedCourseConv && !isOwnedByUser) {
+      console.warn(`⛔ Bloqueo: Usuario ${userDni} intenta acceder a conv ${conversationId} que no es suya ni es de curso.`);
       return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
     }
 
@@ -1588,14 +1605,18 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null, 
   try {
     await ensureConversationExists(conversationId, content, env, null, null, userDni);
 
-    // VERIFICAR PROPIEDAD antes de guardar
     if (userDni) {
       const conv = await env.MIRAI_AI_DB.prepare(
-        "SELECT user_dni FROM conversations WHERE id = ?"
+        "SELECT user_dni, course_id FROM conversations WHERE id = ?"
       ).bind(conversationId).first();
 
-      if (conv && conv.user_dni && conv.user_dni !== userDni) {
-        throw new Error('Acceso denegado: no puedes escribir en esta conversación');
+      if (conv) {
+        const isSharedCourseConv = !!conv.course_id;
+        const isOwnedByUser = conv.user_dni === userDni;
+
+        if (!isSharedCourseConv && !isOwnedByUser) {
+          throw new Error('Acceso denegado: no puedes escribir en esta conversación');
+        }
       }
     }
 
