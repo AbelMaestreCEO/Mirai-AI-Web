@@ -4,6 +4,7 @@
    ============================================ */
 
 /* --- VARIABLES CSS (Temas) --- */
+
 :root {
   /* Paleta de Colores - Tema Claro (Material You Tonal) */
   --bg-primary: #F5F3F8;
@@ -4382,4 +4383,39 @@ svg {
     font-size: 0.8rem;
     padding: 4px 10px;
   }
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: calc(100% - 32px); /* Ajuste para márgenes */
+    margin: 16px auto;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 8px;
+    color: var(--text-color, #333);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.logout-btn:hover {
+    background: var(--danger-color, #ffebee);
+    border-color: var(--danger-color, #ef5350);
+    color: var(--danger-color, #d32f2f);
+}
+
+/* Ajuste para modo oscuro si usas variables */
+[data-theme="dark"] .logout-btn {
+    border-color: #444;
+    color: #fff;
+}
+
+[data-theme="dark"] .logout-btn:hover {
+    background: rgba(211, 47, 47, 0.15);
+    border-color: #d32f2f;
+    color: #ff8a80;
 }

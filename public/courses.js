@@ -639,3 +639,19 @@ window.startLesson = (courseId, lessonId) => {
 window.selectCourse = (courseId) => {
     window.location.href = `course_details.html?id=${courseId}`;
 };
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+    if(confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        // 1. Limpiar datos de autenticación
+        localStorage.removeItem('mirai_auth_token');
+        localStorage.removeItem('mirai_user_dni');
+        
+        // 2. Limpiar contexto de conversación actual
+        localStorage.removeItem('mirai-ai-conversation-id');
+        localStorage.removeItem('mirai-ai-course-id');
+        localStorage.removeItem('mirai-ai-lesson-id');
+        
+        // 3. Redirigir a la página de login
+        window.location.href = 'login.html';
+    }
+});
