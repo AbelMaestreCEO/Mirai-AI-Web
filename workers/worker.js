@@ -796,6 +796,10 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleForgotPassword(request, env, corsHeaders);
     }
 
+    if (path === '/api/categories-with-count' && request.method === 'GET') {
+      return await handleGetCategoriesWithCount(env, corsHeaders);
+    }
+
     if (path === '/api/reset-password' && request.method === 'POST') {
       return await handleResetPassword(request, env, corsHeaders);
     }
@@ -862,6 +866,32 @@ async function handleApiRequest(request, env, corsHeaders) {
       500,
       corsHeaders
     );
+  }
+}
+
+async function handleGetCategoriesWithCount(env, corsHeaders) {
+  try {
+    // Consulta que une categorías con conteo de cursos
+    const stmt = env.MIRAI_AI_DB.prepare(`
+            SELECT 
+                c.id,
+                c.title,
+                c.description,
+                c.icon,
+                c.color,
+                COUNT(co.id) as course_count
+            FROM categories c
+            LEFT JOIN courses co ON c.id = co.category
+            GROUP BY c.id, c.title, c.description, c.icon, c.color
+            ORDER BY c.title ASC
+        `);
+
+    const { results } = await stmt.all();
+    return jsonResponse(results, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error getting categories with count:', error);
+    return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
   }
 }
 

@@ -143,7 +143,7 @@ function escapeHtml(text) {
  */
 async function loadCategoriesFromAPI() {
     try {
-        const response = await fetch('/api/categories');
+        const response = await fetch('/api/categories-with-count');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
@@ -152,7 +152,6 @@ async function loadCategoriesFromAPI() {
         return data;
     } catch (error) {
         console.error('❌ Error cargando categorías:', error);
-        // Fallback: Mostrar error en UI si estamos en la página de categorías
         if (currentPage === 'categories') {
             const grid = document.getElementById('categories-grid');
             if (grid) {
@@ -195,10 +194,13 @@ async function initCategoriesPage() {
     // 1. Cargar categorías desde D1
     const categories = await loadCategoriesFromAPI();
 
-    // 2. Renderizar
-    renderCategories(categories);
+    // 2. Cargar cursos para contar (sin renderizar)
+    const courses = await loadCoursesFromAPI();
 
-    // 3. Configurar búsqueda
+    // 3. Renderizar con conteo real
+    renderCategories(categories, courses);
+
+    // 4. Configurar búsqueda
     const searchInput = document.getElementById('category-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
@@ -207,7 +209,7 @@ async function initCategoriesPage() {
                 cat.title.toLowerCase().includes(query) ||
                 cat.description.toLowerCase().includes(query)
             );
-            renderCategories(filtered);
+            renderCategories(filtered, courses);
         });
     }
 }
@@ -230,14 +232,12 @@ function renderCategories(categories) {
     categories.forEach(category => {
         const card = document.createElement('div');
         card.className = 'category-card';
-        // Usar el color de la DB o un fallback
         const color = category.color || 'linear-gradient(135deg, #667eea, #764ba2)';
         card.style.setProperty('--card-accent', color);
         card.dataset.id = category.id;
 
-        // Contar cursos reales para esta categoría (opcional, si tienes esa data)
-        // Por ahora usamos 0 o calculamos si ya cargamos cursos
-        const courseCount = courseState.courses.filter(c => c.category === category.id).length;
+        // Usar el conteo que viene de la DB
+        const courseCount = category.course_count || 0;
 
         card.innerHTML = `
             <div class="category-icon">${category.icon || '📚'}</div>
@@ -245,7 +245,7 @@ function renderCategories(categories) {
             <p class="category-desc">${escapeHtml(category.description)}</p>
             <div class="category-stats">
                 <span class="category-stat-item">
-                    <span>📚</span> ${courseCount} cursos
+                    <span>📚</span> ${courseCount} curso${courseCount !== 1 ? 's' : ''}
                 </span>
                 <span class="category-stat-item">
                     <span>👥</span> -- alumnos
