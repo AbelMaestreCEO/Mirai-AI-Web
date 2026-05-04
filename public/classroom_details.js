@@ -1,7 +1,29 @@
 // classroom_details.js
 
+// --- SOBRECARGA DE FETCH (IGUAL QUE EN CLASSROOM.JS) ---
+const originalFetch = window.fetch;
+window.fetch = async function (url, options = {}) {
+    if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
+        const token = localStorage.getItem('mirai_auth_token');
+        if (token) {
+            options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+        } else {
+            window.location.href = 'login.html';
+            return;
+        }
+    }
+    return originalFetch.call(this, url, options);
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!checkAuth()) return;
+    const token = localStorage.getItem('mirai_auth_token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    setupMobileMenu(); // Inicializar menú
+    setupLogout();
 
     const urlParams = new URLSearchParams(window.location.search);
     const assignmentId = urlParams.get('id');
@@ -16,32 +38,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupFileUpload(assignmentId);
 });
 
-function checkAuth() {
-    const token = localStorage.getItem('mirai_auth_token');
-    if (!token) {
-        window.location.href = 'login.html';
-        return false;
-    }
-    return true;
-}
-
 async function loadAssignmentDetails(id) {
     try {
         const response = await fetch(`/api/assignment-details?id=${id}`);
-        if (!response.ok) throw new Error('Error cargando detalles');
+        if (!response.ok) {
+            if (response.status === 401) { window.location.href = 'login.html'; return; }
+            throw new Error('Error cargando detalles');
+        }
         
         const data = await response.json();
-        
         document.getElementById('task-title').textContent = data.title;
         document.getElementById('task-desc').textContent = data.description || 'Sin descripción adicional.';
         
-        // Si ya está entregado, deshabilitar subida
         if (data.submission) {
             document.getElementById('upload-section').innerHTML = `
                 <div style="padding: 20px; background: #e8f5e9; border-radius: 8px; text-align: center;">
                     <h3>✅ Tarea Entregada</h3>
                     <p>Fecha: ${new Date(data.submission.submitted_at).toLocaleString()}</p>
-                    ${data.submission.score ? `<p><strong>Nota: ${data.submission.score}</strong></p>` : ''}
+                    ${data.submission.score !== null ? `<p><strong>Nota: ${data.submission.score}</strong></p>` : ''}
                     ${data.submission.feedback ? `<p><em>Feedback: ${data.submission.feedback}</em></p>` : ''}
                 </div>
             `;
@@ -76,7 +90,6 @@ function setupFileUpload(assignmentId) {
         fileNameDisplay.textContent = `Archivo seleccionado: ${file.name}`;
         statusMsg.style.display = 'none';
 
-        // Subir
         const formData = new FormData();
         formData.append('file', file);
         formData.append('assignment_id', assignmentId);
@@ -86,11 +99,7 @@ function setupFileUpload(assignmentId) {
             statusMsg.className = 'status-message';
             statusMsg.style.display = 'block';
 
-            const response = await fetch('/api/submit-assignment', {
-                method: 'POST',
-                body: formData
-            });
-
+            const response = await fetch('/api/submit-assignment', { method: 'POST', body: formData });
             const result = await response.json();
 
             if (response.ok) {
@@ -106,4 +115,31 @@ function setupFileUpload(assignmentId) {
             statusMsg.className = 'status-message status-error';
         }
     });
+}
+
+function setupMobileMenu() {
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const closeMenu = document.querySelector('.close-menu');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
+
+    function toggleMenu() {
+        const isActive = sidebar.classList.contains('active');
+        if (isActive) {
+            sidebar.classList.remove('active'); overlay.classList.remove('active');
+            menuToggle.classList.remove('active'); document.body.style.overflow = '';
+        } else {
+            sidebar.classList.add('active'); overlay.classList.add('active');
+            menuToggle.classList.add('active'); document.body.style.overflow = 'hidden';
+        }
+    }
+    menuToggle.addEventListener('click', toggleMenu);
+    closeMenu.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', toggleMenu);
+}
+
+function setupLogout() {
+    const btn = document.getElementById('logout-btn');
+    if (btn) btn.addEventListener('click', () => { localStorage.clear(); window.location.href = 'login.html'; });
 }

@@ -6,7 +6,7 @@
     <title>Detalle de Tarea - Mirai AI</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .detail-container { max-width: 800px; margin: 40px auto; padding: 20px; }
+        .detail-container { max-width: 800px; margin: 40px auto; padding: 20px; padding-top: 80px; }
         .assignment-header { background: var(--card-bg); padding: 30px; border-radius: 12px; margin-bottom: 30px; }
         .upload-section { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 2px dashed var(--border-color); text-align: center; }
         .upload-section.drag-over { border-color: var(--primary-color); background: rgba(67, 97, 238, 0.05); }
@@ -16,10 +16,34 @@
         .status-message { margin-top: 15px; padding: 10px; border-radius: 6px; display: none; }
         .status-success { background: #d4edda; color: #155724; }
         .status-error { background: #f8d7da; color: #721c24; }
+        .btn-back { background: none; border: none; color: var(--primary-color); cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
+    <!-- PANEL LATERAL (Igual que classroom.html) -->
+    <nav class="mobile-sidebar">
+        <!-- ... (Mismo contenido que classroom.html) ... -->
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <button class="close-menu">&times;</button>
+        </div>
+        <div class="sidebar-content">
+            <section class="sidebar-section">
+                <h4>Navegación</h4>
+                <ul class="sidebar-links">
+                    <li><a href="index.html" class="nav-link">💬 Chat</a></li>
+                    <li><a href="classroom.html" class="nav-link active-link">📚 Aula Virtual</a></li>
+                </ul>
+            </section>
+            <!-- ... (Resto del sidebar) ... -->
+            <button id="logout-btn" class="logout-btn"><span>Cerrar Sesión</span></button>
+        </div>
+        <div class="sidebar-footer"><p>&copy; 2026 Aberu & Mirai Company</p></div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
     <header class="header">
+        <button class="mobile-menu-toggle"><span></span><span></span><span></span></button>
         <div class="header-title">Detalle de Tarea</div>
         <button onclick="window.history.back()" class="btn-back">← Volver</button>
     </header>
@@ -33,7 +57,6 @@
         <div id="upload-section" class="upload-section">
             <h3>Subir Trabajo Final</h3>
             <p>Formato aceptado: PDF (Máx 10MB)</p>
-            
             <div class="file-input-wrapper">
                 <button class="btn-upload">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
@@ -41,7 +64,6 @@
                 </button>
                 <input type="file" id="file-input" accept=".pdf">
             </div>
-            
             <div id="file-name-display" style="margin-top: 10px; font-weight: bold;"></div>
             <div id="upload-status" class="status-message"></div>
         </div>
