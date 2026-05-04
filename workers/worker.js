@@ -2002,20 +2002,16 @@ function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
 
 async function handleListConversations(request, env, corsHeaders) {
   try {
-    // 1. AUTENTICAR
     const userDni = await requireAuth(request, env);
     if (!userDni) {
-      console.error("❌ Autenticación fallida en handleListConversations");
       return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
     }
 
-    console.log(`🔍 [DEBUG] Listando conversaciones para usuario: "${userDni}" (longitud: ${userDni.length})`);
+    console.log(`🔍 [DEBUG] Listando conversaciones para usuario: "${userDni}"`);
 
-    // 2. CONSULTA SQL ROBUSTA
-    // Usamos "user_dni = ?" y verificamos que course_id sea NULL o vacío
-    // IMPORTANTE: En SQLite, a veces es mejor usar "IS NULL" explícitamente
+    // CORRECCIÓN: Agregar user_dni a la SELECT
     const stmt = env.MIRAI_AI_DB.prepare(`
-      SELECT id, title, created_at, updated_at, course_id
+      SELECT id, title, created_at, updated_at, course_id, user_dni
       FROM conversations
       WHERE user_dni = ? 
       AND (course_id IS NULL OR course_id = '' OR course_id = 'NULL')
@@ -2023,21 +2019,15 @@ async function handleListConversations(request, env, corsHeaders) {
       LIMIT 50
     `);
 
-    // Ejecutar con bind explícito
     const queryResult = await stmt.bind(userDni).all();
 
-    console.log(`🔍 [DEBUG] Resultado raw de D1:`, queryResult);
-    console.log(`🔍 [DEBUG] Número de filas encontradas:`, queryResult?.results?.length || 0);
-
     if (!queryResult || !queryResult.results) {
-      console.warn('⚠️ No se encontraron conversaciones o estructura inválida');
       return jsonResponse({ regular: [], courses: [] }, 200, corsHeaders);
     }
 
     const allConversations = queryResult.results;
 
-    // 3. FILTRADO EN JAVASCRIPT (Seguridad adicional)
-    // Aseguramos que solo tomamos las que realmente no tienen course_id
+    // El filtro ahora funcionará porque user_dni está disponible
     const regular = allConversations.filter(r => {
       const hasCourse = r.course_id !== null && r.course_id !== undefined && r.course_id !== '';
       return !hasCourse && r.user_dni === userDni;
@@ -2054,7 +2044,6 @@ async function handleListConversations(request, env, corsHeaders) {
 
   } catch (error) {
     console.error('❌ Error listing conversations:', error);
-    console.error('Stack:', error.stack);
     return jsonResponse({ error: 'Error obteniendo conversaciones', details: error.message }, 500, corsHeaders);
   }
 }
