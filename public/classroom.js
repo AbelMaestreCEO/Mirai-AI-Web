@@ -171,6 +171,16 @@ function setupMobileMenu() {
     overlay.addEventListener('click', toggleMenu);
 }
 
+// Al final de classroom.js, antes de setupLogout
+document.getElementById('professor-btn')?.addEventListener('click', () => {
+    // Verificar si el usuario es profesor (puedes tener un campo 'role' en la tabla users)
+    // Por ahora, redirigimos directamente. En producción, verifica el rol en D1.
+    const dni = localStorage.getItem('mirai_user_dni');
+    // Simulación: Si el DNI empieza con 'PROF', es profesor. O verifica en DB.
+    // Aquí redirigimos directo, pero podrías pedir contraseña extra.
+    window.location.href = 'classroom_admin.html';
+});
+
 function setupLogout() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -189,3 +199,4 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+

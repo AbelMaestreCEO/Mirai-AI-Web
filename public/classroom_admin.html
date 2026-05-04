@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Profesor - Mirai AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .admin-container { max-width: 1200px; margin: 40px auto; padding: 20px; padding-top: 80px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); }
+        .tab-btn { padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: bold; color: var(--text-secondary); }
+        .tab-btn.active { color: var(--primary-color); border-bottom: 3px solid var(--primary-color); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; }
+        .btn-create { background: var(--primary-color); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; }
+        .task-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .task-table th, .task-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .action-btn { padding: 4px 8px; margin-right: 5px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .btn-edit { background: #ffc107; color: #000; }
+        .btn-delete { background: #dc3545; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--card-bg); padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+        .student-list { margin-top: 10px; max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; }
+        .student-item { padding: 8px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; }
+    </style>
+</head>
+<body>
+    <!-- PANEL LATERAL (Igual que classroom.html) -->
+    <nav class="mobile-sidebar">
+        <!-- ... (Mismo sidebar) ... -->
+        <div class="sidebar-header"><h3>Mirai Admin</h3><button class="close-menu">&times;</button></div>
+        <div class="sidebar-content">
+            <section class="sidebar-section">
+                <h4>Gestión</h4>
+                <ul class="sidebar-links">
+                    <li><a href="classroom.html" class="nav-link">📚 Aula Estudiante</a></li>
+                    <li><a href="classroom_admin.html" class="nav-link active-link">👨‍🏫 Panel Profesor</a></li>
+                </ul>
+            </section>
+            <button id="logout-btn" class="logout-btn"><span>Cerrar Sesión</span></button>
+        </div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
+    <header class="header">
+        <button class="mobile-menu-toggle"><span></span><span></span><span></span></button>
+        <div class="header-title">Panel de Profesor</div>
+        <button id="logout-btn" class="logout-btn">Salir</button>
+    </header>
+
+    <main class="admin-container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('create')">➕ Crear Tarea</button>
+            <button class="tab-btn" onclick="switchTab('list')">📋 Mis Tareas</button>
+            <button class="tab-btn" onclick="switchTab('students')">👥 Gestionar Estudiantes</button>
+        </div>
+
+        <!-- TAB: Crear Tarea -->
+        <div id="tab-create" class="tab-content active">
+            <div class="assignment-header">
+                <h2>Nueva Tarea</h2>
+                <form id="create-task-form">
+                    <div class="form-group">
+                        <label>Título</label>
+                        <input type="text" id="task-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="task-desc" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Curso (ID)</label>
+                        <input type="text" id="task-course" placeholder="Ej: WEB-DEV-101" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Límite</label>
+                        <input type="datetime-local" id="task-due">
+                    </div>
+                    <button type="submit" class="btn-create">Crear Tarea</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB: Lista de Tareas -->
+        <div id="tab-list" class="tab-content">
+            <h2>Tareas Creadas</h2>
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Curso</th>
+                        <th>Vence</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-list-body">
+                    <!-- Se llena dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TAB: Gestionar Estudiantes -->
+        <div id="tab-students" class="tab-content">
+            <h2>Asignar Estudiantes a Tarea</h2>
+            <div class="form-group">
+                <label>Seleccionar Tarea</label>
+                <select id="student-task-select"></select>
+            </div>
+            <div class="form-group">
+                <label>DNI del Estudiante</label>
+                <input type="text" id="student-dni" placeholder="Ej: 30840119">
+                <button onclick="addStudent()" class="btn-create" style="margin-top: 10px;">Añadir</button>
+            </div>
+            <div id="assigned-students-list" class="student-list">
+                <!-- Lista de estudiantes asignados -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal para Editar/Eliminar (Opcional) -->
+    <div id="modal-confirm" class="modal">
+        <div class="modal-content">
+            <h3>¿Estás seguro?</h3>
+            <p>Esta acción no se puede deshacer.</p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button onclick="closeModal()" style="padding: 8px 16px;">Cancelar</button>
+                <button id="confirm-action-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="classroom_admin.js"></script>
+</body>
+</html>
