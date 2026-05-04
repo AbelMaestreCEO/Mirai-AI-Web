@@ -22,23 +22,136 @@
 <body>
     <!-- PANEL LATERAL (Igual que classroom.html) -->
     <nav class="mobile-sidebar">
-        <!-- ... (Mismo contenido que classroom.html) ... -->
         <div class="sidebar-header">
             <h3>Mirai AI</h3>
-            <button class="close-menu">&times;</button>
+            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
         </div>
+
         <div class="sidebar-content">
+            <!-- Sección: Contacto -->
             <section class="sidebar-section">
                 <h4>Navegación</h4>
                 <ul class="sidebar-links">
-                    <li><a href="index.html" class="nav-link">💬 Chat</a></li>
-                    <li><a href="classroom.html" class="nav-link active-link">📚 Aula Virtual</a></li>
+                    <li><a href="index.html" class="nav-link">💬 Chat con Mirai</a></li>
+                    <li><a href="course_category.html" class="nav-link">📚 Cursos</a></li>
+                    <li><a href="classroom.html" class="nav-link">🏫 Aula Virtual</a></li>
                 </ul>
             </section>
-            <!-- ... (Resto del sidebar) ... -->
-            <button id="logout-btn" class="logout-btn"><span>Cerrar Sesión</span></button>
+            <section class="sidebar-section">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
+            </section>
+
+            <!-- Sección: Servicios (Ahora Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Servicios</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                        <li><a href="https://aberumirai.com#education">Educación</a></li>
+                        <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                        <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                        <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Empresa (Ahora Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Empresa</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                        <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                        <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                        <li><a href="#">Quiénes somos</a></li>
+                        <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Enlaces Externos (Ahora Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Enlaces Externos</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                        <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                        <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                        <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <!-- Botón Cerrar Sesión -->
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <!-- Logo en sidebar -->
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
+                </a>
+            </div>
         </div>
-        <div class="sidebar-footer"><p>&copy; 2026 Aberu & Mirai Company</p></div>
+
+        <!-- Footer del sidebar -->
+        <div class="sidebar-footer">
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
+        </div>
     </nav>
     <div class="mobile-overlay"></div>
 

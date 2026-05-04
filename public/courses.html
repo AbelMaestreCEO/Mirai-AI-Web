@@ -18,17 +18,31 @@
     <!-- Menú Lateral -->
     <nav class="mobile-sidebar">
         <div class="sidebar-header">
-            <h3>Mirai Education</h3>
+            <h3>Mirai AI</h3>
             <button class="close-menu" aria-label="Cerrar menú">&times;</button>
         </div>
 
         <div class="sidebar-content">
-            <!-- Sección: Navegación -->
+            <!-- Sección: Contacto -->
             <section class="sidebar-section">
                 <h4>Navegación</h4>
                 <ul class="sidebar-links">
                     <li><a href="index.html" class="nav-link">💬 Chat con Mirai</a></li>
                     <li><a href="course_category.html" class="nav-link">📚 Cursos</a></li>
+                    <li><a href="classroom.html" class="nav-link">🏫 Aula Virtual</a></li>
+                </ul>
+            </section>
+            <section class="sidebar-section">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
                 </ul>
             </section>
 
