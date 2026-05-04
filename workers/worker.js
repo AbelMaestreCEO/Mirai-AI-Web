@@ -2005,42 +2005,56 @@ async function handleListConversations(request, env, corsHeaders) {
     // 1. AUTENTICAR
     const userDni = await requireAuth(request, env);
     if (!userDni) {
+      console.error("❌ Autenticación fallida en handleListConversations");
       return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
     }
 
-    console.log(`🔍 Listando conversaciones para usuario: ${userDni}`);
+    console.log(`🔍 [DEBUG] Listando conversaciones para usuario: "${userDni}" (longitud: ${userDni.length})`);
 
-    // 2. CONSULTA SQL MEJORADA
-    // Usamos "user_dni = ?" y aseguramos que course_id sea NULL explícitamente
-    // Nota: En SQLite, 'NULL' como string es diferente de NULL. Asegúrate de que userDni sea string.
+    // 2. CONSULTA SQL ROBUSTA
+    // Usamos "user_dni = ?" y verificamos que course_id sea NULL o vacío
+    // IMPORTANTE: En SQLite, a veces es mejor usar "IS NULL" explícitamente
     const stmt = env.MIRAI_AI_DB.prepare(`
       SELECT id, title, created_at, updated_at, course_id
       FROM conversations
       WHERE user_dni = ? 
-      AND (course_id IS NULL OR course_id = '')
+      AND (course_id IS NULL OR course_id = '' OR course_id = 'NULL')
       ORDER BY updated_at DESC
       LIMIT 50
     `);
 
+    // Ejecutar con bind explícito
     const queryResult = await stmt.bind(userDni).all();
 
+    console.log(`🔍 [DEBUG] Resultado raw de D1:`, queryResult);
+    console.log(`🔍 [DEBUG] Número de filas encontradas:`, queryResult?.results?.length || 0);
+
     if (!queryResult || !queryResult.results) {
-      console.warn('⚠️ No se encontraron conversaciones');
+      console.warn('⚠️ No se encontraron conversaciones o estructura inválida');
       return jsonResponse({ regular: [], courses: [] }, 200, corsHeaders);
     }
 
     const allConversations = queryResult.results;
-    
-    // Doble filtro por seguridad (aunque la SQL ya debería hacerlo)
-    const regular = allConversations.filter(r => !r.course_id && r.user_dni === userDni);
-    const courses = allConversations.filter(r => !!r.course_id);
 
-    console.log(`✅ Encontradas: ${regular.length} normales, ${courses.length} de cursos`);
+    // 3. FILTRADO EN JAVASCRIPT (Seguridad adicional)
+    // Aseguramos que solo tomamos las que realmente no tienen course_id
+    const regular = allConversations.filter(r => {
+      const hasCourse = r.course_id !== null && r.course_id !== undefined && r.course_id !== '';
+      return !hasCourse && r.user_dni === userDni;
+    });
+
+    const courses = allConversations.filter(r => {
+      const hasCourse = r.course_id !== null && r.course_id !== undefined && r.course_id !== '';
+      return hasCourse;
+    });
+
+    console.log(`✅ [FINAL] Encontradas: ${regular.length} normales, ${courses.length} de cursos`);
 
     return jsonResponse({ regular, courses }, 200, corsHeaders);
 
   } catch (error) {
-    console.error('Error listing conversations:', error);
+    console.error('❌ Error listing conversations:', error);
+    console.error('Stack:', error.stack);
     return jsonResponse({ error: 'Error obteniendo conversaciones', details: error.message }, 500, corsHeaders);
   }
 }
