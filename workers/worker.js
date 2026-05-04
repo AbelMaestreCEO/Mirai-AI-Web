@@ -2010,31 +2010,31 @@ async function handleListConversations(request, env, corsHeaders) {
 
     console.log(`🔍 Listando conversaciones para usuario: ${userDni}`);
 
-    // 2. EJECUTAR CONSULTA
+    // 2. EJECUTAR CONSULTA (Asegúrate de que el filtro sea estricto)
+    // Nota: Si una conversación es de un curso, tendrá course_id. 
+    // Si es normal, user_dni debe coincidir y course_id debe ser NULL.
     const stmt = env.MIRAI_AI_DB.prepare(`
       SELECT id, title, created_at, updated_at, course_id
       FROM conversations
-      WHERE user_dni = ? OR course_id IS NOT NULL
+      WHERE user_dni = ? AND course_id IS NULL
       ORDER BY updated_at DESC
       LIMIT 50
     `);
 
-    // ⚠️ IMPORTANTE: .all() devuelve { results: [...] }
     const queryResult = await stmt.bind(userDni).all();
 
     // Verificar si hay resultados
     if (!queryResult || !queryResult.results) {
       console.warn('⚠️ No se encontraron conversaciones o estructura inválida');
+      // Devolver estructura vacía correcta para que el frontend no rompa
       return jsonResponse({ regular: [], courses: [] }, 200, corsHeaders);
     }
 
     const allConversations = queryResult.results;
 
-    // 3. FILTRAR Y SEPARAR
-    // Conversaciones normales: tienen user_dni (que coincide con el actual) y NO tienen course_id
-    // Conversaciones de curso: tienen course_id (compartidas)
+    // 3. FILTRAR Y SEPARAR (Aunque la SQL ya filtra, por seguridad)
     const regular = allConversations.filter(r => !r.course_id && r.user_dni === userDni);
-    const courses = allConversations.filter(r => !!r.course_id);
+    const courses = allConversations.filter(r => !!r.course_id); // Esto debería estar vacío si la SQL es correcta
 
     console.log(`✅ Encontradas: ${regular.length} normales, ${courses.length} de cursos`);
 
@@ -2042,7 +2042,7 @@ async function handleListConversations(request, env, corsHeaders) {
 
   } catch (error) {
     console.error('Error listing conversations:', error);
-    // Loguear el error específico para depuración
+    // Loguear el error específico
     if (error.message.includes('get')) {
       console.error('Detalles del error:', error.stack);
     }
