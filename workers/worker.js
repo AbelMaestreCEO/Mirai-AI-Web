@@ -781,6 +781,10 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleTranscribeAudio(request, env, corsHeaders);
     }
 
+    if (path === '/api/subcategories' && request.method === 'GET') {
+      return await handleGetSubcategories(url, env, corsHeaders);
+    }
+
     if (path === '/api/register' && request.method === 'POST') {
       return await handleRegister(request, env, corsHeaders);
     }
@@ -867,6 +871,38 @@ async function handleApiRequest(request, env, corsHeaders) {
       corsHeaders
     );
   }
+}
+
+async function handleGetSubcategories(url, env, corsHeaders) {
+    try {
+        const category = url.searchParams.get('category');
+
+        let stmt;
+        if (category) {
+            // Filtrar por categoría principal
+            stmt = env.MIRAI_AI_DB.prepare(`
+                SELECT id, title, icon, category, sort_order
+                FROM subcategories
+                WHERE category = ?
+                ORDER BY sort_order ASC
+            `);
+            const { results } = await stmt.bind(category).all();
+            return jsonResponse(results, 200, corsHeaders);
+        } else {
+            // Devolver todas
+            stmt = env.MIRAI_AI_DB.prepare(`
+                SELECT id, title, icon, category, sort_order
+                FROM subcategories
+                ORDER BY category, sort_order ASC
+            `);
+            const { results } = await stmt.all();
+            return jsonResponse(results, 200, corsHeaders);
+        }
+
+    } catch (error) {
+        console.error('Error getting subcategories:', error);
+        return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+    }
 }
 
 async function handleGetCategoriesWithCount(env, corsHeaders) {

@@ -277,26 +277,37 @@ function initCoursesPage() {
 
     if (!elements.grid) return;
 
-    // 1. Cargar datos
-    Promise.all([loadCategoriesFromAPI(), loadCoursesFromAPI()]).then(([cats, courses]) => {
-        // PASAR LAS CURSOS A renderFilterPills para obtener las subcategorías únicas
-        renderFilterPills(cats, courses);
-        
-        // Verificar si viene con categoría principal desde course_category.html
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlCat = urlParams.get('category');
-        
-        if (urlCat) {
-            // Filtrar por categoría principal (programacion, ofimatica, etc.)
-            filterByMainCategory(urlCat, courses);
-        } else {
-            // Mostrar todos los cursos
-            renderCourses(courses);
-            updateCourseCount(courses.length);
-        }
+    // Detectar si viene con ?category=historia desde course_category.html
+    const urlParams = new URLSearchParams(window.location.search);
+    const mainCategory = urlParams.get('category') || null;
+
+    // Cargar todo en paralelo
+    Promise.all([
+        loadCoursesFromAPI(),
+        mainCategory
+            ? loadSubcategoriesFromAPI(mainCategory)  // Solo subcategorías de esa categoría
+            : loadSubcategoriesFromAPI()               // Todas si no hay filtro
+    ]).then(([courses, subcategories]) => {
+
+        // 1. Filtrar cursos por categoría principal si aplica
+        const filteredCourses = mainCategory
+            ? courses.filter(c => c.category === mainCategory)
+            : courses;
+
+        // 2. Renderizar pills con subcategorías de la DB
+        renderFilterPills(subcategories);
+
+        // 3. Renderizar cursos
+        renderCourses(filteredCourses);
+        updateCourseCount(filteredCourses.length);
+
+        // 4. Guardar filtro principal en estado
+        courseState.mainCategoryFilter = mainCategory;
+
+        console.log(`📂 Categoría: ${mainCategory || 'Todas'} | Cursos: ${filteredCourses.length} | Subcategorías: ${subcategories.length}`);
     });
 
-    // ... (El resto de la configuración de búsqueda y botones se mantiene igual)
+    // Búsqueda
     if (elements.search) {
         let debounce;
         elements.search.addEventListener('input', (e) => {
@@ -308,6 +319,7 @@ function initCoursesPage() {
         });
     }
 
+    // Click en "Comenzar"
     elements.grid.addEventListener('click', (e) => {
         const btn = e.target.closest('.course-start-btn');
         if (btn) {
@@ -327,79 +339,49 @@ function initCoursesPage() {
 // ============================================
 // 2. RENDERIZAR PILLS DE CATEGORÍAS (CORREGIDO)
 // ============================================
-function renderFilterPills(categories, courses) {
-  const container = document.getElementById('filter-pills');
-  if (!container) return;
+function renderFilterPills(subcategories) {
+    const container = document.getElementById('filter-pills');
+    if (!container) return;
 
-  // 1. Limpiar todo
-  container.innerHTML = '';
+    container.innerHTML = '';
 
-  // 2. Crear botón "Todos"
-  const todosBtn = document.createElement('button');
-  todosBtn.className = 'filter-pill active';
-  todosBtn.dataset.category = 'todos';
-  todosBtn.textContent = 'Todos';
-  container.appendChild(todosBtn);
+    // 1. Botón "Todos"
+    const todosBtn = document.createElement('button');
+    todosBtn.className = 'filter-pill active';
+    todosBtn.dataset.category = 'todos';
+    todosBtn.textContent = 'Todos';
+    container.appendChild(todosBtn);
 
-  // 3. Obtener SUBCATEGORÍAS ÚNICAS (NO categorías principales)
-  const uniqueSubcategories = new Set();
-  courses.forEach(course => {
-    if (course.subcategory) {
-      uniqueSubcategories.add(course.subcategory);
-    }
-  });
+    // 2. Crear pills dinámicamente desde la DB
+    subcategories.forEach(sub => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-pill';
+        btn.dataset.category = sub.id; // ej: 'web', 'universal', 'contemporanea'
 
-  // Convertir a array y ordenar
-  const sortedSubcategories = Array.from(uniqueSubcategories).sort();
+        // Icono desde la DB + título
+        const icon = sub.icon || '📚';
+        btn.textContent = `${icon} ${sub.title}`;
 
-  // Mapeo de etiquetas bonitas para subcategorías
-  const subcategoryLabels = {
-    'web': '🌐 Web',
-    'backend': '⚙️ Backend',
-    'datos': '📊 Datos',
-    'movil': '📱 Móvil',
-    'devops': '🚀 DevOps',
-    'cloudflare': '☁️ Cloudflare'
-  };
-
-  // 4. Crear botones para cada subcategoría
-  sortedSubcategories.forEach(sub => {
-    const btn = document.createElement('button');
-    btn.className = 'filter-pill';
-    btn.dataset.category = sub;
-    
-    const label = subcategoryLabels[sub] || (sub.charAt(0).toUpperCase() + sub.slice(1));
-    btn.textContent = label;
-    
-    container.appendChild(btn);
-  });
-
-  // 5. Asignar eventos de clic
-  container.querySelectorAll('.filter-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      
-      courseState.activeCategory = pill.dataset.category;
-      
-      applyFilters({
-        grid: document.getElementById('courses-grid'),
-        countDisplay: document.getElementById('courses-count'),
-        noResults: document.getElementById('no-results')
-      });
+        container.appendChild(btn);
     });
-  });
 
-  // 6. Verificar URL (Si llegas con ?category=programacion desde categories)
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlCat = urlParams.get('category'); 
-  
-  if (urlCat) {
-    // Si viene con category=programacion, mostrar TODOS los cursos de esa categoría
-    // Luego el usuario puede filtrar por subcategoría con los pills
-    filterByMainCategory(urlCat, courses);
-  }
+    // 3. Asignar eventos
+    container.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+
+            courseState.activeCategory = pill.dataset.category;
+
+            applyFilters({
+                grid: document.getElementById('courses-grid'),
+                countDisplay: document.getElementById('courses-count'),
+                noResults: document.getElementById('no-results')
+            });
+        });
+    });
 }
+
 function filterByMainCategory(mainCategory, courses) {
     // Filtrar cursos por categoría principal (programacion, ofimatica, etc.)
     const filteredCourses = courses.filter(course => 
@@ -429,16 +411,29 @@ function renderCourses(courses) {
         datos: 'linear-gradient(135deg, #150458, #ff6600)',
         movil: 'linear-gradient(135deg, #fa7343, #f5a623)',
         devops: 'linear-gradient(135deg, #f05032, #de4c36)',
-        cloudflare: 'linear-gradient(135deg, #f48120, #fbad41)'
+        cloudflare: 'linear-gradient(135deg, #f48120, #fbad41)',
+        universal: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+        contemporanea: 'linear-gradient(135deg, #f093fb, #f5576c)',
+        antigua: 'linear-gradient(135deg, #a18cd1, #fbc2eb)',
+        excel: 'linear-gradient(135deg, #217346, #2b5876)',
+        word: 'linear-gradient(135deg, #2b579a, #4e4376)',
+        powerpoint: 'linear-gradient(135deg, #d24726, #f5576c)',
+        marketing: 'linear-gradient(135deg, #f093fb, #f5576c)',
+        emprendimiento: 'linear-gradient(135deg, #f5af19, #f12711)',
+        literatura: 'linear-gradient(135deg, #fa709a, #fee140)',
+        filosofia: 'linear-gradient(135deg, #a18cd1, #fbc2eb)',
+        biologia: 'linear-gradient(135deg, #a8edea, #fed6e3)',
+        fisica: 'linear-gradient(135deg, #667eea, #764ba2)',
+        matematicas: 'linear-gradient(135deg, #4facfe, #00f2fe)'
     };
 
     courses.forEach((course, index) => {
         const card = document.createElement('div');
         card.className = 'course-card';
 
-        // ✅ Guardar SUBCATEGORÍA para los pills
+        // ✅ dataset.category = subcategoría (para filtrar con pills)
         card.dataset.category = course.subcategory || 'general';
-        // ✅ Guardar CATEGORÍA PRINCIPAL para filtrado desde categories
+        // ✅ dataset.mainCategory = categoría principal (para filtro desde categories)
         card.dataset.mainCategory = course.category || 'general';
         card.dataset.level = course.level;
         card.dataset.courseId = course.id;
@@ -448,16 +443,16 @@ function renderCourses(courses) {
         card.style.animationDelay = `${index * 0.05}s`;
 
         card.innerHTML = `
-      <span class="course-level ${course.level}">${capitalizeFirst(course.level)}</span>
-      <div class="course-icon">${course.icon || '📚'}</div>
-      <h3 class="course-title">${escapeHtml(course.title)}</h3>
-      <p class="course-description">${escapeHtml(course.description)}</p>
-      <div class="course-meta">
-        <span class="course-meta-item"><span>📚</span> ${course.lessons} lecciones</span>
-        <span class="course-meta-item"><span>⏱️</span> ${escapeHtml(course.duration)}</span>
-      </div>
-      <button class="course-start-btn" data-course="${course.id}">Comenzar</button>
-    `;
+            <span class="course-level ${course.level}">${capitalizeFirst(course.level)}</span>
+            <div class="course-icon">${course.icon || '📚'}</div>
+            <h3 class="course-title">${escapeHtml(course.title)}</h3>
+            <p class="course-description">${escapeHtml(course.description)}</p>
+            <div class="course-meta">
+                <span class="course-meta-item"><span>📚</span> ${course.lessons} lecciones</span>
+                <span class="course-meta-item"><span>⏱️</span> ${escapeHtml(course.duration)}</span>
+            </div>
+            <button class="course-start-btn" data-course="${course.id}">Comenzar</button>
+        `;
 
         grid.appendChild(card);
     });
@@ -485,29 +480,22 @@ function applyFilters(elements) {
     const cards = elements.grid.querySelectorAll('.course-card');
     let visibleCount = 0;
 
-    // Obtener el filtro seleccionado
     const selectedSub = String(courseState.activeCategory || 'todos');
     const searchQuery = String(courseState.searchQuery || '').toLowerCase();
-    const mainCategory = courseState.mainCategoryFilter || null;
 
     cards.forEach(card => {
-        // 1. Obtener subcategoría del curso
         const courseSub = String(card.dataset.category || '');
+        const courseMain = String(card.dataset.mainCategory || '');
 
-        // 2. Lógica de Filtrado por Subcategoría (pills)
+        // Filtro por subcategoría (pills)
         const matchesSub = (selectedSub === 'todos') || (courseSub === selectedSub);
 
-        // 3. Lógica de Filtrado por Categoría Principal (desde categories)
-        // Si hay categoría principal, todos los cursos visibles deben pertenecer a ella
-        const matchesMain = !mainCategory || card.dataset.mainCategory === mainCategory;
-
-        // 4. Lógica de Búsqueda por Texto
+        // Filtro por texto
         const title = (card.querySelector('.course-title')?.textContent || '').toLowerCase();
         const description = (card.querySelector('.course-description')?.textContent || '').toLowerCase();
         const matchesSearch = !searchQuery || title.includes(searchQuery) || description.includes(searchQuery);
 
-        // 5. Aplicar visibilidad
-        if (matchesSub && matchesMain && matchesSearch) {
+        if (matchesSub && matchesSearch) {
             card.style.display = '';
             card.style.visibility = 'visible';
             visibleCount++;
@@ -517,12 +505,10 @@ function applyFilters(elements) {
         }
     });
 
-    // Actualizar contador
     if (elements.countDisplay) {
         elements.countDisplay.textContent = `Mostrando ${visibleCount} curso${visibleCount !== 1 ? 's' : ''}`;
     }
 
-    // Mostrar mensaje de "Sin resultados" si es necesario
     if (elements.noResults) {
         elements.noResults.style.display = visibleCount === 0 ? 'block' : 'none';
     }
@@ -674,3 +660,22 @@ document.getElementById('logout-btn').addEventListener('click', () => {
         window.location.href = 'login.html';
     }
 });
+
+async function loadSubcategoriesFromAPI(category = null) {
+    try {
+        const url = category
+            ? `/api/subcategories?category=${encodeURIComponent(category)}`
+            : '/api/subcategories';
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        console.log(`✅ ${data.length} subcategorías cargadas${category ? ` para ${category}` : ''}`);
+        return data;
+
+    } catch (error) {
+        console.error('❌ Error cargando subcategorías:', error);
+        return [];
+    }
+}
