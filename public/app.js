@@ -2141,6 +2141,10 @@ function renderConversationsList(conversationsData, enrolledCourses) {
   const regularConvs = conversationsData.regular || [];
   const courseConvs = conversationsData.courses || []; // Aunque ya usas enrolledCourses, esto es por seguridad
 
+  console.log("📂 Datos recibidos para renderizar:", conversationsData);
+  console.log("📂 Conversaciones normales:", regularConvs.length);
+  console.log("📂 Cursos:", courseConvs.length);
+
   // SECCIÓN: Cursos Iniciados (Ya lo tenías bien con enrolledCourses)
   if (enrolledCourses.length > 0) {
     // ... (Tu código existente para cursos se mantiene igual)
