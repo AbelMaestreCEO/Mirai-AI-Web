@@ -277,7 +277,7 @@ function initCoursesPage() {
 
     if (!elements.grid) return;
 
-    // Detectar si viene con ?category=historia desde course_category.html
+    // Detectar categoría principal desde la URL
     const urlParams = new URLSearchParams(window.location.search);
     const mainCategory = urlParams.get('category') || null;
 
@@ -285,23 +285,27 @@ function initCoursesPage() {
     Promise.all([
         loadCoursesFromAPI(),
         mainCategory
-            ? loadSubcategoriesFromAPI(mainCategory)  // Solo subcategorías de esa categoría
-            : loadSubcategoriesFromAPI()               // Todas si no hay filtro
-    ]).then(([courses, subcategories]) => {
+            ? loadSubcategoriesFromAPI(mainCategory)
+            : loadSubcategoriesFromAPI(),
+        loadCategoriesFromAPI()  // ← NUEVO: cargar categorías para obtener título
+    ]).then(([courses, subcategories, categories]) => {
 
-        // 1. Filtrar cursos por categoría principal si aplica
+        // 1. Actualizar título del hero dinámicamente
+        updateHeroTitle(mainCategory, categories);
+
+        // 2. Filtrar cursos por categoría principal si aplica
         const filteredCourses = mainCategory
             ? courses.filter(c => c.category === mainCategory)
             : courses;
 
-        // 2. Renderizar pills con subcategorías de la DB
+        // 3. Renderizar pills con subcategorías de la DB
         renderFilterPills(subcategories);
 
-        // 3. Renderizar cursos
+        // 4. Renderizar cursos
         renderCourses(filteredCourses);
         updateCourseCount(filteredCourses.length);
 
-        // 4. Guardar filtro principal en estado
+        // 5. Guardar filtro principal en estado
         courseState.mainCategoryFilter = mainCategory;
 
         console.log(`📂 Categoría: ${mainCategory || 'Todas'} | Cursos: ${filteredCourses.length} | Subcategorías: ${subcategories.length}`);
@@ -677,5 +681,54 @@ async function loadSubcategoriesFromAPI(category = null) {
     } catch (error) {
         console.error('❌ Error cargando subcategorías:', error);
         return [];
+    }
+}
+
+function updateHeroTitle(mainCategory, categories) {
+    const heroTitle = document.querySelector('.courses-hero h1');
+    const heroDescription = document.querySelector('.courses-hero p');
+    const headerTitle = document.querySelector('.header-title');
+    const pageTitle = document.querySelector('title');
+
+    if (mainCategory) {
+        // Buscar la categoría en los datos de la DB
+        const categoryData = categories.find(c => c.id === mainCategory);
+
+        if (categoryData) {
+            // Título: "Cursos de Programación", "Cursos de Historia", etc.
+            const title = `Cursos de ${categoryData.title}`;
+            const icon = categoryData.icon || '📚';
+
+            if (heroTitle) heroTitle.textContent = `${icon} ${title}`;
+            if (headerTitle) headerTitle.textContent = title;
+            if (pageTitle) pageTitle.textContent = `${title} - Mirai AI`;
+
+            // Descripción personalizada por categoría
+            const descriptions = {
+                programacion: 'Aprende a programar con Mirai AI como tu tutor personal. Clases interactivas, ejercicios prácticos y feedback en tiempo real.',
+                ofimatica: 'Domina las herramientas de oficina más utilizadas. Excel, Word, PowerPoint y Google Workspace desde cero hasta avanzado.',
+                negocios: 'Desarrolla habilidades empresariales. Marketing digital, emprendimiento, gestión de proyectos y administración.',
+                historia: 'Explora los eventos que marcaron el mundo. Civilizaciones antiguas, guerras mundiales y personajes históricos.',
+                humanidades: 'Sumérgete en el pensamiento humano. Literatura, filosofía, arte y cultura a través de los siglos.',
+                ciencias: 'Comprende el mundo natural. Biología, química, física y matemáticas con explicaciones claras y prácticas.'
+            };
+
+            if (heroDescription) {
+                heroDescription.textContent = descriptions[mainCategory] || categoryData.description || 'Explora nuestros cursos disponibles.';
+            }
+
+            console.log(`✅ Título actualizado: ${title}`);
+        } else {
+            // Categoría no encontrada en DB, usar fallback
+            const fallbackTitle = `Cursos de ${capitalizeFirst(mainCategory)}`;
+            if (heroTitle) heroTitle.textContent = fallbackTitle;
+            if (headerTitle) headerTitle.textContent = fallbackTitle;
+        }
+    } else {
+        // Sin categoría → Mostrar genérico
+        if (heroTitle) heroTitle.textContent = 'Todos los Cursos';
+        if (headerTitle) headerTitle.textContent = 'Cursos';
+        if (pageTitle) pageTitle.textContent = 'Cursos - Mirai AI';
+        if (heroDescription) heroDescription.textContent = 'Explora nuestro catálogo completo de cursos. Aprende a tu ritmo con Mirai AI como tu tutor personal.';
     }
 }
