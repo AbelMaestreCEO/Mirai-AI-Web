@@ -349,7 +349,7 @@ async function handleChat(request, env, corsHeaders) {
     }
 
     // 2. ASEGURAR PERMISO DE ACCESO (MODIFICADO)
-    const convData = await env.MIRAI_AI_DB.prepare(
+    let convData = await env.MIRAI_AI_DB.prepare(
       "SELECT user_dni, course_id FROM conversations WHERE id = ?"
     ).bind(conversation_id).first();
 
