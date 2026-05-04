@@ -281,15 +281,22 @@ function initCoursesPage() {
     Promise.all([loadCategoriesFromAPI(), loadCoursesFromAPI()]).then(([cats, courses]) => {
         // PASAR LAS CURSOS A renderFilterPills para obtener las subcategorías únicas
         renderFilterPills(cats, courses);
-        renderCourses(courses);
-        updateCourseCount(courses.length);
+        
+        // Verificar si viene con categoría principal desde course_category.html
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCat = urlParams.get('category');
+        
+        if (urlCat) {
+            // Filtrar por categoría principal (programacion, ofimatica, etc.)
+            filterByMainCategory(urlCat, courses);
+        } else {
+            // Mostrar todos los cursos
+            renderCourses(courses);
+            updateCourseCount(courses.length);
+        }
     });
 
     // ... (El resto de la configuración de búsqueda y botones se mantiene igual)
-    if (elements.filterPills) {
-        // Los listeners ya se asignaron dentro de renderFilterPills
-    }
-
     if (elements.search) {
         let debounce;
         elements.search.addEventListener('input', (e) => {
@@ -334,36 +341,34 @@ function renderFilterPills(categories, courses) {
   todosBtn.textContent = 'Todos';
   container.appendChild(todosBtn);
 
-  // 3. Obtener categorías ÚNICAS (NO subcategorías)
-  // Extraemos el campo 'category' de cada curso
-  const uniqueCategories = new Set();
+  // 3. Obtener SUBCATEGORÍAS ÚNICAS (NO categorías principales)
+  const uniqueSubcategories = new Set();
   courses.forEach(course => {
-    if (course.category) {
-      uniqueCategories.add(course.category);
+    if (course.subcategory) {
+      uniqueSubcategories.add(course.subcategory);
     }
   });
 
   // Convertir a array y ordenar
-  const sortedCategories = Array.from(uniqueCategories).sort();
+  const sortedSubcategories = Array.from(uniqueSubcategories).sort();
 
-  // Mapeo de etiquetas bonitas para las categorías principales
-  const categoryLabels = {
-    'programacion': '💻 Programación',
-    'historia': '📜 Historia',
-    'ofimatica': '📝 Ofimática',
-    'negocios': '💼 Negocios',
-    'ciencias': '🔬 Ciencias',
-    'humanidades': '📚 Humanidades'
+  // Mapeo de etiquetas bonitas para subcategorías
+  const subcategoryLabels = {
+    'web': '🌐 Web',
+    'backend': '⚙️ Backend',
+    'datos': '📊 Datos',
+    'movil': '📱 Móvil',
+    'devops': '🚀 DevOps',
+    'cloudflare': '☁️ Cloudflare'
   };
 
-  // 4. Crear botones para cada categoría principal
-  sortedCategories.forEach(cat => {
+  // 4. Crear botones para cada subcategoría
+  sortedSubcategories.forEach(sub => {
     const btn = document.createElement('button');
     btn.className = 'filter-pill';
-    btn.dataset.category = cat; // Guardamos la categoría principal (ej: 'historia')
+    btn.dataset.category = sub;
     
-    // Texto con emoji si existe, sino capitalizado
-    const label = categoryLabels[cat] || (cat.charAt(0).toUpperCase() + cat.slice(1));
+    const label = subcategoryLabels[sub] || (sub.charAt(0).toUpperCase() + sub.slice(1));
     btn.textContent = label;
     
     container.appendChild(btn);
@@ -372,14 +377,11 @@ function renderFilterPills(categories, courses) {
   // 5. Asignar eventos de clic
   container.querySelectorAll('.filter-pill').forEach(pill => {
     pill.addEventListener('click', () => {
-      // UI: Actualizar clase active
       container.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       
-      // Estado: Guardar la categoría seleccionada
       courseState.activeCategory = pill.dataset.category;
       
-      // Acción: Aplicar filtros
       applyFilters({
         grid: document.getElementById('courses-grid'),
         countDisplay: document.getElementById('courses-count'),
@@ -388,17 +390,31 @@ function renderFilterPills(categories, courses) {
     });
   });
 
-  // 6. Verificar URL (Si llegas con ?category=historia)
+  // 6. Verificar URL (Si llegas con ?category=programacion desde categories)
   const urlParams = new URLSearchParams(window.location.search);
   const urlCat = urlParams.get('category'); 
+  
   if (urlCat) {
-    const activePill = container.querySelector(`[data-category="${urlCat}"]`);
-    if (activePill) {
-      activePill.click();
-    }
+    // Si viene con category=programacion, mostrar TODOS los cursos de esa categoría
+    // Luego el usuario puede filtrar por subcategoría con los pills
+    filterByMainCategory(urlCat, courses);
   }
 }
-
+function filterByMainCategory(mainCategory, courses) {
+    // Filtrar cursos por categoría principal (programacion, ofimatica, etc.)
+    const filteredCourses = courses.filter(course => 
+        course.category === mainCategory
+    );
+    
+    // Renderizar solo esos cursos
+    renderCourses(filteredCourses);
+    updateCourseCount(filteredCourses.length);
+    
+    // Guardar en estado que estamos filtrando por categoría principal
+    courseState.mainCategoryFilter = mainCategory;
+    
+    console.log(`📂 Filtrado por categoría principal: ${mainCategory} (${filteredCourses.length} cursos)`);
+}
 // ============================================
 // 3. RENDERIZAR CURSOS (Sin cambios mayores, solo asegurando dataset)
 // ============================================
@@ -407,7 +423,6 @@ function renderCourses(courses) {
     if (!grid) return;
     grid.innerHTML = '';
 
-    // Mapeo de gradientes por subcategoría
     const subGradients = {
         web: 'linear-gradient(135deg, #e44d26, #f16529)',
         backend: 'linear-gradient(135deg, #3776ab, #ffd43b)',
@@ -421,12 +436,12 @@ function renderCourses(courses) {
         const card = document.createElement('div');
         card.className = 'course-card';
 
-        // IMPORTANTE: Guardamos la SUBCATEGORÍA en dataset.category para filtrar fácilmente
-        card.dataset.category = course.category;
+        // ✅ Guardar SUBCATEGORÍA para los pills
+        card.dataset.category = course.subcategory || 'general';
+        // ✅ Guardar CATEGORÍA PRINCIPAL para filtrado desde categories
+        card.dataset.mainCategory = course.category || 'general';
         card.dataset.level = course.level;
         card.dataset.courseId = course.id;
-        const sub = course.category ? course.category.toLowerCase() : 'general';
-        card.dataset.category = sub;
 
         const grad = subGradients[course.subcategory] || 'var(--accent-gradient)';
         card.style.setProperty('--card-accent', grad);
@@ -470,30 +485,34 @@ function applyFilters(elements) {
     const cards = elements.grid.querySelectorAll('.course-card');
     let visibleCount = 0;
 
-    // Obtener el filtro seleccionado (asegurando que sea string)
+    // Obtener el filtro seleccionado
     const selectedSub = String(courseState.activeCategory || 'todos');
     const searchQuery = String(courseState.searchQuery || '').toLowerCase();
+    const mainCategory = courseState.mainCategoryFilter || null;
 
     cards.forEach(card => {
-        // 1. Obtener subcategoría del curso (debe coincidir con lo que guardaste en renderCourses)
+        // 1. Obtener subcategoría del curso
         const courseSub = String(card.dataset.category || '');
 
-        // 2. Lógica de Filtrado por Categoría
-        // Si es 'todos' O si coinciden exactamente las cadenas
+        // 2. Lógica de Filtrado por Subcategoría (pills)
         const matchesSub = (selectedSub === 'todos') || (courseSub === selectedSub);
 
-        // 3. Lógica de Búsqueda por Texto
+        // 3. Lógica de Filtrado por Categoría Principal (desde categories)
+        // Si hay categoría principal, todos los cursos visibles deben pertenecer a ella
+        const matchesMain = !mainCategory || card.dataset.mainCategory === mainCategory;
+
+        // 4. Lógica de Búsqueda por Texto
         const title = (card.querySelector('.course-title')?.textContent || '').toLowerCase();
         const description = (card.querySelector('.course-description')?.textContent || '').toLowerCase();
         const matchesSearch = !searchQuery || title.includes(searchQuery) || description.includes(searchQuery);
 
-        // 4. Aplicar visibilidad
-        if (matchesSub && matchesSearch) {
-            card.style.display = ''; // Mostrar
+        // 5. Aplicar visibilidad
+        if (matchesSub && matchesMain && matchesSearch) {
+            card.style.display = '';
             card.style.visibility = 'visible';
             visibleCount++;
         } else {
-            card.style.display = 'none'; // Ocultar
+            card.style.display = 'none';
             card.style.visibility = 'hidden';
         }
     });
