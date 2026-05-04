@@ -354,7 +354,15 @@ async function handleChat(request, env, corsHeaders) {
     ).bind(conversation_id).first();
 
     if (!convData) {
-      return jsonResponse({ error: 'Conversación no encontrada' }, 404, corsHeaders);
+      await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni);
+      const newConvData = await env.MIRAI_AI_DB.prepare(
+        "SELECT user_dni, course_id FROM conversations WHERE id = ?"
+      ).bind(conversation_id).first();
+      if (!newConvData) {
+        // Si sigue sin existir, algo muy grave pasó
+        return jsonResponse({ error: 'Error interno al crear conversación' }, 500, corsHeaders);
+      }
+      convData = newConvData; // Actualizamos convData
     }
 
     const isSharedCourseConv = !!convData.course_id;
@@ -1637,22 +1645,38 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null, 
 
 async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null, userDni = null) {
   try {
+    // 1. Verificar si ya existe
     const existing = await env.MIRAI_AI_DB.prepare(
       "SELECT id FROM conversations WHERE id = ?"
     ).bind(conversationId).first();
 
     if (!existing) {
-      const title = firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '');
+      console.log(`🆕 Conversación NO encontrada. Creando: ${conversationId}`);
 
+      const title = firstMessage ? firstMessage.substring(0, 50) + (firstMessage.length > 50 ? '...' : '') : 'Nueva conversación';
+
+      // Insertar con todos los campos necesarios
       await env.MIRAI_AI_DB.prepare(
-        "INSERT INTO conversations (id, title, model, course_id, lesson_id, user_dni, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
-      ).bind(conversationId, title, DEEPSEEK_MODEL, courseId, lessonId, userDni).run();
+        `INSERT INTO conversations (id, title, model, course_id, lesson_id, user_dni, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ).bind(
+        conversationId,
+        title,
+        DEEPSEEK_MODEL,
+        courseId || null,
+        lessonId || null,
+        userDni || null // Si es curso, user_dni puede ser null
+      ).run();
 
-      console.log(`✅ Conversación creada para usuario ${userDni}: ${conversationId}`);
+      console.log(`✅ Conversación creada exitosamente: ${conversationId}`);
+    } else {
+      console.log(`ℹ️ Conversación ya existe: ${conversationId}`);
     }
   } catch (error) {
-    console.error('❌ Error en ensureConversationExists:', error.message);
-    throw error;
+    console.error(`❌ ERROR CRÍTICO al asegurar conversación ${conversationId}:`, error.message);
+    console.error(`Stack:`, error.stack);
+    // No lanzamos el error aquí para no romper el flujo, pero sí loguearlo
+    throw error; // Opcional: si quieres que falle la petición si no se puede crear
   }
 }
 
