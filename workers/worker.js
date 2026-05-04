@@ -2002,7 +2002,7 @@ function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
 
 async function handleListConversations(request, env, corsHeaders) {
   try {
-    // 1. AUTENTICAR USUARIO
+    // 1. AUTENTICAR
     const userDni = await requireAuth(request, env);
     if (!userDni) {
       return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
@@ -2010,31 +2010,30 @@ async function handleListConversations(request, env, corsHeaders) {
 
     console.log(`🔍 Listando conversaciones para usuario: ${userDni}`);
 
-    // 2. EJECUTAR CONSULTA (Asegúrate de que el filtro sea estricto)
-    // Nota: Si una conversación es de un curso, tendrá course_id. 
-    // Si es normal, user_dni debe coincidir y course_id debe ser NULL.
+    // 2. CONSULTA SQL MEJORADA
+    // Usamos "user_dni = ?" y aseguramos que course_id sea NULL explícitamente
+    // Nota: En SQLite, 'NULL' como string es diferente de NULL. Asegúrate de que userDni sea string.
     const stmt = env.MIRAI_AI_DB.prepare(`
       SELECT id, title, created_at, updated_at, course_id
       FROM conversations
-      WHERE user_dni = ? AND course_id IS NULL
+      WHERE user_dni = ? 
+      AND (course_id IS NULL OR course_id = '')
       ORDER BY updated_at DESC
       LIMIT 50
     `);
 
     const queryResult = await stmt.bind(userDni).all();
 
-    // Verificar si hay resultados
     if (!queryResult || !queryResult.results) {
-      console.warn('⚠️ No se encontraron conversaciones o estructura inválida');
-      // Devolver estructura vacía correcta para que el frontend no rompa
+      console.warn('⚠️ No se encontraron conversaciones');
       return jsonResponse({ regular: [], courses: [] }, 200, corsHeaders);
     }
 
     const allConversations = queryResult.results;
-
-    // 3. FILTRAR Y SEPARAR (Aunque la SQL ya filtra, por seguridad)
+    
+    // Doble filtro por seguridad (aunque la SQL ya debería hacerlo)
     const regular = allConversations.filter(r => !r.course_id && r.user_dni === userDni);
-    const courses = allConversations.filter(r => !!r.course_id); // Esto debería estar vacío si la SQL es correcta
+    const courses = allConversations.filter(r => !!r.course_id);
 
     console.log(`✅ Encontradas: ${regular.length} normales, ${courses.length} de cursos`);
 
@@ -2042,10 +2041,6 @@ async function handleListConversations(request, env, corsHeaders) {
 
   } catch (error) {
     console.error('Error listing conversations:', error);
-    // Loguear el error específico
-    if (error.message.includes('get')) {
-      console.error('Detalles del error:', error.stack);
-    }
     return jsonResponse({ error: 'Error obteniendo conversaciones', details: error.message }, 500, corsHeaders);
   }
 }

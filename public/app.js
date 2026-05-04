@@ -2109,10 +2109,13 @@ async function loadConversations() {
   try {
     // Cargar conversaciones normales
     const response = await fetch('/api/conversations');
-    if (!response.ok) return;
+    if (!response.ok) {
+      console.error("❌ Error en respuesta API:", response.status);
+      return;
+    }
 
     const conversations = await response.json();
-
+    console.log("📦 Respuesta completa del API:", conversations); // Verifica que regular no esté vacío
     // Cargar cursos iniciados
     const coursesResponse = await fetch('/api/enrolled-courses');
     let enrolledCourses = [];
@@ -2784,17 +2787,17 @@ function detectVideoRequest(text) {
 }
 
 document.getElementById('logout-btn').addEventListener('click', () => {
-    if(confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-        // 1. Limpiar datos de autenticación
-        localStorage.removeItem('mirai_auth_token');
-        localStorage.removeItem('mirai_user_dni');
-        
-        // 2. Limpiar contexto de conversación actual
-        localStorage.removeItem('mirai-ai-conversation-id');
-        localStorage.removeItem('mirai-ai-course-id');
-        localStorage.removeItem('mirai-ai-lesson-id');
-        
-        // 3. Redirigir a la página de login
-        window.location.href = 'login.html';
-    }
+  if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+    // 1. Limpiar datos de autenticación
+    localStorage.removeItem('mirai_auth_token');
+    localStorage.removeItem('mirai_user_dni');
+
+    // 2. Limpiar contexto de conversación actual
+    localStorage.removeItem('mirai-ai-conversation-id');
+    localStorage.removeItem('mirai-ai-course-id');
+    localStorage.removeItem('mirai-ai-lesson-id');
+
+    // 3. Redirigir a la página de login
+    window.location.href = 'login.html';
+  }
 });
