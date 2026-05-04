@@ -830,6 +830,132 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleImageGeneration(request, env, corsHeaders);
     }
 
+    // --- NUEVAS RUTAS EN handleApiRequest ---
+
+    // Ruta: GET /api/my-submissions
+    if (path === '/api/my-submissions' && request.method === 'GET') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      try {
+        // 1. Obtener todas las asignaciones de los cursos del usuario
+        // (Asumimos que el usuario está inscrito en cursos si tiene conversaciones de curso)
+        // Para simplificar, traemos todas las asignaciones y filtramos después, 
+        // o podrías tener una tabla 'enrollments'. 
+        // Aquí traemos asignaciones generales y verificamos entregas.
+
+        const assignmentsStmt = env.MIRAI_AI_DB.prepare(`
+            SELECT a.*, c.title as course_title 
+            FROM assignments a
+            JOIN courses c ON a.course_id = c.id
+            ORDER BY a.created_at DESC
+        `);
+        const { results: assignments } = await assignmentsStmt.all();
+
+        // 2. Obtener entregas del usuario
+        const submissionsStmt = env.MIRAI_AI_DB.prepare(`
+            SELECT * FROM submissions WHERE user_dni = ?
+        `);
+        const { results: submissions } = await submissionsStmt.bind(userDni).all();
+
+        return jsonResponse({ assignments, submissions }, 200, corsHeaders);
+
+      } catch (error) {
+        console.error(error);
+        return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+      }
+    }
+
+    // Ruta: GET /api/assignment-details
+    if (path === '/api/assignment-details' && request.method === 'GET') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      const id = url.searchParams.get('id');
+      if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+
+      try {
+        // 1. Datos de la tarea
+        const assignStmt = env.MIRAI_AI_DB.prepare(`
+            SELECT a.*, c.title as course_title 
+            FROM assignments a
+            JOIN courses c ON a.course_id = c.id
+            WHERE a.id = ?
+        `);
+        const assignment = await assignStmt.bind(id).first();
+
+        if (!assignment) return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+
+        // 2. Verificar si el usuario ya entregó
+        const subStmt = env.MIRAI_AI_DB.prepare(`
+            SELECT * FROM submissions WHERE assignment_id = ? AND user_dni = ?
+        `);
+        const submission = await subStmt.bind(id, userDni).first();
+
+        return jsonResponse({ ...assignment, submission }, 200, corsHeaders);
+
+      } catch (error) {
+        console.error(error);
+        return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+      }
+    }
+
+    // Ruta: POST /api/submit-assignment
+    if (path === '/api/submit-assignment' && request.method === 'POST') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      try {
+        const formData = await request.formData();
+        const file = formData.get('file');
+        const assignmentId = formData.get('assignment_id');
+
+        if (!file || !assignmentId) {
+          return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
+        }
+
+        if (file.type !== 'application/pdf') {
+          return jsonResponse({ error: 'Solo PDF permitido' }, 400, corsHeaders);
+        }
+
+        // 1. Subir a R2
+        const uniqueId = crypto.randomUUID();
+        const r2Key = `submissions/${userDni}/${assignmentId}/${uniqueId}.pdf`;
+
+        await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
+          httpMetadata: { contentType: 'application/pdf' },
+          customMetadata: { user_dni: userDni, assignment_id: assignmentId }
+        });
+
+        // 2. Guardar en D1
+        const submissionId = crypto.randomUUID();
+        await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO submissions (id, assignment_id, user_dni, file_url, status, submitted_at)
+            VALUES (?, ?, ?, ?, 'pending', datetime('now'))
+        `).bind(submissionId, assignmentId, userDni, `/api/file/${r2Key}`).run();
+
+        return jsonResponse({ success: true, submission_id: submissionId }, 200, corsHeaders);
+
+      } catch (error) {
+        console.error(error);
+        return jsonResponse({ error: 'Error al entregar' }, 500, corsHeaders);
+      }
+    }
+
+    // Ruta: GET /api/file/:path (Para descargar trabajos)
+    if (path.startsWith('/api/file/') && request.method === 'GET') {
+      const r2Key = path.replace('/api/file/', '');
+      const object = await env.MIRAI_AI_ASSETS.get(r2Key);
+
+      if (!object) return new Response('Archivo no encontrado', { status: 404 });
+
+      const headers = new Headers();
+      headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
+      headers.set('Content-Disposition', `attachment; filename="${r2Key.split('/').pop()}"`);
+
+      return new Response(object.body, { headers });
+    }
+
     // Ruta: GET /api/video/:key — Servir videos desde R2
     if (path.startsWith('/api/video/') && request.method === 'GET') {
       return await handleServeVideo(path, env);
@@ -874,35 +1000,35 @@ async function handleApiRequest(request, env, corsHeaders) {
 }
 
 async function handleGetSubcategories(url, env, corsHeaders) {
-    try {
-        const category = url.searchParams.get('category');
+  try {
+    const category = url.searchParams.get('category');
 
-        let stmt;
-        if (category) {
-            // Filtrar por categoría principal
-            stmt = env.MIRAI_AI_DB.prepare(`
+    let stmt;
+    if (category) {
+      // Filtrar por categoría principal
+      stmt = env.MIRAI_AI_DB.prepare(`
                 SELECT id, title, icon, category, sort_order
                 FROM subcategories
                 WHERE category = ?
                 ORDER BY sort_order ASC
             `);
-            const { results } = await stmt.bind(category).all();
-            return jsonResponse(results, 200, corsHeaders);
-        } else {
-            // Devolver todas
-            stmt = env.MIRAI_AI_DB.prepare(`
+      const { results } = await stmt.bind(category).all();
+      return jsonResponse(results, 200, corsHeaders);
+    } else {
+      // Devolver todas
+      stmt = env.MIRAI_AI_DB.prepare(`
                 SELECT id, title, icon, category, sort_order
                 FROM subcategories
                 ORDER BY category, sort_order ASC
             `);
-            const { results } = await stmt.all();
-            return jsonResponse(results, 200, corsHeaders);
-        }
-
-    } catch (error) {
-        console.error('Error getting subcategories:', error);
-        return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+      const { results } = await stmt.all();
+      return jsonResponse(results, 200, corsHeaders);
     }
+
+  } catch (error) {
+    console.error('Error getting subcategories:', error);
+    return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
+  }
 }
 
 async function handleGetCategoriesWithCount(env, corsHeaders) {
