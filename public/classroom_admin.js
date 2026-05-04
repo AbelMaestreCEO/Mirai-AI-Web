@@ -1,6 +1,6 @@
 // classroom_admin.js
 
-// --- AUTH OVERRIDE (Igual que antes) ---
+// --- AUTH OVERRIDE ---
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
     if (url.startsWith('/api/') && !url.includes('login')) {
@@ -15,56 +15,159 @@ window.fetch = async function (url, options = {}) {
     return originalFetch.call(this, url, options);
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    setupAuthCheck();
-    setupTabs();
-    setupCreateForm();
-    loadTasksList();
-    setupStudentManagement();
-    setupMobileMenu();
-    setupLogout();
-});
+let currentUserDni = null;
 
-function setupAuthCheck() {
-    const token = localStorage.getItem('mirai_auth_token');
-    const dni = localStorage.getItem('mirai_user_dni');
-    if (!token || !dni) {
+document.addEventListener('DOMContentLoaded', async () => {
+    currentUserDni = localStorage.getItem('mirai_user_dni');
+    if (!currentUserDni) {
         window.location.href = 'login.html';
         return;
     }
-    // Opcional: Verificar si el usuario es realmente profesor
-    // if (!dni.startsWith('PROF')) { window.location.href = 'classroom.html'; }
+
+    document.getElementById('professor-greeting').textContent = `Hola, Profesor ${currentUserDni}`;
+    
+    setupMobileMenu();
+    setupLogout();
+    setupTabs();
+    setupCreateCourseModal();
+    setupCreateTaskForm();
+    setupStudentManagement();
+    
+    // Cargar datos iniciales
+    await loadCourses();
+    await loadTasksList();
+    await loadStats();
+});
+
+// --- GESTIÓN DE CURSOS ---
+async function loadCourses() {
+    const select = document.getElementById('task-course-select');
+    const studentSelect = document.getElementById('student-task-select'); // Para tareas, no cursos
+    
+    try {
+        const res = await fetch(`/api/user-courses?user_dni=${currentUserDni}`);
+        const courses = await res.json();
+
+        // Guardar en memoria para referencia
+        window.userCourses = courses;
+
+        // Llenar select de tareas
+        select.innerHTML = '<option value="">Selecciona un curso...</option>';
+        courses.forEach(course => {
+            const opt = document.createElement('option');
+            opt.value = course.id;
+            opt.textContent = course.title;
+            select.appendChild(opt);
+        });
+
+        // Añadir opción "Agregar Curso"
+        const addOpt = document.createElement('option');
+        addOpt.value = '__ADD_NEW__';
+        addOpt.textContent = '+ Agregar Nuevo Curso';
+        addOpt.style.fontWeight = 'bold';
+        addOpt.style.color = 'var(--primary-color)';
+        select.appendChild(addOpt);
+
+        // Llenar select de tareas (para la pestaña estudiantes)
+        const taskSelect = document.getElementById('student-task-select');
+        taskSelect.innerHTML = '<option value="">Selecciona una tarea...</option>';
+        // Nota: Aquí cargamos tareas, no cursos. Se hace en loadTasksList
+        
+        updateStats();
+
+    } catch (error) {
+        console.error('Error cargando cursos:', error);
+        select.innerHTML = '<option>Error al cargar</option>';
+    }
 }
 
-function switchTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    event.target.classList.add('active');
+function setupCreateCourseModal() {
+    const modal = document.getElementById('modal-new-course');
+    const btnAdd = document.getElementById('btn-add-course');
+    const form = document.getElementById('create-course-form');
 
-    if (tabName === 'list') loadTasksList();
-    if (tabName === 'students') loadTaskSelect();
+    btnAdd.addEventListener('click', () => {
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('show'), 10);
+    });
+
+    // Cerrar modal al hacer clic fuera
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('new-course-name').value;
+        const desc = document.getElementById('new-course-desc').value;
+
+        try {
+            const res = await fetch('/api/create-course', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, description: desc, user_dni: currentUserDni })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                alert('✅ Curso creado con éxito');
+                closeModal();
+                form.reset();
+                await loadCourses(); // Recargar select
+            } else {
+                const err = await res.json();
+                alert('❌ Error: ' + err.error);
+            }
+        } catch (error) {
+            alert('Error de conexión');
+        }
+    });
 }
 
-function setupCreateForm() {
-    document.getElementById('create-task-form').addEventListener('submit', async (e) => {
+function closeModal() {
+    const modal = document.getElementById('modal-new-course');
+    modal.classList.remove('show');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
+// --- GESTIÓN DE TAREAS ---
+function setupCreateTaskForm() {
+    const form = document.getElementById('create-task-form');
+    const select = document.getElementById('task-course-select');
+
+    select.addEventListener('change', (e) => {
+        if (e.target.value === '__ADD_NEW__') {
+            document.getElementById('modal-new-course').style.display = 'flex';
+            setTimeout(() => document.getElementById('modal-new-course').classList.add('show'), 10);
+            e.target.value = ''; // Resetear
+        }
+    });
+
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const title = document.getElementById('task-title').value;
+        const courseId = document.getElementById('task-course-select').value;
         const desc = document.getElementById('task-desc').value;
-        const course = document.getElementById('task-course').value;
         const due = document.getElementById('task-due').value;
+        const score = document.getElementById('task-score').value;
+
+        if (!courseId) {
+            alert('Por favor selecciona un curso');
+            return;
+        }
 
         try {
             const res = await fetch('/api/create-assignment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, description: desc, course_id: course, due_date: due })
+                body: JSON.stringify({ title, course_id: courseId, description: desc, due_date: due, max_score: score })
             });
 
             if (res.ok) {
-                alert('✅ Tarea creada con éxito');
-                e.target.reset();
+                alert('✅ Tarea creada');
+                form.reset();
                 switchTab('list');
+                await loadTasksList();
             } else {
                 const err = await res.json();
                 alert('❌ Error: ' + err.error);
@@ -77,42 +180,70 @@ function setupCreateForm() {
 
 async function loadTasksList() {
     const tbody = document.getElementById('tasks-list-body');
-    tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+    const studentSelect = document.getElementById('student-task-select');
+    
+    tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+    studentSelect.innerHTML = '<option value="">Selecciona una tarea...</option>';
 
     try {
         const res = await fetch('/api/admin-tasks');
         const tasks = await res.json();
 
         tbody.innerHTML = '';
+        studentSelect.innerHTML = '<option value="">Selecciona una tarea...</option>';
+
         if (tasks.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">No hay tareas creadas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay tareas creadas</td></tr>';
             return;
         }
 
         tasks.forEach(task => {
+            // Llenar tabla
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${escapeHtml(task.title)}</td>
-                <td>${escapeHtml(task.course_id)}</td>
-                <td>${task.due_date ? new Date(task.due_date).toLocaleString() : '-'}</td>
+                <td><strong>${escapeHtml(task.title)}</strong></td>
+                <td><span class="badge badge-pending">${escapeHtml(task.course_title || task.course_id)}</span></td>
+                <td>${task.due_date ? new Date(task.due_date).toLocaleDateString() : '-'}</td>
+                <td id="count-${task.id}">Cargando...</td>
                 <td>
-                    <button class="action-btn btn-delete" onclick="deleteTask('${task.id}')">🗑️</button>
+                    <button class="action-btn btn-delete" onclick="deleteTask('${task.id}')">🗑️ Eliminar</button>
                 </td>
             `;
             tbody.appendChild(tr);
+
+            // Llenar select de estudiantes
+            const opt = document.createElement('option');
+            opt.value = task.id;
+            opt.textContent = task.title;
+            studentSelect.appendChild(opt);
+
+            // Contar estudiantes
+            countStudents(task.id);
         });
+
     } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="4" style="color:red">Error cargando tareas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="color:red">Error cargando tareas</td></tr>';
+    }
+}
+
+async function countStudents(taskId) {
+    try {
+        const res = await fetch(`/api/task-students?assignment_id=${taskId}`);
+        const students = await res.json();
+        const cell = document.getElementById(`count-${taskId}`);
+        if (cell) cell.textContent = students.length;
+    } catch (e) {
+        console.error(e);
     }
 }
 
 async function deleteTask(id) {
-    if (!confirm('¿Eliminar esta tarea? Se borrarán todas las entregas asociadas.')) return;
-
+    if (!confirm('¿Eliminar esta tarea? Se borrarán todas las entregas.')) return;
     try {
         const res = await fetch(`/api/delete-assignment?id=${id}`, { method: 'DELETE' });
         if (res.ok) {
-            loadTasksList();
+            await loadTasksList();
+            await loadCourses(); // Recargar stats
         } else {
             alert('Error al eliminar');
         }
@@ -122,24 +253,8 @@ async function deleteTask(id) {
 }
 
 // --- GESTIÓN DE ESTUDIANTES ---
-async function loadTaskSelect() {
-    const select = document.getElementById('student-task-select');
-    select.innerHTML = '<option>Cargando...</option>';
-
-    try {
-        const res = await fetch('/api/admin-tasks');
-        const tasks = await res.json();
-        select.innerHTML = '';
-        tasks.forEach(task => {
-            const opt = document.createElement('option');
-            opt.value = task.id;
-            opt.textContent = task.title;
-            select.appendChild(opt);
-        });
-        loadAssignedStudents(); // Cargar lista inicial
-    } catch (error) {
-        select.innerHTML = '<option>Error</option>';
-    }
+function setupStudentManagement() {
+    document.getElementById('student-task-select').addEventListener('change', loadAssignedStudents);
 }
 
 async function addStudent() {
@@ -161,7 +276,8 @@ async function addStudent() {
         if (res.ok) {
             alert('✅ Estudiante asignado');
             document.getElementById('student-dni').value = '';
-            loadAssignedStudents();
+            await loadAssignedStudents();
+            await loadTasksList(); // Actualizar contador
         } else {
             const err = await res.json();
             alert('❌ Error: ' + err.error);
@@ -176,7 +292,7 @@ async function loadAssignedStudents() {
     const list = document.getElementById('assigned-students-list');
     
     if (!taskId) {
-        list.innerHTML = '<p style="padding:10px">Selecciona una tarea primero</p>';
+        list.innerHTML = '<p style="padding:10px; color:var(--text-secondary)">Selecciona una tarea primero</p>';
         return;
     }
 
@@ -192,10 +308,10 @@ async function loadAssignedStudents() {
 
         students.forEach(s => {
             const div = document.createElement('div');
-            div.className = 'student-item';
+            div.style.cssText = 'background: var(--bg-color); padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color);';
             div.innerHTML = `
-                <span>${escapeHtml(s.user_dni)}</span>
-                <button class="action-btn btn-delete" style="margin-left:auto" onclick="removeStudent('${s.assignment_id}', '${s.user_dni}')">Quitar</button>
+                <span><strong>${escapeHtml(s.user_dni)}</strong></span>
+                <button class="action-btn btn-delete" onclick="removeStudent('${s.assignment_id}', '${s.user_dni}')">Quitar</button>
             `;
             list.appendChild(div);
         });
@@ -205,25 +321,72 @@ async function loadAssignedStudents() {
 }
 
 async function removeStudent(assignmentId, userDni) {
-    if (!confirm('¿Quitar a este estudiante de la tarea?')) return;
+    if (!confirm('¿Quitar a este estudiante?')) return;
     try {
         const res = await fetch('/api/unassign-student', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ assignment_id: assignmentId, user_dni: userDni })
         });
-        if (res.ok) loadAssignedStudents();
+        if (res.ok) {
+            await loadAssignedStudents();
+            await loadTasksList();
+        }
     } catch (error) {
         alert('Error');
     }
 }
 
-function setupStudentManagement() {
-    document.getElementById('student-task-select').addEventListener('change', loadAssignedStudents);
+// --- UTILIDADES ---
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    event.target.classList.add('active');
+
+    if (tabName === 'list') loadTasksList();
+    if (tabName === 'students') {
+        loadTasksList(); // Asegurar que el select de tareas esté lleno
+        loadAssignedStudents();
+    }
 }
 
-// --- UTILIDADES ---
-function setupTabs() { /* Ya manejado en switchTab */ }
-function setupMobileMenu() { /* Igual que classroom.js */ }
-function setupLogout() { /* Igual que classroom.js */ }
+function updateStats() {
+    const courses = window.userCourses || [];
+    document.getElementById('stat-courses').textContent = courses.length;
+    // Stats de tareas y estudiantes se calculan en loadTasksList y loadAssignedStudents
+}
+
+async function loadStats() {
+    // Carga inicial de stats
+    await loadTasksList();
+}
+
+function setupMobileMenu() {
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const closeMenu = document.querySelector('.close-menu');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
+
+    function toggleMenu() {
+        const isActive = sidebar.classList.contains('active');
+        if (isActive) {
+            sidebar.classList.remove('active'); overlay.classList.remove('active');
+            menuToggle.classList.remove('active'); document.body.style.overflow = '';
+        } else {
+            sidebar.classList.add('active'); overlay.classList.add('active');
+            menuToggle.classList.add('active'); document.body.style.overflow = 'hidden';
+        }
+    }
+    menuToggle.addEventListener('click', toggleMenu);
+    closeMenu.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', toggleMenu);
+}
+
+function setupLogout() {
+    const btn = document.getElementById('logout-btn');
+    if (btn) btn.addEventListener('click', () => { localStorage.clear(); window.location.href = 'login.html'; });
+}
+
 function escapeHtml(text) { if(!text) return ''; const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
