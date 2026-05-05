@@ -42,16 +42,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 // --- GESTIÓN DE CURSOS ---
 async function loadCourses() {
     const select = document.getElementById('task-course-select');
-    const studentSelect = document.getElementById('student-task-select'); // Para tareas, no cursos
-    
+
     try {
         const res = await fetch(`/api/user-courses?user_dni=${currentUserDni}`);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        
         const courses = await res.json();
 
-        // Guardar en memoria para referencia
+        // Protección: si la respuesta no es un array, tratar como vacío
+        if (!Array.isArray(courses)) {
+            throw new Error('Respuesta inválida del servidor');
+        }
+
         window.userCourses = courses;
 
-        // Llenar select de tareas
         select.innerHTML = '<option value="">Selecciona un curso...</option>';
         courses.forEach(course => {
             const opt = document.createElement('option');
@@ -60,7 +67,6 @@ async function loadCourses() {
             select.appendChild(opt);
         });
 
-        // Añadir opción "Agregar Curso"
         const addOpt = document.createElement('option');
         addOpt.value = '__ADD_NEW__';
         addOpt.textContent = '+ Agregar Nuevo Curso';
@@ -68,16 +74,21 @@ async function loadCourses() {
         addOpt.style.color = 'var(--primary-color)';
         select.appendChild(addOpt);
 
-        // Llenar select de tareas (para la pestaña estudiantes)
-        const taskSelect = document.getElementById('student-task-select');
-        taskSelect.innerHTML = '<option value="">Selecciona una tarea...</option>';
-        // Nota: Aquí cargamos tareas, no cursos. Se hace en loadTasksList
-        
         updateStats();
 
     } catch (error) {
         console.error('Error cargando cursos:', error);
-        select.innerHTML = '<option>Error al cargar</option>';
+        window.userCourses = [];
+        select.innerHTML = '<option value="">Sin cursos disponibles</option>';
+        
+        const addOpt = document.createElement('option');
+        addOpt.value = '__ADD_NEW__';
+        addOpt.textContent = '+ Agregar Nuevo Curso';
+        addOpt.style.fontWeight = 'bold';
+        addOpt.style.color = 'var(--primary-color)';
+        select.appendChild(addOpt);
+        
+        updateStats();
     }
 }
 
@@ -181,13 +192,19 @@ function setupCreateTaskForm() {
 async function loadTasksList() {
     const tbody = document.getElementById('tasks-list-body');
     const studentSelect = document.getElementById('student-task-select');
-    
+
     tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
     studentSelect.innerHTML = '<option value="">Selecciona una tarea...</option>';
 
     try {
         const res = await fetch('/api/admin-tasks');
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
         const tasks = await res.json();
+
+        // Protección
+        if (!Array.isArray(tasks)) throw new Error('Respuesta inválida');
 
         tbody.innerHTML = '';
         studentSelect.innerHTML = '<option value="">Selecciona una tarea...</option>';
@@ -198,7 +215,6 @@ async function loadTasksList() {
         }
 
         tasks.forEach(task => {
-            // Llenar tabla
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${escapeHtml(task.title)}</strong></td>
@@ -211,18 +227,17 @@ async function loadTasksList() {
             `;
             tbody.appendChild(tr);
 
-            // Llenar select de estudiantes
             const opt = document.createElement('option');
             opt.value = task.id;
             opt.textContent = task.title;
             studentSelect.appendChild(opt);
 
-            // Contar estudiantes
             countStudents(task.id);
         });
 
     } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="5" style="color:red">Error cargando tareas</td></tr>';
+        console.error('Error cargando tareas:', error);
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>';
     }
 }
 
