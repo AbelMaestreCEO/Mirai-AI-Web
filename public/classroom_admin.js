@@ -339,13 +339,22 @@ async function removeStudent(assignmentId, userDni) {
 
 // --- UTILIDADES ---
 function switchTab(tabName) {
+    // Ocultar todos los contenidos
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    // Desactivar todos los botones
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-    event.target.classList.add('active');
+    
+    // Activar el contenido y botón seleccionados
+    const content = document.getElementById(`tab-${tabName}`);
+    const btn = event ? event.target : document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
+    
+    if (content) content.classList.add('active');
+    if (btn) btn.classList.add('active');
 
-    if (tabName === 'list') loadTasksList();
-    if (tabName === 'students') {
+    // Acciones específicas al cambiar de pestaña
+    if (tabName === 'list') {
+        loadTasksList();
+    } else if (tabName === 'students') {
         loadTasksList(); // Asegurar que el select de tareas esté lleno
         loadAssignedStudents();
     }
@@ -390,3 +399,10 @@ function setupLogout() {
 }
 
 function escapeHtml(text) { if(!text) return ''; const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
+
+function setupTabs() {
+    // Esta función inicializa los listeners si los necesitaras, 
+    // pero como usamos onclick en el HTML, la lógica está en switchTab.
+    // Sin embargo, para evitar el error, definimos una función vacía o de inicialización.
+    console.log('Tabs system initialized');
+}
