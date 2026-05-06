@@ -112,37 +112,46 @@ function renderTasks(assignments, submissions) {
 
     assignments.forEach(assignment => {
         const submission = submissions.find(s => s.assignment_id === assignment.id);
-        const isCompleted = !!submission;
         
-        const card = document.createElement('div');
-        card.className = `task-card ${isCompleted ? 'completed' : ''}`;
-        
-        const statusBadge = isCompleted 
-            ? `<span class="status-badge status-completed">Entregado</span>`
-            : `<span class="status-badge status-pending">Pendiente</span>`;
+        let statusText = 'Pendiente';
+        let statusClass = 'status-pending';
+        let actionText = 'Entregar';
+        let actionHref = `classroom_details.html?id=${assignment.id}`;
 
+        if (submission) {
+            if (submission.status === 'pending') {
+                statusText = 'En revisión';
+                statusClass = 'status-pending'; // O usa una clase específica 'status-review'
+                actionText = 'Ver Detalles';
+            } else if (submission.status === 'completed') {
+                statusText = `Revisado ${submission.score}/${assignment.max_score}`;
+                statusClass = 'status-completed';
+                actionText = 'Ver Detalles';
+            }
+        }
+
+        const card = document.createElement('div');
+        card.className = `task-card ${submission ? 'submitted' : ''}`;
+        
         card.innerHTML = `
             <div class="task-info">
                 <h3>${escapeHtml(assignment.title)}</h3>
                 <div class="task-meta">
                     <span>📅 Curso: ${escapeHtml(assignment.course_title || 'General')}</span>
                     ${assignment.due_date ? `<span>🕒 Vence: ${new Date(assignment.due_date).toLocaleDateString()}</span>` : ''}
-                    ${isCompleted && submission.score !== null ? `<span>🏆 Nota: ${submission.score}</span>` : ''}
+                    ${submission && submission.score !== null ? `<span>🏆 Nota: ${submission.score}</span>` : ''}
                 </div>
                 ${assignment.description ? `<p style="margin-top:8px; font-size:0.9rem; color:var(--text-secondary)">${escapeHtml(assignment.description.substring(0, 100))}...</p>` : ''}
             </div>
             <div class="task-actions">
-                ${statusBadge}
-                <a href="classroom_details.html?id=${assignment.id}" class="btn-primary">
-                    ${isCompleted ? 'Ver Detalles' : 'Entregar'}
-                </a>
+                <span class="status-badge ${statusClass}">${statusText}</span>
+                <a href="${actionHref}" class="btn-primary">${actionText}</a>
             </div>
         `;
         
         container.appendChild(card);
     });
 }
-
 function setupMobileMenu() {
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const closeMenu = document.querySelector('.close-menu');

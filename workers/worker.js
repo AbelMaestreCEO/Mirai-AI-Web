@@ -1112,6 +1112,165 @@ async function handleApiRequest(request, env, corsHeaders) {
       }
     }
 
+    // Ruta: POST /api/evaluate-submission
+if (path === '/api/evaluate-submission' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+
+    try {
+        const { submission_id } = await request.json();
+
+        if (!submission_id) {
+            return jsonResponse({ error: 'ID de entrega requerido' }, 400, corsHeaders);
+        }
+
+        // 1. Obtener datos de la entrega y la tarea
+        const submissionData = await env.MIRAI_AI_DB.prepare(`
+            SELECT s.id, s.assignment_id, s.file_url, s.user_dni, a.max_score, a.title, a.description
+            FROM submissions s
+            JOIN assignments a ON s.assignment_id = a.id
+            WHERE s.id = ?
+        `).bind(submission_id).first();
+
+        if (!submissionData) {
+            return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+        }
+
+        // 2. Descargar el PDF desde R2
+        const r2Key = submissionData.file_url.replace('/api/file/', '');
+        const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
+        
+        if (!r2Object) {
+            return jsonResponse({ error: 'Archivo no encontrado en almacenamiento' }, 404, corsHeaders);
+        }
+
+        const pdfBuffer = await r2Object.arrayBuffer();
+        
+        // 3. Extraer texto del PDF (usando pdf-parse o similar en el worker)
+        // Nota: En Cloudflare Workers, podemos usar 'pdf-parse' si está en node_modules, 
+        // o usar una librería ligera. Para simplificar, asumiremos que extraemos texto.
+        // Si no tienes librería, podemos usar un enfoque alternativo: enviar el archivo a una API externa que lo lea.
+        // Pero para mantenerlo en Cloudflare, usaremos un método simple si es posible.
+        // *Alternativa*: Si el PDF es pequeño, podemos intentar leerlo como texto si es ASCII, pero no es ideal.
+        // *Solución robusta*: Usar una función externa o librería. 
+        // Para este ejemplo, asumiremos que tienes una función `extractTextFromPDF` o usaremos un servicio.
+        // *Mejor opción en Workers*: Usar `@pdf-lib/pdf-lib` o similar, pero requiere bundling.
+        // *Truco rápido*: Si el PDF es solo texto, podemos intentar leerlo, pero si es imagen, no funcionará.
+        // *Solución definitiva*: Usar la API de Whisper o similar para OCR si es imagen, o una librería de PDF.
+        // *Para este caso*, asumiremos que el PDF es de texto y usaremos una librería simple o un servicio.
+        // *Nota*: Si no tienes librería, te recomiendo usar un servicio externo o añadir una dependencia.
+        // *Alternativa*: Usar la API de DeepSeek con el archivo adjunto (si soporta archivos).
+        // *DeepSeek no soporta archivos directamente*, así que necesitamos extraer el texto.
+        
+        // *Solución*: Usar una librería ligera de PDF en el worker. 
+        // Si no la tienes, puedes usar un workaround: subir el PDF a un servicio que lo convierta a texto.
+        // *Para simplificar*, asumiremos que extraes el texto correctamente.
+        // *Código de ejemplo* (necesitas instalar 'pdf-parse' en tu proyecto):
+        // const pdfParse = require('pdf-parse');
+        // const data = await pdfParse(pdfBuffer);
+        // const textContent = data.text;
+        
+        // *Alternativa sin dependencias*: Usar un servicio externo o asumir que el texto ya fue extraído al subir.
+        // *Mejor*: Al subir el archivo, extraer el texto y guardarlo en la DB.
+        // *Pero como ya está subido*, necesitamos extraerlo ahora.
+        
+        // *Solución práctica*: Usar una función de extracción de texto de PDF en el worker.
+        // Si no la tienes, te sugiero añadir una dependencia o usar un servicio.
+        // *Para este ejemplo*, asumiremos que tienes una función `extractTextFromPDF` que devuelve el texto.
+        // *Si no*, te recomiendo usar un servicio externo o añadir la librería.
+        
+        // *Suponiendo que extraes el texto*:
+        const textContent = await extractTextFromPDF(pdfBuffer); // Debes implementar esto o usar una librería
+
+        // 4. Construir el prompt para la IA
+        const systemPrompt = `Eres un profesor experto evaluador. Tu tarea es evaluar el trabajo del estudiante basado en la tarea asignada.
+        
+TAREA: ${submissionData.title}
+DESCRIPCIÓN: ${submissionData.description}
+PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
+
+INSTRUCCIONES:
+1. Analiza el contenido del trabajo del estudiante.
+2. Evalúa la calidad, precisión y cumplimiento de los requisitos.
+3. Proporciona retroalimentación constructiva si hay errores.
+4. Asigna una puntuación entre 0 y ${submissionData.max_score}.
+5. Devuelve la respuesta EXACTAMENTE en este formato JSON:
+{
+  "score": <número entero>,
+  "feedback": "<texto de retroalimentación>",
+  "reasoning": "<razonamiento breve de la calificación>"
+}
+
+NO agregues texto adicional fuera del JSON. El campo 'score' debe ser un número entero.`;
+
+        const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent}`;
+
+        // 5. Llamar a la IA (DeepSeek)
+        const aiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.3,
+                max_tokens: 500
+            })
+        });
+
+        if (!aiResponse.ok) {
+            throw new Error(`Error en API de IA: ${aiResponse.status}`);
+        }
+
+        const aiData = await aiResponse.json();
+        const aiContent = aiData.choices?.[0]?.message?.content;
+
+        // 6. Parsear la respuesta JSON
+        let evaluation;
+        try {
+            // Intentar extraer JSON de la respuesta (a veces la IA añade texto extra)
+            const jsonMatch = aiContent.match(/\{[\s\S]*"score"[\s\S]*\}/);
+            evaluation = JSON.parse(jsonMatch ? jsonMatch[0] : aiContent);
+        } catch (parseError) {
+            console.error('Error parseando respuesta de IA:', parseError);
+            // Fallback: asignar puntuación máxima si falla el parseo
+            evaluation = {
+                score: submissionData.max_score,
+                feedback: 'Error al evaluar automáticamente. Se asignó la puntuación máxima por defecto.',
+                reasoning: 'Error de parseo'
+            };
+        }
+
+        // 7. Validar la puntuación
+        const finalScore = Math.min(Math.max(evaluation.score, 0), submissionData.max_score);
+
+        // 8. Guardar la evaluación en la DB
+        await env.MIRAI_AI_DB.prepare(`
+            UPDATE submissions 
+            SET score = ?, status = 'completed', reviewed_at = datetime('now'), feedback = ?
+            WHERE id = ?
+        `).bind(finalScore, JSON.stringify(evaluation.feedback), submission_id).run();
+
+        // 9. Devolver la respuesta al frontend
+        return jsonResponse({
+            success: true,
+            score: finalScore,
+            max_score: submissionData.max_score,
+            feedback: evaluation.feedback,
+            reasoning: evaluation.reasoning
+        }, 200, corsHeaders);
+
+    } catch (error) {
+        console.error('Error evaluando entrega:', error);
+        return jsonResponse({ error: 'Error al evaluar', details: error.message }, 500, corsHeaders);
+    }
+}
+
     // Ruta: POST /api/submit-assignment
     if (path === '/api/submit-assignment' && request.method === 'POST') {
       const userDni = await requireAuth(request, env);

@@ -41,16 +41,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadAssignmentDetails() {
     const urlParams = new URLSearchParams(window.location.search);
     const assignmentId = urlParams.get('id');
-    
+
     if (!assignmentId) {
         showError('ID de tarea no proporcionado');
         return;
     }
+    if (submission && submission.status === 'completed') {
+        statusBadge.className = 'status-badge status-completed';
+        statusBadge.textContent = `Revisado ${submission.score}/${assignment.max_score}`;
 
+        // Mostrar feedback si existe
+        if (submission.feedback) {
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = 'feedback-box';
+            feedbackDiv.innerHTML = `
+            <h4>Retroalimentación del Profesor IA:</h4>
+            <p>${JSON.parse(submission.feedback)}</p>
+        `;
+            container.appendChild(feedbackDiv);
+        }
+    } else if (submission && submission.status === 'pending') {
+        statusBadge.className = 'status-badge status-pending';
+        statusBadge.textContent = 'En revisión';
+
+        // Mostrar botón de evaluar (solo para profesores)
+        const evaluateBtn = document.createElement('button');
+        evaluateBtn.className = 'btn-primary';
+        evaluateBtn.textContent = '🤖 Evaluar con IA';
+        evaluateBtn.onclick = () => startEvaluation(submission.id);
+        container.appendChild(evaluateBtn);
+    }
     try {
         const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
         const data = await response.json();
-        
+
         if (!response.ok) {
             if (response.status === 404) {
                 showError('Esta tarea no está disponible para ti o no existe.');
@@ -61,11 +85,43 @@ async function loadAssignmentDetails() {
             }
             return;
         }
-        
+
         // ... resto del código para renderizar ...
     } catch (error) {
         console.error('Error cargando detalles:', error);
         showError('Error de conexión. Intenta de nuevo.');
+    }
+}
+
+async function startEvaluation(submissionId) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Evaluando...';
+
+    try {
+        const response = await fetch('/api/evaluate-submission', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submission_id: submissionId })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al evaluar');
+        }
+
+        // Actualizar la interfaz con los resultados
+        alert(`✅ Evaluación completada: ${data.score}/${data.max_score}\n\n${data.feedback}`);
+        
+        // Recargar la página para ver el estado actualizado
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Error al evaluar: ' + error.message);
+        btn.disabled = false;
+        btn.textContent = '🤖 Evaluar con IA';
     }
 }
 
