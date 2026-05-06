@@ -1061,6 +1061,7 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
 
     // Ruta: GET /api/assignment-details
+    // Ruta: GET /api/assignment-details (CORREGIDA)
     if (path === '/api/assignment-details' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
       if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -1069,28 +1070,45 @@ async function handleApiRequest(request, env, corsHeaders) {
       if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
 
       try {
-        // 1. Datos de la tarea
+        // 1. Obtener datos de la tarea + curso (usando user_courses)
+        // 2. Verificar que el estudiante esté asignado a esta tarea
         const assignStmt = env.MIRAI_AI_DB.prepare(`
-            SELECT a.*, c.title as course_title 
+            SELECT 
+                a.id, 
+                a.title, 
+                a.description, 
+                a.due_date, 
+                a.max_score, 
+                a.course_id,
+                a.created_at,
+                uc.title as course_title,
+                uc.user_dni as professor_dni
             FROM assignments a
-            JOIN courses c ON a.course_id = c.id
-            WHERE a.id = ?
+            LEFT JOIN user_courses uc ON a.course_id = uc.id
+            INNER JOIN assignment_students ast ON a.id = ast.assignment_id
+            WHERE a.id = ? AND ast.user_dni = ?
         `);
-        const assignment = await assignStmt.bind(id).first();
 
-        if (!assignment) return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+        const assignment = await assignStmt.bind(id, userDni.toUpperCase()).first();
 
-        // 2. Verificar si el usuario ya entregó
+        if (!assignment) {
+          // Puede ser que:
+          // 1. La tarea no existe
+          // 2. El estudiante no está asignado a esta tarea
+          return jsonResponse({ error: 'Tarea no encontrada o no tienes acceso a ella' }, 404, corsHeaders);
+        }
+
+        // 3. Verificar si el usuario ya entregó
         const subStmt = env.MIRAI_AI_DB.prepare(`
             SELECT * FROM submissions WHERE assignment_id = ? AND user_dni = ?
         `);
-        const submission = await subStmt.bind(id, userDni).first();
+        const submission = await subStmt.bind(id, userDni.toUpperCase()).first();
 
         return jsonResponse({ ...assignment, submission }, 200, corsHeaders);
 
       } catch (error) {
-        console.error(error);
-        return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+        console.error('Error en assignment-details:', error);
+        return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
       }
     }
 

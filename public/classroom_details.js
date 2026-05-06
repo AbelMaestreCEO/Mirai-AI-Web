@@ -34,35 +34,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    await loadAssignmentDetails(assignmentId);
+    await loadAssignmentDetails();
     setupFileUpload(assignmentId);
 });
 
-async function loadAssignmentDetails(id) {
+async function loadAssignmentDetails() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const assignmentId = urlParams.get('id');
+    
+    if (!assignmentId) {
+        showError('ID de tarea no proporcionado');
+        return;
+    }
+
     try {
-        const response = await fetch(`/api/assignment-details?id=${id}`);
-        if (!response.ok) {
-            if (response.status === 401) { window.location.href = 'login.html'; return; }
-            throw new Error('Error cargando detalles');
-        }
-        
+        const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
         const data = await response.json();
-        document.getElementById('task-title').textContent = data.title;
-        document.getElementById('task-desc').textContent = data.description || 'Sin descripción adicional.';
         
-        if (data.submission) {
-            document.getElementById('upload-section').innerHTML = `
-                <div style="padding: 20px; background: #e8f5e9; border-radius: 8px; text-align: center;">
-                    <h3>✅ Tarea Entregada</h3>
-                    <p>Fecha: ${new Date(data.submission.submitted_at).toLocaleString()}</p>
-                    ${data.submission.score !== null ? `<p><strong>Nota: ${data.submission.score}</strong></p>` : ''}
-                    ${data.submission.feedback ? `<p><em>Feedback: ${data.submission.feedback}</em></p>` : ''}
-                </div>
-            `;
+        if (!response.ok) {
+            if (response.status === 404) {
+                showError('Esta tarea no está disponible para ti o no existe.');
+            } else if (response.status === 401) {
+                window.location.href = 'login.html';
+            } else {
+                showError(data.error || 'Error al cargar los detalles');
+            }
+            return;
         }
+        
+        // ... resto del código para renderizar ...
     } catch (error) {
-        console.error(error);
-        alert('Error cargando la tarea');
+        console.error('Error cargando detalles:', error);
+        showError('Error de conexión. Intenta de nuevo.');
     }
 }
 
