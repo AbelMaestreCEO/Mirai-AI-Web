@@ -21,21 +21,41 @@ window.fetch = async function (url, options = {}) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Verificación de seguridad básica
-    const token = localStorage.getItem('mirai_auth_token');
-    const dni = localStorage.getItem('mirai_user_dni');
+    currentUserDni = localStorage.getItem('mirai_user_dni');
     
-    if (!token || !dni) {
+    if (!currentUserDni) {
         window.location.href = 'login.html';
         return;
     }
-
-    // Inicializar menú móvil
-    setupMobileMenu();
     
-    // Cargar tareas
-    await loadTasks(dni);
+    // ✨ NUEVO: Verificar si es profesor desde el backend
+    try {
+        const checkResponse = await fetch('/api/check-professor-role');
+        const checkData = await checkResponse.json();
+        
+        if (!checkData.is_professor) {
+            alert('⛔ Acceso denegado. Este panel es solo para profesores autorizados.');
+            window.location.href = 'index.html';
+            return;
+        }
+    } catch (error) {
+        console.error('Error verificando rol:', error);
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    document.getElementById('professor-greeting').textContent = `Hola, Profesor ${currentUserDni}`;
+    
+    setupMobileMenu();
     setupLogout();
+    setupTabs();
+    setupCreateCourseModal();
+    setupCreateTaskForm();
+    setupStudentManagement();
+    
+    await loadCourses();
+    await loadTasksList();
+    await loadStats();
 });
 
 async function loadTasks(userDni) {
@@ -171,14 +191,21 @@ function setupMobileMenu() {
     overlay.addEventListener('click', toggleMenu);
 }
 
-// Al final de classroom.js, antes de setupLogout
-document.getElementById('professor-btn')?.addEventListener('click', () => {
-    // Verificar si el usuario es profesor (puedes tener un campo 'role' en la tabla users)
-    // Por ahora, redirigimos directamente. En producción, verifica el rol en D1.
+document.getElementById('professor-btn')?.addEventListener('click', async () => {
     const dni = localStorage.getItem('mirai_user_dni');
-    // Simulación: Si el DNI empieza con 'PROF', es profesor. O verifica en DB.
-    // Aquí redirigimos directo, pero podrías pedir contraseña extra.
-    window.location.href = 'classroom_admin.html';
+    
+    try {
+        const checkResponse = await fetch('/api/check-professor-role');
+        const checkData = await checkResponse.json();
+        
+        if (checkData.is_professor) {
+            window.location.href = 'classroom_admin.html';
+        } else {
+            alert('⛔ No tienes acceso al panel de profesor. Contacta al administrador.');
+        }
+    } catch (error) {
+        alert('Error verificando acceso. Inténtalo de nuevo.');
+    }
 });
 
 function setupLogout() {

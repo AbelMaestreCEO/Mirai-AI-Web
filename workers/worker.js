@@ -709,6 +709,59 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleChat(request, env, corsHeaders);
     }
 
+    if (path === '/api/user-courses' && request.method === 'GET') {
+      const userDni = url.searchParams.get('user_dni');
+
+      // ✨ Usar requireProfessorAuth en lugar de requireAuth
+      const authenticatedDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!authenticatedDni) return; // Already returned error
+
+      if (userDni && userDni !== authenticatedDni) {
+        return jsonResponse({ error: 'Acceso denegado' }, 403, corsHeaders);
+      }
+
+      try {
+        const { results } = await env.MIRAI_AI_DB.prepare(`
+            SELECT id, title, description, created_at 
+            FROM user_courses 
+            WHERE user_dni = ? 
+            ORDER BY created_at DESC
+        `).bind(authenticatedDni).all();
+
+        return jsonResponse(results, 200, corsHeaders);
+      } catch (error) {
+        console.error('Error listando cursos:', error);
+        return jsonResponse({ error: 'Error al obtener cursos' }, 500, corsHeaders);
+      }
+    }
+
+    if (path === '/api/create-course' && request.method === 'POST') {
+      // ✨ requireProfessorAuth en lugar de requireAuth
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const { title, description } = await request.json();
+
+      if (!title) return jsonResponse({ error: 'El nombre del curso es obligatorio' }, 400, corsHeaders);
+
+      const id = crypto.randomUUID();
+
+      try {
+        await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO user_courses (id, user_dni, title, description)
+            VALUES (?, ?, ?, ?)
+        `).bind(id, userDni, title, description || '').run();
+
+        return jsonResponse({ success: true, id }, 201, corsHeaders);
+      } catch (error) {
+        console.error('Error creando curso:', error);
+        if (error.message.includes('UNIQUE constraint failed')) {
+          return jsonResponse({ error: 'Ya existe un curso con ese nombre para tu perfil' }, 409, corsHeaders);
+        }
+        return jsonResponse({ error: 'Error al crear el curso' }, 500, corsHeaders);
+      }
+    }
+
     // RUTA: /api/education-conversation (MODIFICADA)
     if (path === '/api/education-conversation' && request.method === 'GET') {
       const courseId = url.searchParams.get('course');
@@ -789,6 +842,29 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleRegister(request, env, corsHeaders);
     }
 
+    if (path === '/api/admin-tasks' && request.method === 'GET') {
+      // ✨ requireProfessorAuth
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      try {
+        const { results } = await env.MIRAI_AI_DB.prepare(`
+            SELECT 
+                a.*, 
+                uc.title as course_title 
+            FROM assignments a
+            LEFT JOIN user_courses uc ON a.course_id = uc.id
+            WHERE uc.user_dni = ?  -- ✨ Filtrar por cursos del profesor
+            ORDER BY a.created_at DESC
+        `).bind(userDni).all();
+
+        return jsonResponse(results, 200, corsHeaders);
+      } catch (error) {
+        console.error('Error listando tareas:', error);
+        return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
+      }
+    }
+
     if (path === '/api/login' && request.method === 'POST') {
       return await handleLogin(request, env, corsHeaders);
     }
@@ -813,118 +889,39 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
     // --- RUTAS COMPLETADAS PARA ADMIN (Continuación) ---
 
-// 1. Crear Curso: POST /api/create-course
-if (path === '/api/create-course' && request.method === 'POST') {
-    const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    // 4. Eliminar Tarea: DELETE /api/delete-assignment
+    if (path === '/api/delete-assignment' && request.method === 'DELETE') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
 
-    const { title, description } = await request.json();
-    
-    if (!title) return jsonResponse({ error: 'El nombre del curso es obligatorio' }, 400, corsHeaders);
+      const id = url.searchParams.get('id');
+      if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
 
-    const id = crypto.randomUUID();
-    
-    try {
-        await env.MIRAI_AI_DB.prepare(`
-            INSERT INTO user_courses (id, user_dni, title, description)
-            VALUES (?, ?, ?, ?)
-        `).bind(id, userDni, title, description || '').run();
-
-        return jsonResponse({ success: true, id }, 201, corsHeaders);
-    } catch (error) {
-        console.error('Error creando curso:', error);
-        // Si es error de duplicado (UNIQUE constraint)
-        if (error.message.includes('UNIQUE constraint failed')) {
-            return jsonResponse({ error: 'Ya existe un curso con ese nombre para tu usuario' }, 409, corsHeaders);
-        }
-        return jsonResponse({ error: 'Error al crear el curso' }, 500, corsHeaders);
-    }
-}
-
-// 2. Listar Cursos del Usuario: GET /api/user-courses
-if (path === '/api/user-courses' && request.method === 'GET') {
-    const userDni = url.searchParams.get('user_dni');
-    
-    // Seguridad: Verificar que el DNI en la URL coincida con el token
-    const authenticatedDni = await requireAuth(request, env);
-    if (!authenticatedDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-    if (userDni && userDni !== authenticatedDni) {
-        return jsonResponse({ error: 'Acceso denegado' }, 403, corsHeaders);
-    }
-
-    try {
-        const { results } = await env.MIRAI_AI_DB.prepare(`
-            SELECT id, title, description, created_at 
-            FROM user_courses 
-            WHERE user_dni = ? 
-            ORDER BY created_at DESC
-        `).bind(authenticatedDni).all();
-
-        return jsonResponse(results, 200, corsHeaders);
-    } catch (error) {
-        console.error('Error listando cursos:', error);
-        return jsonResponse({ error: 'Error al obtener cursos' }, 500, corsHeaders);
-    }
-}
-
-// 3. Listar Tareas del Profesor (con nombre del curso): GET /api/admin-tasks
-// Esta ruta ahora une assignments con user_courses para mostrar el nombre real del curso
-if (path === '/api/admin-tasks' && request.method === 'GET') {
-    const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-
-    try {
-        // Obtenemos todas las tareas y hacemos un JOIN con user_courses para obtener el título del curso
-        // Nota: Si el curso fue borrado, el LEFT JOIN asegura que la tarea siga apareciendo
-        const { results } = await env.MIRAI_AI_DB.prepare(`
-            SELECT 
-                a.*, 
-                uc.title as course_title 
-            FROM assignments a
-            LEFT JOIN user_courses uc ON a.course_id = uc.id
-            ORDER BY a.created_at DESC
-        `).all();
-
-        return jsonResponse(results, 200, corsHeaders);
-    } catch (error) {
-        console.error('Error listando tareas:', error);
-        return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
-    }
-}
-
-// 4. Eliminar Tarea: DELETE /api/delete-assignment
-if (path === '/api/delete-assignment' && request.method === 'DELETE') {
-    const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-    
-    const id = url.searchParams.get('id');
-    if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
-
-    try {
+      try {
         // Eliminación en cascada manual
         await env.MIRAI_AI_DB.prepare("DELETE FROM assignment_students WHERE assignment_id = ?").bind(id).run();
         await env.MIRAI_AI_DB.prepare("DELETE FROM submissions WHERE assignment_id = ?").bind(id).run();
         await env.MIRAI_AI_DB.prepare("DELETE FROM assignments WHERE id = ?").bind(id).run();
-        
+
         return jsonResponse({ success: true }, 200, corsHeaders);
-    } catch (error) {
+      } catch (error) {
         console.error('Error eliminando tarea:', error);
         return jsonResponse({ error: 'Error al eliminar la tarea' }, 500, corsHeaders);
+      }
     }
-}
 
-// 5. Asignar Estudiante: POST /api/assign-student
-if (path === '/api/assign-student' && request.method === 'POST') {
-    const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    // 5. Asignar Estudiante: POST /api/assign-student
+    if (path === '/api/assign-student' && request.method === 'POST') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
 
-    const { assignment_id, user_dni } = await request.json();
-    
-    if (!assignment_id || !user_dni) {
+      const { assignment_id, user_dni } = await request.json();
+
+      if (!assignment_id || !user_dni) {
         return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
-    }
+      }
 
-    try {
+      try {
         // Verificar que la tarea existe
         const task = await env.MIRAI_AI_DB.prepare("SELECT id FROM assignments WHERE id = ?").bind(assignment_id).first();
         if (!task) return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
@@ -935,59 +932,70 @@ if (path === '/api/assign-student' && request.method === 'POST') {
         `).bind(assignment_id, user_dni.toUpperCase()).run();
 
         return jsonResponse({ success: true }, 200, corsHeaders);
-    } catch (error) {
+      } catch (error) {
         console.error('Error asignando estudiante:', error);
         return jsonResponse({ error: 'Error al asignar estudiante' }, 500, corsHeaders);
+      }
     }
-}
 
-// 6. Listar Estudiantes de una Tarea: GET /api/task-students
-if (path === '/api/task-students' && request.method === 'GET') {
-    const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    // 6. Listar Estudiantes de una Tarea: GET /api/task-students
+    if (path === '/api/task-students' && request.method === 'GET') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
 
-    const assignmentId = url.searchParams.get('assignment_id');
-    if (!assignmentId) return jsonResponse({ error: 'Falta ID de tarea' }, 400, corsHeaders);
+      const assignmentId = url.searchParams.get('assignment_id');
+      if (!assignmentId) return jsonResponse({ error: 'Falta ID de tarea' }, 400, corsHeaders);
 
-    try {
+      try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
             SELECT * FROM assignment_students WHERE assignment_id = ?
         `).bind(assignmentId).all();
         return jsonResponse(results, 200, corsHeaders);
-    } catch (error) {
+      } catch (error) {
         console.error('Error listando estudiantes:', error);
         return jsonResponse({ error: 'Error al obtener estudiantes' }, 500, corsHeaders);
+      }
     }
-}
 
-// 7. Quitar Estudiante: DELETE /api/unassign-student
-if (path === '/api/unassign-student' && request.method === 'DELETE') {
-    const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    // 7. Quitar Estudiante: DELETE /api/unassign-student
+    if (path === '/api/unassign-student' && request.method === 'DELETE') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
 
-    const { assignment_id, user_dni } = await request.json();
-    
-    try {
+      const { assignment_id, user_dni } = await request.json();
+
+      try {
         await env.MIRAI_AI_DB.prepare(`
             DELETE FROM assignment_students WHERE assignment_id = ? AND user_dni = ?
         `).bind(assignment_id, user_dni.toUpperCase()).run();
-        
+
         return jsonResponse({ success: true }, 200, corsHeaders);
-    } catch (error) {
+      } catch (error) {
         console.error('Error quitando estudiante:', error);
         return jsonResponse({ error: 'Error al quitar estudiante' }, 500, corsHeaders);
+      }
     }
-}
 
     if (path === '/api/upload-audio' && request.method === 'POST') {
       return await handleUploadUserAudio(request, env, corsHeaders);
+    }
+
+    // Ruta: GET /api/check-professor-role
+    if (path === '/api/check-professor-role' && request.method === 'GET') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) {
+        return jsonResponse({ is_professor: false }, 401, corsHeaders);
+      }
+
+      const isProfessor = await isAuthorizedProfessor(userDni, env);
+      return jsonResponse({ is_professor: isProfessor }, 200, corsHeaders);
     }
     // --- NUEVAS RUTAS PARA ADMIN ---
 
     // 1. Crear Tarea: POST /api/create-assignment
     if (path === '/api/create-assignment' && request.method === 'POST') {
-      const userDni = await requireAuth(request, env);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
 
       // Opcional: Verificar que el usuario es profesor aquí
 
@@ -1004,22 +1012,6 @@ if (path === '/api/unassign-student' && request.method === 'DELETE') {
     `).bind(id, course_id, title, description || '', due_date || null).run();
 
       return jsonResponse({ success: true, id }, 201, corsHeaders);
-    }
-
-    // 2. Listar Tareas del Profesor: GET /api/admin-tasks
-    // (Por ahora, listamos todas. En un sistema real, filtrarías por 'creado_por')
-    if (path === '/api/admin-tasks' && request.method === 'GET') {
-      const userDni = await requireAuth(request, env);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-
-      try {
-        const { results } = await env.MIRAI_AI_DB.prepare(`
-            SELECT * FROM assignments ORDER BY created_at DESC
-        `).all();
-        return jsonResponse(results, 200, corsHeaders);
-      } catch (error) {
-        return jsonResponse({ error: 'Error' }, 500, corsHeaders);
-      }
     }
 
     if (path.startsWith('/api/audio/') && request.method === 'GET') {
@@ -3086,5 +3078,32 @@ async function getOrCreateEducationConversation(courseId, lessonId, userDni, env
   } catch (error) {
     console.error('❌ Error en getOrCreateEducationConversation:', error.message);
     throw error;
+  }
+}
+
+async function requireProfessorAuth(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) {
+    return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+  }
+
+  const isProfessor = await isAuthorizedProfessor(userDni, env);
+  if (!isProfessor) {
+    return jsonResponse({ error: 'Acceso denegado. Requiere rol de profesor.' }, 403, corsHeaders);
+  }
+
+  return userDni;
+}
+
+async function isAuthorizedProfessor(userDni, env) {
+  try {
+    const professor = await env.MIRAI_AI_DB.prepare(
+      "SELECT dni, is_active FROM professors WHERE dni = ? AND is_active = 1"
+    ).bind(userDni.toUpperCase()).first();
+
+    return !!professor;
+  } catch (error) {
+    console.error('Error verificando profesor:', error);
+    return false;
   }
 }
