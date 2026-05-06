@@ -161,26 +161,51 @@
         <button onclick="window.history.back()" class="btn-back">← Volver</button>
     </header>
 
-    <main class="detail-container">
-        <div id="assignment-details" class="assignment-header">
-            <h1 id="task-title">Cargando...</h1>
-            <p id="task-desc"></p>
+    <main class="classroom-container">
+    <div class="dashboard-header">
+        <h1>Detalle de Tarea</h1>
+        <a href="classroom.html" class="btn-secondary">← Volver</a>
+    </div>
+
+    <div class="task-detail-card">
+        <!-- Título de la tarea -->
+        <h2 id="task-title" style="margin-bottom: 10px;">Cargando...</h2>
+        
+        <!-- Metadatos -->
+        <div class="task-meta" style="margin-bottom: 20px; color: var(--text-secondary);">
+            <p><strong>Curso:</strong> <span id="task-course">-</span></p>
+            <p><strong>Vence:</strong> <span id="task-due">-</span></p>
+            <p><strong>Puntuación Máxima:</strong> <span id="task-max-score">-</span></p>
         </div>
 
-        <div id="upload-section" class="upload-section">
-            <h3>Subir Trabajo Final</h3>
-            <p>Formato aceptado: PDF (Máx 10MB)</p>
-            <div class="file-input-wrapper">
-                <button class="btn-upload">
-                    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
-                    Seleccionar Archivo PDF
-                </button>
-                <input type="file" id="file-input" accept=".pdf">
-            </div>
-            <div id="file-name-display" style="margin-top: 10px; font-weight: bold;"></div>
-            <div id="upload-status" class="status-message"></div>
+        <!-- Descripción -->
+        <div class="task-description" style="margin-bottom: 20px;">
+            <h3>Descripción:</h3>
+            <p id="task-description">Cargando...</p>
         </div>
-    </main>
+
+        <!-- Estado de la tarea -->
+        <div class="status-section" style="margin-bottom: 20px;">
+            <strong>Estado:</strong>
+            <span id="task-status" class="status-badge status-pending">Cargando...</span>
+        </div>
+
+        <!-- Sección de Entrega (Visible si no ha entregado) -->
+        <div id="submit-section" style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-color); border-radius: 8px;">
+            <!-- El formulario se inyectará aquí vía JS -->
+        </div>
+
+        <!-- Sección de Evaluación (Visible si está en revisión y es profesor) -->
+        <div id="evaluate-section" style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-color); border-radius: 8px;">
+            <!-- El botón se inyectará aquí vía JS -->
+        </div>
+
+        <!-- Sección de Feedback (Visible si ya fue evaluado) -->
+        <div id="feedback-section" style="display: none; margin-top: 20px; padding: 20px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
+            <!-- El feedback se inyectará aquí vía JS -->
+        </div>
+    </div>
+</main>
 
     <script src="classroom_details.js"></script>
 </body>

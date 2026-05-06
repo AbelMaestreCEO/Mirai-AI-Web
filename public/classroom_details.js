@@ -6,7 +6,10 @@ window.fetch = async function (url, options = {}) {
     if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
         const token = localStorage.getItem('mirai_auth_token');
         if (token) {
-            options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
         } else {
             window.location.href = 'login.html';
             return;
@@ -17,26 +20,16 @@ window.fetch = async function (url, options = {}) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('mirai_auth_token');
-    if (!token) {
+    const dni = localStorage.getItem('mirai_user_dni');
+    
+    if (!token || !dni) {
         window.location.href = 'login.html';
         return;
     }
 
-    setupMobileMenu(); // Inicializar menú
-    setupLogout();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const assignmentId = urlParams.get('id');
-
-    if (!assignmentId) {
-        alert('ID de tarea no válido');
-        window.location.href = 'classroom.html';
-        return;
-    }
-
     await loadAssignmentDetails();
-    setupFileUpload(assignmentId);
 });
+
 
 async function loadAssignmentDetails() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -62,67 +55,91 @@ async function loadAssignmentDetails() {
             return;
         }
 
-        // ✨ CORRECCIÓN: Extraer assignment y submission de data
         const assignment = data;
-        const submission = data.submission; // Puede ser null si no ha entregado
+        const submission = data.submission; // Puede ser null
 
-        // Renderizar información de la tarea
-        document.getElementById('task-title').textContent = assignment.title;
-        document.getElementById('task-description').textContent = assignment.description || 'Sin descripción';
-        document.getElementById('task-course').textContent = assignment.course_title || 'General';
-        
-        if (assignment.due_date) {
-            document.getElementById('task-due').textContent = `Vence: ${new Date(assignment.due_date).toLocaleDateString()}`;
-        }
-
+        // ✨ CORRECCIÓN: Verificar existencia de elementos antes de usarlos
+        const titleEl = document.getElementById('task-title');
+        const courseEl = document.getElementById('task-course');
+        const dueEl = document.getElementById('task-due');
+        const maxScoreEl = document.getElementById('task-max-score');
+        const descEl = document.getElementById('task-description');
         const statusBadge = document.getElementById('task-status');
         const submitSection = document.getElementById('submit-section');
         const evaluateSection = document.getElementById('evaluate-section');
         const feedbackSection = document.getElementById('feedback-section');
 
-        // Limpiar secciones anteriores
+        if (!titleEl || !courseEl || !descEl || !statusBadge) {
+            console.error('Faltan elementos HTML esenciales. Verifica classroom_details.html');
+            showError('Error de estructura en la página.');
+            return;
+        }
+
+        // Rellenar datos básicos
+        titleEl.textContent = assignment.title;
+        courseEl.textContent = assignment.course_title || 'General';
+        descEl.textContent = assignment.description || 'Sin descripción';
+        
+        if (assignment.due_date) {
+            dueEl.textContent = new Date(assignment.due_date).toLocaleDateString();
+        } else {
+            dueEl.textContent = 'Sin fecha límite';
+        }
+
+        if (maxScoreEl) {
+            maxScoreEl.textContent = assignment.max_score || 'N/A';
+        }
+
+        // Limpiar secciones dinámicas
         if (submitSection) submitSection.innerHTML = '';
         if (evaluateSection) evaluateSection.innerHTML = '';
         if (feedbackSection) feedbackSection.innerHTML = '';
 
-        // ✨ LÓGICA DE ESTADOS (Aquí estaba el error)
+        // --- LÓGICA DE ESTADOS ---
         if (submission) {
             if (submission.status === 'completed') {
-                // CASO: Ya evaluado
+                // CASO: Evaluado
                 statusBadge.className = 'status-badge status-completed';
                 statusBadge.textContent = `Revisado ${submission.score}/${assignment.max_score}`;
                 
-                // Mostrar feedback
                 if (feedbackSection) {
                     feedbackSection.style.display = 'block';
-                    const feedbackText = submission.feedback ? JSON.parse(submission.feedback) : 'Sin retroalimentación.';
+                    let feedbackText = 'Sin retroalimentación.';
+                    try {
+                        if (submission.feedback) {
+                            // Si es string JSON, parsearlo; si ya es objeto, usarlo
+                            feedbackText = typeof submission.feedback === 'string' 
+                                ? JSON.parse(submission.feedback) 
+                                : submission.feedback;
+                        }
+                    } catch (e) {
+                        feedbackText = submission.feedback || 'Sin retroalimentación.';
+                    }
+                    
                     feedbackSection.innerHTML = `
-                        <h4>Retroalimentación del Profesor IA:</h4>
+                        <h4 style="margin-top:0; color:#2e7d32;">Retroalimentación del Profesor IA:</h4>
                         <p>${feedbackText}</p>
                     `;
                 }
 
             } else if (submission.status === 'pending') {
-                // CASO: Entregado pero en revisión
+                // CASO: Entregado, en revisión
                 statusBadge.className = 'status-badge status-pending';
                 statusBadge.textContent = 'En revisión';
                 
-                // Mostrar botón de evaluar (SOLO si es profesor)
-                // Nota: Verificamos si el usuario actual es profesor
+                // Verificar si es profesor para mostrar botón de evaluar
                 const isProfessor = await checkIfUserIsProfessor();
-                if (isProfessor) {
-                    if (evaluateSection) {
-                        evaluateSection.style.display = 'block';
-                        const btn = document.createElement('button');
-                        btn.className = 'btn-primary';
-                        btn.textContent = '🤖 Evaluar con IA';
-                        btn.onclick = () => startEvaluation(submission.id);
-                        evaluateSection.appendChild(btn);
-                    }
+                if (isProfessor && evaluateSection) {
+                    evaluateSection.style.display = 'block';
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-primary';
+                    btn.textContent = '🤖 Evaluar con IA';
+                    btn.onclick = () => startEvaluation(submission.id);
+                    evaluateSection.appendChild(btn);
                 }
             }
         } else {
-            // CASO: No ha entregado nada
+            // CASO: No ha entregado
             statusBadge.className = 'status-badge status-pending';
             statusBadge.textContent = 'Pendiente';
             
@@ -130,15 +147,14 @@ async function loadAssignmentDetails() {
                 submitSection.style.display = 'block';
                 submitSection.innerHTML = `
                     <form id="upload-form" enctype="multipart/form-data">
-                        <div class="form-group">
-                            <label>Sube tu trabajo (PDF):</label>
-                            <input type="file" id="file-input" accept=".pdf" class="form-control" required>
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label style="display:block; margin-bottom:5px; font-weight:bold;">Sube tu trabajo (PDF):</label>
+                            <input type="file" id="file-input" accept=".pdf" class="form-control" style="width:100%; padding:8px;" required>
                         </div>
                         <button type="submit" class="btn-primary">Entregar Trabajo</button>
                     </form>
                 `;
 
-                // Configurar envío del formulario
                 document.getElementById('upload-form').addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const fileInput = document.getElementById('file-input');
@@ -183,6 +199,7 @@ async function loadAssignmentDetails() {
         showError('Error de conexión. Intenta de nuevo.');
     }
 }
+
 async function checkIfUserIsProfessor() {
     try {
         const response = await fetch('/api/check-professor-role');
@@ -218,6 +235,21 @@ async function startEvaluation(submissionId) {
         alert('❌ Error al evaluar: ' + error.message);
         btn.disabled = false;
         btn.textContent = '🤖 Evaluar con IA';
+    }
+}
+function showError(message) {
+    const container = document.querySelector('.classroom-container');
+    if (container) {
+        container.innerHTML = `
+            <div class="empty-state" style="color: var(--error-color); text-align: center; padding: 40px;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
+                <h3>Error</h3>
+                <p>${message}</p>
+                <a href="classroom.html" class="btn-primary" style="margin-top: 15px; display:inline-block;">Volver a Tareas</a>
+            </div>
+        `;
+    } else {
+        alert(message);
     }
 }
 
