@@ -2801,3 +2801,38 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     window.location.href = 'login.html';
   }
 });
+
+// Función para colapsar/expandir sidebar en escritorio
+function initSidebarCollapse() {
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    
+    if (!collapseBtn || !sidebar) return;
+    
+    // Solo activar en escritorio
+    if (window.innerWidth > 768) {
+        collapseBtn.style.display = 'flex';
+        
+        collapseBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            
+            // Cambiar icono del botón
+            const svg = collapseBtn.querySelector('svg path');
+            if (sidebar.classList.contains('collapsed')) {
+                svg.setAttribute('d', 'M10 17l5-5-5-5v10z'); // Flecha derecha
+                collapseBtn.title = 'Expandir barra';
+            } else {
+                svg.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z'); // Flecha izquierda
+                collapseBtn.title = 'Colapsar barra';
+            }
+        });
+    } else {
+        collapseBtn.style.display = 'none';
+    }
+}
+
+// Llamar a la función cuando cargue la página
+document.addEventListener('DOMContentLoaded', initSidebarCollapse);
+
+// También verificar al redimensionar la ventana
+window.addEventListener('resize', initSidebarCollapse);

@@ -4433,3 +4433,166 @@ svg {
 .btn-secondary:hover {
     background: #5a6268;
 }
+
+/* ============================================
+   SIDEBAR COLAPSABLE (DOCK) - ESCRITORIO
+   ============================================ */
+
+/* Botón de colapsar/expandir en el header del sidebar */
+.sidebar-collapse-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--message-user-bg);
+  color: var(--accent-color);
+}
+
+.sidebar-collapse-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  transition: transform var(--transition-fast);
+}
+
+/* Estado colapsado del sidebar en PC */
+.mobile-sidebar.collapsed {
+  width: 72px !important; /* Ancho reducido para solo iconos */
+}
+
+.mobile-sidebar.collapsed .sidebar-header h3,
+.mobile-sidebar.collapsed .sidebar-section h4,
+.mobile-sidebar.collapsed .sidebar-links a span:not(.icon-only),
+.mobile-sidebar.collapsed .sidebar-social,
+.mobile-sidebar.collapsed .sidebar-footer,
+.mobile-sidebar.collapsed .logout-btn span,
+.mobile-sidebar.collapsed .collapsible-content,
+.mobile-sidebar.collapsed .conversations-list,
+.mobile-sidebar.collapsed .conversations-header h4 {
+  display: none !important;
+}
+
+.mobile-sidebar.collapsed .sidebar-links a {
+  padding: 10px 0;
+  justify-content: center;
+  text-align: center;
+}
+
+.mobile-sidebar.collapsed .sidebar-links a::before {
+  display: none;
+}
+
+.mobile-sidebar.collapsed .sidebar-links a {
+  border-left: none !important;
+}
+
+.mobile-sidebar.collapsed .sidebar-links a:hover {
+  background: var(--message-user-bg);
+}
+
+.mobile-sidebar.collapsed .conv-item {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.mobile-sidebar.collapsed .conv-item-icon {
+  margin-right: 0;
+}
+
+.mobile-sidebar.collapsed .conv-item-info,
+.mobile-sidebar.collapsed .conv-item-actions {
+  display: none;
+}
+
+/* Cuando está colapsado, el contenido principal no tiene margen */
+.mobile-sidebar.collapsed ~ .chat-container,
+.mobile-sidebar.collapsed ~ .header,
+.mobile-sidebar.collapsed ~ footer.footer {
+  margin-left: 72px !important; /* Margen reducido solo para el dock */
+}
+
+/* Tooltip simple al pasar el mouse sobre iconos colapsados */
+.mobile-sidebar.collapsed .sidebar-links a,
+.mobile-sidebar.collapsed .conv-item,
+.mobile-sidebar.collapsed .sidebar-collapse-btn {
+  position: relative;
+}
+
+.mobile-sidebar.collapsed .sidebar-links a::after,
+.mobile-sidebar.collapsed .conv-item::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  margin-left: 8px;
+  z-index: 1000;
+}
+
+.mobile-sidebar.collapsed .sidebar-links a:hover::after,
+.mobile-sidebar.collapsed .conv-item:hover::after {
+  opacity: 1;
+}
+
+/* Ajuste del botón de colapsar en header */
+.mobile-sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.mobile-sidebar.collapsed .close-menu {
+  display: none;
+}
+
+/* Ajustes responsive para que en móvil no se aplique el colapso */
+@media (max-width: 768px) {
+  .mobile-sidebar.collapsed {
+    width: 280px !important; /* Restaurar ancho completo en móvil */
+  }
+  
+  .mobile-sidebar.collapsed .sidebar-header h3,
+  .mobile-sidebar.collapsed .sidebar-section h4,
+  .mobile-sidebar.collapsed .sidebar-links a span,
+  .mobile-sidebar.collapsed .sidebar-social,
+  .mobile-sidebar.collapsed .sidebar-footer,
+  .mobile-sidebar.collapsed .logout-btn span,
+  .mobile-sidebar.collapsed .collapsible-content,
+  .mobile-sidebar.collapsed .conversations-list,
+  .mobile-sidebar.collapsed .conversations-header h4 {
+    display: block !important;
+  }
+  
+  .mobile-sidebar.collapsed .sidebar-links a {
+    padding: 10px 12px;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  
+  .mobile-sidebar.collapsed ~ .chat-container,
+  .mobile-sidebar.collapsed ~ .header,
+  .mobile-sidebar.collapsed ~ footer.footer {
+    margin-left: 0 !important;
+  }
+  
+  .sidebar-collapse-btn {
+    display: none !important; /* Ocultar botón de colapsar en móvil */
+  }
+}
