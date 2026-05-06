@@ -862,7 +862,7 @@ async function handleApiRequest(request, env, corsHeaders) {
         console.error('Error listando tareas:', error);
         return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
       }
-    } F
+    }
 
     if (path === '/api/login' && request.method === 'POST') {
       return await handleLogin(request, env, corsHeaders);
