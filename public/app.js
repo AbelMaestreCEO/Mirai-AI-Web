@@ -2836,3 +2836,78 @@ document.addEventListener('DOMContentLoaded', initSidebarCollapse);
 
 // También verificar al redimensionar la ventana
 window.addEventListener('resize', initSidebarCollapse);
+
+/**
+ * Inicialización del Sidebar Colapsable con Persistencia
+ * Guarda el estado (colapsado/expandido) en localStorage
+ */
+function initSidebarCollapseWithPersistence() {
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    const STORAGE_KEY = 'mirai_sidebar_state'; // Clave para localStorage
+
+    if (!collapseBtn || !sidebar) return;
+
+    // Función para aplicar el estado
+    const applyState = (isCollapsed) => {
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            // Cambiar icono a flecha derecha
+            const svgPath = collapseBtn.querySelector('svg path');
+            if (svgPath) {
+                svgPath.setAttribute('d', 'M10 17l5-5-5-5v10z');
+            }
+            collapseBtn.title = 'Expandir barra';
+        } else {
+            sidebar.classList.remove('collapsed');
+            // Cambiar icono a flecha izquierda
+            const svgPath = collapseBtn.querySelector('svg path');
+            if (svgPath) {
+                svgPath.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z');
+            }
+            collapseBtn.title = 'Colapsar barra';
+        }
+    };
+
+    // 1. Restaurar estado al cargar la página
+    const savedState = localStorage.getItem(STORAGE_KEY);
+    const isCollapsed = savedState === 'true';
+    
+    // Aplicar estado solo si estamos en escritorio (>768px)
+    if (window.innerWidth > 768) {
+        applyState(isCollapsed);
+        collapseBtn.style.display = 'flex';
+    } else {
+        collapseBtn.style.display = 'none';
+    }
+
+    // 2. Manejar el clic en el botón
+    collapseBtn.addEventListener('click', () => {
+        const newState = !sidebar.classList.contains('collapsed');
+        
+        // Aplicar visualmente
+        applyState(newState);
+        
+        // Guardar en localStorage
+        localStorage.setItem(STORAGE_KEY, newState.toString());
+    });
+
+    // 3. Verificar al redimensionar la ventana
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            collapseBtn.style.display = 'flex';
+            // Re-aplicar el estado guardado si cambiamos de móvil a escritorio
+            const saved = localStorage.getItem(STORAGE_KEY) === 'true';
+            if (saved !== sidebar.classList.contains('collapsed')) {
+                applyState(saved);
+            }
+        } else {
+            collapseBtn.style.display = 'none';
+            // En móvil, asegurarnos de que no esté colapsado visualmente
+            sidebar.classList.remove('collapsed');
+        }
+    });
+}
+
+// Ejecutar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', initSidebarCollapseWithPersistence);

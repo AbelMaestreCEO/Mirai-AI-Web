@@ -4954,3 +4954,80 @@ svg {
     height: 18px;
   }
 }
+
+/* ============================================
+   LOGO SIDEBAR - TAMAÑO REDUCIDO
+   ============================================ */
+
+.sidebar-logo {
+    text-align: center;
+    margin-top: 12px; /* Reducido margen superior */
+    padding-top: 12px;
+    border-top: 1px solid var(--glass-border);
+    padding-bottom: 12px;
+}
+
+.sidebar-logo img {
+    max-width: 50px !important;  /* Forzado a 50px */
+    max-height: 50px !important;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* En sidebar colapsado, logo aún más pequeño */
+.mobile-sidebar.collapsed .sidebar-logo {
+    padding: 8px 0;
+    margin-top: 8px;
+}
+
+.mobile-sidebar.collapsed .sidebar-logo img {
+    max-width: 32px !important;
+    max-height: 32px !important;
+}
+
+/* ============================================
+   BOTÓN CERRAR SESIÓN - AJUSTE FINAL
+   ============================================ */
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 24px);
+    margin: 12px auto;
+    padding: 10px 14px;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    font-weight: 500;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+    fill: currentColor !important;
+    flex-shrink: 0;
+    display: block !important;
+}
+
+.logout-btn:hover {
+    background: rgba(208, 0, 0, 0.1);
+    border-color: #ef5350;
+    color: #d32f2f;
+}
+
+[data-theme="dark"] .logout-btn:hover {
+    background: rgba(211, 47, 47, 0.15);
+    border-color: #d32f2f;
+    color: #ff8a80;
+}
