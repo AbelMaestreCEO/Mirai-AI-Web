@@ -41,40 +41,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadAssignmentDetails() {
     const urlParams = new URLSearchParams(window.location.search);
     const assignmentId = urlParams.get('id');
-
+    
     if (!assignmentId) {
         showError('ID de tarea no proporcionado');
         return;
     }
-    if (submission && submission.status === 'completed') {
-        statusBadge.className = 'status-badge status-completed';
-        statusBadge.textContent = `Revisado ${submission.score}/${assignment.max_score}`;
 
-        // Mostrar feedback si existe
-        if (submission.feedback) {
-            const feedbackDiv = document.createElement('div');
-            feedbackDiv.className = 'feedback-box';
-            feedbackDiv.innerHTML = `
-            <h4>Retroalimentación del Profesor IA:</h4>
-            <p>${JSON.parse(submission.feedback)}</p>
-        `;
-            container.appendChild(feedbackDiv);
-        }
-    } else if (submission && submission.status === 'pending') {
-        statusBadge.className = 'status-badge status-pending';
-        statusBadge.textContent = 'En revisión';
-
-        // Mostrar botón de evaluar (solo para profesores)
-        const evaluateBtn = document.createElement('button');
-        evaluateBtn.className = 'btn-primary';
-        evaluateBtn.textContent = '🤖 Evaluar con IA';
-        evaluateBtn.onclick = () => startEvaluation(submission.id);
-        container.appendChild(evaluateBtn);
-    }
     try {
         const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
         const data = await response.json();
-
+        
         if (!response.ok) {
             if (response.status === 404) {
                 showError('Esta tarea no está disponible para ti o no existe.');
@@ -86,13 +62,136 @@ async function loadAssignmentDetails() {
             return;
         }
 
-        // ... resto del código para renderizar ...
+        // ✨ CORRECCIÓN: Extraer assignment y submission de data
+        const assignment = data;
+        const submission = data.submission; // Puede ser null si no ha entregado
+
+        // Renderizar información de la tarea
+        document.getElementById('task-title').textContent = assignment.title;
+        document.getElementById('task-description').textContent = assignment.description || 'Sin descripción';
+        document.getElementById('task-course').textContent = assignment.course_title || 'General';
+        
+        if (assignment.due_date) {
+            document.getElementById('task-due').textContent = `Vence: ${new Date(assignment.due_date).toLocaleDateString()}`;
+        }
+
+        const statusBadge = document.getElementById('task-status');
+        const submitSection = document.getElementById('submit-section');
+        const evaluateSection = document.getElementById('evaluate-section');
+        const feedbackSection = document.getElementById('feedback-section');
+
+        // Limpiar secciones anteriores
+        if (submitSection) submitSection.innerHTML = '';
+        if (evaluateSection) evaluateSection.innerHTML = '';
+        if (feedbackSection) feedbackSection.innerHTML = '';
+
+        // ✨ LÓGICA DE ESTADOS (Aquí estaba el error)
+        if (submission) {
+            if (submission.status === 'completed') {
+                // CASO: Ya evaluado
+                statusBadge.className = 'status-badge status-completed';
+                statusBadge.textContent = `Revisado ${submission.score}/${assignment.max_score}`;
+                
+                // Mostrar feedback
+                if (feedbackSection) {
+                    feedbackSection.style.display = 'block';
+                    const feedbackText = submission.feedback ? JSON.parse(submission.feedback) : 'Sin retroalimentación.';
+                    feedbackSection.innerHTML = `
+                        <h4>Retroalimentación del Profesor IA:</h4>
+                        <p>${feedbackText}</p>
+                    `;
+                }
+
+            } else if (submission.status === 'pending') {
+                // CASO: Entregado pero en revisión
+                statusBadge.className = 'status-badge status-pending';
+                statusBadge.textContent = 'En revisión';
+                
+                // Mostrar botón de evaluar (SOLO si es profesor)
+                // Nota: Verificamos si el usuario actual es profesor
+                const isProfessor = await checkIfUserIsProfessor();
+                if (isProfessor) {
+                    if (evaluateSection) {
+                        evaluateSection.style.display = 'block';
+                        const btn = document.createElement('button');
+                        btn.className = 'btn-primary';
+                        btn.textContent = '🤖 Evaluar con IA';
+                        btn.onclick = () => startEvaluation(submission.id);
+                        evaluateSection.appendChild(btn);
+                    }
+                }
+            }
+        } else {
+            // CASO: No ha entregado nada
+            statusBadge.className = 'status-badge status-pending';
+            statusBadge.textContent = 'Pendiente';
+            
+            if (submitSection) {
+                submitSection.style.display = 'block';
+                submitSection.innerHTML = `
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Sube tu trabajo (PDF):</label>
+                            <input type="file" id="file-input" accept=".pdf" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Entregar Trabajo</button>
+                    </form>
+                `;
+
+                // Configurar envío del formulario
+                document.getElementById('upload-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const fileInput = document.getElementById('file-input');
+                    const file = fileInput.files[0];
+
+                    if (!file) {
+                        alert('Por favor selecciona un archivo.');
+                        return;
+                    }
+
+                    if (file.type !== 'application/pdf') {
+                        alert('Solo se permiten archivos PDF.');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('assignment_id', assignmentId);
+
+                    try {
+                        const uploadResponse = await fetch('/api/submit-assignment', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!uploadResponse.ok) {
+                            const err = await uploadResponse.json();
+                            throw new Error(err.error || 'Error al subir');
+                        }
+
+                        alert('✅ Trabajo entregado correctamente. Está en revisión.');
+                        window.location.reload();
+                    } catch (error) {
+                        alert('❌ Error: ' + error.message);
+                    }
+                });
+            }
+        }
+
     } catch (error) {
         console.error('Error cargando detalles:', error);
         showError('Error de conexión. Intenta de nuevo.');
     }
 }
-
+async function checkIfUserIsProfessor() {
+    try {
+        const response = await fetch('/api/check-professor-role');
+        const data = await response.json();
+        return data.is_professor;
+    } catch (error) {
+        return false;
+    }
+}
 async function startEvaluation(submissionId) {
     const btn = event.target;
     btn.disabled = true;
@@ -111,10 +210,7 @@ async function startEvaluation(submissionId) {
             throw new Error(data.error || 'Error al evaluar');
         }
 
-        // Actualizar la interfaz con los resultados
         alert(`✅ Evaluación completada: ${data.score}/${data.max_score}\n\n${data.feedback}`);
-        
-        // Recargar la página para ver el estado actualizado
         window.location.reload();
 
     } catch (error) {
