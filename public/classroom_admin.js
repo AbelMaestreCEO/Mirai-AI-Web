@@ -24,6 +24,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // ✨ VERIFICAR SI ES PROFESOR AUTORIZADO (desde el backend)
+    try {
+        const checkResponse = await fetch('/api/check-professor-role');
+        
+        if (checkResponse.status === 401) {
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        const checkData = await checkResponse.json();
+        
+        if (!checkData.is_professor) {
+            alert('⛔ Acceso denegado. Este panel es exclusivo para profesores autorizados.');
+            window.location.href = 'index.html';
+            return;
+        }
+    } catch (error) {
+        console.error('Error verificando rol:', error);
+        window.location.href = 'login.html';
+        return;
+    }
+
     document.getElementById('professor-greeting').textContent = `Hola, Profesor ${currentUserDni}`;
     
     setupMobileMenu();
@@ -33,7 +55,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupCreateTaskForm();
     setupStudentManagement();
     
-    // Cargar datos iniciales
     await loadCourses();
     await loadTasksList();
     await loadStats();

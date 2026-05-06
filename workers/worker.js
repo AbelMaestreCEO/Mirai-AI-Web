@@ -843,7 +843,6 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
 
     if (path === '/api/admin-tasks' && request.method === 'GET') {
-      // ✨ requireProfessorAuth
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
       if (!userDni) return;
 
@@ -854,7 +853,7 @@ async function handleApiRequest(request, env, corsHeaders) {
                 uc.title as course_title 
             FROM assignments a
             LEFT JOIN user_courses uc ON a.course_id = uc.id
-            WHERE uc.user_dni = ?  -- ✨ Filtrar por cursos del profesor
+            WHERE uc.user_dni = ?
             ORDER BY a.created_at DESC
         `).bind(userDni).all();
 
@@ -863,7 +862,7 @@ async function handleApiRequest(request, env, corsHeaders) {
         console.error('Error listando tareas:', error);
         return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
       }
-    }
+    } F
 
     if (path === '/api/login' && request.method === 'POST') {
       return await handleLogin(request, env, corsHeaders);
@@ -979,7 +978,6 @@ async function handleApiRequest(request, env, corsHeaders) {
     if (path === '/api/upload-audio' && request.method === 'POST') {
       return await handleUploadUserAudio(request, env, corsHeaders);
     }
-
     // Ruta: GET /api/check-professor-role
     if (path === '/api/check-professor-role' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
@@ -1031,36 +1029,33 @@ async function handleApiRequest(request, env, corsHeaders) {
 
     // --- NUEVAS RUTAS EN handleApiRequest ---
 
-    // Ruta: GET /api/my-submissions
+    // Ruta: GET /api/my-submissions (CORREGIDA - para ESTUDIANTES)
     if (path === '/api/my-submissions' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
       if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
       try {
-        // 1. Obtener todas las asignaciones de los cursos del usuario
-        // (Asumimos que el usuario está inscrito en cursos si tiene conversaciones de curso)
-        // Para simplificar, traemos todas las asignaciones y filtramos después, 
-        // o podrías tener una tabla 'enrollments'. 
-        // Aquí traemos asignaciones generales y verificamos entregas.
-
-        const assignmentsStmt = env.MIRAI_AI_DB.prepare(`
-            SELECT a.*, c.title as course_title 
+        // ✨ Obtener SOLO las tareas donde el estudiante está asignado
+        const { results: assignments } = await env.MIRAI_AI_DB.prepare(`
+            SELECT DISTINCT 
+                a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
+                uc.title as course_title
             FROM assignments a
-            JOIN courses c ON a.course_id = c.id
+            INNER JOIN assignment_students ast ON a.id = ast.assignment_id
+            LEFT JOIN user_courses uc ON a.course_id = uc.id
+            WHERE ast.user_dni = ?
             ORDER BY a.created_at DESC
-        `);
-        const { results: assignments } = await assignmentsStmt.all();
+        `).bind(userDni.toUpperCase()).all();
 
-        // 2. Obtener entregas del usuario
-        const submissionsStmt = env.MIRAI_AI_DB.prepare(`
+        // Obtener entregas del estudiante
+        const { results: submissions } = await env.MIRAI_AI_DB.prepare(`
             SELECT * FROM submissions WHERE user_dni = ?
-        `);
-        const { results: submissions } = await submissionsStmt.bind(userDni).all();
+        `).bind(userDni.toUpperCase()).all();
 
         return jsonResponse({ assignments, submissions }, 200, corsHeaders);
 
       } catch (error) {
-        console.error(error);
+        console.error('Error en my-submissions:', error);
         return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
       }
     }
@@ -3092,13 +3087,13 @@ async function requireProfessorAuth(request, env, corsHeaders) {
     return jsonResponse({ error: 'Acceso denegado. Requiere rol de profesor.' }, 403, corsHeaders);
   }
 
-  return userDni;
+  return userDni; // Retorna el DNI si todo OK
 }
 
 async function isAuthorizedProfessor(userDni, env) {
   try {
     const professor = await env.MIRAI_AI_DB.prepare(
-      "SELECT dni, is_active FROM professors WHERE dni = ? AND is_active = 1"
+      "SELECT dni FROM professors WHERE dni = ? AND is_active = 1"
     ).bind(userDni.toUpperCase()).first();
 
     return !!professor;

@@ -21,41 +21,21 @@ window.fetch = async function (url, options = {}) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    currentUserDni = localStorage.getItem('mirai_user_dni');
+    // Verificación de seguridad básica
+    const token = localStorage.getItem('mirai_auth_token');
+    const dni = localStorage.getItem('mirai_user_dni');
     
-    if (!currentUserDni) {
+    if (!token || !dni) {
         window.location.href = 'login.html';
         return;
     }
-    
-    // ✨ NUEVO: Verificar si es profesor desde el backend
-    try {
-        const checkResponse = await fetch('/api/check-professor-role');
-        const checkData = await checkResponse.json();
-        
-        if (!checkData.is_professor) {
-            alert('⛔ Acceso denegado. Este panel es solo para profesores autorizados.');
-            window.location.href = 'index.html';
-            return;
-        }
-    } catch (error) {
-        console.error('Error verificando rol:', error);
-        window.location.href = 'login.html';
-        return;
-    }
-    
-    document.getElementById('professor-greeting').textContent = `Hola, Profesor ${currentUserDni}`;
-    
+
+    // Inicializar menú móvil
     setupMobileMenu();
-    setupLogout();
-    setupTabs();
-    setupCreateCourseModal();
-    setupCreateTaskForm();
-    setupStudentManagement();
     
-    await loadCourses();
-    await loadTasksList();
-    await loadStats();
+    // Cargar tareas
+    await loadTasks(dni);
+    setupLogout();
 });
 
 async function loadTasks(userDni) {
