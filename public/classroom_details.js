@@ -68,6 +68,7 @@ async function loadAssignmentDetails() {
         const submitSection = document.getElementById('submit-section');
         const evaluateSection = document.getElementById('evaluate-section');
         const feedbackSection = document.getElementById('feedback-section');
+        const disputeSection = document.getElementById('dispute-section');
 
         if (!titleEl || !courseEl || !descEl || !statusBadge) {
             console.error('Faltan elementos HTML esenciales. Verifica classroom_details.html');
