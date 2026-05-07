@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCourses();
     await loadTasksList();
     await loadStats();
+    await loadDisputedAssignments();
 });
 
 // --- GESTIÓN DE CURSOS ---
@@ -259,6 +260,99 @@ async function loadTasksList() {
     } catch (error) {
         console.error('Error cargando tareas:', error);
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>';
+    }
+}
+
+// classroom_admin.js
+
+async function loadDisputedAssignments() {
+    const container = document.getElementById('disputed-assignments-list');
+    
+    if (!container) {
+        console.warn('Contenedor de disputas no encontrado en HTML');
+        return;
+    }
+
+    container.innerHTML = '<tr><td colspan="6">Cargando disputas...</td></tr>';
+
+    try {
+        const response = await fetch('/api/professor-disputes');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const disputes = await response.json();
+
+        if (!Array.isArray(disputes) || disputes.length === 0) {
+            container.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No hay disputas pendientes</td></tr>';
+            return;
+        }
+
+        container.innerHTML = '';
+
+        disputes.forEach(dispute => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${escapeHtml(dispute.assignment_title)}</strong></td>
+                <td>${escapeHtml(dispute.first_name || '')} ${escapeHtml(dispute.last_name || '')}</td>
+                <td><span class="badge badge-pending">${dispute.score}/${dispute.max_score}</span></td>
+                <td>${new Date(dispute.submitted_at).toLocaleDateString()}</td>
+                <td style="max-width: 300px; overflow-wrap: break-word;">${escapeHtml(dispute.dispute_reason || 'Sin motivo')}</td>
+                <td>
+                    <button class="action-btn btn-edit" onclick="reviewDispute('${dispute.id}', ${dispute.max_score})">
+                        ✏️ Revisar
+                    </button>
+                </td>
+            `;
+            container.appendChild(tr);
+        });
+
+    } catch (error) {
+        console.error('Error cargando disputas:', error);
+        container.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--error-color);">Error al cargar disputas</td></tr>';
+    }
+}
+
+// Función para revisar y modificar nota de disputa
+async function reviewDispute(submissionId, maxScore) {
+    const newNote = prompt(`Ingresa la nueva nota (0-${maxScore}):`);
+    
+    if (newNote === null) return; // Usuario canceló
+    
+    const parsedNote = parseInt(newNote);
+    
+    if (isNaN(parsedNote) || parsedNote < 0 || parsedNote > maxScore) {
+        alert('Nota inválida. Debe ser un número entre 0 y ' + maxScore);
+        return;
+    }
+
+    const feedback = prompt('Ingresa tu retroalimentación para el estudiante (opcional):') || '';
+
+    try {
+        const response = await fetch('/api/professor-update-grade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                submission_id: submissionId,
+                new_score: parsedNote,
+                feedback: feedback
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al actualizar nota');
+        }
+
+        alert(`✅ Nota actualizada a ${data.new_score}/${maxScore}. La disputa ha sido resuelta.`);
+        await loadDisputedAssignments(); // Recargar lista
+        await loadTasksList(); // Recargar tareas también
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Error al actualizar nota: ' + error.message);
     }
 }
 

@@ -97,48 +97,74 @@ async function loadAssignmentDetails() {
 
         // --- LÓGICA DE ESTADOS ---
         if (submission) {
-            if (submission.status === 'completed') {
-                // CASO: Evaluado
-                statusBadge.className = 'status-badge status-completed';
-                statusBadge.textContent = `Revisado ${submission.score}/${assignment.max_score}`;
-                
-                if (feedbackSection) {
-                    feedbackSection.style.display = 'block';
-                    let feedbackText = 'Sin retroalimentación.';
-                    try {
-                        if (submission.feedback) {
-                            // Si es string JSON, parsearlo; si ya es objeto, usarlo
-                            feedbackText = typeof submission.feedback === 'string' 
-                                ? JSON.parse(submission.feedback) 
-                                : submission.feedback;
+        if (submission.status === 'completed') {
+            // CASO: Evaluado
+            const finalScore = submission.professor_note !== null ? submission.professor_note : submission.score;
+            statusBadge.className = 'status-badge status-completed';
+            statusBadge.textContent = `Revisado ${finalScore}/${assignment.max_score}`;
+            
+            if (feedbackSection) {
+                feedbackSection.style.display = 'block';
+                let feedbackText = 'Sin retroalimentación.';
+                try {
+                    if (submission.feedback) {
+                        const fb = typeof submission.feedback === 'string' ? JSON.parse(submission.feedback) : submission.feedback;
+                        // Formatear feedback por criterios
+                        let formattedFeedback = '<ul style="list-style:none;padding:0;">';
+                        for (const [key, value] of Object.entries(fb)) {
+                            if (key !== 'general') {
+                                formattedFeedback += `<li><strong>${key.replace('_', ' ').toUpperCase()}:</strong> ${value}</li>`;
+                            }
                         }
-                    } catch (e) {
-                        feedbackText = submission.feedback || 'Sin retroalimentación.';
+                        formattedFeedback += '</ul>';
+                        if (fb.general) formattedFeedback += `<p><strong>Resumen:</strong> ${fb.general}</p>`;
+                        feedbackText = formattedFeedback;
                     }
-                    
-                    feedbackSection.innerHTML = `
-                        <h4 style="margin-top:0; color:#2e7d32;">Retroalimentación del Profesor IA:</h4>
-                        <p>${feedbackText}</p>
-                    `;
+                } catch (e) {
+                    feedbackText = submission.feedback || 'Sin retroalimentación.';
                 }
-
-            } else if (submission.status === 'pending') {
-                // CASO: Entregado, en revisión
-                statusBadge.className = 'status-badge status-pending';
-                statusBadge.textContent = 'En revisión';
                 
-                // Verificar si es profesor para mostrar botón de evaluar
-                const isProfessor = await checkIfUserIsProfessor();
-                if (isProfessor && evaluateSection) {
-                    evaluateSection.style.display = 'block';
-                    const btn = document.createElement('button');
-                    btn.className = 'btn-primary';
-                    btn.textContent = '🤖 Evaluar con IA';
-                    btn.onclick = () => startEvaluation(submission.id);
-                    evaluateSection.appendChild(btn);
-                }
+                feedbackSection.innerHTML = `
+                    <h4 style="margin-top:0; color:#2e7d32;">Retroalimentación del Profesor IA:</h4>
+                    ${feedbackText}
+                `;
             }
-        } else {
+
+            // Mostrar botón de disputa si el estudiante no está conforme
+            if (disputeSection && !submission.dispute_status) {
+                disputeSection.style.display = 'block';
+                const disputeBtn = document.createElement('button');
+                disputeBtn.className = 'btn-secondary';
+                disputeBtn.style.backgroundColor = '#ff9800';
+                disputeBtn.style.color = 'white';
+                disputeBtn.textContent = 'No estoy conforme con mi nota';
+                disputeBtn.onclick = () => openDisputeModal(submission.id, assignment.max_score);
+                disputeSection.appendChild(disputeBtn);
+            } else if (disputeSection && submission.dispute_status === 'pending') {
+                disputeSection.style.display = 'block';
+                disputeSection.innerHTML = '<p style="color:#ff9800; font-weight:bold;">⚠️ Tu disputa está en revisión por el profesor.</p>';
+            } else if (disputeSection && submission.dispute_status === 'resolved') {
+                disputeSection.style.display = 'block';
+                disputeSection.innerHTML = '<p style="color:#4caf50; font-weight:bold;">✅ Tu disputa ha sido resuelta. Revisa la nueva nota.</p>';
+            }
+
+        } else if (submission.status === 'pending') {
+            // CASO: Entregado, en revisión
+            statusBadge.className = 'status-badge status-pending';
+            statusBadge.textContent = 'En revisión';
+            
+            // Mostrar botón de evaluación (para estudiante)
+            if (evaluateSection) {
+                evaluateSection.style.display = 'block';
+                const btn = document.createElement('button');
+                btn.className = 'btn-primary';
+                btn.textContent = '🤖 Evaluar con IA';
+                btn.style.marginTop = '10px';
+                btn.onclick = () => confirmEvaluation(submission.id);
+                evaluateSection.appendChild(btn);
+            }
+        }
+    } else {
             // CASO: No ha entregado
             statusBadge.className = 'status-badge status-pending';
             statusBadge.textContent = 'Pendiente';
@@ -199,7 +225,25 @@ async function loadAssignmentDetails() {
         showError('Error de conexión. Intenta de nuevo.');
     }
 }
+function confirmEvaluation(submissionId) {
+    const criteria = [
+        "¿Cumple con normas APA 7ma edición?",
+        "¿Está escrito en tercera persona?",
+        "¿Utiliza conectores lógicos adecuadamente?",
+        "¿Incluye tablas y figuras correctamente etiquetadas?",
+        "¿El trabajo parece original (no generado por IA)?",
+        "¿Tiene coherencia y estructura lógica?",
+        "¿Muestra profundidad en el análisis?"
+    ];
 
+    const message = "Al presionar 'Sí', la IA evaluará tu trabajo basándose en los siguientes criterios:\n\n" + 
+                    criteria.map((c, i) => `${i+1}. ${c}`).join('\n') + 
+                    "\n\n¿Deseas proceder con la evaluación?";
+
+    if (confirm(message)) {
+        startEvaluation(submissionId);
+    }
+}
 async function checkIfUserIsProfessor() {
     try {
         const response = await fetch('/api/check-professor-role');
@@ -207,6 +251,43 @@ async function checkIfUserIsProfessor() {
         return data.is_professor;
     } catch (error) {
         return false;
+    }
+}
+function openDisputeModal(submissionId, maxScore) {
+    const reason = prompt("Por favor, explica por qué no estás conforme con tu nota (máximo 500 caracteres):");
+    
+    if (!reason || reason.trim() === '') {
+        alert("Debes proporcionar un motivo.");
+        return;
+    }
+
+    if (reason.length > 500) {
+        alert("El motivo no puede superar los 500 caracteres.");
+        return;
+    }
+
+    submitDispute(submissionId, reason);
+}
+async function submitDispute(submissionId, reason) {
+    try {
+        const response = await fetch('/api/dispute-grade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submission_id: submissionId, reason: reason })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al registrar disputa');
+        }
+
+        alert('✅ Disputa registrada. El profesor revisará tu caso.');
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Error al registrar disputa: ' + error.message);
     }
 }
 async function startEvaluation(submissionId) {
@@ -227,7 +308,7 @@ async function startEvaluation(submissionId) {
             throw new Error(data.error || 'Error al evaluar');
         }
 
-        alert(`✅ Evaluación completada: ${data.score}/${data.max_score}\n\n${data.feedback}`);
+        alert(`✅ Evaluación completada: ${data.score}/${data.max_score}\n\nRevisa los criterios detallados abajo.`);
         window.location.reload();
 
     } catch (error) {

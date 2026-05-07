@@ -787,6 +787,37 @@ async function handleApiRequest(request, env, corsHeaders) {
         return jsonResponse({ error: error.message }, 500, corsHeaders);
       }
     }
+    // Ruta: GET /api/professor-disputes
+    if (path === '/api/professor-disputes' && request.method === 'GET') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      try {
+        const { results } = await env.MIRAI_AI_DB.prepare(`
+            SELECT 
+                s.id, 
+                s.score, 
+                s.professor_note, 
+                s.dispute_status, 
+                s.dispute_reason,
+                s.submitted_at,
+                a.title as assignment_title,
+                a.max_score,
+                u.first_name,
+                u.last_name
+            FROM submissions s
+            JOIN assignments a ON s.assignment_id = a.id
+            JOIN users u ON s.user_dni = u.dni
+            WHERE s.dispute_status = 'pending'
+            ORDER BY s.submitted_at DESC
+        `).all();
+
+        return jsonResponse(results, 200, corsHeaders);
+      } catch (error) {
+        console.error('Error obteniendo disputas:', error);
+        return jsonResponse({ error: 'Error al obtener disputas' }, 500, corsHeaders);
+      }
+    }
     // RUTA: /api/enrolled-courses (MODIFICADA PARA FILTRAR POR USUARIO)
     if (path === '/api/enrolled-courses' && request.method === 'GET') {
       // 1. AUTENTICAR
@@ -1113,15 +1144,16 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
 
     // Ruta: POST /api/evaluate-submission
-if (path === '/api/evaluate-submission' && request.method === 'POST') {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
+    // Ruta: POST /api/evaluate-submission
+    if (path === '/api/evaluate-submission' && request.method === 'POST') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    try {
+      try {
         const { submission_id } = await request.json();
 
         if (!submission_id) {
-            return jsonResponse({ error: 'ID de entrega requerido' }, 400, corsHeaders);
+          return jsonResponse({ error: 'ID de entrega requerido' }, 400, corsHeaders);
         }
 
         // 1. Obtener datos de la entrega y la tarea
@@ -1133,98 +1165,83 @@ if (path === '/api/evaluate-submission' && request.method === 'POST') {
         `).bind(submission_id).first();
 
         if (!submissionData) {
-            return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+          return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
         }
 
-        // 2. Descargar el PDF desde R2
+        // 2. Descargar PDF desde R2
         const r2Key = submissionData.file_url.replace('/api/file/', '');
         const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
-        
+
         if (!r2Object) {
-            return jsonResponse({ error: 'Archivo no encontrado en almacenamiento' }, 404, corsHeaders);
+          return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
         }
 
         const pdfBuffer = await r2Object.arrayBuffer();
-        
-        // 3. Extraer texto del PDF (usando pdf-parse o similar en el worker)
-        // Nota: En Cloudflare Workers, podemos usar 'pdf-parse' si está en node_modules, 
-        // o usar una librería ligera. Para simplificar, asumiremos que extraemos texto.
-        // Si no tienes librería, podemos usar un enfoque alternativo: enviar el archivo a una API externa que lo lea.
-        // Pero para mantenerlo en Cloudflare, usaremos un método simple si es posible.
-        // *Alternativa*: Si el PDF es pequeño, podemos intentar leerlo como texto si es ASCII, pero no es ideal.
-        // *Solución robusta*: Usar una función externa o librería. 
-        // Para este ejemplo, asumiremos que tienes una función `extractTextFromPDF` o usaremos un servicio.
-        // *Mejor opción en Workers*: Usar `@pdf-lib/pdf-lib` o similar, pero requiere bundling.
-        // *Truco rápido*: Si el PDF es solo texto, podemos intentar leerlo, pero si es imagen, no funcionará.
-        // *Solución definitiva*: Usar la API de Whisper o similar para OCR si es imagen, o una librería de PDF.
-        // *Para este caso*, asumiremos que el PDF es de texto y usaremos una librería simple o un servicio.
-        // *Nota*: Si no tienes librería, te recomiendo usar un servicio externo o añadir una dependencia.
-        // *Alternativa*: Usar la API de DeepSeek con el archivo adjunto (si soporta archivos).
-        // *DeepSeek no soporta archivos directamente*, así que necesitamos extraer el texto.
-        
-        // *Solución*: Usar una librería ligera de PDF en el worker. 
-        // Si no la tienes, puedes usar un workaround: subir el PDF a un servicio que lo convierta a texto.
-        // *Para simplificar*, asumiremos que extraes el texto correctamente.
-        // *Código de ejemplo* (necesitas instalar 'pdf-parse' en tu proyecto):
-        // const pdfParse = require('pdf-parse');
-        // const data = await pdfParse(pdfBuffer);
-        // const textContent = data.text;
-        
-        // *Alternativa sin dependencias*: Usar un servicio externo o asumir que el texto ya fue extraído al subir.
-        // *Mejor*: Al subir el archivo, extraer el texto y guardarlo en la DB.
-        // *Pero como ya está subido*, necesitamos extraerlo ahora.
-        
-        // *Solución práctica*: Usar una función de extracción de texto de PDF en el worker.
-        // Si no la tienes, te sugiero añadir una dependencia o usar un servicio.
-        // *Para este ejemplo*, asumiremos que tienes una función `extractTextFromPDF` que devuelve el texto.
-        // *Si no*, te recomiendo usar un servicio externo o añadir la librería.
-        
-        // *Suponiendo que extraes el texto*:
-        const textContent = await extractTextFromPDF(pdfBuffer); // Debes implementar esto o usar una librería
 
-        // 4. Construir el prompt para la IA
-        const systemPrompt = `Eres un profesor experto evaluador. Tu tarea es evaluar el trabajo del estudiante basado en la tarea asignada.
-        
+        // 3. Extraer texto del PDF (función auxiliar)
+        const textContent = await extractTextFromPDF(pdfBuffer);
+
+        // 4. Construir prompt de evaluación con criterios específicos
+        const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
+
 TAREA: ${submissionData.title}
 DESCRIPCIÓN: ${submissionData.description}
 PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
 
+CRITERIOS DE EVALUACIÓN OBLIGATORIOS:
+1. Normas APA 7ma edición (citas, referencias, formato).
+2. Redacción en tercera persona.
+3. Uso correcto de conectores lógicos.
+4. Inclusión y correcta etiquetado de tablas y figuras.
+5. Originalidad (no parece generado por IA).
+6. Coherencia y estructura lógica.
+7. Profundidad del análisis.
+
 INSTRUCCIONES:
-1. Analiza el contenido del trabajo del estudiante.
-2. Evalúa la calidad, precisión y cumplimiento de los requisitos.
-3. Proporciona retroalimentación constructiva si hay errores.
-4. Asigna una puntuación entre 0 y ${submissionData.max_score}.
+1. Analiza el contenido del trabajo.
+2. Evalúa cada criterio (1-7) y asigna una puntuación parcial.
+3. Suma las puntuaciones parciales para obtener la nota final (0-${submissionData.max_score}).
+4. Proporciona retroalimentación detallada por cada criterio.
 5. Devuelve la respuesta EXACTAMENTE en este formato JSON:
 {
   "score": <número entero>,
-  "feedback": "<texto de retroalimentación>",
-  "reasoning": "<razonamiento breve de la calificación>"
+  "feedback": {
+    "apa": "<texto>",
+    "tercera_persona": "<texto>",
+    "conectores": "<texto>",
+    "tablas_figuras": "<texto>",
+    "originalidad": "<texto>",
+    "coherencia": "<texto>",
+    "profundidad": "<texto>",
+    "general": "<resumen general>"
+  },
+  "reasoning": "<razonamiento breve de la calificación total>"
 }
 
-NO agregues texto adicional fuera del JSON. El campo 'score' debe ser un número entero.`;
+NO agregues texto adicional fuera del JSON.`;
 
-        const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent}`;
+        const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`; // Limitar tamaño
 
         // 5. Llamar a la IA (DeepSeek)
         const aiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt }
-                ],
-                temperature: 0.3,
-                max_tokens: 500
-            })
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            temperature: 0.3,
+            max_tokens: 800
+          })
         });
 
         if (!aiResponse.ok) {
-            throw new Error(`Error en API de IA: ${aiResponse.status}`);
+          throw new Error(`Error en API de IA: ${aiResponse.status}`);
         }
 
         const aiData = await aiResponse.json();
@@ -1233,17 +1250,15 @@ NO agregues texto adicional fuera del JSON. El campo 'score' debe ser un número
         // 6. Parsear la respuesta JSON
         let evaluation;
         try {
-            // Intentar extraer JSON de la respuesta (a veces la IA añade texto extra)
-            const jsonMatch = aiContent.match(/\{[\s\S]*"score"[\s\S]*\}/);
-            evaluation = JSON.parse(jsonMatch ? jsonMatch[0] : aiContent);
+          const jsonMatch = aiContent.match(/\{[\s\S]*"score"[\s\S]*\}/);
+          evaluation = JSON.parse(jsonMatch ? jsonMatch[0] : aiContent);
         } catch (parseError) {
-            console.error('Error parseando respuesta de IA:', parseError);
-            // Fallback: asignar puntuación máxima si falla el parseo
-            evaluation = {
-                score: submissionData.max_score,
-                feedback: 'Error al evaluar automáticamente. Se asignó la puntuación máxima por defecto.',
-                reasoning: 'Error de parseo'
-            };
+          console.error('Error parseando respuesta de IA:', parseError);
+          evaluation = {
+            score: Math.floor(submissionData.max_score * 0.8), // Fallback conservador
+            feedback: { general: 'Error al evaluar automáticamente. Se asignó una puntuación provisional.' },
+            reasoning: 'Error de parseo'
+          };
         }
 
         // 7. Validar la puntuación
@@ -1258,18 +1273,102 @@ NO agregues texto adicional fuera del JSON. El campo 'score' debe ser un número
 
         // 9. Devolver la respuesta al frontend
         return jsonResponse({
-            success: true,
-            score: finalScore,
-            max_score: submissionData.max_score,
-            feedback: evaluation.feedback,
-            reasoning: evaluation.reasoning
+          success: true,
+          score: finalScore,
+          max_score: submissionData.max_score,
+          feedback: evaluation.feedback,
+          reasoning: evaluation.reasoning
         }, 200, corsHeaders);
 
-    } catch (error) {
+      } catch (error) {
         console.error('Error evaluando entrega:', error);
         return jsonResponse({ error: 'Error al evaluar', details: error.message }, 500, corsHeaders);
+      }
     }
-}
+
+    // Ruta: POST /api/dispute-grade
+    if (path === '/api/dispute-grade' && request.method === 'POST') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      try {
+        const { submission_id, reason } = await request.json();
+
+        if (!submission_id || !reason) {
+          return jsonResponse({ error: 'ID de entrega y motivo requeridos' }, 400, corsHeaders);
+        }
+
+        // Verificar que el estudiante es el dueño de la entrega
+        const submission = await env.MIRAI_AI_DB.prepare(`
+            SELECT id FROM submissions WHERE id = ? AND user_dni = ?
+        `).bind(submission_id, userDni).first();
+
+        if (!submission) {
+          return jsonResponse({ error: 'Entrega no encontrada o no tienes acceso' }, 404, corsHeaders);
+        }
+
+        // Marcar como disputado
+        await env.MIRAI_AI_DB.prepare(`
+            UPDATE submissions 
+            SET dispute_status = 'pending', dispute_reason = ?
+            WHERE id = ?
+        `).bind(reason, submission_id).run();
+
+        return jsonResponse({ success: true, message: 'Disputa registrada. El profesor revisará tu caso.' }, 200, corsHeaders);
+
+      } catch (error) {
+        console.error('Error registrando disputa:', error);
+        return jsonResponse({ error: 'Error al registrar disputa', details: error.message }, 500, corsHeaders);
+      }
+    }
+
+    // Ruta: POST /api/professor-update-grade
+    if (path === '/api/professor-update-grade' && request.method === 'POST') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      try {
+        const { submission_id, new_score, feedback } = await request.json();
+
+        if (!submission_id || new_score === undefined) {
+          return jsonResponse({ error: 'ID de entrega y nueva nota requeridos' }, 400, corsHeaders);
+        }
+
+        // Verificar que la entrega existe
+        const submission = await env.MIRAI_AI_DB.prepare(`
+            SELECT id, assignment_id FROM submissions WHERE id = ?
+        `).bind(submission_id).first();
+
+        if (!submission) {
+          return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+        }
+
+        // Obtener max_score de la tarea
+        const assignment = await env.MIRAI_AI_DB.prepare(`
+            SELECT max_score FROM assignments WHERE id = ?
+        `).bind(submission.assignment_id).first();
+
+        if (!assignment) {
+          return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+        }
+
+        // Validar nota
+        const finalScore = Math.min(Math.max(new_score, 0), assignment.max_score);
+
+        // Actualizar nota y resolver disputa si existe
+        await env.MIRAI_AI_DB.prepare(`
+            UPDATE submissions 
+            SET score = ?, professor_note = ?, professor_feedback = ?, dispute_status = 'resolved'
+            WHERE id = ?
+        `).bind(finalScore, finalScore, feedback || null, submission_id).run();
+
+        return jsonResponse({ success: true, new_score: finalScore }, 200, corsHeaders);
+
+      } catch (error) {
+        console.error('Error actualizando nota:', error);
+        return jsonResponse({ error: 'Error al actualizar nota', details: error.message }, 500, corsHeaders);
+      }
+    }
 
     // Ruta: POST /api/submit-assignment
     if (path === '/api/submit-assignment' && request.method === 'POST') {
@@ -3278,4 +3377,19 @@ async function isAuthorizedProfessor(userDni, env) {
     console.error('Error verificando profesor:', error);
     return false;
   }
+}
+
+async function extractTextFromPDF(buffer) {
+  // Intento básico de extraer texto (funciona para PDFs de texto puro)
+  const decoder = new TextDecoder('utf-8');
+  const text = decoder.decode(buffer);
+
+  // Extraer texto entre marcas comunes de PDF
+  const textMatches = text.match(/\/Tx BMC[\s\S]*?EMC/g);
+  if (textMatches && textMatches.length > 0) {
+    return textMatches.map(match => match.replace(/\/Tx BMC|EMC/g, '').trim()).join('\n');
+  }
+
+  // Fallback: devolver el texto crudo limitado
+  return text.substring(0, 15000);
 }

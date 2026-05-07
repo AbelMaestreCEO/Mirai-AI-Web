@@ -1,24 +1,97 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalle de Tarea - Mirai AI</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .detail-container { max-width: 800px; margin: 40px auto; padding: 20px; padding-top: 80px; }
-        .assignment-header { background: var(--card-bg); padding: 30px; border-radius: 12px; margin-bottom: 30px; }
-        .upload-section { background: var(--card-bg); padding: 30px; border-radius: 12px; border: 2px dashed var(--border-color); text-align: center; }
-        .upload-section.drag-over { border-color: var(--primary-color); background: rgba(67, 97, 238, 0.05); }
-        .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; margin-top: 20px; }
-        .btn-upload { background: var(--primary-color); color: white; padding: 12px 24px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-upload input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
-        .status-message { margin-top: 15px; padding: 10px; border-radius: 6px; display: none; }
-        .status-success { background: #d4edda; color: #155724; }
-        .status-error { background: #f8d7da; color: #721c24; }
-        .btn-back { background: none; border: none; color: var(--primary-color); cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 5px; }
+        .detail-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            padding-top: 80px;
+        }
+
+        .assignment-header {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px dashed var(--border-color);
+            text-align: center;
+        }
+
+        .upload-section.drag-over {
+            border-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        .btn-upload {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-upload input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn-back {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
     </style>
 </head>
+
 <body>
     <!-- PANEL LATERAL (Igual que classroom.html) -->
     <nav class="mobile-sidebar">
@@ -162,51 +235,60 @@
     </header>
 
     <main class="classroom-container">
-    <div class="dashboard-header">
-        <h1>Detalle de Tarea</h1>
-        <a href="classroom.html" class="btn-secondary">← Volver</a>
-    </div>
-
-    <div class="task-detail-card">
-        <!-- Título de la tarea -->
-        <h2 id="task-title" style="margin-bottom: 10px;">Cargando...</h2>
-        
-        <!-- Metadatos -->
-        <div class="task-meta" style="margin-bottom: 20px; color: var(--text-secondary);">
-            <p><strong>Curso:</strong> <span id="task-course">-</span></p>
-            <p><strong>Vence:</strong> <span id="task-due">-</span></p>
-            <p><strong>Puntuación Máxima:</strong> <span id="task-max-score">-</span></p>
+        <div class="dashboard-header">
+            <h1>Detalle de Tarea</h1>
+            <a href="classroom.html" class="btn-secondary">← Volver</a>
         </div>
 
-        <!-- Descripción -->
-        <div class="task-description" style="margin-bottom: 20px;">
-            <h3>Descripción:</h3>
-            <p id="task-description">Cargando...</p>
-        </div>
+        <div class="task-detail-card">
+            <!-- Título de la tarea -->
+            <h2 id="task-title" style="margin-bottom: 10px;">Cargando...</h2>
 
-        <!-- Estado de la tarea -->
-        <div class="status-section" style="margin-bottom: 20px;">
-            <strong>Estado:</strong>
-            <span id="task-status" class="status-badge status-pending">Cargando...</span>
-        </div>
+            <!-- Metadatos -->
+            <div class="task-meta" style="margin-bottom: 20px; color: var(--text-secondary);">
+                <p><strong>Curso:</strong> <span id="task-course">-</span></p>
+                <p><strong>Vence:</strong> <span id="task-due">-</span></p>
+                <p><strong>Puntuación Máxima:</strong> <span id="task-max-score">-</span></p>
+            </div>
 
-        <!-- Sección de Entrega (Visible si no ha entregado) -->
-        <div id="submit-section" style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-color); border-radius: 8px;">
-            <!-- El formulario se inyectará aquí vía JS -->
-        </div>
+            <!-- Descripción -->
+            <div class="task-description" style="margin-bottom: 20px;">
+                <h3>Descripción:</h3>
+                <p id="task-description">Cargando...</p>
+            </div>
 
-        <!-- Sección de Evaluación (Visible si está en revisión y es profesor) -->
-        <div id="evaluate-section" style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-color); border-radius: 8px;">
-            <!-- El botón se inyectará aquí vía JS -->
-        </div>
+            <!-- Estado de la tarea -->
+            <div class="status-section" style="margin-bottom: 20px;">
+                <strong>Estado:</strong>
+                <span id="task-status" class="status-badge status-pending">Cargando...</span>
+            </div>
 
-        <!-- Sección de Feedback (Visible si ya fue evaluado) -->
-        <div id="feedback-section" style="display: none; margin-top: 20px; padding: 20px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
-            <!-- El feedback se inyectará aquí vía JS -->
+            <!-- Sección de Entrega (Visible si no ha entregado) -->
+            <div id="submit-section"
+                style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-color); border-radius: 8px;">
+                <!-- El formulario se inyectará aquí vía JS -->
+            </div>
+
+            <!-- Sección de Evaluación (Visible si está en revisión y es profesor) -->
+            <div id="evaluate-section"
+                style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-color); border-radius: 8px;">
+                <!-- El botón se inyectará aquí vía JS -->
+            </div>
+
+            <!-- Sección de Feedback (Visible si ya fue evaluado) -->
+            <div id="feedback-section"
+                style="display: none; margin-top: 20px; padding: 20px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
+                <!-- El feedback se inyectará aquí vía JS -->
+            </div>
+
+            <div id="dispute-section"
+                style="display: none; margin-top: 20px; padding: 20px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800;">
+                <!-- El botón se inyectará aquí vía JS -->
+            </div>
         </div>
-    </div>
-</main>
+    </main>
 
     <script src="classroom_details.js"></script>
 </body>
+
 </html>

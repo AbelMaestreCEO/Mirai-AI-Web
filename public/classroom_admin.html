@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,7 @@
         /* --- ESTILOS DASHBOARD --- */
         :root {
             --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --card-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
             --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
@@ -33,8 +34,17 @@
             box-shadow: var(--card-shadow);
         }
 
-        .dash-title h1 { margin: 0; font-size: 1.8rem; color: var(--text-primary); }
-        .dash-title p { margin: 5px 0 0; color: var(--text-secondary); font-size: 0.95rem; }
+        .dash-title h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--text-primary);
+        }
+
+        .dash-title p {
+            margin: 5px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
 
         /* Stats Grid */
         .stats-grid {
@@ -55,20 +65,39 @@
             overflow: hidden;
         }
 
-        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
         .stat-card::after {
             content: '';
             position: absolute;
-            top: -50%; right: -50%;
-            width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             opacity: 0;
             transition: var(--transition);
         }
-        .stat-card:hover::after { opacity: 1; }
 
-        .stat-value { font-size: 2.2rem; font-weight: 700; color: var(--primary-color); margin-bottom: 5px; }
-        .stat-label { font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-card:hover::after {
+            opacity: 1;
+        }
+
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
         /* Tabs System */
         .tabs-container {
@@ -80,7 +109,7 @@
 
         .tabs-nav {
             display: flex;
-            background: rgba(0,0,0,0.03);
+            background: rgba(0, 0, 0, 0.03);
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -96,18 +125,47 @@
             position: relative;
         }
 
-        .tab-btn:hover { color: var(--primary-color); background: rgba(0,0,0,0.02); }
-        .tab-btn.active { color: var(--primary-color); background: white; }
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            background: white;
+        }
+
         .tab-btn.active::after {
             content: '';
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
             background: var(--primary-color);
         }
 
-        .tab-content { display: none; padding: 30px; animation: fadeIn 0.4s ease; }
-        .tab-content.active { display: block; }
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.4s ease;
+        }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         /* Forms Modernos */
         .form-grid {
@@ -116,9 +174,17 @@
             gap: 20px;
         }
 
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); }
-        
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
         .form-control {
             width: 100%;
             padding: 12px 15px;
@@ -150,7 +216,10 @@
             gap: 8px;
         }
 
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
 
         /* Tablas */
         .data-table {
@@ -174,10 +243,25 @@
             vertical-align: middle;
         }
 
-        .data-table tr { box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: var(--transition); }
-        .data-table tr:hover { transform: scale(1.01); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .data-table tr:first-child td { border-top-left-radius: 10px; border-top-right-radius: 10px; }
-        .data-table tr:last-child td { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+        .data-table tr {
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: var(--transition);
+        }
+
+        .data-table tr:hover {
+            transform: scale(1.01);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table tr:first-child td {
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
 
         .badge {
             padding: 4px 10px;
@@ -185,8 +269,16 @@
             font-size: 0.75rem;
             font-weight: 600;
         }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-completed { background: #d4edda; color: #155724; }
+
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-completed {
+            background: #d4edda;
+            color: #155724;
+        }
 
         .action-btn {
             padding: 6px 12px;
@@ -197,16 +289,30 @@
             transition: var(--transition);
             margin-right: 5px;
         }
-        .btn-edit { background: #e3f2fd; color: #1976d2; }
-        .btn-delete { background: #ffebee; color: #d32f2f; }
-        .action-btn:hover { filter: brightness(0.9); }
+
+        .btn-edit {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn-delete {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .action-btn:hover {
+            filter: brightness(0.9);
+        }
 
         /* Modal */
         .modal {
             display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
             z-index: 2000;
             justify-content: center;
@@ -214,7 +320,11 @@
             opacity: 0;
             transition: opacity 0.3s ease;
         }
-        .modal.show { opacity: 1; }
+
+        .modal.show {
+            opacity: 1;
+        }
+
         .modal-content {
             background: var(--card-bg);
             padding: 30px;
@@ -223,18 +333,32 @@
             max-width: 500px;
             transform: translateY(20px);
             transition: transform 0.3s ease;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
         }
-        .modal.show .modal-content { transform: translateY(0); }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+        }
 
         /* Responsive */
         @media (max-width: 768px) {
-            .dash-header { flex-direction: column; align-items: flex-start; gap: 15px; }
-            .stats-grid { grid-template-columns: 1fr; }
-            .form-grid { grid-template-columns: 1fr; }
+            .dash-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <!-- SIDEBAR (Igual que index.html) -->
@@ -386,7 +510,7 @@
 
     <!-- MAIN DASHBOARD -->
     <main class="admin-dashboard">
-        
+
         <!-- Header con Bienvenida -->
         <div class="dash-header">
             <div class="dash-title">
@@ -395,6 +519,28 @@
             </div>
             <div style="display: flex; gap: 10px;">
                 <button class="btn-primary" onclick="switchTab('create')">➕ Nueva Tarea</button>
+            </div>
+        </div>
+
+        <!-- Nueva sección de disputas -->
+        <div class="disputes-section" style="margin-top: 40px;">
+            <h2 style="margin-bottom: 20px;">📋 Disputas Pendientes</h2>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Tarea</th>
+                            <th>Estudiante</th>
+                            <th>Nota Actual</th>
+                            <th>Fecha Entrega</th>
+                            <th>Motivo de Disputa</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="disputed-assignments-list">
+                        <!-- Se llenará dinámicamente -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -429,7 +575,8 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Título de la Tarea</label>
-                            <input type="text" id="task-title" class="form-control" placeholder="Ej: Examen Final de JavaScript" required>
+                            <input type="text" id="task-title" class="form-control"
+                                placeholder="Ej: Examen Final de JavaScript" required>
                         </div>
                         <div class="form-group">
                             <label>Curso</label>
@@ -437,14 +584,16 @@
                                 <option value="">Selecciona un curso...</option>
                                 <!-- Se llena dinámicamente -->
                             </select>
-                            <button type="button" id="btn-add-course" class="btn-primary" style="margin-top: 10px; font-size: 0.8rem; padding: 8px 12px;">
+                            <button type="button" id="btn-add-course" class="btn-primary"
+                                style="margin-top: 10px; font-size: 0.8rem; padding: 8px 12px;">
                                 + Agregar Nuevo Curso
                             </button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Descripción</label>
-                        <textarea id="task-desc" class="form-control" rows="4" placeholder="Detalles de la tarea..."></textarea>
+                        <textarea id="task-desc" class="form-control" rows="4"
+                            placeholder="Detalles de la tarea..."></textarea>
                     </div>
                     <div class="form-grid">
                         <div class="form-group">
@@ -456,7 +605,8 @@
                             <input type="number" id="task-score" class="form-control" value="100" min="1">
                         </div>
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Crear Tarea</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Crear
+                        Tarea</button>
                 </form>
             </div>
 
@@ -494,14 +644,16 @@
                         <input type="text" id="student-dni" class="form-control" placeholder="Ej: 30840119">
                     </div>
                 </div>
-                <button onclick="addStudent()" class="btn-primary" style="margin-bottom: 20px;">Asignar Estudiante</button>
-                
+                <button onclick="addStudent()" class="btn-primary" style="margin-bottom: 20px;">Asignar
+                    Estudiante</button>
+
                 <h3>Estudiantes Asignados</h3>
                 <div id="assigned-students-list" style="max-height: 400px; overflow-y: auto;">
                     <!-- Lista dinámica -->
                 </div>
             </div>
         </div>
+
     </main>
 
     <!-- MODAL: Crear Curso -->
@@ -511,14 +663,16 @@
             <form id="create-course-form">
                 <div class="form-group">
                     <label>Nombre del Curso</label>
-                    <input type="text" id="new-course-name" class="form-control" placeholder="Ej: Introducción a Python" required>
+                    <input type="text" id="new-course-name" class="form-control" placeholder="Ej: Introducción a Python"
+                        required>
                 </div>
                 <div class="form-group">
                     <label>Descripción (Opcional)</label>
                     <textarea id="new-course-desc" class="form-control" rows="3"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" onclick="closeModal()" class="btn-secondary" style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
+                    <button type="button" onclick="closeModal()" class="btn-secondary"
+                        style="padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">Cancelar</button>
                     <button type="submit" class="btn-primary">Crear Curso</button>
                 </div>
             </form>
@@ -527,4 +681,5 @@
 
     <script src="classroom_admin.js"></script>
 </body>
+
 </html>
