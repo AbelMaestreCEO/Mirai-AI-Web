@@ -149,149 +149,81 @@
         </button>
     </header>
 
-    <!-- CONTENIDO PRINCIPAL -->
-    <main class="detail-container">
+    <!-- CONTENIDO PRINCIPAL - IMPORTANTE: ID Y CLASE CORRECTOS -->
+    <main class="detail-container" id="detail-container">
         
-        <!-- Header de la Tarea -->
-        <div class="task-header-card animate-enter">
-            <div class="task-header-icon">📝</div>
-            <div class="task-header-content">
-                <h1 id="task-title" class="task-title">Cargando...</h1>
-                <p id="task-course" class="task-course">Curso: -</p>
-            </div>
-        </div>
-
-        <!-- Metadatos de la Tarea -->
-        <div class="task-meta-grid animate-enter">
-            <div class="meta-item">
-                <span class="meta-icon">📅</span>
-                <div class="meta-content">
-                    <span class="meta-label">Fecha Límite</span>
-                    <span id="task-due" class="meta-value">-</span>
-                </div>
-            </div>
-            <div class="meta-item">
-                <span class="meta-icon">⭐</span>
-                <div class="meta-content">
-                    <span class="meta-label">Puntuación Máxima</span>
-                    <span id="task-max-score" class="meta-value">-</span>
-                </div>
-            </div>
-            <div class="meta-item">
-                <span class="meta-icon">📊</span>
-                <div class="meta-content">
-                    <span class="meta-label">Estado</span>
-                    <span id="task-status" class="meta-value status-badge status-pending">Cargando...</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Descripción de la Tarea -->
-        <div class="card task-description-card animate-enter">
-            <h2 class="section-title">Descripción</h2>
-            <p id="task-description" class="task-desc-text">Cargando...</p>
-        </div>
-
-        <!-- Sección de Entrega -->
-        <div id="submit-section" class="card submit-section-card animate-enter" style="display: none;">
-            <h2 class="section-title">Entregar Tarea</h2>
-            <p class="section-subtitle">Sube tus archivos o escribe tu respuesta</p>
-            
-            <div class="upload-area" id="upload-area">
-                <div class="upload-icon">📤</div>
-                <p class="upload-text">Arrastra y suelta archivos aquí</p>
-                <p class="upload-hint">o</p>
-                
-                <div class="file-input-wrapper">
-                    <button class="btn btn-primary">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                            <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
-                        </svg>
-                        Seleccionar Archivos
-                    </button>
-                    <input type="file" id="file-input" multiple>
-                </div>
-
-                <div id="file-list" class="file-list"></div>
-            </div>
-
-            <div class="response-textarea">
-                <textarea id="task-response" placeholder="Escribe tu respuesta aquí..." rows="4"></textarea>
-            </div>
-
-            <div class="submit-actions">
-                <button id="cancel-submit" class="btn btn-secondary">Cancelar</button>
-                <button id="submit-task" class="btn btn-primary">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                    Enviar Tarea
-                </button>
-            </div>
-
-            <div id="submit-status" class="status-message"></div>
-        </div>
-
-        <!-- Sección de Evaluación (Profesor) -->
-        <div id="evaluate-section" class="card evaluate-section-card animate-enter" style="display: none;">
-            <h2 class="section-title">Evaluar Tarea</h2>
-            <p class="section-subtitle">Revisa el trabajo del estudiante y proporciona feedback</p>
-
-            <div class="evaluation-form">
-                <div class="form-group">
-                    <label for="evaluation-score">Puntuación</label>
-                    <input type="number" id="evaluation-score" class="input-field" min="0" max="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="evaluation-feedback">Feedback</label>
-                    <textarea id="evaluation-feedback" class="input-field" rows="4" placeholder="Escribe tu comentario..."></textarea>
-                </div>
-
-                <div class="evaluation-actions">
-                    <button id="save-evaluation" class="btn btn-primary">Guardar Evaluación</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sección de Feedback (Evaluado) -->
-        <div id="feedback-section" class="card feedback-section-card animate-enter" style="display: none;">
-            <div class="feedback-header">
-                <span class="feedback-icon">✅</span>
-                <h2 class="section-title">Tarea Evaluada</h2>
-            </div>
-
-            <div class="feedback-content">
-                <div class="feedback-score">
-                    <span class="score-label">Tu Puntuación</span>
-                    <span id="feedback-score" class="score-value">-</span>
-                    <span class="score-max">/ <span id="feedback-max">-</span></span>
-                </div>
-
-                <div class="feedback-comment">
-                    <h3>Comentarios del Profesor</h3>
-                    <p id="feedback-text">-</p>
-                </div>
-            </div>
-
-            <div id="dispute-section" class="dispute-box" style="display: none;">
-                <p class="dispute-text">¿No estás de acuerdo con la evaluación?</p>
-                <button id="dispute-btn" class="btn btn-secondary">Solicitar Revisión</button>
-            </div>
-        </div>
-
         <!-- Estado de Carga -->
-        <div id="loading-state" class="loading-state" style="display: none;">
+        <div id="loading-state" class="loading-state">
             <div class="loading-spinner"></div>
             <p>Cargando detalles de la tarea...</p>
         </div>
 
         <!-- Estado de Error -->
-        <div id="error-state" class="card error-state" style="display: none;">
+        <div id="error-state" class="error-state" style="display: none;">
             <div class="error-icon">⚠️</div>
             <h3>Error al cargar la tarea</h3>
             <p id="error-message"></p>
             <button onclick="window.location.reload()" class="btn btn-primary">Recargar</button>
+        </div>
+
+        <!-- Contenido de la Tarea (oculto hasta cargar) -->
+        <div id="task-content" style="display: none;">
+            
+            <!-- Header de la Tarea -->
+            <div class="task-header-card">
+                <div class="task-header-icon">📝</div>
+                <div class="task-header-content">
+                    <h1 id="task-title" class="task-title">Cargando...</h1>
+                    <p id="task-course" class="task-course">Curso: -</p>
+                </div>
+            </div>
+
+            <!-- Metadatos de la Tarea -->
+            <div class="task-meta-grid">
+                <div class="meta-item">
+                    <span class="meta-icon">📅</span>
+                    <div class="meta-content">
+                        <span class="meta-label">Fecha Límite</span>
+                        <span id="task-due" class="meta-value">-</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-icon">⭐</span>
+                    <div class="meta-content">
+                        <span class="meta-label">Puntuación Máxima</span>
+                        <span id="task-max-score" class="meta-value">-</span>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-icon">📊</span>
+                    <div class="meta-content">
+                        <span class="meta-label">Estado</span>
+                        <span id="task-status" class="meta-value status-badge status-pending">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Descripción de la Tarea -->
+            <div class="card task-description-card">
+                <h2 class="section-title">Descripción</h2>
+                <p id="task-description" class="task-desc-text">Cargando...</p>
+            </div>
+
+            <!-- Sección de Entrega -->
+            <div id="submit-section" class="card submit-section-card" style="display: none;">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+
+            <!-- Sección de Evaluación (Estudiante) -->
+            <div id="evaluate-section" class="card evaluate-section-card" style="display: none;">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+
+            <!-- Sección de Feedback (Evaluado) -->
+            <div id="feedback-section" class="card feedback-section-card" style="display: none;">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+
         </div>
 
     </main>

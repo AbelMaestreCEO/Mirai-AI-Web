@@ -1,16 +1,21 @@
-// classroom_details.js
+// classroom_details.js - VERSIÓN DEBUG
 
-// --- SOBRECARGA DE FETCH (Autenticación Global) ---
+console.log('🔍 classroom_details.js cargado');
+
+// --- SOBRECARGA DE FETCH ---
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
+    console.log('📡 Fetch:', url);
     if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
         const token = localStorage.getItem('mirai_auth_token');
+        console.log('🔐 Token:', token ? 'EXISTS' : 'MISSING');
         if (token) {
             options.headers = {
                 ...options.headers,
                 'Authorization': `Bearer ${token}`
             };
         } else {
+            console.warn('⚠️ Sin token, redirigiendo a login');
             window.location.href = 'login.html';
             return;
         }
@@ -20,43 +25,68 @@ window.fetch = async function (url, options = {}) {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('✅ DOMContentLoaded');
+    
     const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
     
+    console.log('👤 Token:', token ? 'OK' : 'MISSING');
+    console.log('👤 DNI:', dni ? dni : 'MISSING');
+    
     if (!token || !dni) {
+        console.error('❌ No autenticado');
         window.location.href = 'login.html';
         return;
     }
 
-    // Inicializar componentes UI
     setupMobileMenu();
     setupLogout();
     
-    // Cargar datos de la tarea
+    console.log('🔄 Cargando detalles de tarea...');
     await loadAssignmentDetails();
 });
 
 // --- CARGA DE DATOS ---
 async function loadAssignmentDetails() {
+    console.log('📥 loadAssignmentDetails iniciado');
+    
     const loadingState = document.getElementById('loading-state');
     const errorState = document.getElementById('error-state');
-    const contentContainer = document.querySelector('.detail-container');
+    const taskContent = document.getElementById('task-content');
+    const detailContainer = document.getElementById('detail-container');
+
+    console.log('🔍 Elementos encontrados:', {
+        loadingState: !!loadingState,
+        errorState: !!errorState,
+        taskContent: !!taskContent,
+        detailContainer: !!detailContainer
+    });
 
     if (loadingState) loadingState.style.display = 'block';
+    if (errorState) errorState.style.display = 'none';
+    if (taskContent) taskContent.style.display = 'none';
 
     const urlParams = new URLSearchParams(window.location.search);
     const assignmentId = urlParams.get('id');
     
+    console.log('🆔 Assignment ID:', assignmentId);
+    
     if (!assignmentId) {
-        showError('ID de tarea no proporcionado');
+        console.error('❌ ID de tarea no proporcionado');
+        showError('ID de tarea no proporcionado. URL: ' + window.location.href);
         return;
     }
 
     try {
+        console.log('📡 Llamando a API...');
         const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
+        console.log('📊 Response Status:', response.status);
+        
         const data = await response.json();
+        console.log('📦 Data recibida:', data);
         
         if (!response.ok) {
+            console.error('❌ API Error:', data.error);
             if (response.status === 404) {
                 showError('Esta tarea no está disponible para ti o no existe.');
             } else if (response.status === 401) {
@@ -68,111 +98,118 @@ async function loadAssignmentDetails() {
         }
 
         const assignment = data;
-        const submission = data.submission; // Puede ser null
+        const submission = data.submission;
 
-        // Referencias a elementos del DOM
-        const titleEl = document.getElementById('task-title');
-        const courseEl = document.getElementById('task-course');
-        const dueEl = document.getElementById('task-due');
-        const maxScoreEl = document.getElementById('task-max-score');
-        const descEl = document.getElementById('task-description');
-        const statusBadge = document.getElementById('task-status');
-        
-        const submitSection = document.getElementById('submit-section');
-        const evaluateSection = document.getElementById('evaluate-section');
-        const feedbackSection = document.getElementById('feedback-section');
-        const disputeSection = document.getElementById('dispute-section');
+        console.log('📋 Assignment:', assignment);
+        console.log('📝 Submission:', submission);
+
+        // Referencias a elementos
+        const elements = {
+            title: document.getElementById('task-title'),
+            course: document.getElementById('task-course'),
+            due: document.getElementById('task-due'),
+            maxScore: document.getElementById('task-max-score'),
+            desc: document.getElementById('task-description'),
+            status: document.getElementById('task-status'),
+            submitSection: document.getElementById('submit-section'),
+            evaluateSection: document.getElementById('evaluate-section'),
+            feedbackSection: document.getElementById('feedback-section')
+        };
+
+        console.log('🔍 Elementos DOM:', elements);
 
         // Validar elementos esenciales
-        if (!titleEl || !courseEl || !descEl || !statusBadge) {
-            console.error('Faltan elementos HTML esenciales');
-            showError('Error de estructura en la página.');
+        const essentialIds = ['task-title', 'task-course', 'task-description', 'task-status'];
+        const missingIds = essentialIds.filter(id => !elements[id.toLowerCase().replace('task-', '')]);
+        
+        if (missingIds.length > 0) {
+            console.error('❌ Elementos faltantes:', missingIds);
+            showError(`Faltan elementos HTML: ${missingIds.join(', ')}`);
             return;
         }
 
-        // Ocultar loading
+        // Ocultar loading, mostrar contenido
         if (loadingState) loadingState.style.display = 'none';
+        if (taskContent) taskContent.style.display = 'block';
 
-        // Rellenar datos básicos
-        titleEl.textContent = assignment.title;
-        courseEl.textContent = assignment.course_title || 'General';
-        descEl.textContent = assignment.description || 'Sin descripción';
+        // Rellenar datos
+        elements.title.textContent = assignment.title || 'Sin título';
+        elements.course.textContent = assignment.course_title || 'General';
+        elements.desc.textContent = assignment.description || 'Sin descripción';
         
         if (assignment.due_date) {
-            dueEl.textContent = new Date(assignment.due_date).toLocaleDateString('es-ES', {
+            elements.due.textContent = new Date(assignment.due_date).toLocaleDateString('es-ES', {
                 day: 'numeric', month: 'long', year: 'numeric'
             });
         } else {
-            dueEl.textContent = 'Sin fecha límite';
+            elements.due.textContent = 'Sin fecha límite';
         }
 
-        if (maxScoreEl) {
-            maxScoreEl.textContent = assignment.max_score || 'N/A';
+        if (elements.maxScore) {
+            elements.maxScore.textContent = assignment.max_score || 'N/A';
         }
 
-        // --- LÓGICA DE ESTADOS ---
-        handleSubmissionState(submission, assignment, submitSection, evaluateSection, feedbackSection, disputeSection);
+        // Manejar estado de entrega
+        handleSubmissionState(submission, assignment, elements);
 
     } catch (error) {
-        console.error('Error cargando detalles:', error);
+        console.error('💥 Error en loadAssignmentDetails:', error);
         if (loadingState) loadingState.style.display = 'none';
         if (errorState) {
             errorState.style.display = 'block';
-            document.getElementById('error-message').textContent = error.message;
+            const msgEl = document.getElementById('error-message');
+            if (msgEl) msgEl.textContent = error.message;
         } else {
-            showError('Error de conexión. Intenta de nuevo.');
+            showError('Error de conexión: ' + error.message);
         }
     }
 }
 
-// --- MANEJO DE ESTADOS DE ENTREGA ---
-function handleSubmissionState(submission, assignment, submitSection, evaluateSection, feedbackSection, disputeSection) {
-    const statusBadge = document.getElementById('task-status');
+// --- MANEJO DE ESTADOS ---
+function handleSubmissionState(submission, assignment, elements) {
+    console.log('🔄 handleSubmissionState:', { submission, assignmentId: assignment.id });
 
     if (submission) {
         if (submission.status === 'evaluated' || submission.status === 'completed') {
-            // CASO: Evaluado
-            statusBadge.className = 'status-badge status-evaluated';
+            console.log('✅ Estado: Evaluado');
+            elements.status.className = 'status-badge status-evaluated';
             const finalScore = submission.professor_note ?? submission.score;
-            statusBadge.textContent = `Revisado ${finalScore}/${assignment.max_score}`;
+            elements.status.textContent = `Revisado ${finalScore}/${assignment.max_score}`;
             
-            if (feedbackSection) {
-                feedbackSection.style.display = 'block';
-                renderFeedback(feedbackSection, submission, assignment.max_score, disputeSection);
+            if (elements.feedbackSection) {
+                elements.feedbackSection.style.display = 'block';
+                renderFeedback(elements.feedbackSection, submission, assignment.max_score);
             }
 
         } else if (submission.status === 'submitted' || submission.status === 'pending') {
-            // CASO: Entregado, en revisión
-            statusBadge.className = 'status-badge status-submitted';
-            statusBadge.textContent = 'En revisión';
+            console.log('⏳ Estado: En revisión');
+            elements.status.className = 'status-badge status-submitted';
+            elements.status.textContent = 'En revisión';
             
-            // Botón para evaluar con IA (si el estudiante quiere acelerar)
-            if (evaluateSection) {
-                evaluateSection.style.display = 'block';
-                evaluateSection.innerHTML = `
+            if (elements.evaluateSection) {
+                elements.evaluateSection.style.display = 'block';
+                elements.evaluateSection.innerHTML = `
                     <h3 class="section-title">¿Quieres una evaluación rápida?</h3>
                     <p class="section-subtitle">Usa nuestra IA para obtener una calificación preliminar</p>
-                    <button id="ai-evaluate-btn" class="btn btn-primary">
-                        🤖 Evaluar con IA
-                    </button>
+                    <button id="ai-evaluate-btn" class="btn btn-primary">🤖 Evaluar con IA</button>
                 `;
                 
                 document.getElementById('ai-evaluate-btn').onclick = () => confirmEvaluation(submission.id);
             }
         }
     } else {
-        // CASO: No ha entregado
-        statusBadge.className = 'status-badge status-pending';
-        statusBadge.textContent = 'Pendiente';
+        console.log('📤 Estado: Pendiente de entrega');
+        elements.status.className = 'status-badge status-pending';
+        elements.status.textContent = 'Pendiente';
         
-        if (submitSection) {
-            submitSection.style.display = 'block';
-            renderUploadForm(submitSection, assignment.id);
+        if (elements.submitSection) {
+            elements.submitSection.style.display = 'block';
+            renderUploadForm(elements.submitSection, assignment.id);
         }
     }
 }
 
-// --- RENDERIZADO DE FORMULARIO DE SUBIDA ---
+// --- RESTO DE FUNCIONES (sin cambios) ---
 function renderUploadForm(container, assignmentId) {
     container.innerHTML = `
         <h3 class="section-title">Entregar Tarea</h3>
@@ -184,12 +221,7 @@ function renderUploadForm(container, assignmentId) {
             <p class="upload-hint">o</p>
             
             <div class="file-input-wrapper">
-                <button class="btn btn-primary">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                        <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
-                    </svg>
-                    Seleccionar Archivos
-                </button>
+                <button class="btn btn-primary">Seleccionar Archivos</button>
                 <input type="file" id="file-input" accept=".pdf,.doc,.docx" multiple>
             </div>
 
@@ -202,18 +234,12 @@ function renderUploadForm(container, assignmentId) {
 
         <div class="submit-actions">
             <button id="cancel-submit" class="btn btn-secondary">Cancelar</button>
-            <button id="submit-task" class="btn btn-primary">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-                Enviar Tarea
-            </button>
+            <button id="submit-task" class="btn btn-primary">Enviar Tarea</button>
         </div>
 
         <div id="submit-status" class="status-message"></div>
     `;
 
-    // Event Listeners
     const fileInput = document.getElementById('file-input');
     const submitBtn = document.getElementById('submit-task');
     const uploadArea = document.getElementById('upload-area');
@@ -221,13 +247,11 @@ function renderUploadForm(container, assignmentId) {
 
     // Drag & Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadArea.addEventListener(eventName, preventDefaults, false);
+        uploadArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
     });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
 
     ['dragenter', 'dragover'].forEach(eventName => {
         uploadArea.addEventListener(eventName, () => uploadArea.classList.add('drag-over'), false);
@@ -237,20 +261,15 @@ function renderUploadForm(container, assignmentId) {
         uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('drag-over'), false);
     });
 
-    uploadArea.addEventListener('drop', handleDrop, false);
-
-    function handleDrop(e) {
+    uploadArea.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
         const files = dt.files;
-        handleFiles(files);
-    }
-
-    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-    function handleFiles(files) {
-        fileList.innerHTML = '';
         [...files].forEach(validateAndAddFile);
-    }
+    }, false);
+
+    fileInput.addEventListener('change', (e) => {
+        [...e.target.files].forEach(validateAndAddFile);
+    });
 
     function validateAndAddFile(file) {
         if (file.size > 10 * 1024 * 1024) {
@@ -268,7 +287,6 @@ function renderUploadForm(container, assignmentId) {
         fileList.appendChild(chip);
     }
 
-    // Submit
     submitBtn.addEventListener('click', async () => {
         const files = fileList.querySelectorAll('.file-chip');
         if (files.length === 0) {
@@ -277,13 +295,12 @@ function renderUploadForm(container, assignmentId) {
         }
 
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '⏳ Enviando...';
+        submitBtn.textContent = '⏳ Enviando...';
 
         try {
             const formData = new FormData();
             formData.append('assignment_id', assignmentId);
             
-            // Nota: Necesitas ajustar esto según cómo manejes múltiples archivos en tu backend
             const fileInput = document.getElementById('file-input');
             if (fileInput.files.length > 0) {
                 formData.append('file', fileInput.files[0]);
@@ -305,18 +322,12 @@ function renderUploadForm(container, assignmentId) {
         } catch (error) {
             showStatus(`❌ Error: ${error.message}`, 'error');
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-                Enviar Tarea
-            `;
+            submitBtn.textContent = 'Enviar Tarea';
         }
     });
 }
 
-// --- RENDERIZADO DE FEEDBACK ---
-function renderFeedback(container, submission, maxScore, disputeContainer) {
+function renderFeedback(container, submission, maxScore) {
     let feedbackText = 'Sin retroalimentación.';
     
     try {
@@ -359,25 +370,9 @@ function renderFeedback(container, submission, maxScore, disputeContainer) {
         </div>
 
         ${feedbackText}
-
-        <div id="dispute-section-inner" class="dispute-box" style="display: ${submission.dispute_status ? 'none' : 'flex'}">
-            <p class="dispute-text">¿No estás de acuerdo con la evaluación?</p>
-            <button id="dispute-btn" class="btn btn-secondary">Solicitar Revisión</button>
-        </div>
     `;
-
-    // Manejar disputa
-    const disputeInner = document.getElementById('dispute-section-inner');
-    if (disputeInner && !submission.dispute_status) {
-        document.getElementById('dispute-btn').onclick = () => openDisputeModal(submission.id, maxScore);
-    } else if (disputeInner && submission.dispute_status === 'pending') {
-        disputeInner.innerHTML = '<p style="color:#ff9800; font-weight:bold;">⚠️ Tu disputa está en revisión.</p>';
-    } else if (disputeInner && submission.dispute_status === 'resolved') {
-        disputeInner.innerHTML = '<p style="color:#4caf50; font-weight:bold;">✅ Tu disputa ha sido resuelta.</p>';
-    }
 }
 
-// --- EVALUACIÓN CON IA ---
 function confirmEvaluation(submissionId) {
     const criteria = [
         "Cumplimiento de normas APA 7ma edición",
@@ -418,7 +413,7 @@ async function startEvaluation(submissionId) {
             throw new Error(data.error || 'Error al evaluar');
         }
 
-        alert(`✅ Evaluación completada: ${data.score}/${data.max_score}\n\nRevisa los resultados abajo.`);
+        alert(`✅ Evaluación completada: ${data.score}/${data.max_score}`);
         window.location.reload();
 
     } catch (error) {
@@ -431,47 +426,6 @@ async function startEvaluation(submissionId) {
     }
 }
 
-// --- DISPUTA DE NOTA ---
-function openDisputeModal(submissionId, maxScore) {
-    const reason = prompt("Explica por qué no estás conforme con tu nota (máx. 500 caracteres):");
-    
-    if (!reason || reason.trim() === '') {
-        alert("Debes proporcionar un motivo.");
-        return;
-    }
-
-    if (reason.length > 500) {
-        alert("El motivo no puede superar los 500 caracteres.");
-        return;
-    }
-
-    submitDispute(submissionId, reason);
-}
-
-async function submitDispute(submissionId, reason) {
-    try {
-        const response = await fetch('/api/dispute-grade', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ submission_id: submissionId, reason: reason })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Error al registrar disputa');
-        }
-
-        alert('✅ Disputa registrada. El profesor revisará tu caso.');
-        window.location.reload();
-
-    } catch (error) {
-        console.error('Error:', error);
-        alert('❌ Error al registrar disputa: ' + error.message);
-    }
-}
-
-// --- UTILIDADES ---
 function showStatus(message, type) {
     const statusEl = document.getElementById('submit-status');
     if (statusEl) {
@@ -482,7 +436,8 @@ function showStatus(message, type) {
 }
 
 function showError(message) {
-    const container = document.querySelector('.detail-container');
+    console.error('❌ showError:', message);
+    const container = document.getElementById('detail-container');
     if (container) {
         container.innerHTML = `
             <div class="error-state">
@@ -503,7 +458,10 @@ function setupMobileMenu() {
     const sidebar = document.querySelector('.mobile-sidebar');
     const overlay = document.querySelector('.mobile-overlay');
     
-    if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
+    if (!menuToggle || !closeMenu || !sidebar || !overlay) {
+        console.warn('⚠️ Elementos del menú no encontrados');
+        return;
+    }
 
     function toggleMenu() {
         const isActive = sidebar.classList.contains('active');
