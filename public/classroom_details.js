@@ -109,7 +109,7 @@ async function loadAssignmentDetails() {
             course: document.getElementById('task-course'),
             due: document.getElementById('task-due'),
             maxScore: document.getElementById('task-max-score'),
-            desc: document.getElementById('task-description'),
+            description: document.getElementById('task-description'),
             status: document.getElementById('task-status'),
             submitSection: document.getElementById('submit-section'),
             evaluateSection: document.getElementById('evaluate-section'),
@@ -135,7 +135,7 @@ async function loadAssignmentDetails() {
         // Rellenar datos
         elements.title.textContent = assignment.title || 'Sin título';
         elements.course.textContent = assignment.course_title || 'General';
-        elements.desc.textContent = assignment.description || 'Sin descripción';
+        elements.description.textContent = assignment.description || 'Sin descripción';
         
         if (assignment.due_date) {
             elements.due.textContent = new Date(assignment.due_date).toLocaleDateString('es-ES', {
