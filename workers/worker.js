@@ -578,24 +578,23 @@ async function findExistingLearningChat(db, userDni, taskId, mode) {
         ORDER BY updated_at DESC 
         LIMIT 1
     `);
+    
+    const { results } = await stmt.bind(userDni).all();
+    
+    if (results.length === 0) return null;
 
-  const { results } = await stmt.bind(userDni).all();
-
-  if (results.length === 0) return null;
-
-  // Filtrar manualmente en JS para asegurar coincidencia exacta de tarea y modo
-  for (const chat of results) {
-    try {
-      const ctx = JSON.parse(chat.learning_context);
-      if (ctx.task_id === taskId && ctx.mode === mode) {
-        return chat;
-      }
-    } catch (e) {
-      continue;
+    for (const chat of results) {
+        try {
+            const ctx = JSON.parse(chat.learning_context);
+            if (ctx.task_id === taskId && ctx.mode === mode) {
+                return chat;
+            }
+        } catch (e) {
+            continue;
+        }
     }
-  }
-
-  return null;
+    
+    return null;
 }
 
 async function handleGetOrCreateLearningChat(request, env) {
@@ -612,7 +611,15 @@ async function handleGetOrCreateLearningChat(request, env) {
     });
   }
 
-  const db = env.DB;
+  const db = env.MIRAI_AI_DB;
+
+  if (!db) {
+        console.error("❌ Error: env.MIRAI_AI_DB es undefined. Revisa tus bindings en wrangler.toml");
+        return new Response(JSON.stringify({ error: 'Error de configuración de base de datos' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
   // 1. Intentar encontrar chat existente
   const existingChat = await findExistingLearningChat(db, userDni, taskId, mode);
@@ -676,7 +683,7 @@ async function handleSetSystemPrompt(request, env) {
       });
     }
 
-    const db = env.DB;
+    const db = env.MIRAI_AI_DB;
 
     // Actualizar el system_prompt en la tabla conversations
     const updateStmt = db.prepare(`
