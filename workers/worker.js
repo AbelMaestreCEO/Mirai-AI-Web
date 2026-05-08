@@ -744,65 +744,105 @@ async function extractTextFromDocx(buffer) {
     const text = decoder.decode(buffer);
 
     console.log(`🔍 [DOCX] Buffer size: ${buffer.byteLength} bytes`);
-    console.log(`🔍 [DOCX] Primeros 200 chars: ${text.substring(0, 200)}`);
+    console.log(`🔍 [DOCX] Primeros 100 chars: ${text.substring(0, 100)}`);
 
-    // Buscar word/document.xml dentro del ZIP
-    const docStartMarker = 'word/document.xml';
-    const docStartIndex = text.indexOf(docStartMarker);
-
-    if (docStartIndex === -1) {
-      // Intentar buscar sin la ruta completa
-      const altMarker = 'document.xml';
-      const altIndex = text.indexOf(altMarker);
-      if (altIndex === -1) {
-        throw new Error("No se encontró 'word/document.xml' en el DOCX. ¿Es un archivo válido?");
-      }
+    // 1. Buscar el marcador de archivo ZIP (PK)
+    const zipMarker = 'PK';
+    const zipIndex = text.indexOf(zipMarker);
+    if (zipIndex === -1) {
+      throw new Error("No se detectó firma de archivo ZIP. ¿Es un DOCX válido?");
     }
 
-    const searchIndex = docStartIndex !== -1 ? docStartIndex : text.indexOf('document.xml');
+    // 2. Buscar word/document.xml dentro del ZIP
+    const docMarker = 'word/document.xml';
+    const docIndex = text.indexOf(docMarker);
+    
+    if (docIndex === -1) {
+      // Intentar buscar variantes
+      const altMarkers = ['document.xml', '_rels/.rels', '[Content_Types].xml'];
+      for (const marker of altMarkers) {
+        const idx = text.indexOf(marker);
+        if (idx !== -1) {
+          console.log(`🔍 [DOCX] Marcador alternativo encontrado: ${marker}`);
+          break;
+        }
+      }
+      throw new Error("No se encontró 'word/document.xml' en el DOCX. El archivo podría estar corrupto.");
+    }
 
-    // Buscar <w:body> después del marcador
-    const bodyStart = text.indexOf('<w:body', searchIndex);
+    console.log(`🔍 [DOCX] word/document.xml encontrado en posición: ${docIndex}`);
+
+    // 3. Buscar el contenido XML después del marcador
+    // El XML comienza después del nombre del archivo en el ZIP
+    // Buscamos el primer '<' después del marcador
+    let xmlStart = text.indexOf('<', docIndex);
+    if (xmlStart === -1) {
+      throw new Error("No se encontró inicio de XML después de word/document.xml");
+    }
+
+    // 4. Buscar <w:body> dentro del XML
+    const bodyStart = text.indexOf('<w:body', xmlStart);
     if (bodyStart === -1) {
-      // Buscar variantes
-      const altBody = text.indexOf('<w:body');
+      // Intentar buscar sin namespace
+      const altBody = text.indexOf('<body');
       if (altBody === -1) {
-        throw new Error("No se encontró <w:body>. El documento podría estar corrupto o en formato diferente.");
+        // Buscar cualquier contenido de párrafo
+        const altPara = text.indexOf('<w:p');
+        if (altPara === -1) {
+          throw new Error("No se encontró <w:body> ni <w:p>. El documento podría estar vacío.");
+        }
+        console.log(`🔍 [DOCX] Usando <w:p> como fallback`);
+        return extractTextFromParagraphs(text, altPara);
       }
+      console.log(`🔍 [DOCX] Usando <body> como fallback`);
+      return extractTextFromParagraphs(text, altBody);
     }
 
-    const actualBodyStart = bodyStart !== -1 ? bodyStart : text.indexOf('<w:body');
-    const bodyEnd = text.indexOf('</w:body>', actualBodyStart);
+    // 5. Buscar </w:body>
+    const bodyEnd = text.indexOf('</w:body>', bodyStart);
     if (bodyEnd === -1) {
-      throw new Error("No se encontró </w:body>.");
+      throw new Error("No se encontró </w:body>. El documento podría estar incompleto.");
     }
 
-    const xmlContent = text.substring(actualBodyStart, bodyEnd + 9);
+    const xmlContent = text.substring(bodyStart, bodyEnd + 9);
     console.log(`🔍 [DOCX] XML content length: ${xmlContent.length}`);
 
-    // Extraer texto de <w:t> dentro de <w:p>
-    const paragraphRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
-    const paragraphs = xmlContent.match(paragraphRegex) || [];
-    console.log(`🔍 [DOCX] Párrafos encontrados: ${paragraphs.length}`);
-
-    const extractedText = paragraphs.map(para => {
-      const textNodes = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [];
-      return textNodes.map(node => node.replace(/<[^>]+>/g, '').trim()).join(' ');
-    }).filter(t => t.length > 0).join('\n');
-
-    console.log(`🔍 [DOCX] Texto extraído: ${extractedText.length} caracteres`);
-    console.log(`🔍 [DOCX] Primeros 300 chars: ${extractedText.substring(0, 300)}`);
-
-    if (extractedText.length < 50) {
-      throw new Error("El documento parece estar vacío o no contiene texto legible.");
-    }
-
-    return extractedText.substring(0, 15000);
+    return extractTextFromParagraphs(xmlContent, 0);
 
   } catch (error) {
     console.error('❌ extractTextFromDocx error:', error.message);
     throw error;
   }
+}
+function extractTextFromParagraphs(xmlContent, startIndex) {
+  // Extraer texto de <w:t> dentro de <w:p>
+  const paragraphRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
+  const paragraphs = xmlContent.match(paragraphRegex) || [];
+  console.log(`🔍 [DOCX] Párrafos encontrados: ${paragraphs.length}`);
+
+  const extractedText = paragraphs.map(para => {
+    // Extraer texto de <w:t> (puede haber múltiples en un párrafo)
+    const textNodes = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [];
+    return textNodes.map(node => {
+      // Limpiar etiquetas XML y entidades
+      let cleanText = node.replace(/<[^>]+>/g, '');
+      cleanText = cleanText.replace(/&nbsp;/g, ' ');
+      cleanText = cleanText.replace(/&lt;/g, '<');
+      cleanText = cleanText.replace(/&gt;/g, '>');
+      cleanText = cleanText.replace(/&amp;/g, '&');
+      cleanText = cleanText.replace(/&quot;/g, '"');
+      return cleanText.trim();
+    }).join(' ');
+  }).filter(t => t.length > 0).join('\n');
+
+  console.log(`🔍 [DOCX] Texto extraído: ${extractedText.length} caracteres`);
+  console.log(`🔍 [DOCX] Primeros 300 chars: ${extractedText.substring(0, 300)}`);
+
+  if (extractedText.length < 50) {
+    throw new Error("El documento parece estar vacío o no contiene texto legible.");
+  }
+
+  return extractedText.substring(0, 15000);
 }
 // --- MANEJO DE RUTAS API ---
 async function handleApiRequest(request, env, corsHeaders) {
