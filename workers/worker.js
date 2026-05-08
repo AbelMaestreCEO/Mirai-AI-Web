@@ -1175,18 +1175,37 @@ async function handleApiRequest(request, env, corsHeaders) {
         }
 
         const fileBuffer = await r2Object.arrayBuffer();
+
+        let textContent = '';
         const contentType = r2Object.httpMetadata?.contentType || '';
         const filename = r2Key.split('/').pop();
         const extension = filename.split('.').pop().toLowerCase();
 
-        let textContent = '';
+        try {
+          if (contentType.includes('pdf') || extension === 'pdf') {
+            console.log(`📄 [DEBUG] Procesando PDF: ${filename}`);
+            textContent = await extractTextFromPDF(fileBuffer);
+          } else if (contentType.includes('word') || extension === 'docx') {
+            console.log(`📝 [DEBUG] Procesando DOCX: ${filename}`);
+            // Aquí llamaremos a la nueva función que vamos a crear
+            textContent = await extractTextFromDocx(fileBuffer); // Pasamos el buffer
+          } else {
+            throw new Error(`Formato no soportado: ${contentType}`);
+          }
 
-        if (contentType.includes('pdf') || extension === 'pdf') {
-          textContent = await extractTextFromPDF(fileBuffer);
-        } else if (contentType.includes('word') || extension === 'docx') {
-          textContent = await extractTextFromDocx(fileBuffer);
-        } else {
-          return jsonResponse({ error: 'Formato no soportado. Solo PDF y DOCX.' }, 400, corsHeaders);
+          // --- NUEVO LOG DE DEPURACIÓN ---
+          console.log(`🔍 [DEBUG] Texto extraído (${textContent.length} caracteres):`);
+          console.log(`🔍 [DEBUG] Primeros 500 chars: ${textContent.substring(0, 500)}`);
+          console.log(`🔍 [DEBUG] Últimos 200 chars: ${textContent.substring(textContent.length - 200)}`);
+
+          if (textContent.length < 50) {
+            console.warn(`⚠️ [ADVERTENCIA] El texto extraído es muy corto. ¿El archivo está vacío o corrupto?`);
+          }
+
+        } catch (extractError) {
+          console.error(`❌ [ERROR] Fallo en extracción de texto:`, extractError.message);
+          // Si falla, no intentamos evaluar
+          return jsonResponse({ error: 'No se pudo extraer texto del archivo. Asegúrate de que no esté encriptado o dañado.' }, 500, corsHeaders);
         }
 
         // 4. Construir prompt de evaluación con criterios específicos
