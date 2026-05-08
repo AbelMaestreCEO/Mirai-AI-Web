@@ -8,8 +8,6 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 
-import { D1Database } from '@cloudflare/workers-types';
-
 // ✨ NUEVO: Configuración Video
 const VIDEO_CONFIG = {
   MODEL: 'minimax/hailuo-2.3-fast',
