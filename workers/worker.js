@@ -1525,13 +1525,9 @@ NO agregues texto adicional fuera del JSON.`;
           customMetadata: {
             user_dni: userDni,
             assignment_id: assignmentId,
-            original_filename: file.name
+            original_filename: file.name,
+            file_extension: fileExtension
           }
-        });
-
-        await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
-          httpMetadata: { contentType: 'application/pdf' },
-          customMetadata: { user_dni: userDni, assignment_id: assignmentId }
         });
 
         // 2. Guardar en D1
