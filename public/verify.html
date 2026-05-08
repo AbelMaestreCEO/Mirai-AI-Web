@@ -71,7 +71,17 @@
             </div>
         </div>
     </div>
-
+    <script>
+  // Intentar pre-rellenar el DNI si viene del login
+  window.addEventListener('DOMContentLoaded', () => {
+    const pendingDni = localStorage.getItem('pending_dni');
+    if (pendingDni) {
+      document.getElementById('dni').value = pendingDni;
+      // Opcional: limpiar después de usarlo
+      // localStorage.removeItem('pending_dni'); 
+    }
+  });
+</script>
     <script src="verify.js"></script>
 </body>
 </html>

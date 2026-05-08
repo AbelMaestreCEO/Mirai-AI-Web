@@ -458,24 +458,16 @@ async function handleLogin(request, env, corsHeaders) {
       return jsonResponse({ error: 'DNI y contraseña requeridos' }, 400, corsHeaders);
     }
 
-    // 🆕 Traer también is_verified
+    // 1. Buscar usuario
     const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT password_hash, is_verified FROM users WHERE dni = ?"
+      "SELECT password_hash, is_verified, email FROM users WHERE dni = ?"
     ).bind(dni.toUpperCase()).first();
 
     if (!user) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
     }
 
-    // 🆕 Bloquear si no está verificado
-    if (!user.is_verified || user.is_verified === 0) {
-      return jsonResponse({
-        error: 'Debes verificar tu correo antes de iniciar sesión.',
-        needs_verification: true
-      }, 403, corsHeaders);
-    }
-
-    // Separar salt y hash
+    // 2. VALIDAR CONTRASEÑA PRIMERO (Seguridad: no revelamos si el usuario existe si la pass está mal)
     const [storedSalt, storedHash] = user.password_hash.split(':');
     const inputHash = await hashPassword(password, storedSalt);
 
@@ -483,7 +475,36 @@ async function handleLogin(request, env, corsHeaders) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
     }
 
-    // Generar token de sesión simple (UUID)
+    // 3. VERIFICAR ESTADO DE VERIFICACIÓN
+    if (!user.is_verified || user.is_verified === 0) {
+      // 🆕 GENERAR Y ENVIAR CÓDIGO AUTOMÁTICAMENTE
+      const newOtp = generateOTP();
+      const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      // Guardar en BD
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
+      ).bind(newOtp, newExpires, dni.toUpperCase()).run();
+
+      // Enviar correo
+      const emailSent = await sendVerificationEmail(user.email, newOtp, env);
+
+      if (!emailSent) {
+        return jsonResponse({ 
+          error: 'Error al enviar el código de verificación. Intenta de nuevo.', 
+          needs_verification: true 
+        }, 500, corsHeaders);
+      }
+
+      // Responder al frontend indicando que se envió el código
+      return jsonResponse({
+        error: 'Usuario no verificado. Se ha enviado un código a tu correo.',
+        needs_verification: true,
+        message_sent: true // Indicador para el frontend
+      }, 403, corsHeaders);
+    }
+
+    // 4. LOGIN EXITOSO (Usuario verificado)
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -506,7 +527,6 @@ async function handleLogin(request, env, corsHeaders) {
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }
-
 // --- CLASIFICAR INTENCIÓN DEL USUARIO ---
 async function classifyIntent(message, env) {
   try {

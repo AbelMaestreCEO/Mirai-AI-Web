@@ -39,12 +39,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) {
                 const data = await res.json();
 
-                // 🆕 Manejar caso de usuario no verificado
+                // 🆕 Caso especial: Usuario no verificado pero se envió el código
                 if (data.needs_verification) {
-                    showError(errorMsg, data.error);
+                    if (data.message_sent) {
+                        showError(errorMsg, '🔐 Verificación necesaria. Hemos enviado un código a tu correo.');
+                    } else {
+                        showError(errorMsg, data.error);
+                    }
+
+                    // Guardar el DNI en localStorage temporalmente para que verify.html lo use
+                    localStorage.setItem('pending_dni', dni);
+
+                    // Redirigir a la página de verificación
                     setTimeout(() => {
                         window.location.href = 'verify.html';
-                    }, 3000);
+                    }, 2500);
                     return;
                 }
 
