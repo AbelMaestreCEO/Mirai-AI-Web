@@ -278,7 +278,9 @@ function renderUploadForm(container, assignmentId) {
         ];
         const validExtensions = ['.pdf', '.docx'];
         const extension = file.name.split('.').pop().toLowerCase();
+
         const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
+
         if (!isValidType) {
             alert(`El archivo ${file.name} no es válido. Solo se permiten PDF y DOCX.`);
             return;
@@ -307,31 +309,61 @@ function renderUploadForm(container, assignmentId) {
         }
 
         submitBtn.disabled = true;
-        submitBtn.textContent = '⏳ Enviando...';
+        submitBtn.textContent = '⏳ Procesando...';
 
         try {
-            const formData = new FormData();
-            formData.append('assignment_id', assignmentId);
-
             const fileInput = document.getElementById('file-input');
-            if (fileInput.files.length > 0) {
-                formData.append('file', fileInput.files[0]);
+            const file = fileInput.files[0];
+
+            if (!file) {
+                throw new Error('No se encontró el archivo');
             }
 
-            const response = await fetch('/api/submit-assignment', {
+            // 🔴 NUEVO: Extraer texto del documento en el frontend
+            console.log('🔍 [FRONTEND] Iniciando extracción de texto...');
+            const extractedText = await extractDocumentText(file);
+            console.log(`🔍 [FRONTEND] Texto extraído: ${extractedText.length} caracteres`);
+
+            // 🔴 NUEVO: Guardar el texto extraído en localStorage para usarlo en la evaluación
+            const tempKey = `temp_submission_${assignmentId}_${Date.now()}`;
+            localStorage.setItem(tempKey, JSON.stringify({
+                text: extractedText,
+                filename: file.name,
+                timestamp: Date.now()
+            }));
+
+            // Subir el archivo original a R2 (para almacenamiento)
+            const formData = new FormData();
+            formData.append('assignment_id', assignmentId);
+            formData.append('file', file);
+
+            const uploadResponse = await fetch('/api/submit-assignment', {
                 method: 'POST',
                 body: formData
             });
 
-            if (!response.ok) {
-                const err = await response.json();
+            if (!uploadResponse.ok) {
+                const err = await uploadResponse.json();
                 throw new Error(err.error || 'Error al entregar');
             }
+
+            const uploadData = await uploadResponse.json();
+
+            // 🔴 NUEVO: Asociar el texto extraído con la entrega en la DB
+            await fetch('/api/save-extracted-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    submission_id: uploadData.submission_id,
+                    extracted_text: extractedText
+                })
+            });
 
             showStatus('✅ Trabajo entregado correctamente', 'success');
             setTimeout(() => window.location.reload(), 1500);
 
         } catch (error) {
+            console.error('❌ Error:', error);
             showStatus(`❌ Error: ${error.message}`, 'error');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Enviar Tarea';
@@ -502,5 +534,75 @@ function setupLogout() {
             localStorage.clear();
             window.location.href = 'login.html';
         });
+    }
+}
+// ============================================
+// EXTRACCIÓN DE TEXTO DE DOCUMENTOS (FRONTEND)
+// ============================================
+
+// --- EXTRAER TEXTO DE PDF ---
+async function extractTextFromPDF(file) {
+    try {
+        console.log('📄 [FRONTEND] Extrayendo texto de PDF...');
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+        let fullText = '';
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n\n';
+        }
+
+        console.log(`📄 [FRONTEND] PDF extraído: ${fullText.length} caracteres`);
+        return fullText.substring(0, 15000); // Limitar para la IA
+
+    } catch (error) {
+        console.error('❌ Error extrayendo PDF:', error);
+        throw new Error('No se pudo extraer texto del PDF. Asegúrate de que no esté protegido.');
+    }
+}
+
+// --- EXTRAER TEXTO DE DOCX ---
+async function extractTextFromDocx(file) {
+    try {
+        console.log('📝 [FRONTEND] Extrayendo texto de DOCX...');
+
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+
+        const text = result.value;
+        console.log(`📝 [FRONTEND] DOCX extraído: ${text.length} caracteres`);
+
+        if (text.length < 50) {
+            throw new Error('El documento parece estar vacío.');
+        }
+
+        return text.substring(0, 15000);
+
+    } catch (error) {
+        console.error('❌ Error extrayendo DOCX:', error);
+        throw new Error('No se pudo extraer texto del DOCX. Asegúrate de que no esté corrupto.');
+    }
+}
+
+// --- DETECTAR TIPO Y EXTRAER ---
+async function extractDocumentText(file) {
+    const extension = file.name.split('.').pop().toLowerCase();
+    const contentType = file.type;
+
+    console.log(`🔍 [FRONTEND] Archivo: ${file.name}`);
+    console.log(`🔍 [FRONTEND] Tipo: ${contentType}`);
+    console.log(`🔍 [FRONTEND] Extensión: ${extension}`);
+
+    if (extension === 'pdf' || contentType.includes('pdf')) {
+        return await extractTextFromPDF(file);
+    } else if (extension === 'docx' || contentType.includes('word')) {
+        return await extractTextFromDocx(file);
+    } else {
+        throw new Error('Formato no soportado. Solo PDF y DOCX.');
     }
 }

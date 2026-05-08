@@ -763,10 +763,10 @@ async function extractTextFromDocx(buffer) {
     // Buscar el contenido XML después del nombre del archivo
     // En un ZIP, después del nombre del archivo viene la data comprimida.
     // Pero a veces podemos encontrar el XML crudo si el archivo no está muy comprimido.
-    
+
     // Estrategia: Buscar patrones de XML directamente en el texto crudo
     const wBodyMatch = text.match(/<w:body[\s\S]*?<\/w:body>/i);
-    
+
     if (wBodyMatch) {
       console.log(`🔍 [DOCX] Encontrado <w:body> directamente en texto crudo`);
       return extractTextFromParagraphs(wBodyMatch[0]);
@@ -779,7 +779,7 @@ async function extractTextFromDocx(buffer) {
       const extractedText = wTMatches.map(match => {
         return match.replace(/<[^>]+>/g, '').trim();
       }).filter(t => t.length > 0).join(' ');
-      
+
       if (extractedText.length > 50) {
         console.log(`🔍 [DOCX] Texto extraído (fallback): ${extractedText.length} caracteres`);
         return extractedText.substring(0, 15000);
@@ -1282,49 +1282,47 @@ async function handleApiRequest(request, env, corsHeaders) {
 
         // 1. Obtener datos de la entrega y la tarea
         const submissionData = await env.MIRAI_AI_DB.prepare(`
-            SELECT s.id, s.assignment_id, s.file_url, s.user_dni, a.max_score, a.title, a.description
-            FROM submissions s
-            JOIN assignments a ON s.assignment_id = a.id
-            WHERE s.id = ?
-        `).bind(submission_id).first();
+  SELECT id, assignment_id, file_url, user_dni, extracted_text, a.max_score, a.title, a.description
+  FROM submissions s
+  JOIN assignments a ON s.assignment_id = a.id
+  WHERE s.id = ?
+`).bind(submission_id).first();
 
         if (!submissionData) {
-          return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
-        }
+  return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+}
 
-        // 2. Descargar PDF desde R2
-        const r2Key = submissionData.file_url.replace('/api/file/', '');
-        const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
+let textContent = submissionData.extracted_text;
 
-        if (!r2Object) {
-          return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
-        }
+        if (!textContent || textContent.length < 50) {
+  // Fallback: intentar extraer del archivo (por si acaso)
+  console.log('⚠️ [DEBUG] No hay texto extraído, intentando extracción del archivo...');
+  
+  const r2Key = submissionData.file_url.replace('/api/file/', '');
+  const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
+  
+  if (!r2Object) {
+    return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
+  }
 
-        const fileBuffer = await r2Object.arrayBuffer();
-        const filename = r2Key.split('/').pop();
-        const extension = filename.split('.').pop().toLowerCase();
-        const contentType = r2Object.httpMetadata?.contentType || '';
+  const fileBuffer = await r2Object.arrayBuffer();
+  const filename = r2Key.split('/').pop();
+  const extension = filename.split('.').pop().toLowerCase();
 
-        console.log(`🔍 [DEBUG] Archivo: ${filename}`);
-        console.log(`🔍 [DEBUG] Extensión: ${extension}`);
-        console.log(`🔍 [DEBUG] ContentType: ${contentType}`);
-
-
-        let textContent = '';
-
-        if (extension === 'pdf') {
-          console.log(`📄 [DEBUG] Usando extractTextFromPDF para: ${filename}`);
-          textContent = await extractTextFromPDF(fileBuffer);
-        } else if (extension === 'docx') {
-          console.log(`📝 [DEBUG] Usando extractTextFromDocx para: ${filename}`);
-          textContent = await extractTextFromDocx(fileBuffer);
-        } else {
-          console.error(`❌ [ERROR] Extensión no soportada: ${extension}`);
-          return jsonResponse({ error: 'Formato no soportado. Solo PDF y DOCX.' }, 400, corsHeaders);
-        }
-
-        console.log(`🔍 [DEBUG] Texto extraído (${textContent.length} caracteres):`);
-        console.log(`🔍 [DEBUG] Primeros 500 chars: ${textContent.substring(0, 500)}`);
+  try {
+    if (extension === 'pdf') {
+      textContent = await extractTextFromPDF(fileBuffer);
+    } else if (extension === 'docx') {
+      textContent = await extractTextFromDocx(fileBuffer);
+    }
+  } catch (extractError) {
+    console.error('❌ [DEBUG] Extracción del archivo falló:', extractError.message);
+    return jsonResponse({ 
+      error: 'No se pudo extraer texto del archivo. Por favor, vuelve a subir el documento.' 
+    }, 500, corsHeaders);
+  }
+}
+console.log(`🔍 [DEBUG] Usando texto extraído: ${textContent.length} caracteres`);
 
         // 4. Construir prompt de evaluación con criterios específicos
         const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
@@ -1599,6 +1597,32 @@ NO agregues texto adicional fuera del JSON.`;
     // Ruta: PUT /api/conversations/rename
     if (path === '/api/conversations/rename' && request.method === 'PUT') {
       return await handleRenameConversation(request, env, corsHeaders);
+    }
+
+    // NUEVA RUTA: Guardar texto extraído del documento
+    if (path === '/api/save-extracted-text' && request.method === 'POST') {
+      try {
+        const { submission_id, extracted_text } = await request.json();
+
+        if (!submission_id || !extracted_text) {
+          return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
+        }
+
+        // Actualizar la entrega con el texto extraído
+        await env.MIRAI_AI_DB.prepare(`
+      UPDATE submissions 
+      SET extracted_text = ?, status = 'submitted'
+      WHERE id = ?
+    `).bind(extracted_text.substring(0, 15000), submission_id).run();
+
+        console.log(`✅ [DEBUG] Texto extraído guardado para entrega: ${submission_id}`);
+
+        return jsonResponse({ success: true }, 200, corsHeaders);
+
+      } catch (error) {
+        console.error('Error guardando texto extraído:', error);
+        return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+      }
     }
 
     // Ruta: GET /api/history/:conversationId
