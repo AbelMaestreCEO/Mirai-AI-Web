@@ -222,7 +222,7 @@ function renderUploadForm(container, assignmentId) {
             
             <div class="file-input-wrapper">
                 <button class="btn btn-primary">Seleccionar Archivos</button>
-                <input type="file" id="file-input" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+                <input type="file" id="file-input" accept=".pdf,.docx" multiple>
             </div>
 
             <div id="file-list" class="file-list"></div>
@@ -272,10 +272,14 @@ function renderUploadForm(container, assignmentId) {
     });
 
     function validateAndAddFile(file) {
-        const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const validTypes = [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
         const validExtensions = ['.pdf', '.docx'];
         const extension = file.name.split('.').pop().toLowerCase();
-        if (!validTypes.includes(file.type) && !validExtensions.includes('.' + extension)) {
+        const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
+        if (!isValidType) {
             alert(`El archivo ${file.name} no es válido. Solo se permiten PDF y DOCX.`);
             return;
         }
