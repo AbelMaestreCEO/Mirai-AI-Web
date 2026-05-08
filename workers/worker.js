@@ -1282,47 +1282,56 @@ async function handleApiRequest(request, env, corsHeaders) {
 
         // 1. Obtener datos de la entrega y la tarea
         const submissionData = await env.MIRAI_AI_DB.prepare(`
-  SELECT id, assignment_id, file_url, user_dni, extracted_text, a.max_score, a.title, a.description
+  SELECT 
+    s.id as submission_id,
+    s.assignment_id,
+    s.file_url,
+    s.user_dni,
+    s.extracted_text,
+    a.max_score,
+    a.title,
+    a.description,
+    a.id as assignment_id_db
   FROM submissions s
   JOIN assignments a ON s.assignment_id = a.id
   WHERE s.id = ?
 `).bind(submission_id).first();
 
         if (!submissionData) {
-  return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
-}
+          return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+        }
 
-let textContent = submissionData.extracted_text;
+        let textContent = submissionData.extracted_text;
 
         if (!textContent || textContent.length < 50) {
-  // Fallback: intentar extraer del archivo (por si acaso)
-  console.log('⚠️ [DEBUG] No hay texto extraído, intentando extracción del archivo...');
-  
-  const r2Key = submissionData.file_url.replace('/api/file/', '');
-  const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
-  
-  if (!r2Object) {
-    return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
-  }
+          // Fallback: intentar extraer del archivo (por si acaso)
+          console.log('⚠️ [DEBUG] No hay texto extraído, intentando extracción del archivo...');
 
-  const fileBuffer = await r2Object.arrayBuffer();
-  const filename = r2Key.split('/').pop();
-  const extension = filename.split('.').pop().toLowerCase();
+          const r2Key = submissionData.file_url.replace('/api/file/', '');
+          const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
 
-  try {
-    if (extension === 'pdf') {
-      textContent = await extractTextFromPDF(fileBuffer);
-    } else if (extension === 'docx') {
-      textContent = await extractTextFromDocx(fileBuffer);
-    }
-  } catch (extractError) {
-    console.error('❌ [DEBUG] Extracción del archivo falló:', extractError.message);
-    return jsonResponse({ 
-      error: 'No se pudo extraer texto del archivo. Por favor, vuelve a subir el documento.' 
-    }, 500, corsHeaders);
-  }
-}
-console.log(`🔍 [DEBUG] Usando texto extraído: ${textContent.length} caracteres`);
+          if (!r2Object) {
+            return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
+          }
+
+          const fileBuffer = await r2Object.arrayBuffer();
+          const filename = r2Key.split('/').pop();
+          const extension = filename.split('.').pop().toLowerCase();
+
+          try {
+            if (extension === 'pdf') {
+              textContent = await extractTextFromPDF(fileBuffer);
+            } else if (extension === 'docx') {
+              textContent = await extractTextFromDocx(fileBuffer);
+            }
+          } catch (extractError) {
+            console.error('❌ [DEBUG] Extracción del archivo falló:', extractError.message);
+            return jsonResponse({
+              error: 'No se pudo extraer texto del archivo. Por favor, vuelve a subir el documento.'
+            }, 500, corsHeaders);
+          }
+        }
+        console.log(`🔍 [DEBUG] Usando texto extraído: ${textContent.length} caracteres`);
 
         // 4. Construir prompt de evaluación con criterios específicos
         const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
