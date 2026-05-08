@@ -19,14 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const dni = document.getElementById('dni').value;
         const password = document.getElementById('password').value;
-        
+
         // Estado de carga
         setLoading(loginBtn, true);
         hideMessage(errorMsg);
-        
+
         try {
             const res = await fetch('/api/login', {
                 method: 'POST',
@@ -37,16 +37,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             if (!res.ok) {
+                const data = await res.json();
+
+                // 🆕 Manejar caso de usuario no verificado
+                if (data.needs_verification) {
+                    showError(errorMsg, data.error);
+                    setTimeout(() => {
+                        window.location.href = 'verify.html';
+                    }, 3000);
+                    return;
+                }
+
                 throw new Error(data.error || 'Error de login');
             }
-
             // Guardar token
             localStorage.setItem('mirai_auth_token', data.token);
             localStorage.setItem('mirai_user_dni', data.dni);
-            
+
             // Redirigir
             window.location.href = 'index.html';
-            
+
         } catch (err) {
             showError(errorMsg, err.message);
             shakeElement(loginForm);
@@ -79,12 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     recoveryForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const email = document.getElementById('recovery-email').value;
-        
+
         setLoading(recoveryBtn, true);
         hideMessage(recoveryMsg);
-        
+
         try {
             const res = await fetch('/api/forgot-password', {
                 method: 'POST',
@@ -100,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Éxito
             showSuccess(recoveryMsg, '✅ Si el correo existe, recibirás instrucciones de recuperación en breve.');
-            
+
             // Cerrar modal después de 4 segundos
             setTimeout(() => {
                 recoveryModal.classList.remove('active');
@@ -121,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setLoading(button, isLoading) {
         const btnText = button.querySelector('.btn-text');
         const btnLoader = button.querySelector('.btn-loader');
-        
+
         if (isLoading) {
             button.disabled = true;
             btnText.classList.add('hidden');

@@ -8,6 +8,8 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 
+import { D1Database } from '@cloudflare/workers-types';
+
 // ✨ NUEVO: Configuración Video
 const VIDEO_CONFIG = {
   MODEL: 'minimax/hailuo-2.3-fast',
@@ -33,6 +35,23 @@ const INTENT_TYPES = {
   MUSIC: 4,
   TEXT_DEFAULT: 5
 };
+
+const SMTP_CONFIG = {
+  // Si decides usar una API externa (Recomendado para Workers)
+  // Ejemplo con Resend (gratuito hasta cierto límite):
+  apiKey: 'RESEND_API_KEY',
+  from: 'mirai@aberumirai.com',
+  to: '',
+  subject: 'Verifica tu cuenta Mirai AI',
+};
+
+/**
+ * Envía un correo de verificación usando Resend
+ * @param {string} email - Destinatario
+ * @param {string} code - Código OTP de 6 dígitos
+ * @param {Object} env - Environment variables (contiene RESEND_API_KEY)
+ * @returns {Promise<boolean>} - True si se envió, False si falló
+ */
 
 const CLASSIFICATION_PROMPT = `You are an intent classifier for a multimodal AI assistant. Analyze the user's message and determine what type of response they need.
 
@@ -79,6 +98,90 @@ async function hashPassword(password, salt) {
   const bytes = new Uint8Array(derivedBits);
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+async function sendVerificationEmail(email, code, env) {
+  const RESEND_API_KEY = env.RESEND_API_KEY;
+
+  if (!RESEND_API_KEY) {
+    console.error("❌ RESEND_API_KEY no configurada en el Worker");
+    return false;
+  }
+
+  const fromAddress = "Mirai AI <noreply@aberumirai.com>";
+  const subject = "Verifica tu cuenta en Mirai AI 🔐";
+
+  // Diseño simple y limpio del correo
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .code-box { 
+          background: #f0f0f0; 
+          padding: 15px; 
+          font-size: 24px; 
+          font-weight: bold; 
+          text-align: center; 
+          letter-spacing: 5px; 
+          border-radius: 5px; 
+          margin: 20px 0; 
+          color: #2c3e50;
+        }
+        p { color: #666; line-height: 1.6; }
+        .footer { margin-top: 30px; font-size: 12px; color: #999; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🚀 Bienvenido a Mirai AI</h1>
+        <p>Hola,</p>
+        <p>Gracias por registrarte. Para completar tu cuenta y acceder a todas las funcionalidades, por favor usa el siguiente código de verificación:</p>
+        
+        <div class="code-box">${code}</div>
+        
+        <p>Este código expirará en <strong>10 minutos</strong>.</p>
+        <p>Si no solicitaste este código, puedes ignorar este mensaje.</p>
+        
+        <div class="footer">
+          © 2026 Mirai AI - Powered by Proton & Cloudflare
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: email,
+        subject: subject,
+        html: htmlBody
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("❌ Error al enviar correo via Resend:", errorData);
+      return false;
+    }
+
+    console.log(`✅ Correo de verificación enviado a ${email}`);
+    return true;
+
+  } catch (error) {
+    console.error("❌ Excepción al enviar correo:", error);
+    return false;
+  }
+}
 // Generar salt aleatorio usando crypto.getRandomValues (nativo en Workers)
 function generateSalt() {
   const array = new Uint8Array(16);
@@ -113,17 +216,95 @@ async function requireAuth(request, env) {
   if (!session) return null;
   return session.user_dni;
 }
+async function sendVerificationEmail(email, code, env) {
+  const RESEND_API_KEY = env.RESEND_API_KEY;
 
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY no configurada');
+    return false;
+  }
+
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Roboto', sans-serif; background: #0d1117; padding: 20px; margin: 0; }
+        .container { max-width: 520px; margin: 0 auto; background: #161b22; padding: 40px 30px; border-radius: 12px; border: 1px solid #30363d; }
+        h1 { color: #e6edf3; text-align: center; font-size: 22px; margin-bottom: 8px; }
+        .brand { color: #58a6ff; }
+        p { color: #8b949e; line-height: 1.7; font-size: 14px; }
+        .code-box {
+          background: #0d1117;
+          border: 2px dashed #30363d;
+          padding: 18px;
+          font-size: 32px;
+          font-weight: 700;
+          text-align: center;
+          letter-spacing: 8px;
+          border-radius: 8px;
+          margin: 25px 0;
+          color: #58a6ff;
+          font-family: 'Courier New', monospace;
+        }
+        .warning { font-size: 12px; color: #484f58; text-align: center; margin-top: 30px; }
+        .warning strong { color: #8b949e; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🔐 <span class="brand">Mirai AI</span></h1>
+        <p>Hola,</p>
+        <p>Para completar tu registro, ingresa el siguiente código en la página de verificación:</p>
+        <div class="code-box">${code}</div>
+        <p>Este código expira en <strong>10 minutos</strong>. Si no solicitaste este correo, puedes ignorarlo.</p>
+        <div class="warning">
+          © 2026 Mirai AI · Powered by <strong>Proton</strong> & <strong>Cloudflare</strong>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Mirai AI <noreply@aberumirai.com>',
+        to: email,
+        subject: 'Tu código de verificación — Mirai AI 🔐',
+        html: htmlBody
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Error Resend:', err);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Excepción envío correo:', error);
+    return false;
+  }
+}
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 async function handleRegister(request, env, corsHeaders) {
   try {
-    // ✨ AGREGAR: Desestructurar nombre y apellido
     const { dni, email, password, first_name, last_name } = await request.json();
 
     // Validaciones básicas
     if (!dni || !email || !password || !first_name || !last_name) {
       return jsonResponse({ error: 'Todos los campos son requeridos (incluye nombre y apellido)' }, 400, corsHeaders);
     }
-    // ... (resto de validaciones de email, password, dni) ...
     if (!isValidEmail(email)) {
       return jsonResponse({ error: 'Correo inválido' }, 400, corsHeaders);
     }
@@ -147,15 +328,134 @@ async function handleRegister(request, env, corsHeaders) {
     const salt = generateSalt();
     const passwordHash = await hashPassword(password, salt);
 
-    // ✨ AGREGAR: Guardar nombre y apellido
-    await env.MIRAI_AI_DB.prepare(
-      "INSERT INTO users (dni, email, password_hash, first_name, last_name) VALUES (?, ?, ?, ?, ?)"
-    ).bind(dni.toUpperCase(), email.toLowerCase(), `${salt}:${passwordHash}`, first_name.trim(), last_name.trim()).run();
+    // 🆕 Generar OTP y fecha de expiración
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutos
 
-    return jsonResponse({ success: true, message: 'Registro exitoso' }, 201, corsHeaders);
+    // 🆕 INSERT con campos de verificación
+    await env.MIRAI_AI_DB.prepare(
+      `INSERT INTO users (dni, email, password_hash, first_name, last_name, is_verified, otp_code, otp_expires)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+    ).bind(
+      dni.toUpperCase(),
+      email.toLowerCase(),
+      `${salt}:${passwordHash}`,
+      first_name.trim(),
+      last_name.trim(),
+      otp,
+      otpExpires
+    ).run();
+
+    // 🆕 Enviar correo de verificación
+    const emailSent = await sendVerificationEmail(email.toLowerCase(), otp, env);
+
+    if (!emailSent) {
+      // El usuario se creó pero el correo falló — aún puede reenviar luego
+      return jsonResponse({
+        success: true,
+        needs_verification: true,
+        warning: 'Registro exitoso, pero no pudimos enviar el correo. Usa "Reenviar código" en la página de verificación.'
+      }, 201, corsHeaders);
+    }
+
+    return jsonResponse({
+      success: true,
+      needs_verification: true,
+      message: 'Registro exitoso. Revisa tu correo para verificar tu cuenta.'
+    }, 201, corsHeaders);
 
   } catch (error) {
     console.error('Error registro:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+async function handleVerify(request, env, corsHeaders) {
+  try {
+    const { dni, code } = await request.json();
+
+    if (!dni || !code) {
+      return jsonResponse({ error: 'DNI y código son requeridos' }, 400, corsHeaders);
+    }
+
+    // Buscar usuario con OTP válido y no expirado
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT * FROM users WHERE dni = ? AND otp_code = ? AND otp_expires > datetime('now')"
+    ).bind(dni.toUpperCase(), code).first();
+
+    if (!user) {
+      // Verificar si el usuario existe pero ya está verificado
+      const alreadyVerified = await env.MIRAI_AI_DB.prepare(
+        "SELECT is_verified FROM users WHERE dni = ?"
+      ).bind(dni.toUpperCase()).first();
+
+      if (alreadyVerified?.is_verified) {
+        return jsonResponse({ error: 'Esta cuenta ya está verificada. Puedes iniciar sesión.' }, 400, corsHeaders);
+      }
+
+      return jsonResponse({ error: 'Código inválido o expirado. Solicita uno nuevo.' }, 401, corsHeaders);
+    }
+
+    // Marcar como verificado y limpiar OTP
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET is_verified = 1, otp_code = NULL, otp_expires = NULL WHERE dni = ?"
+    ).bind(dni.toUpperCase()).run();
+
+    return jsonResponse({ success: true, message: '¡Cuenta verificada correctamente!' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error verificación:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+async function handleResendOTP(request, env, corsHeaders) {
+  try {
+    const { dni } = await request.json();
+
+    if (!dni) {
+      return jsonResponse({ error: 'DNI es requerido' }, 400, corsHeaders);
+    }
+
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT * FROM users WHERE dni = ?"
+    ).bind(dni.toUpperCase()).first();
+
+    if (!user) {
+      // Por seguridad, no revelamos si el usuario existe o no
+      return jsonResponse({ success: true, message: 'Si la cuenta existe, se enviará un nuevo código.' }, 200, corsHeaders);
+    }
+
+    if (user.is_verified) {
+      return jsonResponse({ error: 'Esta cuenta ya está verificada.' }, 400, corsHeaders);
+    }
+
+    // Rate limiting básico: no reenviar si el OTP anterior tiene menos de 2 minutos
+    if (user.otp_expires) {
+      const elapsed = Date.now() - new Date(user.otp_expires).getTime() + (10 * 60 * 1000);
+      if (elapsed < 2 * 60 * 1000) {
+        return jsonResponse({ error: 'Espera unos segundos antes de solicitar otro código.' }, 429, corsHeaders);
+      }
+    }
+
+    // Generar nuevo OTP
+    const newOtp = generateOTP();
+    const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
+    ).bind(newOtp, newExpires, dni.toUpperCase()).run();
+
+    // Enviar correo
+    const emailSent = await sendVerificationEmail(user.email, newOtp, env);
+
+    if (!emailSent) {
+      return jsonResponse({ error: 'Error al enviar el correo. Intenta de nuevo.' }, 500, corsHeaders);
+    }
+
+    return jsonResponse({ success: true, message: 'Nuevo código enviado a tu correo.' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error reenvío OTP:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }
@@ -244,12 +544,21 @@ async function handleLogin(request, env, corsHeaders) {
       return jsonResponse({ error: 'DNI y contraseña requeridos' }, 400, corsHeaders);
     }
 
+    // 🆕 Traer también is_verified
     const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT password_hash FROM users WHERE dni = ?"
+      "SELECT password_hash, is_verified FROM users WHERE dni = ?"
     ).bind(dni.toUpperCase()).first();
 
     if (!user) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
+    }
+
+    // 🆕 Bloquear si no está verificado
+    if (!user.is_verified || user.is_verified === 0) {
+      return jsonResponse({
+        error: 'Debes verificar tu correo antes de iniciar sesión.',
+        needs_verification: true
+      }, 403, corsHeaders);
     }
 
     // Separar salt y hash
@@ -262,15 +571,12 @@ async function handleLogin(request, env, corsHeaders) {
 
     // Generar token de sesión simple (UUID)
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 días
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Guardar sesión (necesitas crear tabla sessions si no existe)
-    // CREATE TABLE sessions (token TEXT PRIMARY KEY, user_dni TEXT, expires_at DATETIME)
     await env.MIRAI_AI_DB.prepare(
       "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
     ).bind(token, dni.toUpperCase(), expiresAt).run();
 
-    // Actualizar último login
     await env.MIRAI_AI_DB.prepare(
       "UPDATE users SET last_login = datetime('now') WHERE dni = ?"
     ).bind(dni.toUpperCase()).run();
@@ -985,6 +1291,14 @@ async function handleApiRequest(request, env, corsHeaders) {
 
     if (path === '/api/categories' && request.method === 'GET') {
       return await handleGetCategories(env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/verify' && request.method === 'POST') {
+      return handleVerify(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/resend-otp' && request.method === 'POST') {
+      return handleResendOTP(request, env, corsHeaders);
     }
 
     if (path === '/api/transcribe' && request.method === 'POST') {
