@@ -107,7 +107,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       // 1. Obtener o crear el chat específico
-      const response = await fetch(`/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`);
+      const response = await fetch(`/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('mirai_auth_token')}`,
+          'X-User-DNI': localStorage.getItem('mirai_user_dni') // 🔴 Enviamos explícitamente el DNI
+        }
+      });
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.error || 'Error al cargar el chat de aprendizaje');
@@ -136,12 +142,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           console.error("⚠️ Error al establecer prompt del sistema:", await promptResp.text());
         } else {
           console.log("✅ System prompt establecido correctamente para modo: " + contextMode);
-          
+
           // Opcional: Enviar un mensaje de bienvenida automático si está vacío
           if (data.messages.length === 0) {
-             // Aquí podrías llamar a una función interna para simular el primer mensaje de Mirai
-             // o simplemente dejar que el usuario empiece a escribir.
-             console.log("💬 Chat nuevo listo para empezar.");
+            // Aquí podrías llamar a una función interna para simular el primer mensaje de Mirai
+            // o simplemente dejar que el usuario empiece a escribir.
+            console.log("💬 Chat nuevo listo para empezar.");
           }
         }
       }
@@ -151,13 +157,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Fallback: Si falla, recargar sin contexto o ir a login
       alert("No se pudo cargar el entorno de aprendizaje. Volviendo al chat normal.");
       window.location.href = 'index.html'; // O simplemente no activamos learningSessionActive
-      learningSessionActive = false; 
+      learningSessionActive = false;
     }
   }
 
   // ✨ Lógica Condicional: Solo inicializar chat normal si NO estamos en aprendizaje
   const isChatPage = !!document.getElementById('chat-messages');
-  
+
   if (isChatPage) {
     // Si NO es una sesión de aprendizaje, hacemos la carga normal
     if (!learningSessionActive) {
@@ -168,7 +174,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Siempre inicializamos los listeners y UI, pero solo una vez
-    initializeChat(); 
+    initializeChat();
     setupEventListeners();
     initializeFileUpload();
     loadConversations(); // Carga la lista lateral (esto es seguro hacerlo siempre)

@@ -600,8 +600,7 @@ async function findExistingLearningChat(db, userDni, taskId, mode) {
 
 async function handleGetOrCreateLearningChat(request, env) {
   const url = new URL(request.url);
-  const userDni = request.headers.get('X-User-DNI') || localStorage.getItem('mirai_user_dni'); // Asegúrate de pasar el DNI en header o auth
-
+  let userDni = request.headers.get('X-User-DNI'); 
   // Obtener parámetros de la URL
   const taskId = url.searchParams.get('task_id');
   const mode = url.searchParams.get('mode'); // 'theory', 'quiz', 'practice'
