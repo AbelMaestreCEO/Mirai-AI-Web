@@ -4,8 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verificar Cuenta - Mirai AI</title>
-    <link rel="stylesheet" href="login-styles.css">
+    <link rel="stylesheet" href="login-styles.css"> <!-- Usa tus estilos existentes -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos específicos para el código OTP */
+        .otp-input {
+            font-size: 24px;
+            letter-spacing: 8px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        .resend-link {
+            display: block;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+            color: #58a6ff;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .resend-link:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <div class="auth-wrapper">
@@ -14,8 +36,8 @@
                 <div class="logo-container">
                     <span class="logo-icon">📧</span>
                 </div>
-                <h1>Verificación</h1>
-                <p class="subtitle">Introduce el código enviado a tu correo</p>
+                <h1>Verifica tu cuenta</h1>
+                <p class="subtitle">Hemos enviado un código a tu correo</p>
             </div>
 
             <div class="error-message" id="error-msg"></div>
@@ -25,7 +47,7 @@
                 <div class="input-group">
                     <label for="dni">DNI</label>
                     <div class="input-field">
-                        <input type="text" id="dni" name="dni" required placeholder="Tu DNI">
+                        <input type="text" id="dni" name="dni" required placeholder="Tu DNI" autocomplete="off">
                         <span class="input-icon">🆔</span>
                     </div>
                 </div>
@@ -33,7 +55,7 @@
                 <div class="input-group">
                     <label for="otp">Código de Verificación</label>
                     <div class="input-field">
-                        <input type="text" id="otp" name="otp" required placeholder="123456" maxlength="6" pattern="[0-9]{6}">
+                        <input type="text" id="otp" name="otp" required placeholder="123456" maxlength="6" pattern="[0-9]{6}" class="otp-input">
                         <span class="input-icon">🔢</span>
                     </div>
                 </div>
@@ -45,66 +67,11 @@
             </form>
 
             <div class="auth-footer">
-                <span>¿No recibiste el correo? <a href="#" id="resend-link" class="link">Reenviar</a></span>
+                <span>¿No recibiste el correo? <a href="#" id="resend-link" class="link">Reenviar código</a></span>
             </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('verify-form');
-            const errorMsg = document.getElementById('error-msg');
-            const successMsg = document.getElementById('success-msg');
-            const verifyBtn = document.getElementById('verify-btn');
-            const resendLink = document.getElementById('resend-link');
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const dni = document.getElementById('dni').value;
-                const otp = document.getElementById('otp').value;
-
-                setLoading(verifyBtn, true);
-                hideMessages();
-
-                try {
-                    const res = await fetch('/api/verify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ dni, code: otp })
-                    });
-
-                    const data = await res.json();
-
-                    if (!res.ok) throw new Error(data.error);
-
-                    showSuccess(successMsg, '✅ ¡Cuenta verificada! Redirigiendo al login...');
-                    setTimeout(() => window.location.href = 'login.html', 2000);
-
-                } catch (err) {
-                    showError(errorMsg, err.message);
-                } finally {
-                    setLoading(verifyBtn, false);
-                }
-            });
-
-            resendLink.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const dni = document.getElementById('dni').value;
-                if(!dni) {
-                    showError(errorMsg, 'Ingresa tu DNI primero para reenviar.');
-                    return;
-                }
-                
-                // Llamada a un endpoint /api/resend-otp
-                alert('Se ha reenviado el código a tu correo.');
-            });
-
-            // Utilidades (mismas que en login.js)
-            function setLoading(btn, loading) { /* ... */ }
-            function showError(el, msg) { /* ... */ }
-            function showSuccess(el, msg) { /* ... */ }
-            function hideMessages() { /* ... */ }
-        });
-    </script>
+    <script src="verify.js"></script>
 </body>
 </html>
