@@ -696,6 +696,100 @@ function parseClassification(content) {
   console.warn('⚠️ No se pudo parsear clasificación, usando TEXT por defecto');
   return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' };
 }
+// --- MEJORAR EXTRACCIÓN DE TEXTO PDF ---
+async function extractTextFromPDF(buffer) {
+  try {
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(buffer);
+
+    // Estrategia 1: Buscar bloques de texto estándar (/Tx BMC ... EMC)
+    const textMatches = text.match(/\/Tx BMC[\s\S]*?EMC/g);
+    if (textMatches && textMatches.length > 0) {
+      const extracted = textMatches.map(match =>
+        match.replace(/\/Tx BMC|EMC/g, '').trim()
+      ).join('\n');
+
+      if (extracted.length > 50) return extracted; // Validar que haya texto real
+    }
+
+    // Estrategia 2: Buscar cadenas de texto entre paréntesis o corchetes (común en PDFs simples)
+    // Esto captura texto como (Hola mundo) o [Texto]
+    const stringMatches = text.match(/\(([^)]+)\)/g);
+    if (stringMatches && stringMatches.length > 0) {
+      const extracted = stringMatches.map(s => s.slice(1, -1)).join(' ');
+      if (extracted.length > 50) return extracted;
+    }
+
+    // Estrategia 3: Fallback - Extraer cualquier cadena legible (ASCII imprimible)
+    // Filtra caracteres de control excepto saltos de línea y tabuladores
+    const printable = text.replace(/[^\x20-\x7E\n\r\t]/g, '');
+
+    // Si el texto extraído es muy largo y parece tener estructura, devolverlo
+    if (printable.length > 100) {
+      return printable.substring(0, 15000); // Limitar para la IA
+    }
+
+    // Si todo falla, devolver un mensaje de error amigable
+    throw new Error("No se pudo extraer texto legible. El PDF podría estar escaneado o protegido.");
+
+  } catch (error) {
+    console.error('Error extrayendo PDF:', error.message);
+    throw error;
+  }
+}
+
+// --- NUEVA FUNCIÓN: EXTRAER TEXTO DE DOCX ---
+async function extractTextFromDocx(buffer) {
+  try {
+    // Un DOCX es un ZIP. Necesitamos encontrar el archivo 'word/document.xml'.
+    // Como no podemos importar librerías ZIP pesadas fácilmente en Workers sin bundler,
+    // usaremos un truco: buscar el patrón de inicio de archivo XML dentro del ZIP.
+
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(buffer);
+
+    // Buscar el contenido de word/document.xml
+    // Patrón: <w:body ... > ... contenido ... </w:body>
+    // Nota: Esto es una aproximación. Para producción robusta, usa 'jszip' en el bundler.
+
+    const docStart = text.indexOf('<w:body');
+    if (docStart === -1) {
+      throw new Error("No se encontró estructura XML válida en DOCX");
+    }
+
+    const docEnd = text.indexOf('</w:body>', docStart);
+    if (docEnd === -1) {
+      throw new Error("No se encontró fin de documento XML");
+    }
+
+    const xmlContent = text.substring(docStart, docEnd + 9);
+
+    // Extraer texto de los párrafos <w:p>
+    const paragraphs = xmlContent.match(/<w:p>[\s\S]*?<\/w:p>/g);
+    if (!paragraphs) {
+      throw new Error("No se encontraron párrafos en el documento");
+    }
+
+    const extractedText = paragraphs.map(para => {
+      // Extraer el texto de <w:t>
+      const textMatch = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g);
+      if (textMatch) {
+        return textMatch.map(t => t.replace(/<[^>]+>/g, '').trim()).join(' ');
+      }
+      return '';
+    }).filter(t => t.length > 0).join('\n');
+
+    if (extractedText.length < 50) {
+      throw new Error("El documento parece estar vacío o encriptado");
+    }
+
+    return extractedText.substring(0, 15000); // Limitar para la IA
+
+  } catch (error) {
+    console.error('Error extrayendo DOCX:', error.message);
+    throw new Error("No se pudo leer el archivo DOCX. Asegúrate de que no esté encriptado.");
+  }
+}
 // --- MANEJO DE RUTAS API ---
 async function handleApiRequest(request, env, corsHeaders) {
   const url = new URL(request.url);
@@ -1175,38 +1269,30 @@ async function handleApiRequest(request, env, corsHeaders) {
         }
 
         const fileBuffer = await r2Object.arrayBuffer();
-
-        let textContent = '';
-        const contentType = r2Object.httpMetadata?.contentType || '';
         const filename = r2Key.split('/').pop();
         const extension = filename.split('.').pop().toLowerCase();
+        const contentType = r2Object.httpMetadata?.contentType || '';
 
-        try {
-          if (contentType.includes('pdf') || extension === 'pdf') {
-            console.log(`📄 [DEBUG] Procesando PDF: ${filename}`);
-            textContent = await extractTextFromPDF(fileBuffer);
-          } else if (contentType.includes('word') || extension === 'docx') {
-            console.log(`📝 [DEBUG] Procesando DOCX: ${filename}`);
-            // Aquí llamaremos a la nueva función que vamos a crear
-            textContent = await extractTextFromDocx(fileBuffer); // Pasamos el buffer
-          } else {
-            throw new Error(`Formato no soportado: ${contentType}`);
-          }
+        console.log(`🔍 [DEBUG] Archivo: ${filename}`);
+        console.log(`🔍 [DEBUG] Extensión: ${extension}`);
+        console.log(`🔍 [DEBUG] ContentType: ${contentType}`);
 
-          // --- NUEVO LOG DE DEPURACIÓN ---
-          console.log(`🔍 [DEBUG] Texto extraído (${textContent.length} caracteres):`);
-          console.log(`🔍 [DEBUG] Primeros 500 chars: ${textContent.substring(0, 500)}`);
-          console.log(`🔍 [DEBUG] Últimos 200 chars: ${textContent.substring(textContent.length - 200)}`);
 
-          if (textContent.length < 50) {
-            console.warn(`⚠️ [ADVERTENCIA] El texto extraído es muy corto. ¿El archivo está vacío o corrupto?`);
-          }
+        let textContent = '';
 
-        } catch (extractError) {
-          console.error(`❌ [ERROR] Fallo en extracción de texto:`, extractError.message);
-          // Si falla, no intentamos evaluar
-          return jsonResponse({ error: 'No se pudo extraer texto del archivo. Asegúrate de que no esté encriptado o dañado.' }, 500, corsHeaders);
+        if (extension === 'pdf') {
+          console.log(`📄 [DEBUG] Usando extractTextFromPDF para: ${filename}`);
+          textContent = await extractTextFromPDF(fileBuffer);
+        } else if (extension === 'docx') {
+          console.log(`📝 [DEBUG] Usando extractTextFromDocx para: ${filename}`);
+          textContent = await extractTextFromDocx(fileBuffer);
+        } else {
+          console.error(`❌ [ERROR] Extensión no soportada: ${extension}`);
+          return jsonResponse({ error: 'Formato no soportado. Solo PDF y DOCX.' }, 400, corsHeaders);
         }
+
+        console.log(`🔍 [DEBUG] Texto extraído (${textContent.length} caracteres):`);
+        console.log(`🔍 [DEBUG] Primeros 500 chars: ${textContent.substring(0, 500)}`);
 
         // 4. Construir prompt de evaluación con criterios específicos
         const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
@@ -3427,100 +3513,5 @@ async function isAuthorizedProfessor(userDni, env) {
   } catch (error) {
     console.error('Error verificando profesor:', error);
     return false;
-  }
-}
-
-// --- MEJORAR EXTRACCIÓN DE TEXTO PDF ---
-async function extractTextFromPDF(buffer) {
-  try {
-    const decoder = new TextDecoder('utf-8');
-    const text = decoder.decode(buffer);
-
-    // Estrategia 1: Buscar bloques de texto estándar (/Tx BMC ... EMC)
-    const textMatches = text.match(/\/Tx BMC[\s\S]*?EMC/g);
-    if (textMatches && textMatches.length > 0) {
-      const extracted = textMatches.map(match =>
-        match.replace(/\/Tx BMC|EMC/g, '').trim()
-      ).join('\n');
-
-      if (extracted.length > 50) return extracted; // Validar que haya texto real
-    }
-
-    // Estrategia 2: Buscar cadenas de texto entre paréntesis o corchetes (común en PDFs simples)
-    // Esto captura texto como (Hola mundo) o [Texto]
-    const stringMatches = text.match(/\(([^)]+)\)/g);
-    if (stringMatches && stringMatches.length > 0) {
-      const extracted = stringMatches.map(s => s.slice(1, -1)).join(' ');
-      if (extracted.length > 50) return extracted;
-    }
-
-    // Estrategia 3: Fallback - Extraer cualquier cadena legible (ASCII imprimible)
-    // Filtra caracteres de control excepto saltos de línea y tabuladores
-    const printable = text.replace(/[^\x20-\x7E\n\r\t]/g, '');
-
-    // Si el texto extraído es muy largo y parece tener estructura, devolverlo
-    if (printable.length > 100) {
-      return printable.substring(0, 15000); // Limitar para la IA
-    }
-
-    // Si todo falla, devolver un mensaje de error amigable
-    throw new Error("No se pudo extraer texto legible. El PDF podría estar escaneado o protegido.");
-
-  } catch (error) {
-    console.error('Error extrayendo PDF:', error.message);
-    throw error;
-  }
-}
-
-// --- NUEVA FUNCIÓN: EXTRAER TEXTO DE DOCX ---
-async function extractTextFromDocx(buffer) {
-  try {
-    // Un DOCX es un ZIP. Necesitamos encontrar el archivo 'word/document.xml'.
-    // Como no podemos importar librerías ZIP pesadas fácilmente en Workers sin bundler,
-    // usaremos un truco: buscar el patrón de inicio de archivo XML dentro del ZIP.
-
-    const decoder = new TextDecoder('utf-8');
-    const text = decoder.decode(buffer);
-
-    // Buscar el contenido de word/document.xml
-    // Patrón: <w:body ... > ... contenido ... </w:body>
-    // Nota: Esto es una aproximación. Para producción robusta, usa 'jszip' en el bundler.
-
-    const docStart = text.indexOf('<w:body');
-    if (docStart === -1) {
-      throw new Error("No se encontró estructura XML válida en DOCX");
-    }
-
-    const docEnd = text.indexOf('</w:body>', docStart);
-    if (docEnd === -1) {
-      throw new Error("No se encontró fin de documento XML");
-    }
-
-    const xmlContent = text.substring(docStart, docEnd + 9);
-
-    // Extraer texto de los párrafos <w:p>
-    const paragraphs = xmlContent.match(/<w:p>[\s\S]*?<\/w:p>/g);
-    if (!paragraphs) {
-      throw new Error("No se encontraron párrafos en el documento");
-    }
-
-    const extractedText = paragraphs.map(para => {
-      // Extraer el texto de <w:t>
-      const textMatch = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g);
-      if (textMatch) {
-        return textMatch.map(t => t.replace(/<[^>]+>/g, '').trim()).join(' ');
-      }
-      return '';
-    }).filter(t => t.length > 0).join('\n');
-
-    if (extractedText.length < 50) {
-      throw new Error("El documento parece estar vacío o encriptado");
-    }
-
-    return extractedText.substring(0, 15000); // Limitar para la IA
-
-  } catch (error) {
-    console.error('Error extrayendo DOCX:', error.message);
-    throw new Error("No se pudo leer el archivo DOCX. Asegúrate de que no esté encriptado.");
   }
 }
