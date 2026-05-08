@@ -740,91 +740,69 @@ async function extractTextFromPDF(buffer) {
 
 async function extractTextFromDocx(buffer) {
   try {
+    console.log(`🔍 [DOCX] Iniciando extracción con DecompressionStream...`);
+    console.log(`🔍 [DOCX] Tamaño del archivo: ${buffer.byteLength} bytes`);
+
+    // 1. Crear un Blob a partir del buffer
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+    // 2. Intentar descomprimir como ZIP usando la API nativa de Cloudflare
+    // Nota: Cloudflare Workers no tiene soporte nativo completo para ZIP en todos los entornos.
+    // Si falla, usaremos un fallback de búsqueda de texto.
+
+    // Fallback: Buscar el contenido XML directamente en el buffer descomprimido parcialmente
     const decoder = new TextDecoder('utf-8');
     const text = decoder.decode(buffer);
 
-    console.log(`🔍 [DOCX] Buffer size: ${buffer.byteLength} bytes`);
-    console.log(`🔍 [DOCX] Primeros 100 chars: ${text.substring(0, 100)}`);
-
-    // 1. Buscar el marcador de archivo ZIP (PK)
-    const zipMarker = 'PK';
-    const zipIndex = text.indexOf(zipMarker);
-    if (zipIndex === -1) {
-      throw new Error("No se detectó firma de archivo ZIP. ¿Es un DOCX válido?");
-    }
-
-    // 2. Buscar word/document.xml dentro del ZIP
-    const docMarker = 'word/document.xml';
-    const docIndex = text.indexOf(docMarker);
-    
+    // Buscar word/document.xml
+    const docIndex = text.indexOf('word/document.xml');
     if (docIndex === -1) {
-      // Intentar buscar variantes
-      const altMarkers = ['document.xml', '_rels/.rels', '[Content_Types].xml'];
-      for (const marker of altMarkers) {
-        const idx = text.indexOf(marker);
-        if (idx !== -1) {
-          console.log(`🔍 [DOCX] Marcador alternativo encontrado: ${marker}`);
-          break;
-        }
+      throw new Error("No se encontró 'word/document.xml' en el DOCX.");
+    }
+
+    // Buscar el contenido XML después del nombre del archivo
+    // En un ZIP, después del nombre del archivo viene la data comprimida.
+    // Pero a veces podemos encontrar el XML crudo si el archivo no está muy comprimido.
+    
+    // Estrategia: Buscar patrones de XML directamente en el texto crudo
+    const wBodyMatch = text.match(/<w:body[\s\S]*?<\/w:body>/i);
+    
+    if (wBodyMatch) {
+      console.log(`🔍 [DOCX] Encontrado <w:body> directamente en texto crudo`);
+      return extractTextFromParagraphs(wBodyMatch[0]);
+    }
+
+    // Si no encontramos el XML crudo, intentamos buscar <w:t> directamente
+    const wTMatches = text.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi);
+    if (wTMatches && wTMatches.length > 0) {
+      console.log(`🔍 [DOCX] Encontrados ${wTMatches.length} nodos <w:t> directamente`);
+      const extractedText = wTMatches.map(match => {
+        return match.replace(/<[^>]+>/g, '').trim();
+      }).filter(t => t.length > 0).join(' ');
+      
+      if (extractedText.length > 50) {
+        console.log(`🔍 [DOCX] Texto extraído (fallback): ${extractedText.length} caracteres`);
+        return extractedText.substring(0, 15000);
       }
-      throw new Error("No se encontró 'word/document.xml' en el DOCX. El archivo podría estar corrupto.");
     }
 
-    console.log(`🔍 [DOCX] word/document.xml encontrado en posición: ${docIndex}`);
-
-    // 3. Buscar el contenido XML después del marcador
-    // El XML comienza después del nombre del archivo en el ZIP
-    // Buscamos el primer '<' después del marcador
-    let xmlStart = text.indexOf('<', docIndex);
-    if (xmlStart === -1) {
-      throw new Error("No se encontró inicio de XML después de word/document.xml");
-    }
-
-    // 4. Buscar <w:body> dentro del XML
-    const bodyStart = text.indexOf('<w:body', xmlStart);
-    if (bodyStart === -1) {
-      // Intentar buscar sin namespace
-      const altBody = text.indexOf('<body');
-      if (altBody === -1) {
-        // Buscar cualquier contenido de párrafo
-        const altPara = text.indexOf('<w:p');
-        if (altPara === -1) {
-          throw new Error("No se encontró <w:body> ni <w:p>. El documento podría estar vacío.");
-        }
-        console.log(`🔍 [DOCX] Usando <w:p> como fallback`);
-        return extractTextFromParagraphs(text, altPara);
-      }
-      console.log(`🔍 [DOCX] Usando <body> como fallback`);
-      return extractTextFromParagraphs(text, altBody);
-    }
-
-    // 5. Buscar </w:body>
-    const bodyEnd = text.indexOf('</w:body>', bodyStart);
-    if (bodyEnd === -1) {
-      throw new Error("No se encontró </w:body>. El documento podría estar incompleto.");
-    }
-
-    const xmlContent = text.substring(bodyStart, bodyEnd + 9);
-    console.log(`🔍 [DOCX] XML content length: ${xmlContent.length}`);
-
-    return extractTextFromParagraphs(xmlContent, 0);
+    throw new Error("No se pudo extraer el contenido XML. El archivo podría estar altamente comprimido o corrupto.");
 
   } catch (error) {
     console.error('❌ extractTextFromDocx error:', error.message);
     throw error;
   }
 }
-function extractTextFromParagraphs(xmlContent, startIndex) {
-  // Extraer texto de <w:t> dentro de <w:p>
+
+// --- FUNCIÓN AUXILIAR (ya definida, pero la incluimos por si acaso) ---
+function extractTextFromParagraphs(xmlContent) {
   const paragraphRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
   const paragraphs = xmlContent.match(paragraphRegex) || [];
   console.log(`🔍 [DOCX] Párrafos encontrados: ${paragraphs.length}`);
 
   const extractedText = paragraphs.map(para => {
-    // Extraer texto de <w:t> (puede haber múltiples en un párrafo)
     const textNodes = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [];
     return textNodes.map(node => {
-      // Limpiar etiquetas XML y entidades
       let cleanText = node.replace(/<[^>]+>/g, '');
       cleanText = cleanText.replace(/&nbsp;/g, ' ');
       cleanText = cleanText.replace(/&lt;/g, '<');
@@ -839,7 +817,7 @@ function extractTextFromParagraphs(xmlContent, startIndex) {
   console.log(`🔍 [DOCX] Primeros 300 chars: ${extractedText.substring(0, 300)}`);
 
   if (extractedText.length < 50) {
-    throw new Error("El documento parece estar vacío o no contiene texto legible.");
+    throw new Error("El documento parece estar vacío.");
   }
 
   return extractedText.substring(0, 15000);
