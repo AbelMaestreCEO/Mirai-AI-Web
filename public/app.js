@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log("✅ Chat ID obtenido:", chatId);
 
       // Cargar la conversación
-      await loadConversation(chatId);
+      await loadConversationHistory(chatId);
 
       if (data.is_new && contextSystem) {
         console.log("🔄 Estableciendo System Prompt...");

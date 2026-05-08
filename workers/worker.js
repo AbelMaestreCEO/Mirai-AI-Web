@@ -1219,7 +1219,6 @@ async function handleApiRequest(request, env, corsHeaders) {
 
   try {
 
-
     // Ruta: POST /api/chat
     if (path === ROUTES.CHAT && request.method === 'POST') {
       return await handleChat(request, env, corsHeaders);
