@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const dni = document.getElementById('dni').value;
         const password = document.getElementById('password').value;
 
-        // Estado de carga
         setLoading(loginBtn, true);
         hideMessage(errorMsg);
 
@@ -36,37 +35,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await res.json();
 
+            // 🛑 CORRECCIÓN CRÍTICA: Verificar needs_verification ANTES de lanzar error
             if (!res.ok) {
-                const data = await res.json();
-
-                // 🆕 Caso especial: Usuario no verificado pero se envió el código
                 if (data.needs_verification) {
+                    // 1. Mostrar mensaje amigable
                     if (data.message_sent) {
                         showError(errorMsg, '🔐 Verificación necesaria. Hemos enviado un código a tu correo.');
                     } else {
-                        showError(errorMsg, data.error);
+                        showError(errorMsg, data.error || 'Verificación necesaria.');
                     }
 
-                    // Guardar el DNI en localStorage temporalmente para que verify.html lo use
+                    // 2. Guardar DNI para la página de verificación
                     localStorage.setItem('pending_dni', dni);
 
-                    // Redirigir a la página de verificación
+                    // 3. Redirigir después de un breve retraso
                     setTimeout(() => {
                         window.location.href = 'verify.html';
                     }, 2500);
+
+                    // 4. IMPORTANTE: RETURN para detener la ejecución aquí
                     return;
                 }
 
+                // Si NO es needs_verification, entonces es un error real (pass incorrecta, etc.)
                 throw new Error(data.error || 'Error de login');
             }
-            // Guardar token
+
+            // Si llegamos aquí, el login fue exitoso
             localStorage.setItem('mirai_auth_token', data.token);
             localStorage.setItem('mirai_user_dni', data.dni);
 
-            // Redirigir
             window.location.href = 'index.html';
 
         } catch (err) {
+            // Este bloque SOLO se ejecuta si hubo un error de red o un error que NO era needs_verification
             showError(errorMsg, err.message);
             shakeElement(loginForm);
         } finally {
