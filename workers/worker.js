@@ -1174,16 +1174,17 @@ async function handleApiRequest(request, env, corsHeaders) {
           return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
         }
 
-        const pdfBuffer = await r2Object.arrayBuffer();
-
-        // --- NUEVO: DETECCIÓN DE TIPO Y EXTRACCIÓN ---
-        let textContent = '';
+        const fileBuffer = await r2Object.arrayBuffer();
         const contentType = r2Object.httpMetadata?.contentType || '';
+        const filename = r2Key.split('/').pop();
+        const extension = filename.split('.').pop().toLowerCase();
 
-        if (contentType.includes('pdf')) {
-          textContent = await extractTextFromPDF(pdfBuffer);
-        } else if (contentType.includes('word') || contentType.includes('docx')) {
-          textContent = await extractTextFromDocx(pdfBuffer); // Pasamos el buffer del DOCX
+        let textContent = '';
+
+        if (contentType.includes('pdf') || extension === 'pdf') {
+          textContent = await extractTextFromPDF(fileBuffer);
+        } else if (contentType.includes('word') || extension === 'docx') {
+          textContent = await extractTextFromDocx(fileBuffer);
         } else {
           return jsonResponse({ error: 'Formato no soportado. Solo PDF y DOCX.' }, 400, corsHeaders);
         }
@@ -1391,13 +1392,37 @@ NO agregues texto adicional fuera del JSON.`;
           return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
         }
 
-        if (file.type !== 'application/pdf') {
-          return jsonResponse({ error: 'Solo PDF permitido' }, 400, corsHeaders);
+        const validTypes = [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+
+        const validExtensions = ['.pdf', '.docx'];
+        const extension = file.name.split('.').pop().toLowerCase();
+
+        const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
+
+        if (!isValidType) {
+          return jsonResponse({ error: 'Solo se permiten archivos PDF y DOCX' }, 400, corsHeaders);
         }
 
+        // Validar tamaño máximo (10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          return jsonResponse({ error: 'El archivo excede el límite de 10MB' }, 400, corsHeaders);
+        }
         // 1. Subir a R2
         const uniqueId = crypto.randomUUID();
-        const r2Key = `submissions/${userDni}/${assignmentId}/${uniqueId}.pdf`;
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        const r2Key = `submissions/${userDni}/${assignmentId}/${uniqueId}.${fileExtension}`;
+
+        await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
+          httpMetadata: { contentType: file.type },
+          customMetadata: {
+            user_dni: userDni,
+            assignment_id: assignmentId,
+            original_filename: file.name
+          }
+        });
 
         await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
           httpMetadata: { contentType: 'application/pdf' },
