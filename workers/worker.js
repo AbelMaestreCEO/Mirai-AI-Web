@@ -291,30 +291,38 @@ async function handleVerify(request, env, corsHeaders) {
       return jsonResponse({ error: 'DNI y código son requeridos' }, 400, corsHeaders);
     }
 
-    // Buscar usuario con OTP válido y no expirado
+    // Buscar usuario y validar OTP
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT * FROM users WHERE dni = ? AND otp_code = ? AND otp_expires > datetime('now')"
     ).bind(dni.toUpperCase(), code).first();
 
     if (!user) {
-      // Verificar si el usuario existe pero ya está verificado
-      const alreadyVerified = await env.MIRAI_AI_DB.prepare(
-        "SELECT is_verified FROM users WHERE dni = ?"
-      ).bind(dni.toUpperCase()).first();
-
-      if (alreadyVerified?.is_verified) {
-        return jsonResponse({ error: 'Esta cuenta ya está verificada. Puedes iniciar sesión.' }, 400, corsHeaders);
-      }
-
-      return jsonResponse({ error: 'Código inválido o expirado. Solicita uno nuevo.' }, 401, corsHeaders);
+      return jsonResponse({ error: 'Código inválido o expirado.' }, 401, corsHeaders);
     }
 
-    // Marcar como verificado y limpiar OTP
+    // 🆕 Generar Token de Sesión REAL ahora que se verificó
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Guardar sesión
     await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET is_verified = 1, otp_code = NULL, otp_expires = NULL WHERE dni = ?"
+      "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
+    ).bind(token, dni.toUpperCase(), expiresAt).run();
+
+    // Actualizar último login
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
     ).bind(dni.toUpperCase()).run();
 
-    return jsonResponse({ success: true, message: '¡Cuenta verificada correctamente!' }, 200, corsHeaders);
+    // 🆕 Responder con el token y datos para redirigir a index.html
+    return jsonResponse({
+      success: true,
+      token: token,
+      dni: dni.toUpperCase(),
+      first_name: user.first_name,
+      last_name: user.last_name,
+      message: '¡Verificación exitosa! Redirigiendo...'
+    }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Error verificación:', error);
@@ -449,7 +457,6 @@ async function handleResetPassword(request, env, corsHeaders) {
   }
 }
 
-// --- MODIFICAR: LOGIN (NUEVA RUTA) ---
 async function handleLogin(request, env, corsHeaders) {
   try {
     const { dni, password } = await request.json();
@@ -460,14 +467,14 @@ async function handleLogin(request, env, corsHeaders) {
 
     // 1. Buscar usuario
     const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT password_hash, is_verified, email FROM users WHERE dni = ?"
+      "SELECT password_hash, email, first_name, last_name FROM users WHERE dni = ?"
     ).bind(dni.toUpperCase()).first();
 
     if (!user) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
     }
 
-    // 2. VALIDAR CONTRASEÑA PRIMERO (Seguridad: no revelamos si el usuario existe si la pass está mal)
+    // 2. Validar Contraseña
     const [storedSalt, storedHash] = user.password_hash.split(':');
     const inputHash = await hashPassword(password, storedSalt);
 
@@ -475,52 +482,33 @@ async function handleLogin(request, env, corsHeaders) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
     }
 
-    // 3. VERIFICAR ESTADO DE VERIFICACIÓN
-    if (!user.is_verified || user.is_verified === 0) {
-      // 🆕 GENERAR Y ENVIAR CÓDIGO AUTOMÁTICAMENTE
-      const newOtp = generateOTP();
-      const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    // 🆕 CAMBIO CLAVE: Siempre generar OTP y enviar correo, sin importar el estado anterior
+    const newOtp = generateOTP();
+    const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-      // Guardar en BD
-      await env.MIRAI_AI_DB.prepare(
-        "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
-      ).bind(newOtp, newExpires, dni.toUpperCase()).run();
+    // Guardar OTP temporal (podríamos usar una tabla separada 'temp_sessions' para mayor limpieza, 
+    // pero actualizar el usuario funciona bien para este caso)
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
+    ).bind(newOtp, newExpires, dni.toUpperCase()).run();
 
-      // Enviar correo
-      const emailSent = await sendVerificationEmail(user.email, newOtp, env);
+    // Enviar correo
+    const emailSent = await sendVerificationEmail(user.email, newOtp, env);
 
-      if (!emailSent) {
-        return jsonResponse({ 
-          error: 'Error al enviar el código de verificación. Intenta de nuevo.', 
-          needs_verification: true 
-        }, 500, corsHeaders);
-      }
-
-      // Responder al frontend indicando que se envió el código
-      return jsonResponse({
-        error: 'Usuario no verificado. Se ha enviado un código a tu correo.',
-        needs_verification: true,
-        message_sent: true // Indicador para el frontend
-      }, 403, corsHeaders);
+    if (!emailSent) {
+      return jsonResponse({ 
+        error: 'Error al enviar el código de verificación.', 
+        needs_verification: true 
+      }, 500, corsHeaders);
     }
 
-    // 4. LOGIN EXITOSO (Usuario verificado)
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    await env.MIRAI_AI_DB.prepare(
-      "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
-    ).bind(token, dni.toUpperCase(), expiresAt).run();
-
-    await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET last_login = datetime('now') WHERE dni = ?"
-    ).bind(dni.toUpperCase()).run();
-
+    // Responder indicando que se necesita verificación
     return jsonResponse({
-      success: true,
-      token: token,
-      dni: dni.toUpperCase()
-    }, 200, corsHeaders);
+      error: 'Credenciales correctas. Se ha enviado un código de verificación a tu correo.',
+      needs_verification: true,
+      message_sent: true,
+      // No devolvemos token aún
+    }, 403, corsHeaders);
 
   } catch (error) {
     console.error('Error login:', error);

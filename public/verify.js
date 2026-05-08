@@ -19,10 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     verifyForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const dni = dniInput.value;
+
+        const dni = document.getElementById('dni').value;
         const code = document.getElementById('otp').value;
-        
+
         if (code.length !== 6) {
             showError(errorMsg, 'El código debe tener 6 dígitos');
             return;
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(verifyBtn, true);
         hideMessage(errorMsg);
         hideMessage(successMsg);
-        
+
         try {
             const res = await fetch('/api/verify', {
                 method: 'POST',
@@ -45,21 +45,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || 'Error de verificación');
             }
 
-            // Éxito
-            showSuccess(successMsg, '✅ ¡Cuenta verificada! Redirigiendo al login...');
+            // 🆕 ÉXITO: Guardar token y redirigir a INDEX
+            showSuccess(successMsg, '✅ ¡Verificación exitosa! Redirigiendo a tu panel...');
             hideMessage(errorMsg);
-            
-            // Limpiar formulario
+
+            // Guardar datos de sesión
+            localStorage.setItem('mirai_auth_token', data.token);
+            localStorage.setItem('mirai_user_dni', data.dni);
+            localStorage.setItem('mirai_user_name', `${data.first_name} ${data.last_name}`);
+
+            // Limpiar formulario y DNI pendiente
             verifyForm.reset();
-            
-            // Redirigir al login después de 2 segundos
+            localStorage.removeItem('pending_dni');
+
+            // Redirigir a INDEX (NO a login)
             setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 2000);
+                window.location.href = 'index.html';
+            }, 1500); // 1.5s es suficiente para ver el mensaje de éxito
 
         } catch (err) {
             showError(errorMsg, '❌ ' + err.message);
-            // Efecto de vibración en el input de código
             document.getElementById('otp').animate([
                 { transform: 'translateX(0)' },
                 { transform: 'translateX(-5px)' },
@@ -76,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     resendLink.addEventListener('click', async (e) => {
         e.preventDefault();
-        
+
         const dni = dniInput.value;
         if (!dni) {
             showError(errorMsg, 'Por favor, ingresa tu DNI primero para reenviar el código.');
@@ -101,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             showSuccess(successMsg, '✅ Nuevo código enviado a tu correo. Revisa tu bandeja (y spam).');
-            
+
         } catch (err) {
             showError(errorMsg, '❌ ' + err.message);
         } finally {
@@ -115,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setLoading(button, isLoading) {
         const btnText = button.querySelector('.btn-text');
         const btnLoader = button.querySelector('.btn-loader');
-        
+
         if (isLoading) {
             button.disabled = true;
             btnText.classList.add('hidden');
