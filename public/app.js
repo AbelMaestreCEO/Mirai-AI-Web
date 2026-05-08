@@ -106,31 +106,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     learningSessionActive = true;
 
     try {
-      // 1. Obtener o crear el chat específico
+      const token = localStorage.getItem('mirai_auth_token');
+      const userDni = localStorage.getItem('mirai_user_dni');
+
+      console.log("📡 Enviando petición a: ", `/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`);
+      console.log("🔐 Headers:", { token: token ? 'EXISTS' : 'MISSING', dni: userDni });
+
       const response = await fetch(`/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('mirai_auth_token')}`,
-          'X-User-DNI': localStorage.getItem('mirai_user_dni') // 🔴 Enviamos explícitamente el DNI
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+          'X-User-DNI': userDni || ''
         }
       });
-      const data = await response.json();
 
-      if (!response.ok) throw new Error(data.error || 'Error al cargar el chat de aprendizaje');
+      console.log("📊 Estado de respuesta:", response.status, response.ok);
+
+      // 🔴 LEER EL CUERPO ANTES DE VALIDAR
+      const text = await response.text(); // Leer como texto primero para debug
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("❌ Error parseando JSON:", e, "Texto recibido:", text);
+        throw new Error("Respuesta del servidor no es JSON válido");
+      }
+
+      console.log("📦 Datos recibidos:", data);
+
+      // 🔴 VALIDACIÓN CORRECTA: 200 o 201 son éxitos
+      if (!response.ok && response.status !== 201) {
+        console.error("❌ Error del servidor:", data);
+        throw new Error(data.error || `Error HTTP ${response.status}`);
+      }
 
       const chatId = data.chat_id;
+      console.log("✅ Chat ID obtenido:", chatId);
 
-      // Cargar la conversación en la UI (Tu función existente)
-      // Asegúrate de que loadConversation(id) actualice el DOM y la variable global currentChatId
+      // Cargar la conversación
       await loadConversation(chatId);
 
-      // 2. Si es nuevo, establecer el System Prompt
       if (data.is_new && contextSystem) {
+        console.log("🔄 Estableciendo System Prompt...");
         const promptResp = await fetch('/api/set-system-prompt', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-User-DNI': localStorage.getItem('mirai_user_dni')
+            'Authorization': token ? `Bearer ${token}` : '',
+            'X-User-DNI': userDni || ''
           },
           body: JSON.stringify({
             conversation_id: chatId,
@@ -139,25 +163,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         if (!promptResp.ok) {
-          console.error("⚠️ Error al establecer prompt del sistema:", await promptResp.text());
+          const errData = await promptResp.json();
+          console.error("⚠️ Advertencia al establecer prompt:", errData);
+          // No lanzamos error aquí, el chat ya se cargó
         } else {
-          console.log("✅ System prompt establecido correctamente para modo: " + contextMode);
-
-          // Opcional: Enviar un mensaje de bienvenida automático si está vacío
-          if (data.messages.length === 0) {
-            // Aquí podrías llamar a una función interna para simular el primer mensaje de Mirai
-            // o simplemente dejar que el usuario empiece a escribir.
-            console.log("💬 Chat nuevo listo para empezar.");
-          }
+          console.log("✅ System prompt establecido.");
         }
       }
 
     } catch (err) {
-      console.error("❌ Error iniciando sesión de aprendizaje:", err);
-      // Fallback: Si falla, recargar sin contexto o ir a login
-      alert("No se pudo cargar el entorno de aprendizaje. Volviendo al chat normal.");
-      window.location.href = 'index.html'; // O simplemente no activamos learningSessionActive
-      learningSessionActive = false;
+      console.error("❌ Error crítico en inicio de sesión de aprendizaje:", err);
+      loadDefaultChat();
     }
   }
 
