@@ -26,13 +26,13 @@ window.fetch = async function (url, options = {}) {
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ DOMContentLoaded');
-    
+
     const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
-    
+
     console.log('👤 Token:', token ? 'OK' : 'MISSING');
     console.log('👤 DNI:', dni ? dni : 'MISSING');
-    
+
     if (!token || !dni) {
         console.error('❌ No autenticado');
         window.location.href = 'login.html';
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupMobileMenu();
     setupLogout();
-    
+
     console.log('🔄 Cargando detalles de tarea...');
     await loadAssignmentDetails();
 });
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // --- CARGA DE DATOS ---
 async function loadAssignmentDetails() {
     console.log('📥 loadAssignmentDetails iniciado');
-    
+
     const loadingState = document.getElementById('loading-state');
     const errorState = document.getElementById('error-state');
     const taskContent = document.getElementById('task-content');
@@ -68,9 +68,9 @@ async function loadAssignmentDetails() {
 
     const urlParams = new URLSearchParams(window.location.search);
     const assignmentId = urlParams.get('id');
-    
+
     console.log('🆔 Assignment ID:', assignmentId);
-    
+
     if (!assignmentId) {
         console.error('❌ ID de tarea no proporcionado');
         showError('ID de tarea no proporcionado. URL: ' + window.location.href);
@@ -81,10 +81,10 @@ async function loadAssignmentDetails() {
         console.log('📡 Llamando a API...');
         const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
         console.log('📊 Response Status:', response.status);
-        
+
         const data = await response.json();
         console.log('📦 Data recibida:', data);
-        
+
         if (!response.ok) {
             console.error('❌ API Error:', data.error);
             if (response.status === 404) {
@@ -121,7 +121,7 @@ async function loadAssignmentDetails() {
         // Validar elementos esenciales
         const essentialIds = ['task-title', 'task-course', 'task-description', 'task-status'];
         const missingIds = essentialIds.filter(id => !elements[id.toLowerCase().replace('task-', '')]);
-        
+
         if (missingIds.length > 0) {
             console.error('❌ Elementos faltantes:', missingIds);
             showError(`Faltan elementos HTML: ${missingIds.join(', ')}`);
@@ -136,7 +136,7 @@ async function loadAssignmentDetails() {
         elements.title.textContent = assignment.title || 'Sin título';
         elements.course.textContent = assignment.course_title || 'General';
         elements.description.textContent = assignment.description || 'Sin descripción';
-        
+
         if (assignment.due_date) {
             elements.due.textContent = new Date(assignment.due_date).toLocaleDateString('es-ES', {
                 day: 'numeric', month: 'long', year: 'numeric'
@@ -175,7 +175,7 @@ function handleSubmissionState(submission, assignment, elements) {
             elements.status.className = 'status-badge status-evaluated';
             const finalScore = submission.professor_note ?? submission.score;
             elements.status.textContent = `Revisado ${finalScore}/${assignment.max_score}`;
-            
+
             if (elements.feedbackSection) {
                 elements.feedbackSection.style.display = 'block';
                 renderFeedback(elements.feedbackSection, submission, assignment.max_score);
@@ -185,7 +185,7 @@ function handleSubmissionState(submission, assignment, elements) {
             console.log('⏳ Estado: En revisión');
             elements.status.className = 'status-badge status-submitted';
             elements.status.textContent = 'En revisión';
-            
+
             if (elements.evaluateSection) {
                 elements.evaluateSection.style.display = 'block';
                 elements.evaluateSection.innerHTML = `
@@ -193,7 +193,7 @@ function handleSubmissionState(submission, assignment, elements) {
                     <p class="section-subtitle">Usa nuestra IA para obtener una calificación preliminar</p>
                     <button id="ai-evaluate-btn" class="btn btn-primary">🤖 Evaluar con IA</button>
                 `;
-                
+
                 document.getElementById('ai-evaluate-btn').onclick = () => confirmEvaluation(submission.id);
             }
         }
@@ -201,7 +201,7 @@ function handleSubmissionState(submission, assignment, elements) {
         console.log('📤 Estado: Pendiente de entrega');
         elements.status.className = 'status-badge status-pending';
         elements.status.textContent = 'Pendiente';
-        
+
         if (elements.submitSection) {
             elements.submitSection.style.display = 'block';
             renderUploadForm(elements.submitSection, assignment.id);
@@ -222,7 +222,7 @@ function renderUploadForm(container, assignmentId) {
             
             <div class="file-input-wrapper">
                 <button class="btn btn-primary">Seleccionar Archivos</button>
-                <input type="file" id="file-input" accept=".pdf,.doc,.docx" multiple>
+                <input type="file" id="file-input" accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
             </div>
 
             <div id="file-list" class="file-list"></div>
@@ -272,11 +272,19 @@ function renderUploadForm(container, assignmentId) {
     });
 
     function validateAndAddFile(file) {
+        const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const validExtensions = ['.pdf', '.docx'];
+        const extension = file.name.split('.').pop().toLowerCase();
+        if (!validTypes.includes(file.type) && !validExtensions.includes('.' + extension)) {
+            alert(`El archivo ${file.name} no es válido. Solo se permiten PDF y DOCX.`);
+            return;
+        }
+
         if (file.size > 10 * 1024 * 1024) {
             alert(`El archivo ${file.name} supera los 10MB`);
             return;
         }
-        
+
         const chip = document.createElement('div');
         chip.className = 'file-chip';
         chip.innerHTML = `
@@ -300,7 +308,7 @@ function renderUploadForm(container, assignmentId) {
         try {
             const formData = new FormData();
             formData.append('assignment_id', assignmentId);
-            
+
             const fileInput = document.getElementById('file-input');
             if (fileInput.files.length > 0) {
                 formData.append('file', fileInput.files[0]);
@@ -329,13 +337,13 @@ function renderUploadForm(container, assignmentId) {
 
 function renderFeedback(container, submission, maxScore) {
     let feedbackText = 'Sin retroalimentación.';
-    
+
     try {
         if (submission.feedback) {
-            const fb = typeof submission.feedback === 'string' 
-                ? JSON.parse(submission.feedback) 
+            const fb = typeof submission.feedback === 'string'
+                ? JSON.parse(submission.feedback)
                 : submission.feedback;
-            
+
             let formattedFeedback = '<div class="feedback-content">';
             for (const [key, value] of Object.entries(fb)) {
                 if (key !== 'general' && value) {
@@ -356,7 +364,7 @@ function renderFeedback(container, submission, maxScore) {
     } catch (e) {
         feedbackText = submission.feedback || 'Sin retroalimentación.';
     }
-    
+
     container.innerHTML = `
         <div class="feedback-header">
             <span class="feedback-icon">✅</span>
@@ -384,9 +392,9 @@ function confirmEvaluation(submissionId) {
         "Profundidad en el análisis"
     ];
 
-    const message = "La IA evaluará tu trabajo basándose en los siguientes criterios:\n\n" + 
-                    criteria.map((c, i) => `${i+1}. ${c}`).join('\n') + 
-                    "\n\n¿Deseas proceder?";
+    const message = "La IA evaluará tu trabajo basándose en los siguientes criterios:\n\n" +
+        criteria.map((c, i) => `${i + 1}. ${c}`).join('\n') +
+        "\n\n¿Deseas proceder?";
 
     if (confirm(message)) {
         startEvaluation(submissionId);
@@ -457,7 +465,7 @@ function setupMobileMenu() {
     const closeMenu = document.querySelector('.close-menu');
     const sidebar = document.querySelector('.mobile-sidebar');
     const overlay = document.querySelector('.mobile-overlay');
-    
+
     if (!menuToggle || !closeMenu || !sidebar || !overlay) {
         console.warn('⚠️ Elementos del menú no encontrados');
         return;
@@ -466,18 +474,18 @@ function setupMobileMenu() {
     function toggleMenu() {
         const isActive = sidebar.classList.contains('active');
         if (isActive) {
-            sidebar.classList.remove('active'); 
+            sidebar.classList.remove('active');
             overlay.classList.remove('active');
-            menuToggle.classList.remove('active'); 
+            menuToggle.classList.remove('active');
             document.body.style.overflow = '';
         } else {
-            sidebar.classList.add('active'); 
+            sidebar.classList.add('active');
             overlay.classList.add('active');
-            menuToggle.classList.add('active'); 
+            menuToggle.classList.add('active');
             document.body.style.overflow = 'hidden';
         }
     }
-    
+
     menuToggle.addEventListener('click', toggleMenu);
     closeMenu.addEventListener('click', toggleMenu);
     overlay.addEventListener('click', toggleMenu);
@@ -486,9 +494,9 @@ function setupMobileMenu() {
 function setupLogout() {
     const btn = document.getElementById('logout-btn');
     if (btn) {
-        btn.addEventListener('click', () => { 
-            localStorage.clear(); 
-            window.location.href = 'login.html'; 
+        btn.addEventListener('click', () => {
+            localStorage.clear();
+            window.location.href = 'login.html';
         });
     }
 }
