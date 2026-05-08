@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub de Aprendizaje - Mirai AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .hub-container { max-width: 800px; margin: 0 auto; padding: 40px 20px; padding-top: 100px; text-align: center; }
+        .mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 25px; margin-top: 40px; }
+        .mode-card { 
+            background: var(--card-bg); 
+            border-radius: 16px; 
+            padding: 30px; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            border: 2px solid transparent;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .mode-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .mode-icon { font-size: 3rem; margin-bottom: 15px; display: block; }
+        .mode-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; color: var(--text-primary); }
+        .mode-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; }
+        .back-link { display: inline-block; margin-top: 30px; color: var(--text-secondary); text-decoration: none; }
+        .back-link:hover { color: var(--primary-color); }
+    </style>
+</head>
+<body>
+    <!-- Mismo Sidebar y Header que classroom.html -->
+    <!-- ... (copiar estructura de sidebar y header) ... -->
+
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+        </button>
+        <div class="header-title">Hub de Aprendizaje</div>
+        <button id="theme-toggle" class="theme-toggle">🌓</button>
+    </header>
+
+    <main class="hub-container">
+        <h1 id="task-title-display">Preparando tu aprendizaje</h1>
+        <p>Elige cómo quieres prepararte antes de entregar tu trabajo:</p>
+
+        <div class="mode-grid">
+            <div class="mode-card" onclick="startLearning('theory')">
+                <span class="mode-icon">📖</span>
+                <div class="mode-title">Teoría</div>
+                <div class="mode-desc">Mirai te explicará los conceptos clave, definiciones y fundamentos necesarios para esta tarea.</div>
+            </div>
+
+            <div class="mode-card" onclick="startLearning('quiz')">
+                <span class="mode-icon">❓</span>
+                <div class="mode-title">Quiz Interactivo</div>
+                <div class="mode-desc">Preguntas y respuestas para validar tu comprensión. ¡Aprende jugando!</div>
+            </div>
+
+            <div class="mode-card" onclick="startLearning('practice')">
+                <span class="mode-icon">💻</span>
+                <div class="mode-title">Práctica con Ejemplos</div>
+                <div class="mode-desc">Ejercicios guiados y ejemplos de código o casos de estudio relacionados con la tarea.</div>
+            </div>
+        </div>
+
+        <a href="classroom.html" class="back-link">← Volver a mis tareas</a>
+    </main>
+
+    <script>
+        // --- SOBRECARGA DE FETCH (Igual que en otros archivos) ---
+        const originalFetch = window.fetch;
+        window.fetch = async function (url, options = {}) {
+            if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
+                const token = localStorage.getItem('mirai_auth_token');
+                if (token) {
+                    options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+                } else {
+                    window.location.href = 'login.html';
+                    return;
+                }
+            }
+            return originalFetch.call(this, url, options);
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const taskId = params.get('task_id');
+            const taskTitle = params.get('task_title');
+
+            if (!taskId) {
+                window.location.href = 'classroom.html';
+                return;
+            }
+
+            if (taskTitle) {
+                document.getElementById('task-title-display').textContent = `Preparación: ${decodeURIComponent(taskTitle)}`;
+            }
+
+            // Guardar contexto temporalmente para la navegación
+            window.learningContext = { taskId, taskTitle: decodeURIComponent(taskTitle || '') };
+        });
+
+        function startLearning(mode) {
+            const { taskId, taskTitle } = window.learningContext;
+            
+            // Construir el sistema de prompts para el backend
+            // Esto le dice a Mirai exactamente qué rol tomar
+            const systemPrompt = `
+                Eres un tutor experto en la tarea: "${taskTitle}".
+                El usuario ha seleccionado el modo: "${mode.toUpperCase()}".
+                
+                Reglas específicas según el modo:
+                - TEORÍA: Explica los conceptos fundamentales de forma clara y estructurada. Usa analogías. No des la solución directa, enseña el "por qué".
+                - QUIZ: Haz una pregunta a la vez. Espera la respuesta del usuario. Evalúa si es correcta, da feedback y pasa a la siguiente. Lleva un conteo de aciertos.
+                - PRÁCTICA: Proporciona un ejemplo resuelto paso a paso. Luego, pide al usuario que intente algo similar o modifica el ejemplo para que el usuario lo complete.
+                
+                Mantén un tono alentador y pedagógico. Si el usuario pide la respuesta directa en modo Quiz o Práctica, guíalo en lugar de dársela.
+            `;
+
+            // 🔴 CLAVE: Usamos un ID único basado en la tarea y el modo para buscar el chat existente
+            const uniqueChatId = `task_${taskId}_mode_${mode}`;
+
+            // Redirigir a index.html con parámetros que forzaran la creación/reapertura del chat correcto
+            // Nota: index.html debe estar modificado para leer estos parámetros
+            window.location.href = `index.html?context_task=${taskId}&context_mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
+        }
+    </script>
+</body>
+</html>

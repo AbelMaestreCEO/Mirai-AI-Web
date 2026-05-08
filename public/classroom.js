@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Verificación de seguridad básica
     const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
-    
+
     if (!token || !dni) {
         window.location.href = 'login.html';
         return;
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Inicializar menú móvil
     setupMobileMenu();
-    
+
     // Cargar tareas
     await loadTasks(dni);
     setupLogout();
@@ -41,13 +41,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadTasks(userDni) {
     const container = document.getElementById('tasks-container');
     const greeting = document.getElementById('user-greeting');
-    
+
     if (greeting) greeting.textContent = `Hola, ${userDni}`;
 
     try {
         // La petición ahora llevará el token gracias al override de fetch arriba
         const response = await fetch(`/api/my-submissions?user_dni=${userDni}`);
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 window.location.href = 'login.html';
@@ -55,7 +55,7 @@ async function loadTasks(userDni) {
             }
             throw new Error(`Error HTTP: ${response.status}`);
         }
-        
+
         const data = await response.json();
         const { assignments, submissions } = data;
 
@@ -95,7 +95,7 @@ async function loadTasks(userDni) {
 function updateStats(assignments, submissions) {
     const pending = assignments.filter(a => !submissions.find(s => s.assignment_id === a.id)).length;
     const completed = submissions.length;
-    
+
     document.getElementById('pending-count').textContent = pending;
     document.getElementById('completed-count').textContent = completed;
 
@@ -112,7 +112,9 @@ function renderTasks(assignments, submissions) {
 
     assignments.forEach(assignment => {
         const submission = submissions.find(s => s.assignment_id === assignment.id);
-        
+
+        // ... (lógica de estado existente) ...
+
         let statusText = 'Pendiente';
         let statusClass = 'status-pending';
         let actionText = 'Entregar';
@@ -121,7 +123,7 @@ function renderTasks(assignments, submissions) {
         if (submission) {
             if (submission.status === 'pending') {
                 statusText = 'En revisión';
-                statusClass = 'status-pending'; // O usa una clase específica 'status-review'
+                statusClass = 'status-pending';
                 actionText = 'Ver Detalles';
             } else if (submission.status === 'completed') {
                 statusText = `Revisado ${submission.score}/${assignment.max_score}`;
@@ -132,12 +134,19 @@ function renderTasks(assignments, submissions) {
 
         const card = document.createElement('div');
         card.className = `task-card ${submission ? 'submitted' : ''}`;
-        
+
+        // 🔴 CAMBIO: Añadir botón "Aprender"
+        const learnButtonHtml = `
+            <button class="btn-learn" data-id="${assignment.id}" data-title="${escapeHtml(assignment.title)}" title="Prepararte para esta tarea">
+                🧠 Aprender
+            </button>
+        `;
+
         card.innerHTML = `
             <div class="task-info">
                 <h3>${escapeHtml(assignment.title)}</h3>
                 <div class="task-meta">
-                    <span>📅 Curso: ${escapeHtml(assignment.course_title || 'General')}</span>
+                    <span>📚 Curso: ${escapeHtml(assignment.course_title || 'General')}</span>
                     ${assignment.due_date ? `<span>🕒 Vence: ${new Date(assignment.due_date).toLocaleDateString()}</span>` : ''}
                     ${submission && submission.score !== null ? `<span>🏆 Nota: ${submission.score}</span>` : ''}
                 </div>
@@ -145,11 +154,22 @@ function renderTasks(assignments, submissions) {
             </div>
             <div class="task-actions">
                 <span class="status-badge ${statusClass}">${statusText}</span>
+                ${learnButtonHtml}
                 <a href="${actionHref}" class="btn-primary">${actionText}</a>
             </div>
         `;
-        
+
         container.appendChild(card);
+    });
+
+    // 🔴 NUEVO: Event Listeners para los botones de aprender
+    document.querySelectorAll('.btn-learn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const taskId = e.target.dataset.id;
+            const taskTitle = e.target.dataset.title;
+            // Redirigir al Hub de Aprendizaje
+            window.location.href = `learning_hub.html?task_id=${taskId}&task_title=${encodeURIComponent(taskTitle)}`;
+        });
     });
 }
 function setupMobileMenu() {
@@ -182,11 +202,11 @@ function setupMobileMenu() {
 
 document.getElementById('professor-btn')?.addEventListener('click', async () => {
     const dni = localStorage.getItem('mirai_user_dni');
-    
+
     try {
         const checkResponse = await fetch('/api/check-professor-role');
         const checkData = await checkResponse.json();
-        
+
         if (checkData.is_professor) {
             window.location.href = 'classroom_admin.html';
         } else {
@@ -201,7 +221,7 @@ function setupLogout() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            if(confirm('¿Cerrar sesión?')) {
+            if (confirm('¿Cerrar sesión?')) {
                 localStorage.clear();
                 window.location.href = 'login.html';
             }

@@ -87,38 +87,102 @@ window.fetch = async function (url, options = {}) {
 };
 
 // --- INICIALIZACIÓN ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   if (!checkAuth()) return;
 
   initializeTheme();
   setupMobileMenu();
-  // ✨ Solo inicializar chat si existe el contenedor
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const contextTask = urlParams.get('context_task');
+  const contextMode = urlParams.get('context_mode');
+  const contextSystem = urlParams.get('context_system');
+
+  // Bandera para saber si ya manejamos el chat manualmente
+  let learningSessionActive = false;
+
+  if (contextTask && contextMode) {
+    console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${contextTask}, Modo ${contextMode}`);
+    learningSessionActive = true;
+
+    try {
+      // 1. Obtener o crear el chat específico
+      const response = await fetch(`/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`);
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Error al cargar el chat de aprendizaje');
+
+      const chatId = data.chat_id;
+
+      // Cargar la conversación en la UI (Tu función existente)
+      // Asegúrate de que loadConversation(id) actualice el DOM y la variable global currentChatId
+      await loadConversation(chatId);
+
+      // 2. Si es nuevo, establecer el System Prompt
+      if (data.is_new && contextSystem) {
+        const promptResp = await fetch('/api/set-system-prompt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-DNI': localStorage.getItem('mirai_user_dni')
+          },
+          body: JSON.stringify({
+            conversation_id: chatId,
+            prompt: decodeURIComponent(contextSystem)
+          })
+        });
+
+        if (!promptResp.ok) {
+          console.error("⚠️ Error al establecer prompt del sistema:", await promptResp.text());
+        } else {
+          console.log("✅ System prompt establecido correctamente para modo: " + contextMode);
+          
+          // Opcional: Enviar un mensaje de bienvenida automático si está vacío
+          if (data.messages.length === 0) {
+             // Aquí podrías llamar a una función interna para simular el primer mensaje de Mirai
+             // o simplemente dejar que el usuario empiece a escribir.
+             console.log("💬 Chat nuevo listo para empezar.");
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error("❌ Error iniciando sesión de aprendizaje:", err);
+      // Fallback: Si falla, recargar sin contexto o ir a login
+      alert("No se pudo cargar el entorno de aprendizaje. Volviendo al chat normal.");
+      window.location.href = 'index.html'; // O simplemente no activamos learningSessionActive
+      learningSessionActive = false; 
+    }
+  }
+
+  // ✨ Lógica Condicional: Solo inicializar chat normal si NO estamos en aprendizaje
   const isChatPage = !!document.getElementById('chat-messages');
+  
   if (isChatPage) {
-    initializeChat();
-    loadOrCreateConversation();
+    // Si NO es una sesión de aprendizaje, hacemos la carga normal
+    if (!learningSessionActive) {
+      console.log("🔄 Cargando chat normal...");
+      loadOrCreateConversation(); // Esta función probablemente carga el último chat o crea uno nuevo
+    } else {
+      console.log("🎓 Sesión de aprendizaje activa. Saltando carga normal.");
+    }
+
+    // Siempre inicializamos los listeners y UI, pero solo una vez
+    initializeChat(); 
     setupEventListeners();
     initializeFileUpload();
-    loadConversations();
+    loadConversations(); // Carga la lista lateral (esto es seguro hacerlo siempre)
     initializeAudioMode();
   }
-  const headers = document.querySelectorAll('.collapsible-header');
-  // Configurar estado inicial (opcional: cerrar todos excepto uno)
-  // headers.forEach(h => h.parentElement.classList.remove('active'));
 
+  // Configuración del Sidebar (Acordeón)
+  const headers = document.querySelectorAll('.collapsible-header');
   headers.forEach(header => {
     header.addEventListener('click', () => {
       const section = header.parentElement;
-
-      // Opcional: Cerrar otros abiertos (comportamiento de acordeón estricto)
-      // document.querySelectorAll('.collapsible-section').forEach(s => {
-      //     if (s !== section) s.classList.remove('active');
-      // });
-
       section.classList.toggle('active');
     });
 
-    // Soporte para teclado (accesibilidad)
     header.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -127,6 +191,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+async function sendInitialSystemPrompt(prompt) {
+  // Esta función debe interactuar con tu backend para establecer el "System Message"
+  // para la conversación actual.
+  await fetch('/api/set-system-prompt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt })
+  });
+}
 
 function detectEducationContext() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -2803,71 +2877,71 @@ document.getElementById('logout-btn').addEventListener('click', () => {
 });
 
 function initSidebarCollapse() {
-    const collapseBtn = document.getElementById('sidebar-collapse-btn');
-    const sidebar = document.querySelector('.mobile-sidebar');
-    const STORAGE_KEY = 'mirai_sidebar_state'; // Clave para localStorage
+  const collapseBtn = document.getElementById('sidebar-collapse-btn');
+  const sidebar = document.querySelector('.mobile-sidebar');
+  const STORAGE_KEY = 'mirai_sidebar_state'; // Clave para localStorage
 
-    if (!collapseBtn || !sidebar) return;
+  if (!collapseBtn || !sidebar) return;
 
-    // Función para aplicar el estado
-    const applyState = (isCollapsed) => {
-        if (isCollapsed) {
-            sidebar.classList.add('collapsed');
-            // Cambiar icono a flecha derecha
-            const svgPath = collapseBtn.querySelector('svg path');
-            if (svgPath) {
-                svgPath.setAttribute('d', 'M10 17l5-5-5-5v10z');
-            }
-            collapseBtn.title = 'Expandir barra';
-        } else {
-            sidebar.classList.remove('collapsed');
-            // Cambiar icono a flecha izquierda
-            const svgPath = collapseBtn.querySelector('svg path');
-            if (svgPath) {
-                svgPath.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z');
-            }
-            collapseBtn.title = 'Colapsar barra';
-        }
-    };
-
-    // 1. Restaurar estado al cargar la página
-    const savedState = localStorage.getItem(STORAGE_KEY);
-    const isCollapsed = savedState === 'true';
-    
-    // Aplicar estado solo si estamos en escritorio (>768px)
-    if (window.innerWidth > 768) {
-        applyState(isCollapsed);
-        collapseBtn.style.display = 'flex';
+  // Función para aplicar el estado
+  const applyState = (isCollapsed) => {
+    if (isCollapsed) {
+      sidebar.classList.add('collapsed');
+      // Cambiar icono a flecha derecha
+      const svgPath = collapseBtn.querySelector('svg path');
+      if (svgPath) {
+        svgPath.setAttribute('d', 'M10 17l5-5-5-5v10z');
+      }
+      collapseBtn.title = 'Expandir barra';
     } else {
-        collapseBtn.style.display = 'none';
+      sidebar.classList.remove('collapsed');
+      // Cambiar icono a flecha izquierda
+      const svgPath = collapseBtn.querySelector('svg path');
+      if (svgPath) {
+        svgPath.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z');
+      }
+      collapseBtn.title = 'Colapsar barra';
     }
+  };
 
-    // 2. Manejar el clic en el botón
-    collapseBtn.addEventListener('click', () => {
-        const newState = !sidebar.classList.contains('collapsed');
-        
-        // Aplicar visualmente
-        applyState(newState);
-        
-        // Guardar en localStorage
-        localStorage.setItem(STORAGE_KEY, newState.toString());
-    });
+  // 1. Restaurar estado al cargar la página
+  const savedState = localStorage.getItem(STORAGE_KEY);
+  const isCollapsed = savedState === 'true';
 
-    // 3. Verificar al redimensionar la ventana
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) {
-            collapseBtn.style.display = 'flex';
-            // Re-aplicar el estado guardado si cambiamos de móvil a escritorio
-            const saved = localStorage.getItem(STORAGE_KEY) === 'true';
-            if (saved !== sidebar.classList.contains('collapsed')) {
-                applyState(saved);
-            }
-        } else {
-            collapseBtn.style.display = 'none';
-            // En móvil, asegurarnos de que no esté colapsado visualmente
-            sidebar.classList.remove('collapsed');
-        }
-    });
+  // Aplicar estado solo si estamos en escritorio (>768px)
+  if (window.innerWidth > 768) {
+    applyState(isCollapsed);
+    collapseBtn.style.display = 'flex';
+  } else {
+    collapseBtn.style.display = 'none';
+  }
+
+  // 2. Manejar el clic en el botón
+  collapseBtn.addEventListener('click', () => {
+    const newState = !sidebar.classList.contains('collapsed');
+
+    // Aplicar visualmente
+    applyState(newState);
+
+    // Guardar en localStorage
+    localStorage.setItem(STORAGE_KEY, newState.toString());
+  });
+
+  // 3. Verificar al redimensionar la ventana
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      collapseBtn.style.display = 'flex';
+      // Re-aplicar el estado guardado si cambiamos de móvil a escritorio
+      const saved = localStorage.getItem(STORAGE_KEY) === 'true';
+      if (saved !== sidebar.classList.contains('collapsed')) {
+        applyState(saved);
+      }
+    } else {
+      collapseBtn.style.display = 'none';
+      // En móvil, asegurarnos de que no esté colapsado visualmente
+      sidebar.classList.remove('collapsed');
+    }
+  });
 }
 
 // Llamar a la función cuando cargue la página

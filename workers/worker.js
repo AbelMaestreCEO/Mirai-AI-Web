@@ -496,9 +496,9 @@ async function handleLogin(request, env, corsHeaders) {
     const emailSent = await sendVerificationEmail(user.email, newOtp, env);
 
     if (!emailSent) {
-      return jsonResponse({ 
-        error: 'Error al enviar el código de verificación.', 
-        needs_verification: true 
+      return jsonResponse({
+        error: 'Error al enviar el código de verificación.',
+        needs_verification: true
       }, 500, corsHeaders);
     }
 
@@ -551,6 +551,162 @@ async function classifyIntent(message, env) {
   } catch (error) {
     console.error('❌ classifyIntent error:', error.message);
     return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' }; // Fallback seguro
+  }
+}
+
+function generateLearningChatId(taskId, mode) {
+  return `learn_${taskId}_${mode}_${Date.now()}`;
+}
+
+async function findExistingLearningChat(db, userDni, taskId, mode) {
+  // Buscamos en learning_context (almacenado como JSON string)
+  // Nota: D1 no tiene soporte nativo robusto para JSON parsing en WHERE, 
+  // así que filtramos por patrón o guardamos el ID específico en otro campo si es crítico.
+  // Para simplificar y ser eficiente, usaremos un patrón de búsqueda en el título o contexto.
+
+  // Estrategia: Buscar por patrón en el título o contexto si lo guardamos como JSON
+  // Mejor estrategia: Guardar el ID generado en un campo separado o usar una consulta exacta si sabemos el ID.
+  // Pero como el ID es dinámico, buscaremos por user_dni y un patrón en learning_context.
+
+  // Dado que D1 es SQL, haremos una búsqueda aproximada o guardaremos el ID exacto en el título.
+  // Vamos a buscar por user_dni y que el título contenga "Aprendizaje" y el contexto coincida.
+
+  const stmt = db.prepare(`
+        SELECT * FROM conversations 
+        WHERE user_dni = ? 
+        AND learning_context IS NOT NULL
+        ORDER BY updated_at DESC 
+        LIMIT 1
+    `);
+
+  const { results } = await stmt.bind(userDni).all();
+
+  if (results.length === 0) return null;
+
+  // Filtrar manualmente en JS para asegurar coincidencia exacta de tarea y modo
+  for (const chat of results) {
+    try {
+      const ctx = JSON.parse(chat.learning_context);
+      if (ctx.task_id === taskId && ctx.mode === mode) {
+        return chat;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+async function handleGetOrCreateLearningChat(request, env) {
+  const url = new URL(request.url);
+  const userDni = request.headers.get('X-User-DNI') || localStorage.getItem('mirai_user_dni'); // Asegúrate de pasar el DNI en header o auth
+
+  // Obtener parámetros de la URL
+  const taskId = url.searchParams.get('task_id');
+  const mode = url.searchParams.get('mode'); // 'theory', 'quiz', 'practice'
+
+  if (!userDni || !taskId || !mode) {
+    return new Response(JSON.stringify({ error: 'Faltan parámetros requeridos' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const db = env.DB;
+
+  // 1. Intentar encontrar chat existente
+  const existingChat = await findExistingLearningChat(db, userDni, taskId, mode);
+
+  if (existingChat) {
+    // Retornar chat existente
+    // Obtenemos los mensajes asociados
+    const messagesStmt = db.prepare(`
+            SELECT * FROM messages 
+            WHERE conversation_id = ? 
+            ORDER BY created_at ASC
+        `);
+    const { results: messages } = await messagesStmt.bind(existingChat.id).all();
+
+    return new Response(JSON.stringify({
+      chat_id: existingChat.id,
+      title: existingChat.title,
+      is_new: false,
+      messages: messages,
+      learning_context: JSON.parse(existingChat.learning_context)
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 2. Crear nuevo chat
+  const chatId = generateLearningChatId(taskId, mode);
+  const now = Math.floor(Date.now() / 1000);
+  const title = `Aprendizaje: Tarea ${taskId} - ${mode.toUpperCase()}`;
+  const learningContext = JSON.stringify({ task_id: taskId, mode: mode });
+
+  const insertStmt = db.prepare(`
+        INSERT INTO conversations (id, title, model, created_at, updated_at, user_dni, learning_context)
+        VALUES (?, ?, 'deepseek-r1', ?, ?, ?, ?)
+    `);
+
+  await insertStmt.bind(chatId, title, now, now, userDni, learningContext).run();
+
+  return new Response(JSON.stringify({
+    chat_id: chatId,
+    title: title,
+    is_new: true,
+    messages: [],
+    learning_context: JSON.parse(learningContext)
+  }), {
+    status: 201,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+async function handleSetSystemPrompt(request, env) {
+  try {
+    const { prompt, conversation_id } = await request.json();
+    const userDni = request.headers.get('X-User-DNI');
+
+    if (!prompt || !conversation_id) {
+      return new Response(JSON.stringify({ error: 'Faltan parámetros' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const db = env.DB;
+
+    // Actualizar el system_prompt en la tabla conversations
+    const updateStmt = db.prepare(`
+            UPDATE conversations 
+            SET system_prompt = ?, updated_at = ?
+            WHERE id = ? AND user_dni = ?
+        `);
+
+    const now = Math.floor(Date.now() / 1000);
+    const result = await updateStmt.bind(prompt, now, conversation_id, userDni).run();
+
+    if (result.rowsAffected === 0) {
+      return new Response(JSON.stringify({ error: 'Conversación no encontrada o no autorizada' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, conversation_id }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error en set-system-prompt:', error);
+    return new Response(JSON.stringify({ error: 'Error interno del servidor' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
@@ -1061,6 +1217,14 @@ async function handleApiRequest(request, env, corsHeaders) {
     // Ruta: POST /api/chat
     if (path === ROUTES.CHAT && request.method === 'POST') {
       return await handleChat(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/get-or-create-learning-chat' && request.method === 'GET') {
+      return handleGetOrCreateLearningChat(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/set-system-prompt' && request.method === 'POST') {
+      return handleSetSystemPrompt(request, env, corsHeaders);
     }
 
     if (path === '/api/user-courses' && request.method === 'GET') {
