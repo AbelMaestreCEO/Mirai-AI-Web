@@ -738,56 +738,70 @@ async function extractTextFromPDF(buffer) {
   }
 }
 
-// --- NUEVA FUNCIÓN: EXTRAER TEXTO DE DOCX ---
 async function extractTextFromDocx(buffer) {
   try {
-    // Un DOCX es un ZIP. Necesitamos encontrar el archivo 'word/document.xml'.
-    // Como no podemos importar librerías ZIP pesadas fácilmente en Workers sin bundler,
-    // usaremos un truco: buscar el patrón de inicio de archivo XML dentro del ZIP.
-
     const decoder = new TextDecoder('utf-8');
     const text = decoder.decode(buffer);
 
-    // Buscar el contenido de word/document.xml
-    // Patrón: <w:body ... > ... contenido ... </w:body>
-    // Nota: Esto es una aproximación. Para producción robusta, usa 'jszip' en el bundler.
+    console.log(`🔍 [DOCX] Buffer size: ${buffer.byteLength} bytes`);
+    console.log(`🔍 [DOCX] Primeros 200 chars: ${text.substring(0, 200)}`);
 
-    const docStart = text.indexOf('<w:body');
-    if (docStart === -1) {
-      throw new Error("No se encontró estructura XML válida en DOCX");
+    // Buscar word/document.xml dentro del ZIP
+    const docStartMarker = 'word/document.xml';
+    const docStartIndex = text.indexOf(docStartMarker);
+
+    if (docStartIndex === -1) {
+      // Intentar buscar sin la ruta completa
+      const altMarker = 'document.xml';
+      const altIndex = text.indexOf(altMarker);
+      if (altIndex === -1) {
+        throw new Error("No se encontró 'word/document.xml' en el DOCX. ¿Es un archivo válido?");
+      }
     }
 
-    const docEnd = text.indexOf('</w:body>', docStart);
-    if (docEnd === -1) {
-      throw new Error("No se encontró fin de documento XML");
+    const searchIndex = docStartIndex !== -1 ? docStartIndex : text.indexOf('document.xml');
+
+    // Buscar <w:body> después del marcador
+    const bodyStart = text.indexOf('<w:body', searchIndex);
+    if (bodyStart === -1) {
+      // Buscar variantes
+      const altBody = text.indexOf('<w:body');
+      if (altBody === -1) {
+        throw new Error("No se encontró <w:body>. El documento podría estar corrupto o en formato diferente.");
+      }
     }
 
-    const xmlContent = text.substring(docStart, docEnd + 9);
-
-    // Extraer texto de los párrafos <w:p>
-    const paragraphs = xmlContent.match(/<w:p>[\s\S]*?<\/w:p>/g);
-    if (!paragraphs) {
-      throw new Error("No se encontraron párrafos en el documento");
+    const actualBodyStart = bodyStart !== -1 ? bodyStart : text.indexOf('<w:body');
+    const bodyEnd = text.indexOf('</w:body>', actualBodyStart);
+    if (bodyEnd === -1) {
+      throw new Error("No se encontró </w:body>.");
     }
+
+    const xmlContent = text.substring(actualBodyStart, bodyEnd + 9);
+    console.log(`🔍 [DOCX] XML content length: ${xmlContent.length}`);
+
+    // Extraer texto de <w:t> dentro de <w:p>
+    const paragraphRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
+    const paragraphs = xmlContent.match(paragraphRegex) || [];
+    console.log(`🔍 [DOCX] Párrafos encontrados: ${paragraphs.length}`);
 
     const extractedText = paragraphs.map(para => {
-      // Extraer el texto de <w:t>
-      const textMatch = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g);
-      if (textMatch) {
-        return textMatch.map(t => t.replace(/<[^>]+>/g, '').trim()).join(' ');
-      }
-      return '';
+      const textNodes = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [];
+      return textNodes.map(node => node.replace(/<[^>]+>/g, '').trim()).join(' ');
     }).filter(t => t.length > 0).join('\n');
 
+    console.log(`🔍 [DOCX] Texto extraído: ${extractedText.length} caracteres`);
+    console.log(`🔍 [DOCX] Primeros 300 chars: ${extractedText.substring(0, 300)}`);
+
     if (extractedText.length < 50) {
-      throw new Error("El documento parece estar vacío o encriptado");
+      throw new Error("El documento parece estar vacío o no contiene texto legible.");
     }
 
-    return extractedText.substring(0, 15000); // Limitar para la IA
+    return extractedText.substring(0, 15000);
 
   } catch (error) {
-    console.error('Error extrayendo DOCX:', error.message);
-    throw new Error("No se pudo leer el archivo DOCX. Asegúrate de que no esté encriptado.");
+    console.error('❌ extractTextFromDocx error:', error.message);
+    throw error;
   }
 }
 // --- MANEJO DE RUTAS API ---
