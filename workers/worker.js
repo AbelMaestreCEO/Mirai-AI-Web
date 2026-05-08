@@ -188,7 +188,7 @@ async function sendVerificationEmail(email, code, env) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Mirai AI <noreply@aberumirai.com>',
+        from: 'Mirai AI <mirai@aberumirai.com>',
         to: email,
         subject: 'Tu código de verificación — Mirai AI 🔐',
         html: htmlBody
