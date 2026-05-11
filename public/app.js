@@ -101,16 +101,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Bandera para saber si ya manejamos el chat manualmente
   let learningSessionActive = false;
 
-  if (contextTask && contextMode) {
+  // En app.js, dentro de DOMContentLoaded
+
+if (contextTask && contextMode) {
     console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${contextTask}, Modo ${contextMode}`);
     learningSessionActive = true;
 
     try {
       const token = localStorage.getItem('mirai_auth_token');
       const userDni = localStorage.getItem('mirai_user_dni');
-
-      console.log("📡 Enviando petición a: ", `/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`);
-      console.log("🔐 Headers:", { token: token ? 'EXISTS' : 'MISSING', dni: userDni });
 
       const response = await fetch(`/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`, {
         method: 'GET',
@@ -121,30 +120,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
 
-      console.log("📊 Estado de respuesta:", response.status, response.ok);
+      const data = await response.json();
 
-      // 🔴 LEER EL CUERPO ANTES DE VALIDAR
-      const text = await response.text(); // Leer como texto primero para debug
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("❌ Error parseando JSON:", e, "Texto recibido:", text);
-        throw new Error("Respuesta del servidor no es JSON válido");
-      }
-
-      console.log("📦 Datos recibidos:", data);
-
-      // 🔴 VALIDACIÓN CORRECTA: 200 o 201 son éxitos
-      if (!response.ok && response.status !== 201) {
-        console.error("❌ Error del servidor:", data);
-        throw new Error(data.error || `Error HTTP ${response.status}`);
+      if (!response.ok) {
+        console.error(`❌ Error HTTP ${response.status}:`, data);
+        throw new Error(data.error || `Error del servidor: ${response.status}`);
       }
 
       const chatId = data.chat_id;
       console.log("✅ Chat ID obtenido:", chatId);
 
-      // Cargar la conversación
+      // ✅ Cargar conversación de aprendizaje
       await loadConversationHistory(chatId);
 
       if (data.is_new && contextSystem) {
@@ -165,7 +151,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!promptResp.ok) {
           const errData = await promptResp.json();
           console.error("⚠️ Advertencia al establecer prompt:", errData);
-          // No lanzamos error aquí, el chat ya se cargó
         } else {
           console.log("✅ System prompt establecido.");
         }
@@ -173,8 +158,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     } catch (err) {
       console.error("❌ Error crítico en inicio de sesión de aprendizaje:", err);
-      loadDefaultChat();
+      // Fallback: usar loadOrCreateConversation que SÍ existe
+      console.log("🔄 Volviendo a carga normal...");
+      loadOrCreateConversation();
     }
+  } else {
+    // Carga normal si no hay contexto de aprendizaje
+    console.log("🔄 Cargando conversación por defecto...");
+    loadOrCreateConversation();
   }
 
   // ✨ Lógica Condicional: Solo inicializar chat normal si NO estamos en aprendizaje
@@ -184,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Si NO es una sesión de aprendizaje, hacemos la carga normal
     if (!learningSessionActive) {
       console.log("🔄 Cargando chat normal...");
-      loadOrCreateConversation(); // Esta función probablemente carga el último chat o crea uno nuevo
+      loadOrCreateConversation();
     } else {
       console.log("🎓 Sesión de aprendizaje activa. Saltando carga normal.");
     }
@@ -193,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeChat();
     setupEventListeners();
     initializeFileUpload();
-    loadConversations(); // Carga la lista lateral (esto es seguro hacerlo siempre)
+    loadConversations();
     initializeAudioMode();
   }
 
