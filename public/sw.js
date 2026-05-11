@@ -2,7 +2,7 @@ const CACHE_NAME = 'mirai-ai-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/style.css',
+  '/styles.css',
   '/app.js',
   '/manifest.json'
 ];
