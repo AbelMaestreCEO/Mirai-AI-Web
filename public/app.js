@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // En app.js, dentro de DOMContentLoaded
 
-if (contextTask && contextMode) {
+  if (contextTask && contextMode) {
     console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${contextTask}, Modo ${contextMode}`);
     learningSessionActive = true;
 
@@ -130,8 +130,13 @@ if (contextTask && contextMode) {
       const chatId = data.chat_id;
       console.log("✅ Chat ID obtenido:", chatId);
 
-      // ✅ Cargar conversación de aprendizaje
+      // Cargar historial
       await loadConversationHistory(chatId);
+
+      // 🔴🔴🔴 LÍNEAS FALTANTES - AÑADIR AQUÍ 🔴🔴🔴
+      state.currentConversationId = chatId;
+      localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, chatId);
+      // 🔴🔴🔴 FIN DE LÍNEAS FALTANTES 🔴🔴🔴
 
       if (data.is_new && contextSystem) {
         console.log("🔄 Estableciendo System Prompt...");
@@ -158,13 +163,9 @@ if (contextTask && contextMode) {
 
     } catch (err) {
       console.error("❌ Error crítico en inicio de sesión de aprendizaje:", err);
-      // Fallback: usar loadOrCreateConversation que SÍ existe
-      console.log("🔄 Volviendo a carga normal...");
       loadOrCreateConversation();
     }
   } else {
-    // Carga normal si no hay contexto de aprendizaje
-    console.log("🔄 Cargando conversación por defecto...");
     loadOrCreateConversation();
   }
 
