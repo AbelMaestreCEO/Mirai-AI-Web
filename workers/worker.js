@@ -984,9 +984,6 @@ export default {
 
       // Rutas de API
       if (path.startsWith('/api/')) {
-        if (path.startsWith('/api/inventory') || path.startsWith('/api/image/')) { // ✅ CORREGIDO: usar 'path'
-          return await handleInventoryAPI(request, env, corsHeaders);
-        }
         return handleApiRequest(request, env, corsHeaders);
       }
 
