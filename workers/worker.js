@@ -984,7 +984,7 @@ export default {
 
       // Rutas de API
       if (path.startsWith('/api/')) {
-        if (pathname.startsWith('/api/inventory') || pathname.startsWith('/api/image/')) {
+        if (path.startsWith('/api/inventory') || path.startsWith('/api/image/')) { // ✅ CORREGIDO: usar 'path'
           return await handleInventoryAPI(request, env, corsHeaders);
         }
         return handleApiRequest(request, env, corsHeaders);
@@ -1205,12 +1205,12 @@ async function handleApiRequest(request, env, corsHeaders) {
     }
 
     // Ruta: /api/inventory/list
-    if (path === '/api/inventory/list' && method === 'GET') {
+    if (path === '/api/inventory/list' && request.method === 'GET') {
       return await handleInventoryList(env, corsHeaders);
     }
 
     // Ruta: /api/inventory/upload
-    if (path === '/api/inventory/upload' && method === 'POST') {
+    if (path === '/api/inventory/upload' && request.method === 'POST') {
       return await handleInventoryUpload(request, env, corsHeaders);
     }
 
