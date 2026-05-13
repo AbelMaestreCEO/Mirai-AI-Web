@@ -230,7 +230,8 @@
                     <path
                         d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                 </svg>
-                <input type="text" id="inventory-search" placeholder="Buscar productos por nombre, SKU o tags..." autocomplete="off">
+                <input type="text" id="inventory-search" placeholder="Buscar productos por nombre, SKU o tags..."
+                    autocomplete="off">
             </div>
             <div class="filter-pills" id="filter-pills">
                 <button class="filter-pill active" data-category="todos">Todos</button>
@@ -268,12 +269,17 @@
     </div><!-- /courses-container -->
 
     <!-- Modal para Agregar Producto -->
+    <!-- Modal para Agregar/Editar Producto (Mejorado) -->
     <div id="add-product-modal" class="modal hidden">
         <div class="modal-overlay"></div>
-        <div class="modal-content">
+        <div class="modal-content slide-up">
             <button class="modal-close">&times;</button>
-            <h2>📦 Nuevo Producto Inteligente</h2>
-            <p class="modal-subtitle">Sube una foto y deja que la IA analice y genere la descripción</p>
+
+            <!-- Cabecera Dinámica -->
+            <div class="modal-header">
+                <h2 id="modal-title">📦 Nuevo Producto Inteligente</h2>
+                <p class="modal-subtitle">Sube una foto y deja que la IA analice y genere la descripción</p>
+            </div>
 
             <form id="inventory-form">
                 <!-- Zona de Carga de Foto -->
@@ -282,7 +288,8 @@
                     <div class="upload-icon">📸</div>
                     <p class="upload-text">Haz clic o arrastra una foto del producto</p>
                     <p class="upload-hint">Formatos soportados: JPG, PNG, WEBP (Máx 10MB)</p>
-                    <img id="preview-img" style="max-width: 100%; display: none; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                    <img id="preview-img"
+                        style="max-width: 100%; display: none; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
                 </div>
 
                 <!-- Campos del Formulario -->
@@ -316,7 +323,8 @@
 
                 <div class="form-group">
                     <label for="inv-specs">Especificaciones Técnicas (Opcional)</label>
-                    <textarea id="inv-specs" placeholder="Ej: 16GB RAM, 512GB SSD, Intel i7, Pantalla 15.6&quot;" rows="3"></textarea>
+                    <textarea id="inv-specs" placeholder="Ej: 16GB RAM, 512GB SSD, Intel i7, Pantalla 15.6&quot;"
+                        rows="3"></textarea>
                 </div>
 
                 <div class="form-group">
@@ -329,7 +337,7 @@
                     <div class="ai-spinner"></div>
                     <div class="ai-text">
                         <strong>🤖 Mirai AI está analizando...</strong>
-                        <p>Identificando producto, generando descripción y calculando predicción de demanda</p>
+                        <p>Identificando producto, generando descripción y calculando predicción</p>
                     </div>
                 </div>
 

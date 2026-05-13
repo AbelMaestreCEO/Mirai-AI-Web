@@ -380,7 +380,7 @@ async function showProductDetails(product) {
 function setupEventListeners() {
     // Botón agregar producto
     elements.addProductBtn.addEventListener('click', () => {
-        openAddProductModal();
+        openAddProductModal(); // Sin argumento = Crear
     });
 
     // Cerrar modales
@@ -654,15 +654,77 @@ function handleSearch(e) {
 }
 
 // --- GESTIÓN DE MODALES ---
-function openAddProductModal() {
-    elements.addProductModal.classList.remove('hidden');
-    document.getElementById('inv-name').focus();
+function openAddProductModal(product = null) {
+    const modal = document.getElementById('add-product-modal');
+    const form = document.getElementById('inventory-form');
+    const title = document.getElementById('modal-title');
+    const submitBtn = document.getElementById('btn-submit-inv');
+    const dropzone = document.getElementById('inventory-dropzone');
+
+    // Resetear formulario
+    form.reset();
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('preview-img').src = '';
+    state.selectedFile = null;
+    document.getElementById('inv-photo').value = '';
+    showStatus('', '');
+
+    // Configurar modo (Crear vs Editar)
+    if (product) {
+        // MODO EDICIÓN
+        title.textContent = '✏️ Editar Producto';
+        submitBtn.querySelector('.btn-text').textContent = 'Guardar Cambios';
+        submitBtn.dataset.mode = 'edit';
+        submitBtn.dataset.productId = product.id;
+
+        // Precargar datos
+        document.getElementById('inv-name').value = product.name || '';
+        document.getElementById('inv-sku').value = product.sku || '';
+        document.getElementById('inv-category').value = product.category || 'general';
+        document.getElementById('inv-quantity').value = product.quantity || 0;
+        document.getElementById('inv-price').value = product.unit_price || 0;
+        document.getElementById('inv-specs').value = product.ai_description || '';
+
+        // Ocultar zona de carga de foto en edición (opcional)
+        dropzone.style.display = 'none';
+
+        // Mostrar foto actual si existe
+        if (product.photo_r2_key) {
+            const photoUrl = `/api/image/${product.photo_r2_key}`;
+            const preview = document.getElementById('preview-img');
+            preview.src = photoUrl;
+            preview.style.display = 'block';
+            // Nota: En esta versión simple, no permitimos cambiar la foto en edición
+        }
+
+    } else {
+        // MODO CREACIÓN
+        title.textContent = '📦 Nuevo Producto Inteligente';
+        submitBtn.querySelector('.btn-text').textContent = 'Registrar y Analizar con IA';
+        submitBtn.dataset.mode = 'create';
+        delete submitBtn.dataset.productId; // Limpiar ID
+
+        // Mostrar zona de carga
+        dropzone.style.display = 'block';
+    }
+
+    // Abrir modal con animación
+    modal.classList.remove('hidden');
+
+    // Enfocar primer campo
+    setTimeout(() => {
+        document.getElementById('inv-name').focus();
+    }, 100);
 }
 
 function closeModals() {
-    elements.addProductModal.classList.add('hidden');
-    elements.productDetailModal.classList.add('hidden');
-    resetForm();
+    const modal = document.getElementById('add-product-modal');
+    modal.classList.add('hidden');
+
+    // Resetear estado del formulario después de la animación
+    setTimeout(() => {
+        resetForm();
+    }, 300);
 }
 
 function closeProductDetail() {
