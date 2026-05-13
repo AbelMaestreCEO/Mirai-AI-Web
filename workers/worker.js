@@ -984,6 +984,9 @@ export default {
 
       // Rutas de API
       if (path.startsWith('/api/')) {
+        if (pathname.startsWith('/api/inventory') || pathname.startsWith('/api/image/')) {
+          return await handleInventoryAPI(request, env, corsHeaders);
+        }
         return handleApiRequest(request, env, corsHeaders);
       }
 
@@ -1201,7 +1204,13 @@ async function handleApiRequest(request, env, corsHeaders) {
       return handleSetSystemPrompt(request, env, corsHeaders);
     }
 
-    if (path === '/api/inventory/upload' && request.method === 'POST') {
+    // Ruta: /api/inventory/list
+    if (path === '/api/inventory/list' && method === 'GET') {
+      return await handleInventoryList(env, corsHeaders);
+    }
+
+    // Ruta: /api/inventory/upload
+    if (path === '/api/inventory/upload' && method === 'POST') {
       return await handleInventoryUpload(request, env, corsHeaders);
     }
 
@@ -2045,155 +2054,197 @@ NO agregues texto adicional fuera del JSON.`;
   }
 }
 
-async function handleInventoryUpload(request, env, corsHeaders) {
-    try {
-        const formData = await request.formData();
-        const file = formData.get('photo');
-        const name = formData.get('name');
-        const sku = formData.get('sku');
-        const specs = formData.get('specs'); // Especificaciones crudas del usuario
-        
-        if (!file || !name) {
-            return jsonResponse({ error: 'Foto y nombre requeridos' }, 400, corsHeaders);
-        }
+// ============================================
+// Listar Productos
+// ============================================
 
-        // 1. Subir foto a R2
-        const r2Key = `inventory/${crypto.randomUUID()}.jpg`;
-        await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
-            httpMetadata: { contentType: file.type }
-        });
+async function handleInventoryList(env, corsHeaders) {
+  try {
+    // Consultar todos los productos de D1
+    const result = await env.MIRAI_AI_DB.prepare(`
+            SELECT 
+                id, name, sku, category, quantity, unit_price,
+                ai_description, ai_tags, ai_confidence,
+                photo_r2_key, demand_score, predicted_restock_date,
+                created_at, updated_at
+            FROM inventory_products
+            ORDER BY created_at DESC
+        `).all();
 
-        // 2. Crear registro en D1 (Estado: processing)
-        const productId = crypto.randomUUID();
-        await env.MIRAI_AI_DB.prepare(`
-            INSERT INTO inventory_products (id, name, sku, photo_r2_key, ai_description, ai_tags, demand_score)
-            VALUES (?, ?, ?, ?, '', '', 0)
-        `).bind(productId, name, sku, r2Key).run();
+    return jsonResponse({
+      success: true,
+      count: result.results.length,
+      products: result.results
+    }, 200, corsHeaders);
 
-        // 3. Disparar procesamiento de IA (Asíncrono)
-        // Usamos ctx.waitUntil para no bloquear la respuesta al usuario
-        env.ctx.waitUntil(processInventoryAI(productId, r2Key, specs, env));
-
-        return jsonResponse({ 
-            success: true, 
-            product_id: productId, 
-            message: 'Producto registrado. La IA está analizando la imagen...' 
-        }, 201, corsHeaders);
-
-    } catch (error) {
-        console.error('Error inventory upload:', error);
-        return jsonResponse({ error: 'Error al subir producto' }, 500, corsHeaders);
-    }
+  } catch (error) {
+    console.error('Error listing inventory:', error);
+    return jsonResponse({
+      error: 'Error al obtener inventario',
+      details: error.message
+    }, 500, corsHeaders);
+  }
 }
 
+// ============================================
+// Subir Producto (con IA)
+// ============================================
+
+async function handleInventoryUpload(request, env, corsHeaders) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('photo');
+    const name = formData.get('name');
+    const sku = formData.get('sku') || '';
+    const category = formData.get('category') || 'general';
+    const quantity = parseInt(formData.get('quantity')) || 0;
+    const specs = formData.get('specs') || '';
+    const unit_price = parseFloat(formData.get('unit_price')) || 0;
+
+    if (!file || !name) {
+      return jsonResponse({ error: 'Foto y nombre son obligatorios' }, 400, corsHeaders);
+    }
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      return jsonResponse({ error: 'El archivo debe ser una imagen' }, 400, corsHeaders);
+    }
+
+    // Validar tamaño (10MB máximo)
+    if (file.size > 10 * 1024 * 1024) {
+      return jsonResponse({ error: 'La imagen no puede exceder 10MB' }, 400, corsHeaders);
+    }
+
+    // 1. Generar ID único
+    const productId = crypto.randomUUID();
+    const r2Key = `inventory/${productId}.jpg`;
+
+    // 2. Subir imagen a R2
+    await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
+      httpMetadata: { contentType: file.type }
+    });
+
+    // 3. Insertar registro en D1 (estado: pending)
+    await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO inventory_products (
+                id, name, sku, category, quantity, unit_price,
+                ai_description, ai_tags, photo_r2_key, demand_score,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, '', '', ?, 50, datetime('now'), datetime('now'))
+        `).bind(
+      productId, name, sku, category, quantity, unit_price, r2Key
+    ).run();
+
+    // 4. Disparar procesamiento de IA (asíncrono)
+    env.ctx.waitUntil(processInventoryAI(productId, r2Key, specs, env));
+
+    return jsonResponse({
+      success: true,
+      product_id: productId,
+      message: 'Producto registrado. La IA está analizando...'
+    }, 201, corsHeaders);
+
+  } catch (error) {
+    console.error('Error uploading inventory:', error);
+    return jsonResponse({
+      error: 'Error al registrar producto',
+      details: error.message
+    }, 500, corsHeaders);
+  }
+}
+
+// ============================================
+// Procesamiento IA (Background)
+// ============================================
+
 async function processInventoryAI(productId, r2Key, specs, env) {
+  try {
+    // Obtener imagen de R2
+    const object = await env.MIRAI_AI_ASSETS.get(r2Key);
+    if (!object) {
+      console.error(`Imagen no encontrada para producto ${productId}`);
+      return;
+    }
+
+    const imageBuffer = await object.arrayBuffer();
+    const base64Image = arrayBufferToBase64(imageBuffer);
+
+    // Llamada a Workers AI para visión (LLaVA)
+    const visionResponse = await env.AI.run('@cf/meta/llava-7b-fp16', {
+      image: base64Image,
+      prompt: "Identifica el producto en esta imagen. Devuelve SOLO un JSON con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria' }"
+    });
+
+    let aiTags = [];
+    let aiDescription = '';
+
     try {
-        // A. Obtener imagen de R2
-        const object = await env.MIRAI_AI_ASSETS.get(r2Key);
-        if (!object) throw new Error('Imagen no encontrada');
-        
-        const imageBuffer = await object.arrayBuffer();
-        const base64Image = arrayBufferToBase64(imageBuffer);
+      const content = visionResponse.response || visionResponse.text || '';
+      // Extraer JSON del contenido
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        aiTags = parsed.tags || [];
+      }
+    } catch (e) {
+      console.warn('Error parsing vision output:', e);
+      aiTags = ['producto'];
+    }
 
-        // B. Análisis de Visión (Ejemplo con LLaVA en Workers AI)
-        // Nota: Ajusta el modelo según disponibilidad en tu región/gateway
-        const visionPrompt = "Identifica el producto en esta imagen. Devuelve SOLO un JSON con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria', 'confidence': 0.9 }";
-        
-        const visionResponse = await env.AI.run('@cf/meta/llava-7b-fp16', {
-            image: base64Image,
-            prompt: visionPrompt
-        });
+    // Llamada a DeepSeek para generar descripción
+    if (env.DEEPSEEK_API_KEY) {
+      const deepseekPrompt = `
+                Eres un experto en inventarios. Genera una descripción técnica breve para:
+                Producto: ${specs || 'Producto genérico'}
+                Etiquetas detectadas: ${aiTags.join(', ')}
+                
+                Responde en JSON: { "description": "descripción técnica en español" }
+            `;
 
-        let aiTags = [];
-        let category = 'General';
-        let confidence = 0;
+      const deepseekResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [{ role: 'user', content: deepseekPrompt }],
+          temperature: 0.3
+        })
+      });
 
-        try {
-            // Intentar parsear la respuesta de LLaVA (puede ser texto libre, necesitamos limpieza)
-            const content = visionResponse.response || visionResponse.text || '';
-            // Aquí necesitarías un pequeño parser regex o llamar a DeepSeek para limpiar el JSON si LLaVA falla
-            // Por simplicidad, asumimos que DeepSeek lo limpiará en el paso siguiente
-            aiTags = [category]; // Placeholder
-        } catch (e) {
-            console.warn('Error parsing vision output:', e);
-        }
-
-        // C. Generación de Descripción con DeepSeek
-        const deepseekPrompt = `
-            Eres un experto en inventarios y copywriting técnico.
-            Producto: ${name}
-            Especificaciones usuario: ${specs}
-            Etiquetas detectadas por visión: ${JSON.stringify(aiTags)}
-            
-            Genera:
-            1. Una descripción técnica precisa (máx 150 palabras).
-            2. Una descripción atractiva para marketing (máx 50 palabras).
-            3. Una lista de 5 tags relevantes.
-            
-            Responde en JSON: { "tech_desc": "", "marketing_desc": "", "tags": [] }
-        `;
-
-        const deepseekResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [{ role: 'user', content: deepseekPrompt }],
-                temperature: 0.3
-            })
-        });
-
+      if (deepseekResp.ok) {
         const deepseekData = await deepseekResp.json();
-        const aiContent = deepseekData.choices?.[0]?.message?.content;
-        
-        // Parsear respuesta de DeepSeek
-        let aiData = {};
-        try {
-            const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-            aiData = JSON.parse(jsonMatch ? jsonMatch[0] : aiContent);
-        } catch (e) {
-            console.error('Error parsing DeepSeek inventory response:', e);
-            // Fallback: guardar texto crudo
-            aiData = { tech_desc: aiContent, tags: [] };
+        const content = deepseekData.choices?.[0]?.message?.content || '';
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          aiDescription = parsed.description || '';
         }
+      }
+    }
 
-        // D. Predicción de Demanda (Algoritmo Simple)
-        // Calcula promedio de ventas últimos 30 días
-        const salesHistory = await env.MIRAI_AI_DB.prepare(`
-            SELECT SUM(quantity_change) as total_sold 
-            FROM inventory_logs 
-            WHERE product_id = ? AND type = 'sale' AND created_at > datetime('now', '-30 days')
-        `).bind(productId).first();
+    // Calcular demanda (simple)
+    const demandScore = 50; // Placeholder - puedes mejorar esto con historial
 
-        const avgDailySales = (salesHistory?.total_sold || 0) / 30;
-        // Simulación: Si no hay historial, asumimos demanda media (50)
-        let demandScore = 50; 
-        if (avgDailySales > 0) {
-            // Lógica simple: si vendes mucho, la demanda es alta
-            demandScore = Math.min(100, Math.round(avgDailySales * 10)); 
-        }
-
-        // E. Actualizar Producto en D1
-        await env.MIRAI_AI_DB.prepare(`
+    // Actualizar producto en D1
+    await env.MIRAI_AI_DB.prepare(`
             UPDATE inventory_products 
             SET ai_description = ?, ai_tags = ?, demand_score = ?, updated_at = datetime('now')
             WHERE id = ?
         `).bind(
-            aiData.tech_desc || '', 
-            JSON.stringify(aiData.tags || []), 
-            demandScore,
-            productId
-        ).run();
+      aiDescription,
+      JSON.stringify(aiTags),
+      demandScore,
+      productId
+    ).run();
 
-        console.log(`✅ Producto ${productId} procesado por IA.`);
+    console.log(`✅ Producto ${productId} procesado por IA`);
 
-    } catch (error) {
-        console.error(`❌ Error procesando IA para producto ${productId}:`, error);
-        // Opcional: Actualizar estado a 'error' en DB
-    }
+  } catch (error) {
+    console.error(`❌ Error procesando IA para producto ${productId}:`, error);
+  }
 }
 
 async function handleGetSubcategories(url, env, corsHeaders) {
