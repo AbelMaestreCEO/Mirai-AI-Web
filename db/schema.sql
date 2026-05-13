@@ -62,3 +62,35 @@ CREATE TABLE lessons (
   order_index INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Inventory
+
+CREATE TABLE IF NOT EXISTS inventory_products (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    sku TEXT UNIQUE,
+    category TEXT,
+    quantity INTEGER DEFAULT 0,
+    unit_price REAL,
+    
+    ai_description TEXT,
+    ai_tags TEXT, 
+    ai_confidence REAL,
+    photo_r2_key TEXT,
+    
+    demand_score REAL DEFAULT 0.0, 
+    predicted_restock_date DATE,
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS inventory_logs (
+    id TEXT PRIMARY KEY,
+    product_id TEXT,
+    type TEXT,
+    quantity_change INTEGER,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(product_id) REFERENCES inventory_products(id)
+);

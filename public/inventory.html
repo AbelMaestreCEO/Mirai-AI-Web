@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Inventario Inteligente">
+
+    <title>Mirai AI - Inventario</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- Menú Lateral -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Sección: Navegación -->
+            <section class="sidebar-section">
+                <h4>Navegación</h4>
+                <ul class="sidebar-links">
+                    <li><a href="https://ai.aberumirai.com" class="nav-link">💬 Chat con Mirai</a></li>
+                    <li><a href="course_category.html" class="nav-link">📚 Cursos</a></li>
+                    <li><a href="classroom.html" class="nav-link">🏫 Aula Virtual</a></li>
+                    <li><a href="inventory.html" class="nav-link active-link">📦 Inventario</a></li>
+                </ul>
+            </section>
+            <section class="sidebar-section">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
+            </section>
+
+            <!-- Sección: Servicios (Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Servicios</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                        <li><a href="https://aberumirai.com#education">Educación</a></li>
+                        <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                        <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                        <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Empresa (Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Empresa</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                        <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                        <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                        <li><a href="#">Quiénes somos</a></li>
+                        <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Enlaces Externos (Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Enlaces Externos</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                        <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                        <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                        <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <!-- Botón Cerrar Sesión -->
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <!-- Logo en sidebar -->
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer del sidebar -->
+        <div class="sidebar-footer">
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
+        </div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+
+        <div class="header-title">
+            Inventario Inteligente
+        </div>
+
+        <button id="add-product-btn" class="btn-primary" title="Agregar producto">
+            <svg viewBox="0 0 24 24" width="18" height="18">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            <span>Nuevo Producto</span>
+        </button>
+
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+            </svg>
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- Contenedor Principal -->
+    <div class="courses-container">
+
+        <!-- Hero -->
+        <div class="courses-hero">
+            <h1>Inventario Inteligente</h1>
+            <p>Gestión predictiva y automatizada de productos con IA. Sube fotos y deja que Mirai AI haga el resto.</p>
+        </div>
+
+        <!-- Estadísticas Rápidas -->
+        <div class="inventory-stats">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-content">
+                    <span class="stat-label">Total Productos</span>
+                    <span class="stat-value" id="total-products">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-content">
+                    <span class="stat-label">Stock Bajo</span>
+                    <span class="stat-value warning" id="low-stock">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🤖</div>
+                <div class="stat-content">
+                    <span class="stat-label">Analizados por IA</span>
+                    <span class="stat-value" id="ai-analyzed">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <span class="stat-label">Valor Total</span>
+                    <span class="stat-value" id="total-value">$0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Búsqueda y Filtros -->
+        <div class="courses-toolbar">
+            <div class="courses-search">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                </svg>
+                <input type="text" id="inventory-search" placeholder="Buscar productos por nombre, SKU o tags..." autocomplete="off">
+            </div>
+            <div class="filter-pills" id="filter-pills">
+                <button class="filter-pill active" data-category="todos">Todos</button>
+                <button class="filter-pill" data-category="electronica">💻 Electrónica</button>
+                <button class="filter-pill" data-category="material">📝 Material</button>
+                <button class="filter-pill" data-category="mobiliario">🪑 Mobiliario</button>
+                <button class="filter-pill" data-category="consumibles">🧴 Consumibles</button>
+                <button class="filter-pill" data-category="software">💿 Software</button>
+            </div>
+            <div class="filter-pills" id="stock-filter">
+                <button class="filter-pill active" data-stock="all">Todo</button>
+                <button class="filter-pill" data-stock="available">Disponible</button>
+                <button class="filter-pill" data-stock="low">Stock Bajo</button>
+                <button class="filter-pill" data-stock="critical">Crítico</button>
+            </div>
+        </div>
+
+        <!-- Contador -->
+        <div class="courses-count" id="inventory-count">Mostrando 0 productos</div>
+
+        <!-- Grid de Productos -->
+        <div class="courses-grid" id="inventory-grid">
+
+            <!-- Los productos se cargarán dinámicamente desde inventory.js -->
+
+            <!-- Sin resultados (oculto por defecto) -->
+            <div class="no-results" id="no-results" style="display: none;">
+                <div class="no-results-icon">📦</div>
+                <p>No se encontraron productos con ese filtro</p>
+                <button class="btn-secondary" id="btn-add-first">Agregar tu primer producto</button>
+            </div>
+
+        </div><!-- /courses-grid -->
+
+    </div><!-- /courses-container -->
+
+    <!-- Modal para Agregar Producto -->
+    <div id="add-product-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>📦 Nuevo Producto Inteligente</h2>
+            <p class="modal-subtitle">Sube una foto y deja que la IA analice y genere la descripción</p>
+
+            <form id="inventory-form">
+                <!-- Zona de Carga de Foto -->
+                <div class="upload-zone" id="inventory-dropzone">
+                    <input type="file" id="inv-photo" accept="image/*" hidden>
+                    <div class="upload-icon">📸</div>
+                    <p class="upload-text">Haz clic o arrastra una foto del producto</p>
+                    <p class="upload-hint">Formatos soportados: JPG, PNG, WEBP (Máx 10MB)</p>
+                    <img id="preview-img" style="max-width: 100%; display: none; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                </div>
+
+                <!-- Campos del Formulario -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="inv-name">Nombre del Producto *</label>
+                        <input type="text" id="inv-name" placeholder="Ej: Laptop Gaming ASUS" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inv-sku">SKU (Opcional)</label>
+                        <input type="text" id="inv-sku" placeholder="Ej: LAP-ASUS-001">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="inv-category">Categoría</label>
+                        <select id="inv-category">
+                            <option value="electronica">Electrónica</option>
+                            <option value="material">Material</option>
+                            <option value="mobiliario">Mobiliario</option>
+                            <option value="consumibles">Consumibles</option>
+                            <option value="software">Software</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="inv-quantity">Cantidad Inicial</label>
+                        <input type="number" id="inv-quantity" min="0" value="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="inv-specs">Especificaciones Técnicas (Opcional)</label>
+                    <textarea id="inv-specs" placeholder="Ej: 16GB RAM, 512GB SSD, Intel i7, Pantalla 15.6&quot;" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="inv-price">Precio Unitario ($)</label>
+                    <input type="number" id="inv-price" min="0" step="0.01" placeholder="0.00">
+                </div>
+
+                <!-- Indicador de Proceso IA -->
+                <div id="ai-processing" class="ai-status hidden">
+                    <div class="ai-spinner"></div>
+                    <div class="ai-text">
+                        <strong>🤖 Mirai AI está analizando...</strong>
+                        <p>Identificando producto, generando descripción y calculando predicción de demanda</p>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary modal-cancel">Cancelar</button>
+                    <button type="submit" class="btn-primary" id="btn-submit-inv">
+                        <span class="btn-text">Registrar y Analizar con IA</span>
+                        <span class="btn-loading hidden">⏳ Procesando...</span>
+                    </button>
+                </div>
+
+                <!-- Mensaje de Estado -->
+                <div id="inv-status" class="status-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Ver Detalles del Producto -->
+    <div id="product-detail-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-large">
+            <button class="modal-close">&times;</button>
+            <div id="product-detail-content">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="inventory.js" defer></script>
+</body>
+
+</html>
