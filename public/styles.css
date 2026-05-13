@@ -6415,3 +6415,44 @@ svg {
         font-size: 2.5rem;
     }
 }
+
+/* Botones de acción en tarjeta */
+.product-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.btn-edit, .btn-delete {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit:hover {
+  background: #2196F3;
+  color: white;
+  border-color: #2196F3;
+}
+
+.btn-delete:hover {
+  background: #D00000;
+  color: white;
+  border-color: #D00000;
+}
+
+/* Ocultar zona de foto en modo edición */
+.upload-zone.hidden {
+  display: none;
+}

@@ -35,7 +35,7 @@ const elements = {
     modalClose: document.querySelectorAll('.modal-close'),
     modalCancel: document.querySelectorAll('.modal-cancel'),
     modalOverlay: document.querySelectorAll('.modal-overlay'),
-    
+
     // Estadísticas
     totalProducts: document.getElementById('total-products'),
     lowStock: document.getElementById('low-stock'),
@@ -66,20 +66,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadInventory() {
     try {
         showLoadingState();
-        
+
         const response = await fetch(`${CONFIG.API_ENDPOINT}/list`);
-        
+
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
-        
+
         const data = await response.json();
         state.products = data.products || [];
         state.filteredProducts = [...state.products];
-        
+
         renderProducts();
         updateStats();
-        
+
     } catch (error) {
         console.error('Error cargando inventario:', error);
         showErrorState(error.message);
@@ -89,34 +89,36 @@ async function loadInventory() {
 // --- RENDERIZAR PRODUCTOS ---
 function renderProducts() {
     const grid = elements.inventoryGrid;
-    
+
     // Limpiar grid (excepto no-results)
     const noResults = elements.noResults;
     grid.innerHTML = '';
     grid.appendChild(noResults);
-    
+
     if (state.filteredProducts.length === 0) {
         noResults.style.display = 'block';
         elements.inventoryCount.textContent = 'Mostrando 0 productos';
         return;
     }
-    
+
     noResults.style.display = 'none';
     elements.inventoryCount.textContent = `Mostrando ${state.filteredProducts.length} productos`;
-    
+
     state.filteredProducts.forEach(product => {
         const card = createProductCard(product);
         grid.appendChild(card);
     });
 }
 
-// --- CREAR TARJETA DE PRODUCTO ---
+// ============================================
+// CREAR TARJETA DE PRODUCTO (CORREGIDA)
+// ============================================
 function createProductCard(product) {
     const card = document.createElement('div');
     card.className = 'course-card';
     card.dataset.category = product.category || 'general';
     card.dataset.stock = getStockLevel(product.quantity);
-    
+
     // Color según categoría
     const categoryColors = {
         'electronica': 'linear-gradient(135deg, #667eea, #764ba2)',
@@ -125,14 +127,14 @@ function createProductCard(product) {
         'consumibles': 'linear-gradient(135deg, #43e97b, #38f9d7)',
         'software': 'linear-gradient(135deg, #fa709a, #fee140)'
     };
-    
+
     card.style.setProperty('--card-accent', categoryColors[product.category] || categoryColors['electronica']);
-    
+
     // Nivel de stock
     const stockLevel = getStockLevel(product.quantity);
     const stockClass = stockLevel === 'critical' ? 'critical' : (stockLevel === 'low' ? 'warning' : 'available');
     const stockLabel = stockLevel === 'critical' ? 'Crítico' : (stockLevel === 'low' ? 'Bajo' : 'Disponible');
-    
+
     // Icono según categoría
     const categoryIcons = {
         'electronica': '💻',
@@ -141,20 +143,20 @@ function createProductCard(product) {
         'consumibles': '🧴',
         'software': '💿'
     };
-    
+
     // Tags de IA
     let tagsHtml = '';
     if (product.ai_tags && product.ai_tags.length > 0) {
         try {
             const tags = typeof product.ai_tags === 'string' ? JSON.parse(product.ai_tags) : product.ai_tags;
-            tagsHtml = tags.slice(0, 3).map(tag => 
+            tagsHtml = tags.slice(0, 3).map(tag =>
                 `<span class="tag-chip">${tag}</span>`
             ).join('');
         } catch (e) {
             console.warn('Error parsing tags:', e);
         }
     }
-    
+
     // Foto (si existe)
     let photoHtml = '';
     if (product.photo_r2_key) {
@@ -163,11 +165,12 @@ function createProductCard(product) {
             <div class="product-photo" style="background-image: url('${photoUrl}')"></div>
         `;
     }
-    
+
     // Demanda score
     const demandScore = product.demand_score || 0;
     const demandColor = demandScore > 70 ? '#D00000' : (demandScore > 40 ? '#FF9F0A' : '#386A20');
-    
+
+    // ✅ AQUÍ ESTABA EL ERROR: Debemos incluir los botones en el template string
     card.innerHTML = `
         <span class="course-level ${stockClass}">${stockLabel}</span>
         ${photoHtml}
@@ -192,23 +195,47 @@ function createProductCard(product) {
         
         <div class="product-actions">
             <button class="btn-view-details" data-id="${product.id}">Ver Detalles</button>
+            <button class="btn-edit" data-id="${product.id}" title="Editar">✏️</button>
+            <button class="btn-delete" data-id="${product.id}" title="Eliminar">🗑️</button>
         </div>
     `;
-    
-    // Event listener para ver detalles
+
+    // ✅ AHORA SÍ: Los elementos existen en el DOM, podemos agregar los listeners
     const viewBtn = card.querySelector('.btn-view-details');
-    viewBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showProductDetails(product);
-    });
-    
-    // Click en toda la tarjeta para ver detalles
+    const editBtn = card.querySelector('.btn-edit');
+    const deleteBtn = card.querySelector('.btn-delete');
+
+    // Listener: Ver Detalles
+    if (viewBtn) {
+        viewBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showProductDetails(product);
+        });
+    }
+
+    // Listener: Editar
+    if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            editProduct(product);
+        });
+    }
+
+    // Listener: Eliminar
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteProduct(product.id);
+        });
+    }
+
+    // Listener: Click en toda la tarjeta (excluyendo botones)
     card.addEventListener('click', (e) => {
-        if (!e.target.closest('.btn-view-details')) {
+        if (!e.target.closest('.product-actions')) {
             showProductDetails(product);
         }
     });
-    
+
     return card;
 }
 
@@ -222,24 +249,24 @@ function getStockLevel(quantity) {
 // --- ACTUALIZAR ESTADÍSTICAS ---
 function updateStats() {
     const products = state.products;
-    
+
     // Total productos
     elements.totalProducts.textContent = products.length;
-    
+
     // Stock bajo
-    const lowStockCount = products.filter(p => 
+    const lowStockCount = products.filter(p =>
         getStockLevel(p.quantity) !== 'available'
     ).length;
     elements.lowStock.textContent = lowStockCount;
-    
+
     // Analizados por IA
-    const aiAnalyzedCount = products.filter(p => 
+    const aiAnalyzedCount = products.filter(p =>
         p.ai_description && p.ai_description.length > 0
     ).length;
     elements.aiAnalyzed.textContent = aiAnalyzedCount;
-    
+
     // Valor total
-    const totalValue = products.reduce((sum, p) => 
+    const totalValue = products.reduce((sum, p) =>
         sum + ((p.quantity || 0) * (p.unit_price || 0)), 0
     );
     elements.totalValue.textContent = `$${totalValue.toFixed(2)}`;
@@ -249,7 +276,7 @@ function updateStats() {
 async function showProductDetails(product) {
     const modal = elements.productDetailModal;
     const content = document.getElementById('product-detail-content');
-    
+
     // Cargar foto si existe
     let photoHtml = '';
     if (product.photo_r2_key) {
@@ -260,25 +287,25 @@ async function showProductDetails(product) {
             </div>
         `;
     }
-    
+
     // Tags
     let tagsHtml = '';
     if (product.ai_tags) {
         try {
             const tags = typeof product.ai_tags === 'string' ? JSON.parse(product.ai_tags) : product.ai_tags;
-            tagsHtml = tags.map(tag => 
+            tagsHtml = tags.map(tag =>
                 `<span class="tag-chip">${tag}</span>`
             ).join('');
         } catch (e) {
             console.warn('Error parsing tags:', e);
         }
     }
-    
+
     // Predicción
     const demandScore = product.demand_score || 0;
     let predictionText = 'Demanda normal';
     let predictionClass = 'neutral';
-    
+
     if (demandScore > 70) {
         predictionText = '⚠️ Alta probabilidad de reposición pronto';
         predictionClass = 'warning';
@@ -286,7 +313,7 @@ async function showProductDetails(product) {
         predictionText = '📊 Demanda moderada';
         predictionClass = 'info';
     }
-    
+
     content.innerHTML = `
         <div class="detail-header">
             ${photoHtml}
@@ -316,9 +343,9 @@ async function showProductDetails(product) {
             <div class="prediction-card ${predictionClass}">
                 <div class="prediction-score">${demandScore}%</div>
                 <p>${predictionText}</p>
-                ${product.predicted_restock_date ? 
-                    `<p class="restock-date">Fecha estimada de reposición: ${product.predicted_restock_date}</p>` : 
-                    ''}
+                ${product.predicted_restock_date ?
+            `<p class="restock-date">Fecha estimada de reposición: ${product.predicted_restock_date}</p>` :
+            ''}
             </div>
         </div>
         
@@ -345,7 +372,7 @@ async function showProductDetails(product) {
             <button class="btn-primary" onclick="alert('Función de edición próximamente')">Editar</button>
         </div>
     `;
-    
+
     modal.classList.remove('hidden');
 }
 
@@ -355,40 +382,40 @@ function setupEventListeners() {
     elements.addProductBtn.addEventListener('click', () => {
         openAddProductModal();
     });
-    
+
     // Cerrar modales
     elements.modalClose.forEach(btn => {
         btn.addEventListener('click', closeModals);
     });
-    
+
     elements.modalCancel.forEach(btn => {
         btn.addEventListener('click', closeModals);
     });
-    
+
     elements.modalOverlay.forEach(overlay => {
         overlay.addEventListener('click', closeModals);
     });
-    
+
     // Zona de carga de foto
     elements.inventoryDropzone.addEventListener('click', () => {
         elements.invPhoto.click();
     });
-    
+
     elements.invPhoto.addEventListener('change', handleFileSelect);
-    
+
     // Drag & Drop
     setupDragAndDrop();
-    
+
     // Submit formulario
     elements.inventoryForm.addEventListener('submit', handleFormSubmit);
-    
+
     // Búsqueda
     elements.inventorySearch.addEventListener('input', debounce(handleSearch, CONFIG.DEBOUNCE_DELAY));
-    
+
     // Filtros categoría
     elements.filterPills.addEventListener('click', (e) => {
         if (e.target.classList.contains('filter-pill')) {
-            elements.filterPills.querySelectorAll('.filter-pill').forEach(p => 
+            elements.filterPills.querySelectorAll('.filter-pill').forEach(p =>
                 p.classList.remove('active')
             );
             e.target.classList.add('active');
@@ -396,11 +423,11 @@ function setupEventListeners() {
             applyFilters();
         }
     });
-    
+
     // Filtros stock
     elements.stockFilter.addEventListener('click', (e) => {
         if (e.target.classList.contains('filter-pill')) {
-            elements.stockFilter.querySelectorAll('.filter-pill').forEach(p => 
+            elements.stockFilter.querySelectorAll('.filter-pill').forEach(p =>
                 p.classList.remove('active')
             );
             e.target.classList.add('active');
@@ -408,7 +435,7 @@ function setupEventListeners() {
             applyFilters();
         }
     });
-    
+
     // Tecla Escape para cerrar modales
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -420,21 +447,21 @@ function setupEventListeners() {
 // --- DRAG & DROP ---
 function setupDragAndDrop() {
     const dropzone = elements.inventoryDropzone;
-    
+
     dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropzone.classList.add('drag-over');
     });
-    
+
     dropzone.addEventListener('dragleave', (e) => {
         e.preventDefault();
         dropzone.classList.remove('drag-over');
     });
-    
+
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropzone.classList.remove('drag-over');
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             elements.invPhoto.files = files;
@@ -446,23 +473,23 @@ function setupDragAndDrop() {
 // --- SELECCIONAR ARCHIVO ---
 function handleFileSelect(e) {
     const file = e.target.files[0];
-    
+
     if (!file) return;
-    
+
     // Validar tamaño
     if (file.size > CONFIG.MAX_FILE_SIZE) {
         showStatus('El archivo excede 10MB', 'error');
         return;
     }
-    
+
     // Validar tipo
     if (!file.type.startsWith('image/')) {
         showStatus('Por favor, selecciona un archivo de imagen', 'error');
         return;
     }
-    
+
     state.selectedFile = file;
-    
+
     // Previsualizar
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -470,16 +497,19 @@ function handleFileSelect(e) {
         elements.previewImg.style.display = 'block';
     };
     reader.readAsDataURL(file);
-    
+
     showStatus('✅ Imagen seleccionada', 'success');
 }
 
-// --- SUBMIT FORMULARIO ---
+// --- SUBMIT FORMULARIO (MODIFICADO) ---
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     if (state.isSubmitting) return;
-    
+
+    const mode = document.getElementById('btn-submit-inv').dataset.mode || 'create';
+    const productId = document.getElementById('btn-submit-inv').dataset.productId;
+
     const file = elements.invPhoto.files[0];
     const name = document.getElementById('inv-name').value;
     const sku = document.getElementById('inv-sku').value;
@@ -487,54 +517,85 @@ async function handleFormSubmit(e) {
     const quantity = parseInt(document.getElementById('inv-quantity').value) || 0;
     const specs = document.getElementById('inv-specs').value;
     const price = parseFloat(document.getElementById('inv-price').value) || 0;
-    
-    // Validaciones
-    if (!file) {
-        showStatus('Por favor, sube una foto del producto', 'error');
-        return;
-    }
-    
+
+    // Validaciones básicas
     if (!name.trim()) {
         showStatus('El nombre del producto es obligatorio', 'error');
         return;
     }
-    
+
     state.isSubmitting = true;
     setLoadingState(true);
-    
+
     try {
-        const formData = new FormData();
-        formData.append('photo', file);
-        formData.append('name', name);
-        formData.append('sku', sku);
-        formData.append('category', category);
-        formData.append('quantity', quantity);
-        formData.append('specs', specs);
-        formData.append('unit_price', price);
-        
-        const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Error al registrar producto');
+        if (mode === 'edit') {
+            // --- MODO EDICIÓN ---
+            const payload = {
+                id: productId,
+                name,
+                sku,
+                category,
+                quantity,
+                unit_price: price,
+                ai_description: specs, // Guardamos specs como descripción editable
+                ai_tags: document.getElementById('inv-category').value // Placeholder, podrías permitir editar tags
+            };
+
+            const response = await fetch('/api/inventory/update', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+
+            showStatus('✅ Producto actualizado correctamente', 'success');
+
+        } else {
+            // --- MODO CREACIÓN (EXISTENTE) ---
+            if (!file) {
+                showStatus('Por favor, sube una foto del producto', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('photo', file);
+            formData.append('name', name);
+            formData.append('sku', sku);
+            formData.append('category', category);
+            formData.append('quantity', quantity);
+            formData.append('specs', specs);
+            formData.append('unit_price', price);
+
+            const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+
+            showStatus('✅ ¡Producto registrado! La IA está analizando...', 'success');
+
+            // Esperar un momento para que la IA procese
+            setTimeout(async () => {
+                await loadInventory();
+                closeModals();
+                resetForm();
+                showStatus('✅ Producto agregado al inventario', 'success');
+            }, 3000);
         }
-        
-        showStatus('✅ ¡Producto registrado! La IA está analizando...', 'success');
-        
-        // Esperar un momento para que la IA procese
-        setTimeout(async () => {
+
+        // Si fue edición, recargar inmediatamente
+        if (mode === 'edit') {
             await loadInventory();
             closeModals();
             resetForm();
-            showStatus('✅ Producto agregado al inventario', 'success');
-        }, 3000);
-        
+        }
+
     } catch (error) {
-        console.error('Error registrando producto:', error);
+        console.error('Error en formulario:', error);
         showStatus(`❌ Error: ${error.message}`, 'error');
     } finally {
         state.isSubmitting = false;
@@ -545,12 +606,12 @@ async function handleFormSubmit(e) {
 // --- APLICAR FILTROS ---
 function applyFilters() {
     let filtered = [...state.products];
-    
+
     // Filtro por categoría
     if (state.currentCategory !== 'todos') {
         filtered = filtered.filter(p => p.category === state.currentCategory);
     }
-    
+
     // Filtro por stock
     if (state.currentStockFilter !== 'all') {
         filtered = filtered.filter(p => {
@@ -558,7 +619,7 @@ function applyFilters() {
             return stockLevel === state.currentStockFilter;
         });
     }
-    
+
     state.filteredProducts = filtered;
     renderProducts();
 }
@@ -566,14 +627,14 @@ function applyFilters() {
 // --- BUSCAR ---
 function handleSearch(e) {
     const query = e.target.value.toLowerCase().trim();
-    
+
     if (!query) {
         state.filteredProducts = [...state.products];
     } else {
         state.filteredProducts = state.products.filter(p => {
             const nameMatch = (p.name || '').toLowerCase().includes(query);
             const skuMatch = (p.sku || '').toLowerCase().includes(query);
-            
+
             let tagsMatch = false;
             if (p.ai_tags) {
                 try {
@@ -583,11 +644,11 @@ function handleSearch(e) {
                     // Ignorar error
                 }
             }
-            
+
             return nameMatch || skuMatch || tagsMatch;
         });
     }
-    
+
     // Aplicar filtros de categoría y stock también
     applyFilters();
 }
@@ -623,7 +684,7 @@ function setLoadingState(isLoading) {
     const btn = elements.btnSubmitInv;
     const btnText = btn.querySelector('.btn-text');
     const btnLoading = btn.querySelector('.btn-loading');
-    
+
     if (isLoading) {
         btn.disabled = true;
         btnText.classList.add('hidden');
@@ -641,12 +702,12 @@ function showStatus(message, type = '') {
     const status = elements.invStatus;
     status.textContent = message;
     status.className = 'status-message';
-    
+
     if (type) {
         status.classList.add(type);
         status.classList.add('show');
     }
-    
+
     if (message) {
         setTimeout(() => {
             status.classList.remove('show');
@@ -720,7 +781,7 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const sunIcon = document.querySelector('.sun-icon');
     const moonIcon = document.querySelector('.moon-icon');
-    
+
     if (sunIcon && moonIcon) {
         if (theme === 'dark') {
             sunIcon.classList.add('hidden');
@@ -738,12 +799,12 @@ function setupMobileMenu() {
     const closeMenu = document.querySelector('.close-menu');
     const sidebar = document.querySelector('.mobile-sidebar');
     const overlay = document.querySelector('.mobile-overlay');
-    
+
     if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
-    
+
     function toggleMenu() {
         const isActive = sidebar.classList.contains('active');
-        
+
         if (isActive) {
             sidebar.classList.remove('active');
             overlay.classList.remove('active');
@@ -756,11 +817,11 @@ function setupMobileMenu() {
             document.body.style.overflow = 'hidden';
         }
     }
-    
+
     menuToggle.addEventListener('click', toggleMenu);
     closeMenu.addEventListener('click', toggleMenu);
     overlay.addEventListener('click', toggleMenu);
-    
+
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && sidebar.classList.contains('active')) {
             toggleMenu();
@@ -784,5 +845,67 @@ document.getElementById('theme-toggle')?.addEventListener('click', () => {
     applyTheme(newTheme);
     localStorage.setItem(CONFIG.STORAGE_KEY_THEME, newTheme);
 });
+
+// ============================================
+// EDITAR PRODUCTO
+// ============================================
+async function editProduct(product) {
+    // Abrir modal de edición (reutilizamos el modal de agregar pero con datos precargados)
+    const modal = document.getElementById('add-product-modal');
+    const form = document.getElementById('inventory-form');
+
+    // Precargar datos
+    document.getElementById('inv-name').value = product.name || '';
+    document.getElementById('inv-sku').value = product.sku || '';
+    document.getElementById('inv-category').value = product.category || 'general';
+    document.getElementById('inv-quantity').value = product.quantity || 0;
+    document.getElementById('inv-price').value = product.unit_price || 0;
+    document.getElementById('inv-specs').value = product.ai_description || ''; // Usamos descripción como specs para editar
+
+    // Ocultar zona de foto (no permitimos cambiar foto en edición simple por ahora)
+    document.getElementById('inventory-dropzone').style.display = 'none';
+
+    // Cambiar botón de acción
+    const submitBtn = document.getElementById('btn-submit-inv');
+    submitBtn.textContent = 'Guardar Cambios';
+    submitBtn.dataset.mode = 'edit'; // Marcador para saber que es edición
+    submitBtn.dataset.productId = product.id;
+
+    // Mostrar modal
+    modal.classList.remove('hidden');
+}
+
+// ============================================
+// ELIMINAR PRODUCTO
+// ============================================
+async function deleteProduct(productId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/inventory/delete?id=${productId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al eliminar');
+        }
+
+        showStatus('✅ Producto eliminado correctamente', 'success');
+
+        // Recargar lista
+        await loadInventory();
+
+        // Cerrar modal si está abierto
+        closeModals();
+
+    } catch (error) {
+        console.error('Error eliminando producto:', error);
+        showStatus(`❌ Error: ${error.message}`, 'error');
+    }
+}
 
 console.log('✅ Módulo de Inventario Inteligente inicializado');

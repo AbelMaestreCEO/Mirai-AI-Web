@@ -1211,6 +1211,16 @@ async function handleApiRequest(request, env, corsHeaders) {
       return await handleInventoryUpload(request, env, corsHeaders);
     }
 
+    // Ruta: PUT /api/inventory/update
+    if (path === '/api/inventory/update' && request.method === 'PUT') {
+      return await handleInventoryUpdate(request, env, corsHeaders);
+    }
+
+    // Ruta: DELETE /api/inventory/delete
+    if (path === '/api/inventory/delete' && request.method === 'DELETE') {
+      return await handleInventoryDelete(request, env, corsHeaders);
+    }
+
     if (path === '/api/user-courses' && request.method === 'GET') {
       const userDni = url.searchParams.get('user_dni');
 
@@ -2241,6 +2251,90 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 
   } catch (error) {
     console.error(`❌ Error procesando IA para producto ${productId}:`, error);
+  }
+}
+
+// ============================================
+// ACTUALIZAR PRODUCTO (EDITAR)
+// ============================================
+async function handleInventoryUpdate(request, env, corsHeaders) {
+  try {
+    const { id, name, sku, category, quantity, unit_price, ai_description, ai_tags, demand_score } = await request.json();
+
+    if (!id) {
+      return jsonResponse({ error: 'ID del producto es requerido' }, 400, corsHeaders);
+    }
+
+    // Verificar que existe
+    const existing = await env.MIRAI_AI_DB.prepare("SELECT id FROM inventory_products WHERE id = ?").bind(id).first();
+    if (!existing) {
+      return jsonResponse({ error: 'Producto no encontrado' }, 404, corsHeaders);
+    }
+
+    // Construir la consulta dinámica
+    const fields = [];
+    const values = [];
+    
+    if (name !== undefined) { fields.push("name = ?"); values.push(name); }
+    if (sku !== undefined) { fields.push("sku = ?"); values.push(sku); }
+    if (category !== undefined) { fields.push("category = ?"); values.push(category); }
+    if (quantity !== undefined) { fields.push("quantity = ?"); values.push(quantity); }
+    if (unit_price !== undefined) { fields.push("unit_price = ?"); values.push(unit_price); }
+    if (ai_description !== undefined) { fields.push("ai_description = ?"); values.push(ai_description); }
+    if (ai_tags !== undefined) { fields.push("ai_tags = ?"); values.push(typeof ai_tags === 'object' ? JSON.stringify(ai_tags) : ai_tags); }
+    if (demand_score !== undefined) { fields.push("demand_score = ?"); values.push(demand_score); }
+
+    // Siempre actualizar timestamp
+    fields.push("updated_at = datetime('now')");
+    values.push(id);
+
+    const sql = `UPDATE inventory_products SET ${fields.join(', ')} WHERE id = ?`;
+    
+    await env.MIRAI_AI_DB.prepare(sql).bind(...values).run();
+
+    return jsonResponse({ success: true, message: 'Producto actualizado correctamente' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error updating inventory:', error);
+    return jsonResponse({ error: 'Error al actualizar producto', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// ============================================
+// ELIMINAR PRODUCTO
+// ============================================
+async function handleInventoryDelete(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+
+    if (!id) {
+      return jsonResponse({ error: 'ID del producto es requerido' }, 400, corsHeaders);
+    }
+
+    // Verificar que existe
+    const existing = await env.MIRAI_AI_DB.prepare("SELECT photo_r2_key FROM inventory_products WHERE id = ?").bind(id).first();
+    if (!existing) {
+      return jsonResponse({ error: 'Producto no encontrado' }, 404, corsHeaders);
+    }
+
+    // 1. Eliminar imagen de R2 si existe
+    if (existing.photo_r2_key) {
+      try {
+        await env.MIRAI_AI_ASSETS.delete(existing.photo_r2_key);
+      } catch (r2Err) {
+        console.warn('No se pudo eliminar imagen de R2:', r2Err);
+      }
+    }
+
+    // 2. Eliminar registro de D1
+    await env.MIRAI_AI_DB.prepare("DELETE FROM inventory_products WHERE id = ?").bind(id).run();
+
+    return jsonResponse({ success: true, message: 'Producto eliminado correctamente' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error deleting inventory:', error);
+    return jsonResponse({ error: 'Error al eliminar producto', details: error.message }, 500, corsHeaders);
   }
 }
 
