@@ -617,39 +617,6 @@ async function handleFormSubmit(e) {
     }
 }
 
-// ============================================
-// ELIMINAR PRODUCTO (NUEVA FUNCIÓN)
-// ============================================
-async function deleteProduct(productId) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y se borrará la imagen asociada.')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/inventory/delete?id=${productId}`, {
-            method: 'DELETE'
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Error al eliminar producto');
-        }
-
-        showStatus('✅ Producto eliminado correctamente', 'success');
-        
-        // Recargar lista inmediatamente
-        await loadInventory();
-        
-        // Cerrar modal si está abierto (por si acaso)
-        closeModals();
-
-    } catch (error) {
-        console.error('Error eliminando producto:', error);
-        showStatus(`❌ Error: ${error.message}`, 'error');
-    }
-}
-
 // --- APLICAR FILTROS ---
 function applyFilters() {
     let filtered = [...state.products];
