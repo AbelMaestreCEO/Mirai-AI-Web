@@ -984,4 +984,21 @@ async function deleteProduct(productId) {
     }
 }
 
+// Función global para cerrar el modal de detalles (llamada desde HTML)
+window.closeProductDetail = function() {
+    const modal = document.getElementById('product-detail-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+};
+
+// También asegurémonos de que las otras funciones de cierre sean globales si se llaman desde HTML
+window.closeModals = function() {
+    const addModal = document.getElementById('add-product-modal');
+    const detailModal = document.getElementById('product-detail-modal');
+    if (addModal) addModal.classList.add('hidden');
+    if (detailModal) detailModal.classList.add('hidden');
+    resetForm();
+};
+
 console.log('✅ Módulo de Inventario Inteligente inicializado');
