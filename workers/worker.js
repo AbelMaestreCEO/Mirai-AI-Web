@@ -1203,7 +1203,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     // Ruta: /api/inventory/list
     if (path === '/api/inventory/list' && request.method === 'GET') {
-      return await handleInventoryList(env, corsHeaders);
+      return await handleInventoryList(request, env, corsHeaders);
     }
 
     // Ruta: /api/inventory/upload
