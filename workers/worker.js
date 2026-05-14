@@ -2199,7 +2199,7 @@ async function processInventoryAI(productId, r2Key, specs, env) {
     const base64Image = arrayBufferToBase64(imageBuffer);
 
     // Llamada a Workers AI para visión (LLaVA)
-    const visionResponse = await env.AI.run('@cf/meta/llava-7b-fp16', {
+    const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
       image: base64Image,
       prompt: "Identifica el producto en esta imagen. Devuelve SOLO un JSON con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria' }"
     });
