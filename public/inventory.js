@@ -501,7 +501,7 @@ function handleFileSelect(e) {
     showStatus('✅ Imagen seleccionada', 'success');
 }
 
-// --- SUBMIT FORMULARIO (MODIFICADO) ---
+// --- SUBMIT FORMULARIO (COMPLETAMENTE ACTUALIZADO) ---
 async function handleFormSubmit(e) {
     e.preventDefault();
 
@@ -533,12 +533,12 @@ async function handleFormSubmit(e) {
             const payload = {
                 id: productId,
                 name,
-                sku,
+                sku: sku.trim() || null, // Permitir vacío
                 category,
                 quantity,
                 unit_price: price,
-                ai_description: specs, // Guardamos specs como descripción editable
-                ai_tags: document.getElementById('inv-category').value // Placeholder, podrías permitir editar tags
+                ai_description: specs,
+                ai_tags: document.getElementById('inv-category').value
             };
 
             const response = await fetch('/api/inventory/update', {
@@ -548,12 +548,18 @@ async function handleFormSubmit(e) {
             });
 
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
+            if (!response.ok) {
+                // Manejo específico de error de SKU duplicado
+                if (data.details && data.details.includes('UNIQUE constraint')) {
+                    throw new Error('Ya existe un producto con ese SKU. Por favor, usa otro o déjalo vacío.');
+                }
+                throw new Error(data.error || 'Error al actualizar producto');
+            }
 
             showStatus('✅ Producto actualizado correctamente', 'success');
 
         } else {
-            // --- MODO CREACIÓN (EXISTENTE) ---
+            // --- MODO CREACIÓN ---
             if (!file) {
                 showStatus('Por favor, sube una foto del producto', 'error');
                 return;
@@ -562,7 +568,7 @@ async function handleFormSubmit(e) {
             const formData = new FormData();
             formData.append('photo', file);
             formData.append('name', name);
-            formData.append('sku', sku);
+            formData.append('sku', sku); // El backend generará uno si está vacío
             formData.append('category', category);
             formData.append('quantity', quantity);
             formData.append('specs', specs);
@@ -574,16 +580,24 @@ async function handleFormSubmit(e) {
             });
 
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
+            
+            if (!response.ok) {
+                // Manejo específico de error de SKU duplicado
+                if (data.details && data.details.includes('UNIQUE constraint')) {
+                    throw new Error('Ya existe un producto con ese SKU. Déjalo vacío para generar uno automático.');
+                }
+                throw new Error(data.error || 'Error al registrar producto');
+            }
 
-            showStatus('✅ ¡Producto registrado! La IA está analizando...', 'success');
+            // Mostrar mensaje con SKU generado o proporcionado
+            const skuDisplay = data.sku || 'Automático';
+            showStatus(`✅ ¡Producto registrado! SKU: ${skuDisplay} - La IA está analizando...`, 'success');
 
             // Esperar un momento para que la IA procese
             setTimeout(async () => {
                 await loadInventory();
                 closeModals();
                 resetForm();
-                showStatus('✅ Producto agregado al inventario', 'success');
             }, 3000);
         }
 
@@ -600,6 +614,39 @@ async function handleFormSubmit(e) {
     } finally {
         state.isSubmitting = false;
         setLoadingState(false);
+    }
+}
+
+// ============================================
+// ELIMINAR PRODUCTO (NUEVA FUNCIÓN)
+// ============================================
+async function deleteProduct(productId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y se borrará la imagen asociada.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/inventory/delete?id=${productId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al eliminar producto');
+        }
+
+        showStatus('✅ Producto eliminado correctamente', 'success');
+        
+        // Recargar lista inmediatamente
+        await loadInventory();
+        
+        // Cerrar modal si está abierto (por si acaso)
+        closeModals();
+
+    } catch (error) {
+        console.error('Error eliminando producto:', error);
+        showStatus(`❌ Error: ${error.message}`, 'error');
     }
 }
 

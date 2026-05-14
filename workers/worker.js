@@ -2094,7 +2094,7 @@ async function handleInventoryList(env, corsHeaders) {
 }
 
 // ============================================
-// Subir Producto (con IA)
+// Subir Producto (con IA) - CORREGIDO
 // ============================================
 
 async function handleInventoryUpload(request, env, corsHeaders) {
@@ -2102,7 +2102,7 @@ async function handleInventoryUpload(request, env, corsHeaders) {
     const formData = await request.formData();
     const file = formData.get('photo');
     const name = formData.get('name');
-    const sku = formData.get('sku') || '';
+    let sku = formData.get('sku') || '';
     const category = formData.get('category') || 'general';
     const quantity = parseInt(formData.get('quantity')) || 0;
     const specs = formData.get('specs') || '';
@@ -2122,6 +2122,27 @@ async function handleInventoryUpload(request, env, corsHeaders) {
       return jsonResponse({ error: 'La imagen no puede exceder 10MB' }, 400, corsHeaders);
     }
 
+    // 🆕 GENERAR SKU AUTOMÁTICO SI NO SE PROPORCIONA
+    if (!sku || sku.trim() === '') {
+      // Generar SKU basado en nombre + timestamp
+      const namePrefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+      sku = `${namePrefix || 'PRD'}-${timestamp}-${random}`;
+      console.log(`🏷️ SKU generado automáticamente: ${sku}`);
+    } else {
+      // Validar que el SKU no exista
+      const existing = await env.MIRAI_AI_DB.prepare(
+        "SELECT id FROM inventory_products WHERE sku = ?"
+      ).bind(sku.toUpperCase().trim()).first();
+
+      if (existing) {
+        return jsonResponse({ 
+          error: 'Ya existe un producto con ese SKU. Por favor, usa otro o déjalo vacío para generar uno automático.' 
+        }, 409, corsHeaders);
+      }
+    }
+
     // 1. Generar ID único
     const productId = crypto.randomUUID();
     const r2Key = `inventory/${productId}.jpg`;
@@ -2139,7 +2160,7 @@ async function handleInventoryUpload(request, env, corsHeaders) {
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, '', '', ?, 50, datetime('now'), datetime('now'))
         `).bind(
-      productId, name, sku, category, quantity, unit_price, r2Key
+      productId, name, sku.toUpperCase().trim(), category, quantity, unit_price, r2Key
     ).run();
 
     // 4. Disparar procesamiento de IA (asíncrono)
@@ -2148,14 +2169,15 @@ async function handleInventoryUpload(request, env, corsHeaders) {
     return jsonResponse({
       success: true,
       product_id: productId,
+      sku: sku,
       message: 'Producto registrado. La IA está analizando...'
     }, 201, corsHeaders);
 
   } catch (error) {
     console.error('Error uploading inventory:', error);
-    return jsonResponse({
+    return jsonResponse({ 
       error: 'Error al registrar producto',
-      details: error.message
+      details: error.message 
     }, 500, corsHeaders);
   }
 }

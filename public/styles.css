@@ -6489,3 +6489,10 @@ svg {
 .upload-zone.hidden {
   display: none;
 }
+
+.field-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
