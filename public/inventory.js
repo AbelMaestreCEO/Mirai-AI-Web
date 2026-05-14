@@ -69,7 +69,7 @@ async function loadInventory() {
 
         // 1. Obtener el token de sesión guardado (ajusta la clave según tu sistema)
         // Normalmente se guarda en localStorage como 'mirai_auth_token' o similar
-        const token = localStorage.getItem('mirai_auth_token'); 
+        const token = localStorage.getItem('mirai_auth_token');
         const userDni = localStorage.getItem('mirai_user_dni');
 
         if (!token) {
@@ -108,7 +108,7 @@ async function loadInventory() {
 
     } catch (error) {
         console.error('Error cargando inventario:', error);
-        
+
         // Si el error es de autenticación, mostrar estado vacío amigable
         if (error.message.includes('No autorizado') || error.message.includes('401')) {
             showEmptyState('Por favor, inicia sesión para ver tu inventario.');
@@ -122,10 +122,10 @@ async function loadInventory() {
 function showEmptyState(message = 'Tu inventario está vacío. ¡Agrega tu primer producto!') {
     const grid = elements.inventoryGrid;
     const noResults = elements.noResults;
-    
+
     // Limpiar grid
     grid.innerHTML = '';
-    
+
     // Crear mensaje amigable
     const emptyDiv = document.createElement('div');
     emptyDiv.className = 'no-results';
@@ -499,6 +499,37 @@ function setupEventListeners() {
             applyFilters();
         }
     });
+    
+    const btnNotifications = document.getElementById('btn-enable-notifications');
+    if (btnNotifications) {
+        btnNotifications.addEventListener('click', async () => {
+            try {
+                if (!('Notification' in window)) {
+                    alert('Tu navegador no soporta notificaciones.');
+                    return;
+                }
+
+                if (Notification.permission === 'granted') {
+                    console.log('✅ Notificaciones ya permitidas.');
+                    await subscribeUser();
+                    return;
+                }
+
+                if (Notification.permission !== 'denied') {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        console.log('✅ Permiso concedido.');
+                        await subscribeUser();
+                    } else {
+                        console.log('❌ Permiso denegado.');
+                        alert('Has denegado las notificaciones.');
+                    }
+                }
+            } catch (error) {
+                console.error('Error al solicitar permiso:', error);
+            }
+        });
+    }
 
     // Filtros stock
     elements.stockFilter.addEventListener('click', (e) => {
@@ -1127,7 +1158,7 @@ document.getElementById('theme-toggle')?.addEventListener('click', () => {
 });
 
 // Función global para cerrar el modal de detalles (llamada desde HTML)
-window.closeProductDetail = function() {
+window.closeProductDetail = function () {
     const modal = document.getElementById('product-detail-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -1135,7 +1166,7 @@ window.closeProductDetail = function() {
 };
 
 // También asegurémonos de que las otras funciones de cierre sean globales si se llaman desde HTML
-window.closeModals = function() {
+window.closeModals = function () {
     const addModal = document.getElementById('add-product-modal');
     const detailModal = document.getElementById('product-detail-modal');
     if (addModal) addModal.classList.add('hidden');
@@ -1147,192 +1178,85 @@ window.closeModals = function() {
 // SOLICITAR SUSCRIPCIÓN A NOTIFICACIONES
 // ============================================
 async function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    alert('Tu navegador no soporta notificaciones.');
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    console.log('✅ Notificaciones ya permitidas.');
-    await subscribeUser();
-    return;
-  }
-
-  if (Notification.permission !== 'denied') {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      console.log('✅ Permiso concedido.');
-      await subscribeUser();
-    } else {
-      console.log('❌ Permiso denegado.');
+    if (!('Notification' in window)) {
+        alert('Tu navegador no soporta notificaciones.');
+        return;
     }
-  }
+
+    if (Notification.permission === 'granted') {
+        console.log('✅ Notificaciones ya permitidas.');
+        await subscribeUser();
+        return;
+    }
+
+    if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            console.log('✅ Permiso concedido.');
+            await subscribeUser();
+        } else {
+            console.log('❌ Permiso denegado.');
+        }
+    }
 }
 
 async function subscribeUser() {
-  if (!('PushManager' in window)) {
-    console.warn('❌ Push Manager no soportado.');
-    return;
-  }
-
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    
-    // REEMPLAZA CON TU PUBLIC KEY VAPID O FCM
-    const applicationServerKey = urlBase64ToUint8Array('BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ'); 
-    
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: applicationServerKey
-    });
-
-    const { endpoint, keys } = subscription;
-    const { p256dh, auth } = keys;
-
-    // Enviar al servidor
-    const token = localStorage.getItem('mirai_auth_token');
-    const response = await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ endpoint, p256dh, auth })
-    });
-
-    if (response.ok) {
-      console.log('✅ Suscripción guardada en servidor.');
-      showStatus('🔔 Notificaciones activadas para alertas de stock.', 'success');
-    } else {
-      console.error('❌ Error al suscribirse:', await response.text());
+    if (!('PushManager' in window)) {
+        console.warn('❌ Push Manager no soportado.');
+        return;
     }
 
-  } catch (error) {
-    console.error('Error en suscripción:', error);
-  }
+    try {
+        const registration = await navigator.serviceWorker.ready;
+
+        // REEMPLAZA CON TU PUBLIC KEY VAPID O FCM
+        const applicationServerKey = urlBase64ToUint8Array('BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ');
+
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey
+        });
+
+        const { endpoint, keys } = subscription;
+        const { p256dh, auth } = keys;
+
+        // Enviar al servidor
+        const token = localStorage.getItem('mirai_auth_token');
+        const response = await fetch('/api/notifications/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ endpoint, p256dh, auth })
+        });
+
+        if (response.ok) {
+            console.log('✅ Suscripción guardada en servidor.');
+            showStatus('🔔 Notificaciones activadas para alertas de stock.', 'success');
+        } else {
+            console.error('❌ Error al suscribirse:', await response.text());
+        }
+
+    } catch (error) {
+        console.error('Error en suscripción:', error);
+    }
 }
 
 // Helper: Convertir Base64 a Uint8Array
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
 
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
 
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
 }
-
-// ============================================
-// FUNCIONES GLOBALES PARA NOTIFICACIONES
-// ============================================
-
-// Esta función debe ser global para que el HTML pueda llamarla
-window.requestNotificationPermission = async function() {
-  if (!('Notification' in window)) {
-    alert('Tu navegador no soporta notificaciones.');
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    console.log('✅ Notificaciones ya permitidas.');
-    await window.subscribeUser();
-    return;
-  }
-
-  if (Notification.permission !== 'denied') {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      console.log('✅ Permiso concedido.');
-      await window.subscribeUser();
-    } else {
-      console.log('❌ Permiso denegado.');
-      alert('Has denegado las notificaciones. Puedes activarlas desde la configuración del navegador.');
-    }
-  }
-};
-
-window.subscribeUser = async function() {
-  if (!('PushManager' in window)) {
-    console.warn('❌ Push Manager no soportado.');
-    alert('Tu navegador no soporta notificaciones push.');
-    return;
-  }
-
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    
-    // ⚠️ IMPORTANTE: REEMPLAZA ESTO CON TU CLAVE PÚBLICA VAPID REAL
-    // Si no la tienes aún, usa una clave de prueba temporal o genera una.
-    // Ejemplo de clave de prueba (NO USAR EN PRODUCCIÓN):
-    const applicationServerKey = urlBase64ToUint8Array('BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ'); 
-    
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: applicationServerKey
-    });
-
-    const { endpoint, keys } = subscription;
-    const { p256dh, auth } = keys;
-
-    // Enviar al servidor
-    const token = localStorage.getItem('mirai_auth_token');
-    if (!token) {
-      alert('Debes iniciar sesión para activar notificaciones.');
-      return;
-    }
-
-    const response = await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ endpoint, p256dh, auth })
-    });
-
-    if (response.ok) {
-      console.log('✅ Suscripción guardada en servidor.');
-      // Buscar el elemento de estado y mostrar mensaje
-      const statusDiv = document.getElementById('inv-status');
-      if (statusDiv) {
-        statusDiv.textContent = '🔔 Notificaciones activadas para alertas de stock.';
-        statusDiv.className = 'status-message success show';
-        setTimeout(() => statusDiv.classList.remove('show'), 5000);
-      } else {
-        alert('🔔 Notificaciones activadas correctamente.');
-      }
-    } else {
-      const errText = await response.text();
-      console.error('❌ Error al suscribirse:', errText);
-      alert('Error al activar notificaciones: ' + errText);
-    }
-
-  } catch (error) {
-    console.error('Error en suscripción:', error);
-    alert('Error al activar notificaciones. Revisa la consola.');
-  }
-};
-
-// Helper: Convertir Base64 a Uint8Array (Debe ser global también)
-window.urlBase64ToUint8Array = function(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-};
 
 console.log('✅ Módulo de Inventario Inteligente inicializado');
