@@ -1179,7 +1179,7 @@ async function subscribeUser() {
     const registration = await navigator.serviceWorker.ready;
     
     // REEMPLAZA CON TU PUBLIC KEY VAPID O FCM
-    const applicationServerKey = urlBase64ToUint8Array('TU_PUBLIC_KEY_VAPID_AQUI'); 
+    const applicationServerKey = urlBase64ToUint8Array('BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ'); 
     
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
