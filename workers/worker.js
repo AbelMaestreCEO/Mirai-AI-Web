@@ -1182,7 +1182,7 @@ function extractTextFromParagraphs(xmlContent) {
   return extractedText.substring(0, 15000);
 }
 // --- MANEJO DE RUTAS API ---
-async function handleApiRequest(request, env, ctx,corsHeaders) {
+async function handleApiRequest(request, env, ctx, corsHeaders) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -2065,18 +2065,25 @@ NO agregues texto adicional fuera del JSON.`;
 // Listar Productos
 // ============================================
 
-async function handleInventoryList(env, corsHeaders) {
+async function handleInventoryList(request, env, corsHeaders) {
   try {
-    // Consultar todos los productos de D1
+    // 1. Obtener usuario autenticado
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
+
+    // 2. Consultar SOLO productos de este usuario
     const result = await env.MIRAI_AI_DB.prepare(`
-            SELECT 
-                id, name, sku, category, quantity, unit_price,
-                ai_description, ai_tags, ai_confidence,
-                photo_r2_key, demand_score, predicted_restock_date,
-                created_at, updated_at
-            FROM inventory_products
-            ORDER BY created_at DESC
-        `).all();
+      SELECT 
+        id, name, sku, category, quantity, unit_price,
+        ai_description, ai_tags, ai_confidence,
+        photo_r2_key, demand_score, predicted_restock_date,
+        created_at, updated_at
+      FROM inventory_products
+      WHERE user_dni = ?
+      ORDER BY created_at DESC
+    `).bind(userDni).all();
 
     return jsonResponse({
       success: true,
@@ -2086,10 +2093,7 @@ async function handleInventoryList(env, corsHeaders) {
 
   } catch (error) {
     console.error('Error listing inventory:', error);
-    return jsonResponse({
-      error: 'Error al obtener inventario',
-      details: error.message
-    }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error al obtener inventario', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -2099,6 +2103,12 @@ async function handleInventoryList(env, corsHeaders) {
 
 async function handleInventoryUpload(request, env, ctx, corsHeaders) {
   try {
+    // 1. Autenticar
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
+
     const formData = await request.formData();
     const file = formData.get('photo');
     const name = formData.get('name');
@@ -2122,48 +2132,40 @@ async function handleInventoryUpload(request, env, ctx, corsHeaders) {
       return jsonResponse({ error: 'La imagen no puede exceder 10MB' }, 400, corsHeaders);
     }
 
-    // 🆕 GENERAR SKU AUTOMÁTICO SI NO SE PROPORCIONA
     if (!sku || sku.trim() === '') {
-      // Generar SKU basado en nombre + timestamp
       const namePrefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '');
       const timestamp = Date.now().toString().slice(-6);
       const random = Math.random().toString(36).substring(2, 5).toUpperCase();
       sku = `${namePrefix || 'PRD'}-${timestamp}-${random}`;
-      console.log(`🏷️ SKU generado automáticamente: ${sku}`);
     } else {
-      // Validar que el SKU no exista
+      // Verificar duplicado SOLO para este usuario
       const existing = await env.MIRAI_AI_DB.prepare(
-        "SELECT id FROM inventory_products WHERE sku = ?"
-      ).bind(sku.toUpperCase().trim()).first();
+        "SELECT id FROM inventory_products WHERE sku = ? AND user_dni = ?"
+      ).bind(sku.toUpperCase().trim(), userDni).first();
 
       if (existing) {
-        return jsonResponse({ 
-          error: 'Ya existe un producto con ese SKU. Por favor, usa otro o déjalo vacío para generar uno automático.' 
-        }, 409, corsHeaders);
+        return jsonResponse({ error: 'Ya existe un producto con ese SKU en tu inventario.' }, 409, corsHeaders);
       }
     }
 
-    // 1. Generar ID único
     const productId = crypto.randomUUID();
     const r2Key = `inventory/${productId}.jpg`;
 
-    // 2. Subir imagen a R2
     await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
       httpMetadata: { contentType: file.type }
     });
 
-    // 3. Insertar registro en D1 (estado: pending)
+    // 3. Insertar con user_dni
     await env.MIRAI_AI_DB.prepare(`
-            INSERT INTO inventory_products (
-                id, name, sku, category, quantity, unit_price,
-                ai_description, ai_tags, photo_r2_key, demand_score,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, '', '', ?, 50, datetime('now'), datetime('now'))
-        `).bind(
-      productId, name, sku.toUpperCase().trim(), category, quantity, unit_price, r2Key
+      INSERT INTO inventory_products (
+        id, name, sku, category, quantity, unit_price,
+        ai_description, ai_tags, photo_r2_key, demand_score, user_dni,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, '', '', ?, 50, ?, datetime('now'), datetime('now'))
+    `).bind(
+      productId, name, sku.toUpperCase().trim(), category, quantity, unit_price, r2Key, userDni
     ).run();
 
-    // 4. Disparar procesamiento de IA (asíncrono)
     ctx.waitUntil(processInventoryAI(productId, r2Key, specs, env));
 
     return jsonResponse({
@@ -2175,10 +2177,7 @@ async function handleInventoryUpload(request, env, ctx, corsHeaders) {
 
   } catch (error) {
     console.error('Error uploading inventory:', error);
-    return jsonResponse({ 
-      error: 'Error al registrar producto',
-      details: error.message 
-    }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error al registrar producto', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -2196,11 +2195,11 @@ async function processInventoryAI(productId, r2Key, specs, env) {
     }
 
     const imageBuffer = await object.arrayBuffer();
-    
+
     // ✅ CORRECCIÓN CRÍTICA: Convertir ArrayBuffer a Array de números (Uint8Array)
     // LLaVA en CF espera: image: [123, 45, 67, ...] (array de bytes)
     const imageBytes = new Uint8Array(imageBuffer);
-    const imageArray = Array.from(imageBytes); 
+    const imageArray = Array.from(imageBytes);
 
     // 2. Llamada a Workers AI para visión (LLaVA 1.5)
     // Nota: Usamos el modelo correcto @cf/llava-hf/llava-1.5-7b-hf
@@ -2278,7 +2277,7 @@ async function processInventoryAI(productId, r2Key, specs, env) {
     }
 
     // 4. Calcular demanda (simple)
-    const demandScore = 50; 
+    const demandScore = 50;
 
     // 5. Actualizar producto en D1
     await env.MIRAI_AI_DB.prepare(`
@@ -2306,16 +2305,24 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 // ============================================
 async function handleInventoryUpdate(request, env, corsHeaders) {
   try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
+
     const { id, name, sku, category, quantity, unit_price, ai_description, ai_tags, demand_score } = await request.json();
 
     if (!id) {
-      return jsonResponse({ error: 'ID del producto es requerido' }, 400, corsHeaders);
+      return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
     }
 
-    // Verificar que existe
-    const existing = await env.MIRAI_AI_DB.prepare("SELECT id FROM inventory_products WHERE id = ?").bind(id).first();
+    // Verificar que el producto existe Y pertenece a este usuario
+    const existing = await env.MIRAI_AI_DB.prepare(
+      "SELECT id FROM inventory_products WHERE id = ? AND user_dni = ?"
+    ).bind(id, userDni).first();
+
     if (!existing) {
-      return jsonResponse({ error: 'Producto no encontrado' }, 404, corsHeaders);
+      return jsonResponse({ error: 'Producto no encontrado o no tienes permiso para editarlo' }, 404, corsHeaders);
     }
 
     // Construir la consulta dinámica
@@ -2323,7 +2330,7 @@ async function handleInventoryUpdate(request, env, corsHeaders) {
     const values = [];
     
     if (name !== undefined) { fields.push("name = ?"); values.push(name); }
-    if (sku !== undefined) { fields.push("sku = ?"); values.push(sku); }
+    if (sku !== undefined) { fields.push("sku = ?"); values.push(sku.toUpperCase().trim()); }
     if (category !== undefined) { fields.push("category = ?"); values.push(category); }
     if (quantity !== undefined) { fields.push("quantity = ?"); values.push(quantity); }
     if (unit_price !== undefined) { fields.push("unit_price = ?"); values.push(unit_price); }
@@ -2331,19 +2338,19 @@ async function handleInventoryUpdate(request, env, corsHeaders) {
     if (ai_tags !== undefined) { fields.push("ai_tags = ?"); values.push(typeof ai_tags === 'object' ? JSON.stringify(ai_tags) : ai_tags); }
     if (demand_score !== undefined) { fields.push("demand_score = ?"); values.push(demand_score); }
 
-    // Siempre actualizar timestamp
     fields.push("updated_at = datetime('now')");
     values.push(id);
 
-    const sql = `UPDATE inventory_products SET ${fields.join(', ')} WHERE id = ?`;
+    const sql = `UPDATE inventory_products SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`;
+    values.push(id); // El WHERE ya tiene user_dni
     
     await env.MIRAI_AI_DB.prepare(sql).bind(...values).run();
 
-    return jsonResponse({ success: true, message: 'Producto actualizado correctamente' }, 200, corsHeaders);
+    return jsonResponse({ success: true, message: 'Producto actualizado' }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Error updating inventory:', error);
-    return jsonResponse({ error: 'Error al actualizar producto', details: error.message }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error al actualizar', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -2352,36 +2359,40 @@ async function handleInventoryUpdate(request, env, corsHeaders) {
 // ============================================
 async function handleInventoryDelete(request, env, corsHeaders) {
   try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
+
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
 
     if (!id) {
-      return jsonResponse({ error: 'ID del producto es requerido' }, 400, corsHeaders);
+      return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
     }
 
-    // Verificar que existe
-    const existing = await env.MIRAI_AI_DB.prepare("SELECT photo_r2_key FROM inventory_products WHERE id = ?").bind(id).first();
+    // Verificar propiedad
+    const existing = await env.MIRAI_AI_DB.prepare(
+      "SELECT photo_r2_key FROM inventory_products WHERE id = ? AND user_dni = ?"
+    ).bind(id, userDni).first();
+
     if (!existing) {
-      return jsonResponse({ error: 'Producto no encontrado' }, 404, corsHeaders);
+      return jsonResponse({ error: 'Producto no encontrado o no tienes permiso para eliminarlo' }, 404, corsHeaders);
     }
 
-    // 1. Eliminar imagen de R2 si existe
+    // Eliminar imagen de R2
     if (existing.photo_r2_key) {
-      try {
-        await env.MIRAI_AI_ASSETS.delete(existing.photo_r2_key);
-      } catch (r2Err) {
-        console.warn('No se pudo eliminar imagen de R2:', r2Err);
-      }
+      try { await env.MIRAI_AI_ASSETS.delete(existing.photo_r2_key); } catch (e) { console.warn(e); }
     }
 
-    // 2. Eliminar registro de D1
-    await env.MIRAI_AI_DB.prepare("DELETE FROM inventory_products WHERE id = ?").bind(id).run();
+    // Eliminar registro
+    await env.MIRAI_AI_DB.prepare("DELETE FROM inventory_products WHERE id = ? AND user_dni = ?").bind(id, userDni).run();
 
-    return jsonResponse({ success: true, message: 'Producto eliminado correctamente' }, 200, corsHeaders);
+    return jsonResponse({ success: true, message: 'Producto eliminado' }, 200, corsHeaders);
 
   } catch (error) {
     console.error('Error deleting inventory:', error);
-    return jsonResponse({ error: 'Error al eliminar producto', details: error.message }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error al eliminar', details: error.message }, 500, corsHeaders);
   }
 }
 
