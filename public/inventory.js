@@ -1143,4 +1143,89 @@ window.closeModals = function() {
     resetForm();
 };
 
+// ============================================
+// SOLICITAR SUSCRIPCIÓN A NOTIFICACIONES
+// ============================================
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    alert('Tu navegador no soporta notificaciones.');
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    console.log('✅ Notificaciones ya permitidas.');
+    await subscribeUser();
+    return;
+  }
+
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      console.log('✅ Permiso concedido.');
+      await subscribeUser();
+    } else {
+      console.log('❌ Permiso denegado.');
+    }
+  }
+}
+
+async function subscribeUser() {
+  if (!('PushManager' in window)) {
+    console.warn('❌ Push Manager no soportado.');
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    // REEMPLAZA CON TU PUBLIC KEY VAPID O FCM
+    const applicationServerKey = urlBase64ToUint8Array('TU_PUBLIC_KEY_VAPID_AQUI'); 
+    
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey
+    });
+
+    const { endpoint, keys } = subscription;
+    const { p256dh, auth } = keys;
+
+    // Enviar al servidor
+    const token = localStorage.getItem('mirai_auth_token');
+    const response = await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ endpoint, p256dh, auth })
+    });
+
+    if (response.ok) {
+      console.log('✅ Suscripción guardada en servidor.');
+      showStatus('🔔 Notificaciones activadas para alertas de stock.', 'success');
+    } else {
+      console.error('❌ Error al suscribirse:', await response.text());
+    }
+
+  } catch (error) {
+    console.error('Error en suscripción:', error);
+  }
+}
+
+// Helper: Convertir Base64 a Uint8Array
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 console.log('✅ Módulo de Inventario Inteligente inicializado');

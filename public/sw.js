@@ -46,3 +46,28 @@ self.addEventListener('fetch', event => {
     )
   );
 });
+
+// En sw.js
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.notification?.title || 'Mirai AI';
+  const body = data.notification?.body || 'Tienes una nueva notificación.';
+  const icon = data.notification?.icon || '/icon.png';
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: icon,
+      badge: '/badge.png',
+      tag: 'inventory-alert',
+      requireInteraction: true
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow('https://ai.aberumirai.com/inventory.html')
+  );
+});

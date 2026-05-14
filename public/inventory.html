@@ -170,6 +170,10 @@
             <span>Nuevo Producto</span>
         </button>
 
+        <button id="btn-enable-notifications" class="btn-secondary" style="margin-left: auto;">
+            🔔 Activar Alertas
+        </button>
+
         <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
             <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -371,6 +375,9 @@
 
     <!-- Scripts -->
     <script type="module" src="inventory.js" defer></script>
+    <script>
+        document.getElementById('btn-enable-notifications')?.addEventListener('click', requestNotificationPermission);
+    </script>
 </body>
 
 </html>
