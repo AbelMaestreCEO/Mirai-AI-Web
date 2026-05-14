@@ -984,7 +984,7 @@ export default {
 
       // Rutas de API
       if (path.startsWith('/api/')) {
-        return handleApiRequest(request, env, corsHeaders);
+        return handleApiRequest(request, env, ctx, corsHeaders);
       }
 
       // Servir archivos estáticos
@@ -1182,7 +1182,7 @@ function extractTextFromParagraphs(xmlContent) {
   return extractedText.substring(0, 15000);
 }
 // --- MANEJO DE RUTAS API ---
-async function handleApiRequest(request, env, corsHeaders) {
+async function handleApiRequest(request, env, ctx,corsHeaders) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -1208,7 +1208,7 @@ async function handleApiRequest(request, env, corsHeaders) {
 
     // Ruta: /api/inventory/upload
     if (path === '/api/inventory/upload' && request.method === 'POST') {
-      return await handleInventoryUpload(request, env, corsHeaders);
+      return await handleInventoryUpload(request, env, ctx, corsHeaders);
     }
 
     // Ruta: PUT /api/inventory/update
@@ -2097,7 +2097,7 @@ async function handleInventoryList(env, corsHeaders) {
 // Subir Producto (con IA) - CORREGIDO
 // ============================================
 
-async function handleInventoryUpload(request, env, corsHeaders) {
+async function handleInventoryUpload(request, env, ctx, corsHeaders) {
   try {
     const formData = await request.formData();
     const file = formData.get('photo');
@@ -2164,7 +2164,7 @@ async function handleInventoryUpload(request, env, corsHeaders) {
     ).run();
 
     // 4. Disparar procesamiento de IA (asíncrono)
-    env.ctx.waitUntil(processInventoryAI(productId, r2Key, specs, env));
+    ctx.waitUntil(processInventoryAI(productId, r2Key, specs, env));
 
     return jsonResponse({
       success: true,
