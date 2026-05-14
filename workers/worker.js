@@ -2183,12 +2183,12 @@ async function handleInventoryUpload(request, env, ctx, corsHeaders) {
 }
 
 // ============================================
-// Procesamiento IA (Background)
+// Procesamiento IA (Background) - CORREGIDO
 // ============================================
 
 async function processInventoryAI(productId, r2Key, specs, env) {
   try {
-    // Obtener imagen de R2
+    // 1. Obtener imagen de R2
     const object = await env.MIRAI_AI_ASSETS.get(r2Key);
     if (!object) {
       console.error(`Imagen no encontrada para producto ${productId}`);
@@ -2196,83 +2196,108 @@ async function processInventoryAI(productId, r2Key, specs, env) {
     }
 
     const imageBuffer = await object.arrayBuffer();
-    const base64Image = arrayBufferToBase64(imageBuffer);
+    
+    // ✅ CORRECCIÓN CRÍTICA: Convertir ArrayBuffer a Array de números (Uint8Array)
+    // LLaVA en CF espera: image: [123, 45, 67, ...] (array de bytes)
+    const imageBytes = new Uint8Array(imageBuffer);
+    const imageArray = Array.from(imageBytes); 
 
-    // Llamada a Workers AI para visión (LLaVA)
+    // 2. Llamada a Workers AI para visión (LLaVA 1.5)
+    // Nota: Usamos el modelo correcto @cf/llava-hf/llava-1.5-7b-hf
     const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-      image: base64Image,
-      prompt: "Identifica el producto en esta imagen. Devuelve SOLO un JSON con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria' }"
+      image: imageArray, // ← Enviar array de bytes, NO base64
+      prompt: "Identifica el producto en esta imagen. Devuelve SOLO un JSON válido con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria', 'description': 'breve descripción' }. No incluyas texto extra.",
+      max_tokens: 256
     });
 
     let aiTags = [];
     let aiDescription = '';
+    let aiCategory = 'general';
 
     try {
       const content = visionResponse.response || visionResponse.text || '';
-      // Extraer JSON del contenido
+      console.log(`🤖 Respuesta LLaVA raw: ${content.substring(0, 200)}...`);
+
+      // Intentar extraer JSON (a veces el modelo incluye texto antes/después)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         aiTags = parsed.tags || [];
+        aiDescription = parsed.description || '';
+        aiCategory = parsed.category || 'general';
+      } else {
+        // Fallback si no encuentra JSON limpio
+        aiTags = ['producto'];
+        aiDescription = content;
       }
     } catch (e) {
       console.warn('Error parsing vision output:', e);
       aiTags = ['producto'];
+      aiDescription = 'Descripción generada por IA (error de parseo)';
     }
 
-    // Llamada a DeepSeek para generar descripción
-    if (env.DEEPSEEK_API_KEY) {
+    // 3. Llamada a DeepSeek para refinar descripción (Opcional pero recomendado)
+    // Si LLaVA ya dio una buena descripción, podemos saltarnos esto o usarla para mejorarla
+    if (env.DEEPSEEK_API_KEY && (!aiDescription || aiDescription.length < 10)) {
       const deepseekPrompt = `
-                Eres un experto en inventarios. Genera una descripción técnica breve para:
-                Producto: ${specs || 'Producto genérico'}
-                Etiquetas detectadas: ${aiTags.join(', ')}
-                
-                Responde en JSON: { "description": "descripción técnica en español" }
-            `;
+        Eres un experto en inventarios. Genera una descripción técnica breve y atractiva para:
+        Producto: ${specs || 'Producto genérico'}
+        Etiquetas detectadas: ${aiTags.join(', ')}
+        Categoría: ${aiCategory}
+        
+        Responde EXACTAMENTE en JSON: { "description": "descripción técnica en español, máx 150 palabras" }
+      `;
 
-      const deepseekResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [{ role: 'user', content: deepseekPrompt }],
-          temperature: 0.3
-        })
-      });
+      try {
+        const deepseekResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [{ role: 'user', content: deepseekPrompt }],
+            temperature: 0.3,
+            max_tokens: 200
+          })
+        });
 
-      if (deepseekResp.ok) {
-        const deepseekData = await deepseekResp.json();
-        const content = deepseekData.choices?.[0]?.message?.content || '';
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          aiDescription = parsed.description || '';
+        if (deepseekResp.ok) {
+          const deepseekData = await deepseekResp.json();
+          const content = deepseekData.choices?.[0]?.message?.content || '';
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            aiDescription = parsed.description || aiDescription;
+          }
         }
+      } catch (deepErr) {
+        console.warn('Error llamando a DeepSeek:', deepErr);
       }
     }
 
-    // Calcular demanda (simple)
-    const demandScore = 50; // Placeholder - puedes mejorar esto con historial
+    // 4. Calcular demanda (simple)
+    const demandScore = 50; 
 
-    // Actualizar producto en D1
+    // 5. Actualizar producto en D1
     await env.MIRAI_AI_DB.prepare(`
             UPDATE inventory_products 
-            SET ai_description = ?, ai_tags = ?, demand_score = ?, updated_at = datetime('now')
+            SET ai_description = ?, ai_tags = ?, category = ?, demand_score = ?, updated_at = datetime('now')
             WHERE id = ?
         `).bind(
       aiDescription,
       JSON.stringify(aiTags),
+      aiCategory,
       demandScore,
       productId
     ).run();
 
-    console.log(`✅ Producto ${productId} procesado por IA`);
+    console.log(`✅ Producto ${productId} procesado por IA. Tags: ${aiTags.join(', ')}`);
 
   } catch (error) {
     console.error(`❌ Error procesando IA para producto ${productId}:`, error);
+    // No lanzamos error para no romper el flujo principal, solo logueamos
   }
 }
 
