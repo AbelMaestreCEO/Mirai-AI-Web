@@ -62,14 +62,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateStats();
 });
 
-// --- CARGAR INVENTARIO DESDE API ---
+// --- CARGAR INVENTARIO DESDE API (CORREGIDO) ---
 async function loadInventory() {
     try {
         showLoadingState();
 
-        const response = await fetch(`${CONFIG.API_ENDPOINT}/list`);
+        // 1. Obtener el token de sesión guardado (ajusta la clave según tu sistema)
+        // Normalmente se guarda en localStorage como 'mirai_auth_token' o similar
+        const token = localStorage.getItem('mirai_auth_token'); 
+        const userDni = localStorage.getItem('mirai_user_dni');
+
+        if (!token) {
+            console.warn('⚠️ No se encontró token de sesión. Redirigiendo a login...');
+            // Opcional: Redirigir a login si no hay token
+            // window.location.href = 'login.html';
+            // Pero para mostrar el mensaje de "agregar producto", manejamos el 401 abajo
+            throw new Error('No autorizado: No hay sesión activa.');
+        }
+
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        const response = await fetch(`${CONFIG.API_ENDPOINT}/list`, {
+            method: 'GET',
+            headers: headers
+        });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                // Si es 401, mostramos un mensaje amigable en lugar de error
+                showEmptyState('No has iniciado sesión o tu sesión ha expirado.');
+                return;
+            }
             throw new Error(`Error HTTP: ${response.status}`);
         }
 
@@ -82,8 +108,58 @@ async function loadInventory() {
 
     } catch (error) {
         console.error('Error cargando inventario:', error);
-        showErrorState(error.message);
+        
+        // Si el error es de autenticación, mostrar estado vacío amigable
+        if (error.message.includes('No autorizado') || error.message.includes('401')) {
+            showEmptyState('Por favor, inicia sesión para ver tu inventario.');
+        } else {
+            showErrorState(error.message);
+        }
     }
+}
+
+// --- MOSTRAR ESTADO VACÍO (NUEVO) ---
+function showEmptyState(message = 'Tu inventario está vacío. ¡Agrega tu primer producto!') {
+    const grid = elements.inventoryGrid;
+    const noResults = elements.noResults;
+    
+    // Limpiar grid
+    grid.innerHTML = '';
+    
+    // Crear mensaje amigable
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'no-results';
+    emptyDiv.style.display = 'flex';
+    emptyDiv.style.flexDirection = 'column';
+    emptyDiv.style.alignItems = 'center';
+    emptyDiv.style.justifyContent = 'center';
+    emptyDiv.style.padding = '60px 20px';
+    emptyDiv.style.textAlign = 'center';
+    emptyDiv.style.color = 'var(--text-secondary)';
+
+    emptyDiv.innerHTML = `
+        <div style="font-size: 4rem; margin-bottom: 20px;">📦</div>
+        <h3 style="color: var(--text-primary); margin-bottom: 10px;">${message}</h3>
+        <p style="margin-bottom: 20px;">¡Es el momento de empezar a organizar tus productos!</p>
+        <button class="btn-primary" id="btn-add-first-product" style="margin-top: 10px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-right: 5px;">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            Agregar Primer Producto
+        </button>
+    `;
+
+    grid.appendChild(emptyDiv);
+
+    // Evento para abrir modal
+    const btn = emptyDiv.querySelector('#btn-add-first-product');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            openAddProductModal();
+        });
+    }
+
+    elements.inventoryCount.textContent = '0 productos';
 }
 
 // --- RENDERIZAR PRODUCTOS ---
@@ -501,7 +577,7 @@ function handleFileSelect(e) {
     showStatus('✅ Imagen seleccionada', 'success');
 }
 
-// --- SUBMIT FORMULARIO (COMPLETAMENTE ACTUALIZADO) ---
+// --- SUBMIT FORMULARIO (CORREGIDO CON AUTH) ---
 async function handleFormSubmit(e) {
     e.preventDefault();
 
@@ -524,6 +600,18 @@ async function handleFormSubmit(e) {
         return;
     }
 
+    // ✅ Obtener token de sesión
+    const token = localStorage.getItem('mirai_auth_token');
+    if (!token) {
+        showStatus('❌ No has iniciado sesión. Serás redirigido...', 'error');
+        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+        return;
+    }
+
+    const authHeaders = {
+        'Authorization': `Bearer ${token}`
+    };
+
     state.isSubmitting = true;
     setLoadingState(true);
 
@@ -533,23 +621,25 @@ async function handleFormSubmit(e) {
             const payload = {
                 id: productId,
                 name,
-                sku: sku.trim() || null, // Permitir vacío
+                sku: sku.trim() || null,
                 category,
                 quantity,
                 unit_price: price,
                 ai_description: specs,
-                ai_tags: document.getElementById('inv-category').value
+                ai_tags: category
             };
 
             const response = await fetch('/api/inventory/update', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    ...authHeaders,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify(payload)
             });
 
             const data = await response.json();
             if (!response.ok) {
-                // Manejo específico de error de SKU duplicado
                 if (data.details && data.details.includes('UNIQUE constraint')) {
                     throw new Error('Ya existe un producto con ese SKU. Por favor, usa otro o déjalo vacío.');
                 }
@@ -557,18 +647,23 @@ async function handleFormSubmit(e) {
             }
 
             showStatus('✅ Producto actualizado correctamente', 'success');
+            await loadInventory();
+            closeModals();
+            resetForm();
 
         } else {
             // --- MODO CREACIÓN ---
             if (!file) {
                 showStatus('Por favor, sube una foto del producto', 'error');
+                state.isSubmitting = false;
+                setLoadingState(false);
                 return;
             }
 
             const formData = new FormData();
             formData.append('photo', file);
             formData.append('name', name);
-            formData.append('sku', sku); // El backend generará uno si está vacío
+            formData.append('sku', sku);
             formData.append('category', category);
             formData.append('quantity', quantity);
             formData.append('specs', specs);
@@ -576,24 +671,22 @@ async function handleFormSubmit(e) {
 
             const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
                 method: 'POST',
+                headers: authHeaders, // ✅ Token en FormData (no se necesita Content-Type, el browser lo pone)
                 body: formData
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) {
-                // Manejo específico de error de SKU duplicado
                 if (data.details && data.details.includes('UNIQUE constraint')) {
                     throw new Error('Ya existe un producto con ese SKU. Déjalo vacío para generar uno automático.');
                 }
                 throw new Error(data.error || 'Error al registrar producto');
             }
 
-            // Mostrar mensaje con SKU generado o proporcionado
             const skuDisplay = data.sku || 'Automático';
             showStatus(`✅ ¡Producto registrado! SKU: ${skuDisplay} - La IA está analizando...`, 'success');
 
-            // Esperar un momento para que la IA procese
             setTimeout(async () => {
                 await loadInventory();
                 closeModals();
@@ -601,20 +694,131 @@ async function handleFormSubmit(e) {
             }, 3000);
         }
 
-        // Si fue edición, recargar inmediatamente
-        if (mode === 'edit') {
-            await loadInventory();
-            closeModals();
-            resetForm();
-        }
-
     } catch (error) {
         console.error('Error en formulario:', error);
-        showStatus(`❌ Error: ${error.message}`, 'error');
+
+        // Si es error 401, redirigir a login
+        if (error.message.includes('401') || error.message.includes('No autorizado')) {
+            showStatus('❌ Sesión expirada. Serás redirigido al login...', 'error');
+            setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+        } else {
+            showStatus(`❌ Error: ${error.message}`, 'error');
+        }
     } finally {
         state.isSubmitting = false;
         setLoadingState(false);
     }
+}
+
+// ============================================
+// ELIMINAR PRODUCTO (CORREGIDO CON AUTH)
+// ============================================
+async function deleteProduct(productId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y se borrará la imagen asociada.')) {
+        return;
+    }
+
+    // ✅ Obtener token
+    const token = localStorage.getItem('mirai_auth_token');
+    if (!token) {
+        showStatus('❌ No has iniciado sesión.', 'error');
+        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/inventory/delete?id=${productId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Sesión expirada. Serás redirigido al login.');
+            }
+            throw new Error(data.error || 'Error al eliminar');
+        }
+
+        showStatus('✅ Producto eliminado correctamente', 'success');
+        await loadInventory();
+        closeModals();
+
+    } catch (error) {
+        console.error('Error eliminando producto:', error);
+
+        if (error.message.includes('Sesión expirada') || error.message.includes('401')) {
+            showStatus('❌ Sesión expirada. Redirigiendo...', 'error');
+            setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+        } else {
+            showStatus(`❌ Error: ${error.message}`, 'error');
+        }
+    }
+}
+
+// ============================================
+// EDITAR PRODUCTO (CORREGIDO CON openAddProductModal)
+// ============================================
+async function editProduct(product) {
+    const modal = document.getElementById('add-product-modal');
+    const form = document.getElementById('inventory-form');
+    const title = document.getElementById('modal-title');
+    const submitBtn = document.getElementById('btn-submit-inv');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const dropzone = document.getElementById('inventory-dropzone');
+
+    // Resetear formulario
+    form.reset();
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('preview-img').src = '';
+    state.selectedFile = null;
+    showStatus('', '');
+
+    // Precargar datos
+    document.getElementById('inv-name').value = product.name || '';
+    document.getElementById('inv-sku').value = product.sku || '';
+    document.getElementById('inv-category').value = product.category || 'general';
+    document.getElementById('inv-quantity').value = product.quantity || 0;
+    document.getElementById('inv-price').value = product.unit_price || 0;
+    document.getElementById('inv-specs').value = product.ai_description || '';
+
+    // ✅ CORRECCIÓN: Cambiar texto del botón SIN destruir los spans internos
+    if (btnText) {
+        btnText.textContent = 'Guardar Cambios';
+    }
+
+    // Configurar modo edición
+    submitBtn.dataset.mode = 'edit';
+    submitBtn.dataset.productId = product.id;
+
+    // Cambiar título del modal
+    if (title) {
+        title.textContent = '✏️ Editar Producto';
+    }
+
+    // Ocultar zona de foto en edición
+    if (dropzone) {
+        dropzone.style.display = 'none';
+    }
+
+    // Mostrar foto actual si existe
+    if (product.photo_r2_key) {
+        const photoUrl = `/api/image/${product.photo_r2_key}`;
+        const preview = document.getElementById('preview-img');
+        preview.src = photoUrl;
+        preview.style.display = 'block';
+    }
+
+    // Abrir modal con animación
+    modal.classList.remove('hidden');
+
+    // Enfocar primer campo
+    setTimeout(() => {
+        document.getElementById('inv-name').focus();
+    }, 100);
 }
 
 // --- APLICAR FILTROS ---
@@ -921,68 +1125,6 @@ document.getElementById('theme-toggle')?.addEventListener('click', () => {
     applyTheme(newTheme);
     localStorage.setItem(CONFIG.STORAGE_KEY_THEME, newTheme);
 });
-
-// ============================================
-// EDITAR PRODUCTO
-// ============================================
-async function editProduct(product) {
-    // Abrir modal de edición (reutilizamos el modal de agregar pero con datos precargados)
-    const modal = document.getElementById('add-product-modal');
-    const form = document.getElementById('inventory-form');
-
-    // Precargar datos
-    document.getElementById('inv-name').value = product.name || '';
-    document.getElementById('inv-sku').value = product.sku || '';
-    document.getElementById('inv-category').value = product.category || 'general';
-    document.getElementById('inv-quantity').value = product.quantity || 0;
-    document.getElementById('inv-price').value = product.unit_price || 0;
-    document.getElementById('inv-specs').value = product.ai_description || ''; // Usamos descripción como specs para editar
-
-    // Ocultar zona de foto (no permitimos cambiar foto en edición simple por ahora)
-    document.getElementById('inventory-dropzone').style.display = 'none';
-
-    // Cambiar botón de acción
-    const submitBtn = document.getElementById('btn-submit-inv');
-    submitBtn.textContent = 'Guardar Cambios';
-    submitBtn.dataset.mode = 'edit'; // Marcador para saber que es edición
-    submitBtn.dataset.productId = product.id;
-
-    // Mostrar modal
-    modal.classList.remove('hidden');
-}
-
-// ============================================
-// ELIMINAR PRODUCTO
-// ============================================
-async function deleteProduct(productId) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/inventory/delete?id=${productId}`, {
-            method: 'DELETE'
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Error al eliminar');
-        }
-
-        showStatus('✅ Producto eliminado correctamente', 'success');
-
-        // Recargar lista
-        await loadInventory();
-
-        // Cerrar modal si está abierto
-        closeModals();
-
-    } catch (error) {
-        console.error('Error eliminando producto:', error);
-        showStatus(`❌ Error: ${error.message}`, 'error');
-    }
-}
 
 // Función global para cerrar el modal de detalles (llamada desde HTML)
 window.closeProductDetail = function() {
