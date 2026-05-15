@@ -28,6 +28,11 @@ bucket_name = "mirai-ai-assets"
 binding = 'MIRAI_PHOTOS'
 bucket_name = 'mirai-photos'
 
+[[d1_databases]]
+binding = "DB"
+database_name = "mirai-db-photos"
+database_id = "e4d40d54-d0fd-427a-bb52-7bb8df53fd45"
+
 # --- CONFIGURACIÓN DE DOMINIO (Opcional pero recomendado) ---
 # Si quieres que el Worker responda directamente en aberumirai.com
 # (Asegúrate de tener el dominio verificado en Cloudflare)
