@@ -669,7 +669,27 @@ body::before {
 /* --- ESTADOS BASE (Aplica para PC) --- */
 .mobile-menu-toggle {
   display: none;
+  /* Oculto en PC por defecto */
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1001;
+  /* Por encima de todo */
+  width: 48px;
+  height: 48px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  padding: 12px;
+  box-shadow: var(--glass-shadow);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast);
 }
+
 
 .mobile-overlay {
   display: none;
@@ -869,24 +889,19 @@ footer.footer {
    ============================================ */
 
 @media (max-width: 768px) {
-
-  /* Botón Hamburguesa visible */
   .mobile-menu-toggle {
-    z-index: 1001;
-    /* Por encima del sidebar si está abierto */
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
     display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    width: 24px;
-    height: 20px;
+  }
+
+  .chat-container,
+  .header,
+  footer.footer {
+    margin-left: 0 !important;
   }
 
   .hamburger-line {
-    width: 100%;
+    display: block;
+    width: 24px;
     height: 2px;
     background: var(--text-primary);
     border-radius: 2px;
@@ -905,26 +920,35 @@ footer.footer {
     transform: rotate(-45deg) translate(5px, -5px);
   }
 
+  .mobile-menu-toggle:hover {
+    background: var(--secondary-container);
+    border-color: var(--accent-color);
+  }
+
+  .mobile-menu-toggle:active {
+    transform: scale(0.95);
+  }
+
   /* Overlay visible en móvil */
   .mobile-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    /* Por encima del sidebar pero debajo de modales */
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
 
 
   .mobile-overlay.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
+        opacity: 1;
+        pointer-events: auto;
+    }
 
   /* Sidebar oculto por defecto en móvil */
   .mobile-sidebar {
@@ -4737,7 +4761,12 @@ svg {
   .mobile-sidebar {
     transform: translateX(-100%);
     width: 280px;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transition: transform 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
   }
 
   .mobile-sidebar.active {

@@ -98,29 +98,62 @@ const MiraiApp = (() => {
         const overlay = document.querySelector('.mobile-overlay');
         const closeBtn = document.querySelector('.close-menu');
 
-        if (toggle) {
-            toggle.addEventListener('click', () => {
-                sidebar?.classList.toggle('active');
-                overlay?.classList.toggle('active');
-                toggle.classList.toggle('active');
-            });
+        console.log('[MiraiApp] Debug Mobile Sidebar:');
+        console.log('- Toggle encontrado:', !!toggle);
+        console.log('- Sidebar encontrado:', !!sidebar);
+        console.log('- Overlay encontrado:', !!overlay);
+
+        if (!toggle || !sidebar) {
+            console.error('[MiraiApp] Error: No se encontraron los elementos del menú móvil. Verifica el HTML.');
+            return;
         }
 
-        if (overlay) {
-            overlay.addEventListener('click', () => {
-                sidebar?.classList.remove('active');
+        const toggleMenu = (forceClose = false) => {
+            const isActive = sidebar.classList.contains('active');
+            
+            if (isActive && !forceClose) return; // Ya está abierto
+
+            if (!isActive || forceClose) {
+                // ABRIR
+                sidebar.classList.add('active');
+                overlay?.classList.add('active');
+                toggle.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Bloquear scroll
+                console.log('[MiraiApp] Menú ABIERTO');
+            } else {
+                // CERRAR
+                sidebar.classList.remove('active');
                 overlay?.classList.remove('active');
-                toggle?.classList.remove('active');
-            });
+                toggle.classList.remove('active');
+                document.body.style.overflow = '';
+                console.log('[MiraiApp] Menú CERRADO');
+            }
+        };
+
+        // Event Listeners
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMenu();
+        });
+
+        if (overlay) {
+            overlay.addEventListener('click', () => toggleMenu(true));
         }
 
         if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                sidebar?.classList.remove('active');
-                overlay?.classList.remove('active');
-                toggle?.classList.remove('active');
-            });
+            closeBtn.addEventListener('click', () => toggleMenu(true));
         }
+        
+        // Cerrar al hacer click en un enlace
+        const navLinks = sidebar.querySelectorAll('.nav-grid-item, .sidebar-links a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    toggleMenu(true);
+                }
+            });
+        });
     }
 
     // ---- SIDEBAR: COLAPSO DOCK (PC) ----
