@@ -131,29 +131,7 @@ async function serveStatic(assets, request, corsHeaders) {
 
 
 
-function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, localOffset) {
-    const central = new Uint8Array(46 + nameBytes.length);
-    const cv = new DataView(central.buffer);
-    cv.setUint32(0,  0x02014b50,   true); // signature
-    cv.setUint16(4,  20,           true); // version made by
-    cv.setUint16(6,  20,           true); // version needed
-    cv.setUint16(8,  0,            true); // flags
-    cv.setUint16(10, 0,            true); // compression
-    cv.setUint16(12, 0,            true); // mod time
-    cv.setUint16(14, 0,            true); // mod date
-    cv.setUint32(16, crc,          true);
-    cv.setUint32(20, compSize,     true);
-    cv.setUint32(24, uncompSize,   true);
-    cv.setUint16(28, nameBytes.length, true);
-    cv.setUint16(30, 0,            true); // extra len
-    cv.setUint16(32, 0,            true); // comment len
-    cv.setUint16(34, 0,            true); // disk start
-    cv.setUint16(36, 0,            true); // internal attr
-    cv.setUint32(38, extAttr,      true); // external attr
-    cv.setUint32(42, localOffset,  true); // offset of local header
-    central.set(nameBytes, 46);
-    return central;
-}
+
 
 
 
