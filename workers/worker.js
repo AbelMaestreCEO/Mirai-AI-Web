@@ -25,6 +25,12 @@ const ROUTES = {
   STATIC: '/'
 };
 
+const MIRROR_CONFIG = {
+  MAX_FILES: 200,
+  ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'],
+  CLEANUP_DAYS: 7
+};
+
 // --- CONFIGURACIÓN DE CLASIFICACIÓN ---
 const INTENT_TYPES = {
   TEXT: 1,
@@ -1442,6 +1448,14 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     if (path === '/api/reset-password' && request.method === 'POST') {
       return await handleResetPassword(request, env, corsHeaders);
+    }
+
+    if (path === '/api/process' && request.method === 'POST') {
+      return await processMirrorImages(request, env, corsHeaders);
+    }
+
+    if (path === '/api/mirror/status' && request.method === 'GET') {
+      return await getMirrorStatus(env, corsHeaders);
     }
     // NUEVA RUTA: Subida de archivos
     if (path === '/api/upload' && request.method === 'POST') {
@@ -4499,4 +4513,312 @@ async function handleTriggerNotification(request, env, corsHeaders) {
   await sendPushNotification(userDni, title, body);
 
   return jsonResponse({ success: true, message: 'Notificación enviada' }, 200, corsHeaders);
+}
+
+// ============================================
+// PROCESAR IMÁGENES
+// ============================================
+async function processMirrorImages(request, env, corsHeaders) {
+    const startTime = Date.now();
+    console.log('📥 /api/process');
+
+    if (!env.DB || !env.MIRAI_PHOTOS) {
+        console.error('❌ Missing bindings (DB or MIRAI_PHOTOS)');
+        return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
+    }
+
+    let formData;
+    try {
+        formData = await request.formData();
+    } catch (e) {
+        return jsonResponse({ success: false, error: 'Invalid form data: ' + e.message }, 400, corsHeaders);
+    }
+
+    const images = formData.getAll('images');
+    console.log(`🖼️  Recibidas: ${images.length}`);
+
+    if (!images || images.length === 0) {
+        return jsonResponse({ success: false, error: 'No images received' }, 400, corsHeaders);
+    }
+
+    // FIX: límite alineado con el frontend (200)
+    if (images.length > 200) {
+        return jsonResponse({ success: false, error: 'Max 200 files allowed' }, 400, corsHeaders);
+    }
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'];
+    const validImages = images.filter(img => {
+        if (!img || typeof img.arrayBuffer !== 'function') return false;
+        if (!img.size || img.size === 0) return false;
+        // Si el tipo está vacío lo aceptamos igual (algunos navegadores no lo envían)
+        if (img.type && !ALLOWED_TYPES.includes(img.type.toLowerCase())) return false;
+        return true;
+    });
+
+    console.log(`✅ Válidas: ${validImages.length}`);
+
+    if (validImages.length === 0) {
+        return jsonResponse({ success: false, error: 'No valid images after filtering' }, 400, corsHeaders);
+    }
+
+    const sessionId = `mirai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`🆔 Session: ${sessionId}`);
+
+    try {
+        await env.DB.prepare(
+            `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, ?, ?)`
+        ).bind(sessionId, validImages.length, new Date().toISOString()).run();
+    } catch (e) {
+        console.warn('D1 session insert error:', e.message);
+    }
+
+    const filesForZip = [];
+    const folderStats = {};
+    const usedNames = {}; // evitar colisiones de nombre dentro de la misma carpeta
+
+    for (const image of validImages) {
+        try {
+            // --- Fecha ---
+            let dateStr = await extractEXIFDate(image);
+            if (!dateStr) dateStr = extractDateFromFilename(image.name);
+            if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+
+            const [year, month, day] = dateStr.split('-');
+            const folderName = `${day}-${month}-${year}`;
+
+            // --- Nombre único dentro de la carpeta ---
+            const ext = (image.name.split('.').pop() || 'jpg').toLowerCase();
+            const baseName = image.name.replace(/\.[^.]+$/, '');
+            const nameKey = `${folderName}/${baseName}`;
+            usedNames[nameKey] = (usedNames[nameKey] || 0) + 1;
+            const finalName = usedNames[nameKey] > 1
+                ? `${baseName}_${usedNames[nameKey]}.${ext}`
+                : `${baseName}.${ext}`;
+
+            // --- Subir a R2 ---
+            const imageBuffer = await image.arrayBuffer();
+            const r2Key = `${sessionId}/${folderName}/${finalName}`;
+
+            await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
+                customMetadata: { sessionId, originalName: image.name, folder: folderName },
+                httpMetadata: { contentType: image.type || 'image/jpeg' }
+            });
+
+            // --- Guardar en D1 ---
+            try {
+                await env.DB.prepare(
+                    `INSERT INTO photos (session_id, r2_key, exif_date, original_name) VALUES (?, ?, ?, ?)`
+                ).bind(sessionId, r2Key, dateStr, image.name).run();
+            } catch (e) {
+                console.warn('D1 photo insert error:', e.message);
+            }
+
+            filesForZip.push({
+                name: finalName,
+                path: `${folderName}/${finalName}`,
+                data: imageBuffer,
+                date: dateStr,
+                folder: folderName
+            });
+
+            folderStats[folderName] = (folderStats[folderName] || 0) + 1;
+
+        } catch (e) {
+            console.error(`Error processing "${image.name}":`, e.message);
+        }
+    }
+
+    console.log(`📦 Archivos para ZIP: ${filesForZip.length}`);
+    console.log(`📁 Carpetas:`, folderStats);
+
+    if (filesForZip.length === 0) {
+        return jsonResponse({ success: false, error: 'All images failed to process' }, 500, corsHeaders);
+    }
+
+    // Ordenar por fecha antes de empaquetar
+    filesForZip.sort((a, b) => a.date.localeCompare(b.date));
+
+    const zipBlob = createZipWithFolders(filesForZip);
+    const processingTime = Date.now() - startTime;
+    console.log(`⏱️  Listo en ${processingTime}ms`);
+
+    return new Response(zipBlob, {
+        headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/zip',
+            'Content-Disposition': `attachment; filename="mirai_mirror_${sessionId}.zip"`,
+            'Cache-Control': 'no-store',
+            'X-Processing-Time': `${processingTime}ms`,
+            'X-Files-Count': String(filesForZip.length)
+        }
+    });
+}
+
+// ============================================
+// EXTRAER FECHA EXIF (solo JPEG)
+// ============================================
+async function extractEXIFDate(file) {
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+
+        // Solo JPEG (FF D8 FF)
+        if (uint8[0] !== 0xFF || uint8[1] !== 0xD8 || uint8[2] !== 0xFF) return null;
+
+        const limit = Math.min(uint8.length, 65536); // primeros 64 KB bastan
+        for (let i = 2; i < limit - 4; i++) {
+            if (uint8[i] === 0xFF && uint8[i + 1] === 0xE1) {
+                const segLen = (uint8[i + 2] << 8) | uint8[i + 3];
+                const seg = uint8.slice(i + 4, Math.min(i + 4 + segLen, uint8.length));
+                const text = new TextDecoder('latin1').decode(seg);
+                const m = text.match(/(\d{4}):(\d{2}):(\d{2}) \d{2}:\d{2}:\d{2}/);
+                if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+            }
+        }
+    } catch (e) {
+        console.warn('EXIF read error:', e.message);
+    }
+    return null;
+}
+
+// ============================================
+// EXTRAER FECHA DEL NOMBRE DE ARCHIVO
+// ============================================
+function extractDateFromFilename(filename) {
+    // Orden: más específico primero
+    // YYYY-MM-DD  o  YYYY/MM/DD
+    const isoMatch = filename.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+
+    // DD-MM-YYYY  o  DD/MM/YYYY
+    const dmy = filename.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+    if (dmy) {
+        // dmy[1]=DD, dmy[2]=MM, dmy[3]=YYYY
+        return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+    }
+
+    return null;
+}
+
+// ============================================
+// GENERADOR DE ZIP (CORREGIDO)
+// ============================================
+function createZipWithFolders(files) {
+    const enc = new TextEncoder();
+    const localEntries = [];   // { headerBytes, dataBytes }
+    const centralEntries = []; // Uint8Array
+    let dataOffset = 0;        // offset acumulado de la sección de datos locales
+
+    // --- Entradas de carpetas ---
+    const folders = new Set();
+    for (const f of files) {
+        const slash = f.path.lastIndexOf('/');
+        if (slash > 0) folders.add(f.path.substring(0, slash) + '/');
+    }
+
+    for (const folder of folders) {
+        const nameBytes = enc.encode(folder);
+        const localLen = 30 + nameBytes.length;
+        const local = new Uint8Array(localLen);
+        const lv = new DataView(local.buffer);
+        lv.setUint32(0,  0x04034b50, true); // signature
+        lv.setUint16(4,  20,         true); // version needed
+        lv.setUint16(6,  0,          true); // flags
+        lv.setUint16(8,  0,          true); // compression (stored)
+        lv.setUint16(10, 0,          true); // mod time
+        lv.setUint16(12, 0,          true); // mod date
+        lv.setUint32(14, 0,          true); // crc32
+        lv.setUint32(18, 0,          true); // compressed size
+        lv.setUint32(22, 0,          true); // uncompressed size
+        lv.setUint16(26, nameBytes.length,  true);
+        lv.setUint16(28, 0,          true); // extra len
+        local.set(nameBytes, 30);
+
+        const relOffset = dataOffset;
+        dataOffset += localLen; // carpetas no tienen datos
+
+        const central = buildCentralHeader(nameBytes, 0, 0, 0, 0x10 /* dir attr */, relOffset);
+        localEntries.push({ header: local, data: new Uint8Array(0) });
+        centralEntries.push(central);
+    }
+
+    // --- Entradas de archivos ---
+    for (const file of files) {
+        const nameBytes = enc.encode(file.path);
+        const fileData = new Uint8Array(file.data);
+        const crc = crc32(fileData);
+        const size = fileData.length;
+
+        const localLen = 30 + nameBytes.length;
+        const local = new Uint8Array(localLen);
+        const lv = new DataView(local.buffer);
+        lv.setUint32(0,  0x04034b50, true);
+        lv.setUint16(4,  20,         true);
+        lv.setUint16(6,  0,          true);
+        lv.setUint16(8,  0,          true); // no compression
+        lv.setUint16(10, 0,          true);
+        lv.setUint16(12, 0,          true);
+        lv.setUint32(14, crc,        true);
+        lv.setUint32(18, size,       true);
+        lv.setUint32(22, size,       true);
+        lv.setUint16(26, nameBytes.length, true);
+        lv.setUint16(28, 0,          true);
+        local.set(nameBytes, 30);
+
+        const relOffset = dataOffset;
+        dataOffset += localLen + size;
+
+        const central = buildCentralHeader(nameBytes, crc, size, size, 0, relOffset);
+        localEntries.push({ header: local, data: fileData });
+        centralEntries.push(central);
+    }
+
+    // --- Central Directory ---
+    const cdStart = dataOffset; // offset donde comienza el CD (justo después de todos los datos locales)
+    let cdSize = 0;
+    for (const c of centralEntries) cdSize += c.length;
+
+    // --- End of Central Directory ---
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0,  0x06054b50,             true); // signature
+    ev.setUint16(4,  0,                       true); // disk number
+    ev.setUint16(6,  0,                       true); // disk with CD start
+    ev.setUint16(8,  centralEntries.length,   true); // entries on disk
+    ev.setUint16(10, centralEntries.length,   true); // total entries
+    ev.setUint32(12, cdSize,                  true); // size of CD
+    ev.setUint32(16, cdStart,                 true); // FIX: offset where CD begins
+    ev.setUint16(20, 0,                       true); // comment length
+
+    // --- Ensamblar ---
+    const parts = [];
+    for (const e of localEntries) {
+        parts.push(e.header);
+        parts.push(e.data);
+    }
+    for (const c of centralEntries) parts.push(c);
+    parts.push(eocd);
+
+    return new Blob(parts, { type: 'application/zip' });
+}
+
+// CRC-32 (tabla precalculada)
+const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[i] = c;
+    }
+    return t;
+})();
+
+function crc32(data) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < data.length; i++) {
+        crc = CRC_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
 }

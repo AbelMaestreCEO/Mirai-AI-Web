@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai Mirror | Organizador de Fotos - Aberu & Mirai Company">
+
+    <title>Mirai Mirror | Organizador de Fotos</title>
+
+    <!-- Preload de fuentes del sistema para evitar FOIT -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <!-- Hoja de estilos (Compartida con Mirai AI) -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Iconos (SVG inline para evitar carga externa) -->
+    <style>
+        /* Ajustes específicos para Mirror */
+        .mirror-main {
+            padding: 2rem 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(var(--primary-color-rgb), 0.05);
+        }
+
+        .upload-area.dragover {
+            background: rgba(var(--primary-color-rgb), 0.15);
+            border-color: var(--accent-color);
+            transform: scale(1.02);
+        }
+
+        .image-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .image-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            background: var(--card-bg);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 59, 48, 0.9);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .status {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status.info {
+            background: rgba(0, 122, 255, 0.1);
+            color: var(--primary-color);
+        }
+
+        .status.success {
+            background: rgba(52, 199, 89, 0.1);
+            color: #34c759;
+        }
+
+        .status.error {
+            background: rgba(255, 59, 48, 0.1);
+            color: #ff3b30;
+        }
+
+        .status.show {
+            display: flex;
+        }
+
+        .status.hidden {
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(var(--primary-color-rgb), 0.1);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(var(--primary-color-rgb), 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .text-center { text-align: center; }
+
+        .animate-up {
+            animation: animateUp 0.5s ease-out;
+        }
+
+        @keyframes animateUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mirai Mirror">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+    <!-- Librerías necesarias para Mirror -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+
+<body>
+
+    <!-- Menú Lateral -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Sección: Contacto -->
+            <section class="sidebar-section">
+                <h4>Navegación</h4>
+                <ul class="sidebar-links">
+                    <li><a href="https://ai.aberumirai.com" class="nav-link active-link" data-tooltip="Chat">💬 <span>Chat con Mirai</span></a></li>
+                    <li><a href="course_category.html" class="nav-link" data-tooltip="Cursos">📚 <span>Cursos</span></a>
+                    </li>
+                    <li><a href="classroom.html" class="nav-link" data-tooltip="Aula">🏫 <span>Aula Virtual</span></a>
+                    </li>
+                    <li><a href="inventory.html" class="nav-link" data-tooltip="Inventario">📦 Inventario</a></li>
+                    <li><a href="mirror.html" class="nav-link active-link" data-tooltip="Organizador">🖼️ <span>Organizador de Fotos</span></a></li>
+                </ul>
+            </section>
+            <section class="sidebar-section">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
+            </section>
+
+            <!-- Sección: Servicios (Ahora Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Servicios</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                        <li><a href="https://aberumirai.com#education">Educación</a></li>
+                        <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                        <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                        <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Empresa (Ahora Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Empresa</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                        <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                        <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                        <li><a href="#">Quiénes somos</a></li>
+                        <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Enlaces Externos (Ahora Desplegable) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Enlaces Externos</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <ul class="sidebar-links">
+                        <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                        <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                        <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                        <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Sección: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                        style="max-width: 80px; max-height: 80px;">
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer del sidebar -->
+        <div class="sidebar-footer">
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
+        </div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
+    <!-- Header (Idéntico a index.html) -->
+    <header class="header">
+        <!-- Botón Hamburguesa (Solo visible en móvil) -->
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+
+        <div class="header-title">
+            <h2 style="margin: 0; font-size: 1.25rem;">🖼️ Mirai Mirror</h2>
+        </div>
+
+        <!-- Botón de Tema (Compartido) -->
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <!-- Icono de Sol (Claro) -->
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-1.03.39-1.41 0-.39.39-1.03.39-1.41 0l1.06 1.06c.39.39 1.03.39 1.41 0s1.03-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-1.03.39-1.41 0l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39 1.03-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-1.03.39-1.41 0s-1.03 1.03 0 1.41l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-1.03.39-1.41 0s-1.03 1.03 0 1.41l1.06-1.06z" />
+            </svg>
+            <!-- Icono de Luna (Oscuro) -->
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- Contenedor Principal (Contenido específico de Mirror) -->
+    <div class="mirror-main">
+        
+        <!-- Hero Section -->
+        <section class="text-center mb-3 animate-up">
+            <h1>Refleja tus recuerdos</h1>
+            <p>Sube, ordena por fecha y descarga en un solo archivo ZIP.<br>
+            <span style="color: var(--sakura-brown); font-size: 0.9em; font-style: italic;">Donde cada flor cuenta una historia.</span></p>
+        </section>
+
+        <!-- Panel Principal de Cristal -->
+        <section id="upload" class="glass-card animate-up" style="animation-delay: 0.1s;">
+            
+            <!-- Zona de Carga (Drag & Drop) -->
+            <div id="dropZone" class="upload-area">
+                <div class="upload-area-icon">
+                    <i data-lucide="image-plus" style="width: 48px; height: 48px; stroke: var(--sakura-pink-deep);"></i>
+                </div>
+                <p>Arrastra tus fotos aquí o</p>
+                <label for="imageInput" class="btn btn-secondary" style="display: inline-block; margin-top: 1rem;">
+                    <i data-lucide="folder-open" style="width: 18px; height: 18px;"></i>
+                    Explorar Archivos
+                </label>
+                <input type="file" id="imageInput" multiple accept="image/*" hidden>
+                <p class="mt-2" style="font-size: 0.8rem; opacity: 0.7;">Soporta JPG, PNG, HEIC (hasta 50MB)</p>
+            </div>
+
+            <!-- Lista de Previsualización -->
+            <div id="previewContainer" class="hidden mt-3">
+                <h2 class="mb-2" style="font-size: 1.25rem; color: var(--sakura-brown-dark);">
+                    <i data-lucide="images" style="width: 20px; height: 20px; vertical-align: middle;"></i>
+                    Vista Previa (<span id="imageCount">0</span> imágenes)
+                </h2>
+                <div id="imageList" class="image-list">
+                    <!-- Las imágenes se insertarán aquí dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Estado y Mensajes -->
+            <div id="statusMessage" class="status info show">
+                <i data-lucide="info" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.5rem;"></i>
+                Listo para subir imágenes.
+            </div>
+
+            <!-- Spinner de Carga -->
+            <div id="loadingSpinner" class="spinner hidden"></div>
+
+            <!-- Botones de Acción -->
+            <div class="mt-3 text-center">
+                <button id="processBtn" class="btn btn-primary" disabled>
+                    <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
+                    <span>Procesar y Ordenar</span>
+                </button>
+                
+                <button id="downloadBtn" class="btn btn-secondary hidden">
+                    <i data-lucide="download" style="width: 18px; height: 18px;"></i>
+                    <span>Descargar ZIP</span>
+                </button>
+                
+                <button id="resetBtn" class="btn btn-secondary hidden" style="background: rgba(255, 59, 48, 0.15); border-color: rgba(255, 59, 48, 0.3); color: #8b2626;">
+                    <i data-lucide="rotate-ccw" style="width: 18px; height: 18px;"></i>
+                    <span>Reiniciar</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección Informativa -->
+        <section id="about" class="glass-panel mt-3 animate-up" style="animation-delay: 0.2s; padding: 2rem;">
+            <h2 class="mb-2 text-center">
+                <i data-lucide="help-circle" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 0.5rem; color: var(--sakura-pink-deep);"></i>
+                ¿Cómo funciona?
+            </h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; margin-top: 2rem;">
+                
+                <!-- Paso 1 -->
+                <div class="text-center">
+                    <div style="width: 64px; height: 64px; margin: 0 auto 1rem; background: rgba(244, 114, 182, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(244, 114, 182, 0.3);">
+                        <i data-lucide="upload-cloud" style="width: 32px; height: 32px; stroke: var(--sakura-pink-deep);"></i>
+                    </div>
+                    <strong style="color: var(--sakura-brown-dark); font-size: 1.1rem;">1. Subida Segura</strong>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Las imágenes viajan cifradas directamente a Cloudflare R2.</p>
+                </div>
+                
+                <!-- Paso 2 -->
+                <div class="text-center">
+                    <div style="width: 64px; height: 64px; margin: 0 auto 1rem; background: rgba(244, 114, 182, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(244, 114, 182, 0.3);">
+                        <i data-lucide="scan-search" style="width: 32px; height: 32px; stroke: var(--sakura-pink-deep);"></i>
+                    </div>
+                    <strong style="color: var(--sakura-brown-dark); font-size: 1.1rem;">2. Análisis EXIF</strong>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Extraemos la fecha real de captura para ordenarlas cronológicamente.</p>
+                </div>
+                
+                <!-- Paso 3 -->
+                <div class="text-center">
+                    <div style="width: 64px; height: 64px; margin: 0 auto 1rem; background: rgba(244, 114, 182, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(244, 114, 182, 0.3);">
+                        <i data-lucide="package" style="width: 32px; height: 32px; stroke: var(--sakura-pink-deep);"></i>
+                    </div>
+                    <strong style="color: var(--sakura-brown-dark); font-size: 1.1rem;">3. Empaquetado</strong>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Se crea un ZIP organizado y se descarga en tu dispositivo.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Scripts Globales (Necesarios para el Sidebar y Tema) -->
+    <script>
+        // --- LÓGICA DEL BOTÓN DE TEMA (Compartida con index.html) ---
+        (function initTheme() {
+            const toggleBtn = document.getElementById('theme-toggle');
+            const root = document.documentElement;
+            
+            // Detectar tema guardado o usar preferencia del sistema
+            const savedTheme = localStorage.getItem('mirai-ai-theme') || 
+                               (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            
+            applyTheme(savedTheme);
+
+            function applyTheme(theme) {
+                root.setAttribute('data-theme', theme);
+                localStorage.setItem('mirai-ai-theme', theme);
+                
+                const sunIcon = document.querySelector('.sun-icon');
+                const moonIcon = document.querySelector('.moon-icon');
+                
+                if (sunIcon && moonIcon) {
+                    if (theme === 'dark') {
+                        sunIcon.classList.add('hidden');
+                        moonIcon.classList.remove('hidden');
+                    } else {
+                        sunIcon.classList.remove('hidden');
+                        moonIcon.classList.add('hidden');
+                    }
+                }
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const current = root.getAttribute('data-theme');
+                    const newTheme = current === 'light' ? 'dark' : 'light';
+                    applyTheme(newTheme);
+                });
+            }
+        })();
+
+        // --- AÑO AUTOMÁTICO ---
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        // --- LÓGICA DEL SIDEBAR (Compartida) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar iconos Lucide
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            // Lógica del menú móvil
+            const menuToggle = document.querySelector('.mobile-menu-toggle');
+            const closeMenu = document.querySelector('.close-menu');
+            const sidebar = document.querySelector('.mobile-sidebar');
+            const overlay = document.querySelector('.mobile-overlay');
+
+            function toggleMenu() {
+                if (!sidebar || !overlay) return;
+                const isActive = sidebar.classList.contains('active');
+
+                if (isActive) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                } else {
+                    sidebar.classList.add('active');
+                    overlay.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
+            if (closeMenu) closeMenu.addEventListener('click', toggleMenu);
+            if (overlay) overlay.addEventListener('click', toggleMenu);
+
+            // Cerrar con Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && sidebar && sidebar.classList.contains('active')) {
+                    toggleMenu();
+                }
+            });
+
+            // Colapsar Sidebar (Desktop)
+            const collapseBtn = document.getElementById('sidebar-collapse-btn');
+            if (collapseBtn && window.innerWidth > 768) {
+                const savedState = localStorage.getItem('mirai_sidebar_state') === 'true';
+                if (savedState) sidebar.classList.add('collapsed');
+                
+                collapseBtn.addEventListener('click', () => {
+                    const newState = !sidebar.classList.contains('collapsed');
+                    sidebar.classList.toggle('collapsed', newState);
+                    localStorage.setItem('mirai_sidebar_state', newState.toString());
+                    
+                    // Cambiar icono
+                    const path = collapseBtn.querySelector('svg path');
+                    if (newState) {
+                        path.setAttribute('d', 'M10 17l5-5-5-5v10z');
+                        collapseBtn.title = 'Expandir barra';
+                    } else {
+                        path.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z');
+                        collapseBtn.title = 'Colapsar barra';
+                    }
+                });
+            }
+
+            // Logout
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                        localStorage.removeItem('mirai_auth_token');
+                        localStorage.removeItem('mirai_user_dni');
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+        });
+    </script>
+
+    <!-- Script Específico de Mirror (Lógica de Fotos) -->
+    <script type="module" src="app-mirror.js"></script>
+</body>
+
+</html>
