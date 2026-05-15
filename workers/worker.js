@@ -4522,7 +4522,7 @@ async function processMirrorImages(request, env, corsHeaders) {
     const startTime = Date.now();
     console.log('📥 /api/process');
 
-    if (!env.DB || !env.MIRAI_PHOTOS) {
+    if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
         console.error('❌ Missing bindings (DB or MIRAI_PHOTOS)');
         return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
     }
@@ -4565,7 +4565,7 @@ async function processMirrorImages(request, env, corsHeaders) {
     console.log(`🆔 Session: ${sessionId}`);
 
     try {
-        await env.DB.prepare(
+        await env.MIRAI_AI_DB.prepare(
             `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, ?, ?)`
         ).bind(sessionId, validImages.length, new Date().toISOString()).run();
     } catch (e) {
@@ -4606,7 +4606,7 @@ async function processMirrorImages(request, env, corsHeaders) {
 
             // --- Guardar en D1 ---
             try {
-                await env.DB.prepare(
+                await env.MIRAI_AI_DB.prepare(
                     `INSERT INTO photos (session_id, r2_key, exif_date, original_name) VALUES (?, ?, ?, ?)`
                 ).bind(sessionId, r2Key, dateStr, image.name).run();
             } catch (e) {
