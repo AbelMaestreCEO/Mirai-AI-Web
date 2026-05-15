@@ -495,7 +495,7 @@
 
     </div>
 
-    <!-- Scripts Globales (Necesarios para el Sidebar y Tema) -->
+     <!-- Scripts Globales (Necesarios para el Sidebar y Tema) -->
     <script>
         // --- LÓGICA DEL BOTÓN DE TEMA (Compartida con index.html) ---
         (function initTheme() {
@@ -535,8 +535,13 @@
             }
         })();
 
-        // --- AÑO AUTOMÁTICO ---
-        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        // --- AÑO AUTOMÁTICO (CORREGIDO - Espera DOMContentLoaded) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const yearElement = document.getElementById('currentYear');
+            if (yearElement) {
+                yearElement.textContent = new Date().getFullYear();
+            }
+        });
 
         // --- LÓGICA DEL SIDEBAR (Compartida) ---
         document.addEventListener('DOMContentLoaded', () => {
