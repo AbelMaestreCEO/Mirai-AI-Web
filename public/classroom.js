@@ -1,9 +1,8 @@
-// classroom.js
+// classroom.js - Versión Unificada de Tema
 
-// --- SOBRECARGA DE FETCH PARA INCLUIR TOKEN (IGUAL QUE EN APP.JS) ---
+// --- SOBRECARGA DE FETCH PARA INCLUIR TOKEN ---
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
-    // Solo agregar token a rutas de API
     if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
         const token = localStorage.getItem('mirai_auth_token');
         if (token) {
@@ -12,7 +11,6 @@ window.fetch = async function (url, options = {}) {
                 'Authorization': `Bearer ${token}`
             };
         } else {
-            // Si no hay token, redirigir a login inmediatamente
             window.location.href = 'login.html';
             return;
         }
@@ -20,8 +18,44 @@ window.fetch = async function (url, options = {}) {
     return originalFetch.call(this, url, options);
 };
 
+// --- FUNCIÓN UNIFICADA DE TEMA (COPIADA DE APP.JS) ---
+function initUnifiedTheme() {
+    const savedTheme = localStorage.getItem('mirai-ai-theme') || 
+                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(savedTheme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    // Sincronizar iconos si existen
+    const sunIcon = document.querySelector('.sun-icon');
+    const moonIcon = document.querySelector('.moon-icon');
+    
+    if (sunIcon && moonIcon) {
+        if (theme === 'dark') {
+            sunIcon.classList.add('hidden');
+            moonIcon.classList.remove('hidden');
+        } else {
+            sunIcon.classList.remove('hidden');
+            moonIcon.classList.add('hidden');
+        }
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    applyTheme(newTheme);
+    localStorage.setItem('mirai-ai-theme', newTheme);
+}
+
+// --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-    // Verificación de seguridad básica
+    // 1. Inicializar Tema Globalmente
+    initUnifiedTheme();
+
+    // 2. Verificación de seguridad básica
     const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
 
@@ -30,10 +64,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Inicializar menú móvil
-    setupMobileMenu();
+    // 3. Configurar listeners del tema
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
 
-    // Cargar tareas
+    // 4. Inicializar menú móvil y cargar tareas
+    setupMobileMenu();
     await loadTasks(dni);
     setupLogout();
 });
@@ -45,7 +83,6 @@ async function loadTasks(userDni) {
     if (greeting) greeting.textContent = `Hola, ${userDni}`;
 
     try {
-        // La petición ahora llevará el token gracias al override de fetch arriba
         const response = await fetch(`/api/my-submissions?user_dni=${userDni}`);
 
         if (!response.ok) {
@@ -59,7 +96,6 @@ async function loadTasks(userDni) {
         const data = await response.json();
         const { assignments, submissions } = data;
 
-        // Si no hay asignaciones, mostrar mensaje amigable
         if (!assignments || assignments.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -69,7 +105,6 @@ async function loadTasks(userDni) {
                     <a href="course_category.html" class="btn-primary" style="margin-top: 15px; display:inline-block;">Ver Cursos Disponibles</a>
                 </div>
             `;
-            // Resetear estadísticas
             document.getElementById('pending-count').textContent = '0';
             document.getElementById('completed-count').textContent = '0';
             document.getElementById('avg-score').textContent = '-';
@@ -81,7 +116,6 @@ async function loadTasks(userDni) {
 
     } catch (error) {
         console.error('Error cargando tareas:', error);
-        // Si es un error de red o servidor, mostrar mensaje genérico
         container.innerHTML = `
             <div class="empty-state" style="color: var(--error-color);">
                 <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
@@ -113,8 +147,6 @@ function renderTasks(assignments, submissions) {
     assignments.forEach(assignment => {
         const submission = submissions.find(s => s.assignment_id === assignment.id);
 
-        // ... (lógica de estado existente) ...
-
         let statusText = 'Pendiente';
         let statusClass = 'status-pending';
         let actionText = 'Entregar';
@@ -135,7 +167,6 @@ function renderTasks(assignments, submissions) {
         const card = document.createElement('div');
         card.className = `task-card ${submission ? 'submitted' : ''}`;
 
-        // 🔴 CAMBIO: Añadir botón "Aprender"
         const learnButtonHtml = `
             <button class="btn-learn" data-id="${assignment.id}" data-title="${escapeHtml(assignment.title)}" title="Prepararte para esta tarea">
                 🧠 Aprender
@@ -162,16 +193,15 @@ function renderTasks(assignments, submissions) {
         container.appendChild(card);
     });
 
-    // 🔴 NUEVO: Event Listeners para los botones de aprender
     document.querySelectorAll('.btn-learn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const taskId = e.target.dataset.id;
             const taskTitle = e.target.dataset.title;
-            // Redirigir al Hub de Aprendizaje
             window.location.href = `learning_hub.html?task_id=${taskId}&task_title=${encodeURIComponent(taskTitle)}`;
         });
     });
 }
+
 function setupMobileMenu() {
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     const closeMenu = document.querySelector('.close-menu');
@@ -235,4 +265,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-

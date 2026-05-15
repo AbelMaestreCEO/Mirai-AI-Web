@@ -1,4 +1,4 @@
-// classroom_admin.js
+// classroom_admin.js - Versión Unificada de Tema
 
 // --- AUTH OVERRIDE ---
 const originalFetch = window.fetch;
@@ -15,16 +15,56 @@ window.fetch = async function (url, options = {}) {
     return originalFetch.call(this, url, options);
 };
 
+// --- FUNCIÓN UNIFICADA DE TEMA ---
+function initUnifiedTheme() {
+    const savedTheme = localStorage.getItem('mirai-ai-theme') || 
+                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(savedTheme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    const sunIcon = document.querySelector('.sun-icon');
+    const moonIcon = document.querySelector('.moon-icon');
+    
+    if (sunIcon && moonIcon) {
+        if (theme === 'dark') {
+            sunIcon.classList.add('hidden');
+            moonIcon.classList.remove('hidden');
+        } else {
+            sunIcon.classList.remove('hidden');
+            moonIcon.classList.add('hidden');
+        }
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    applyTheme(newTheme);
+    localStorage.setItem('mirai-ai-theme', newTheme);
+}
+
 let currentUserDni = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Inicializar Tema
+    initUnifiedTheme();
+
+    // 2. Configurar listener del botón de tema
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+
+    // 3. Auth Check
     currentUserDni = localStorage.getItem('mirai_user_dni');
     if (!currentUserDni) {
         window.location.href = 'login.html';
         return;
     }
 
-    // ✨ VERIFICAR SI ES PROFESOR AUTORIZADO (desde el backend)
     try {
         const checkResponse = await fetch('/api/check-professor-role');
         
@@ -61,7 +101,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadDisputedAssignments();
 });
 
-// --- GESTIÓN DE CURSOS ---
+// --- RESTO DE FUNCIONES (Sin cambios funcionales, solo limpieza) ---
+
 async function loadCourses() {
     const select = document.getElementById('task-course-select');
 
@@ -74,7 +115,6 @@ async function loadCourses() {
         
         const courses = await res.json();
 
-        // Protección: si la respuesta no es un array, tratar como vacío
         if (!Array.isArray(courses)) {
             throw new Error('Respuesta inválida del servidor');
         }
@@ -108,7 +148,7 @@ async function loadCourses() {
         addOpt.textContent = '+ Agregar Nuevo Curso';
         addOpt.style.fontWeight = 'bold';
         addOpt.style.color = 'var(--primary-color)';
-        select.appendChild(addOpt);
+        addOpt.appendChild(addOpt);
         
         updateStats();
     }
@@ -124,7 +164,6 @@ function setupCreateCourseModal() {
         setTimeout(() => modal.classList.add('show'), 10);
     });
 
-    // Cerrar modal al hacer clic fuera
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
     });
@@ -146,7 +185,7 @@ function setupCreateCourseModal() {
                 alert('✅ Curso creado con éxito');
                 closeModal();
                 form.reset();
-                await loadCourses(); // Recargar select
+                await loadCourses();
             } else {
                 const err = await res.json();
                 alert('❌ Error: ' + err.error);
@@ -163,7 +202,6 @@ function closeModal() {
     setTimeout(() => modal.style.display = 'none', 300);
 }
 
-// --- GESTIÓN DE TAREAS ---
 function setupCreateTaskForm() {
     const form = document.getElementById('create-task-form');
     const select = document.getElementById('task-course-select');
@@ -172,7 +210,7 @@ function setupCreateTaskForm() {
         if (e.target.value === '__ADD_NEW__') {
             document.getElementById('modal-new-course').style.display = 'flex';
             setTimeout(() => document.getElementById('modal-new-course').classList.add('show'), 10);
-            e.target.value = ''; // Resetear
+            e.target.value = '';
         }
     });
 
@@ -225,7 +263,6 @@ async function loadTasksList() {
         
         const tasks = await res.json();
 
-        // Protección
         if (!Array.isArray(tasks)) throw new Error('Respuesta inválida');
 
         tbody.innerHTML = '';
@@ -262,8 +299,6 @@ async function loadTasksList() {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>';
     }
 }
-
-// classroom_admin.js
 
 async function loadDisputedAssignments() {
     const container = document.getElementById('disputed-assignments-list');
@@ -314,11 +349,10 @@ async function loadDisputedAssignments() {
     }
 }
 
-// Función para revisar y modificar nota de disputa
 async function reviewDispute(submissionId, maxScore) {
     const newNote = prompt(`Ingresa la nueva nota (0-${maxScore}):`);
     
-    if (newNote === null) return; // Usuario canceló
+    if (newNote === null) return; 
     
     const parsedNote = parseInt(newNote);
     
@@ -347,8 +381,8 @@ async function reviewDispute(submissionId, maxScore) {
         }
 
         alert(`✅ Nota actualizada a ${data.new_score}/${maxScore}. La disputa ha sido resuelta.`);
-        await loadDisputedAssignments(); // Recargar lista
-        await loadTasksList(); // Recargar tareas también
+        await loadDisputedAssignments();
+        await loadTasksList();
 
     } catch (error) {
         console.error('Error:', error);
@@ -373,7 +407,7 @@ async function deleteTask(id) {
         const res = await fetch(`/api/delete-assignment?id=${id}`, { method: 'DELETE' });
         if (res.ok) {
             await loadTasksList();
-            await loadCourses(); // Recargar stats
+            await loadCourses();
         } else {
             alert('Error al eliminar');
         }
@@ -382,7 +416,6 @@ async function deleteTask(id) {
     }
 }
 
-// --- GESTIÓN DE ESTUDIANTES ---
 function setupStudentManagement() {
     document.getElementById('student-task-select').addEventListener('change', loadAssignedStudents);
 }
@@ -407,7 +440,7 @@ async function addStudent() {
             alert('✅ Estudiante asignado');
             document.getElementById('student-dni').value = '';
             await loadAssignedStudents();
-            await loadTasksList(); // Actualizar contador
+            await loadTasksList();
         } else {
             const err = await res.json();
             alert('❌ Error: ' + err.error);
@@ -467,25 +500,20 @@ async function removeStudent(assignmentId, userDni) {
     }
 }
 
-// --- UTILIDADES ---
 function switchTab(tabName) {
-    // Ocultar todos los contenidos
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    // Desactivar todos los botones
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     
-    // Activar el contenido y botón seleccionados
     const content = document.getElementById(`tab-${tabName}`);
     const btn = event ? event.target : document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
     
     if (content) content.classList.add('active');
     if (btn) btn.classList.add('active');
 
-    // Acciones específicas al cambiar de pestaña
     if (tabName === 'list') {
         loadTasksList();
     } else if (tabName === 'students') {
-        loadTasksList(); // Asegurar que el select de tareas esté lleno
+        loadTasksList();
         loadAssignedStudents();
     }
 }
@@ -493,11 +521,9 @@ function switchTab(tabName) {
 function updateStats() {
     const courses = window.userCourses || [];
     document.getElementById('stat-courses').textContent = courses.length;
-    // Stats de tareas y estudiantes se calculan en loadTasksList y loadAssignedStudents
 }
 
 async function loadStats() {
-    // Carga inicial de stats
     await loadTasksList();
 }
 
@@ -531,8 +557,5 @@ function setupLogout() {
 function escapeHtml(text) { if(!text) return ''; const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
 
 function setupTabs() {
-    // Esta función inicializa los listeners si los necesitaras, 
-    // pero como usamos onclick en el HTML, la lógica está en switchTab.
-    // Sin embargo, para evitar el error, definimos una función vacía o de inicialización.
     console.log('Tabs system initialized');
 }

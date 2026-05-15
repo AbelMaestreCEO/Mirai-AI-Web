@@ -1,4 +1,4 @@
-// classroom_details.js - VERSIÓN DEBUG
+// classroom_details.js - Versión Unificada de Tema
 
 console.log('🔍 classroom_details.js cargado');
 
@@ -23,9 +23,49 @@ window.fetch = async function (url, options = {}) {
     return originalFetch.call(this, url, options);
 };
 
+// --- FUNCIÓN UNIFICADA DE TEMA ---
+function initUnifiedTheme() {
+    const savedTheme = localStorage.getItem('mirai-ai-theme') || 
+                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(savedTheme);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    const sunIcon = document.querySelector('.sun-icon');
+    const moonIcon = document.querySelector('.moon-icon');
+    
+    if (sunIcon && moonIcon) {
+        if (theme === 'dark') {
+            sunIcon.classList.add('hidden');
+            moonIcon.classList.remove('hidden');
+        } else {
+            sunIcon.classList.remove('hidden');
+            moonIcon.classList.add('hidden');
+        }
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    applyTheme(newTheme);
+    localStorage.setItem('mirai-ai-theme', newTheme);
+}
+
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ DOMContentLoaded');
+
+    // 1. Inicializar Tema
+    initUnifiedTheme();
+
+    // 2. Configurar listener del botón de tema
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
 
     const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
@@ -82,7 +122,7 @@ async function loadAssignmentDetails() {
         const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
         console.log('📊 Response Status:', response.status);
 
-        const data = await response.json();
+               const data = await response.json();
         console.log('📦 Data recibida:', data);
 
         if (!response.ok) {
@@ -209,7 +249,7 @@ function handleSubmissionState(submission, assignment, elements) {
     }
 }
 
-// --- RESTO DE FUNCIONES (sin cambios) ---
+// --- FORMULARIO DE SUBIDA ---
 function renderUploadForm(container, assignmentId) {
     container.innerHTML = `
         <h3 class="section-title">Entregar Tarea</h3>
@@ -324,7 +364,7 @@ function renderUploadForm(container, assignmentId) {
             const extractedText = await extractDocumentText(file);
             console.log(`🔍 [FRONTEND] Texto extraído: ${extractedText.length} caracteres`);
 
-            // 🔴 NUEVO: Guardar el texto extraído en localStorage para usarlo en la evaluación
+            // 🔴 NUEVO: Guardar el texto extraído en localStorage temporalmente
             const tempKey = `temp_submission_${assignmentId}_${Date.now()}`;
             localStorage.setItem(tempKey, JSON.stringify({
                 text: extractedText,
@@ -371,6 +411,7 @@ function renderUploadForm(container, assignmentId) {
     });
 }
 
+// --- RENDERIZADO DE FEEDBACK ---
 function renderFeedback(container, submission, maxScore) {
     let feedbackText = 'Sin retroalimentación.';
 
@@ -417,6 +458,7 @@ function renderFeedback(container, submission, maxScore) {
     `;
 }
 
+// --- EVALUACIÓN CON IA ---
 function confirmEvaluation(submissionId) {
     const criteria = [
         "Cumplimiento de normas APA 7ma edición",
@@ -470,6 +512,7 @@ async function startEvaluation(submissionId) {
     }
 }
 
+// --- UTILIDADES UI ---
 function showStatus(message, type) {
     const statusEl = document.getElementById('submit-status');
     if (statusEl) {
@@ -536,6 +579,7 @@ function setupLogout() {
         });
     }
 }
+
 // ============================================
 // EXTRACCIÓN DE TEXTO DE DOCUMENTOS (FRONTEND)
 // ============================================
