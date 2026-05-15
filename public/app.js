@@ -278,9 +278,9 @@ const CONFIG = {
   MAX_INPUT_HEIGHT: 120,
   DEBOUNCE_DELAY: 300,
   VOICE_LANG: 'es-ES',
-  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  MAX_FILE_SIZE: 10 * 1024 * 1024,
   SUPPORTED_FORMATS: ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'],
-  TTS_AUTO_PLAY: false,           // No autoplay por defecto (mejor UX)
+  TTS_AUTO_PLAY: false,
   TTS_MODE_KEY: 'mirai-ai-audio-mode',
 };
 
