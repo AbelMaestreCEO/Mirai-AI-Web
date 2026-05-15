@@ -4,6 +4,52 @@
    Maneja: courses.html, course_details.html, course_category.html
    ============================================ */
 
+   (function () {
+    'use strict';
+
+    // ✅ MiraiApp ya está disponible globalmente
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // --- Ejemplo: Abrir el desplegable de Navegación al cargar ---
+        MiraiApp.openCollapsible('.collapsible-section:nth-child(1)');
+
+        // --- Ejemplo: Detectar tema actual para ajustar colores de canvas ---
+        const theme = MiraiApp.getTheme();
+        console.log('Tema actual:', theme);
+
+        // --- Ejemplo: Re-inicializar desplegables si agregaste contenido dinámico ---
+        function loadClassroomData() {
+            fetch('/api/classroom/tasks')
+                .then(res => res.json())
+                .then(tasks => {
+                    renderTasks(tasks);
+                    // Si inyectaste HTML con nuevos collapsibles:
+                    MiraiApp.initCollapsibles();
+                });
+        }
+
+        // --- Ejemplo: Marcar navegación activa manualmente ---
+        MiraiApp.setActiveNavByURL();
+
+        // --- Lógica propia del aula ---
+        function renderTasks(tasks) {
+            const container = document.getElementById('tasks-container');
+            if (!container) return;
+
+            container.innerHTML = tasks.map(task => `
+                <div class="task-card">
+                    <h3>${task.title}</h3>
+                    <p>${task.description}</p>
+                </div>
+            `).join('');
+        }
+
+        loadClassroomData();
+    });
+
+})();
+
 // --- DETECCIÓN DE PÁGINA ---
 const currentPage = window.location.pathname.includes('course_category')
     ? 'categories'

@@ -1873,12 +1873,9 @@ footer.footer {
 }
 
 .conversations-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 300px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .conversations-list::-webkit-scrollbar {
@@ -6495,4 +6492,106 @@ svg {
     font-size: 0.75rem;
     color: var(--text-tertiary);
     margin-top: 4px;
+}
+
+/* ============================================
+   GRID DE NAVEGACIÓN
+   ============================================ */
+.nav-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 4px;
+}
+
+.nav-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-sm);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-grid-item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent-color);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+}
+
+.nav-grid-item:hover {
+    background: var(--message-user-bg);
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+.nav-grid-item:hover::before {
+    opacity: 0.06;
+}
+
+.nav-grid-item.active-link {
+    background: var(--secondary-container);
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.nav-icon {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.nav-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.nav-grid-item.active-link .nav-label {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* ============================================
+   MENÚS ANIDADOS (DENTRO DE EXPLORAR)
+   ============================================ */
+.nested-collapsible {
+    margin-bottom: 8px;
+    border-left: 2px solid var(--glass-border);
+    padding-left: 8px;
+}
+
+.nested-header {
+    padding: 6px 0;
+}
+
+.nested-header h5 {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.nested-content {
+    margin-left: 8px;
+}
+
+/* Ajuste para que las conversaciones ocupen todo el espacio */
+.sidebar-section[style*="flex: 1"] {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
 }

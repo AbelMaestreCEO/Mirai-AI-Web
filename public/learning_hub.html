@@ -30,8 +30,183 @@
     </style>
 </head>
 <body>
-    <!-- Mismo Sidebar y Header que classroom.html -->
-    <!-- ... (copiar estructura de sidebar y header) ... -->
+    <nav class="mobile-sidebar">
+    <div class="sidebar-header">
+        <h3>Mirai AI</h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+            </button>
+            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+        </div>
+    </div>
+
+    <div class="sidebar-content">
+        <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
+        <section class="sidebar-section collapsible-section active">
+            <div class="collapsible-header" role="button" tabindex="0">
+                <h4>Navegación</h4>
+                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                </svg>
+            </div>
+            <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+                <div class="nav-grid">
+                    <a href="https://ai.aberumirai.com" class="nav-grid-item" data-tooltip="Chat">
+                        <span class="nav-icon">💬</span>
+                        <span class="nav-label">Chat</span>
+                    </a>
+                    <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                        <span class="nav-icon">📚</span>
+                        <span class="nav-label">Cursos</span>
+                    </a>
+                    <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
+                        <span class="nav-icon">🏫</span>
+                        <span class="nav-label">Aula</span>
+                    </a>
+                    <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                        <span class="nav-icon">📦</span>
+                        <span class="nav-label">Inventario</span>
+                    </a>
+                    <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
+                        <span class="nav-icon">🖼️</span>
+                        <span class="nav-label">Fotos</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
+        <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+            <div class="conversations-header">
+                <h4>Conversaciones</h4>
+                <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                </button>
+            </div>
+            <ul id="conversations-list" class="conversations-list">
+                <!-- Se llenará dinámicamente -->
+            </ul>
+        </section>
+
+        <!-- Sección 3: Explorar (Desplegable Maestro) -->
+        <section class="sidebar-section collapsible-section">
+            <div class="collapsible-header" role="button" tabindex="0">
+                <h4>Explorar</h4>
+                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                </svg>
+            </div>
+            <div class="collapsible-content">
+                
+                <!-- Submenú: Servicios -->
+                <div class="nested-collapsible">
+                    <div class="collapsible-header nested-header" role="button" tabindex="0">
+                        <h5>Servicios</h5>
+                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                        </svg>
+                    </div>
+                    <div class="collapsible-content nested-content">
+                        <ul class="sidebar-links">
+                            <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                            <li><a href="https://aberumirai.com#education">Educación</a></li>
+                            <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                            <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                            <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Submenú: Empresa -->
+                <div class="nested-collapsible">
+                    <div class="collapsible-header nested-header" role="button" tabindex="0">
+                        <h5>Empresa</h5>
+                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                        </svg>
+                    </div>
+                    <div class="collapsible-content nested-content">
+                        <ul class="sidebar-links">
+                            <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                            <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                            <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                            <li><a href="#">Quiénes somos</a></li>
+                            <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Submenú: Enlaces Externos -->
+                <div class="nested-collapsible">
+                    <div class="collapsible-header nested-header" role="button" tabindex="0">
+                        <h5>Enlaces Externos</h5>
+                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                        </svg>
+                    </div>
+                    <div class="collapsible-content nested-content">
+                        <ul class="sidebar-links">
+                            <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                            <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                            <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                            <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Sección 4: Redes Sociales -->
+        <section class="sidebar-section">
+            <h4>Síguenos</h4>
+            <div class="sidebar-social">
+                <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                </a>
+                <a href="#" aria-label="Twitter/X">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                </a>
+                <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                </a>
+                <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                </a>
+                <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                </a>
+            </div>
+        </section>
+
+        <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                <path
+                    d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+            </svg>
+            <span>Cerrar Sesión</span>
+        </button>
+
+        <div class="sidebar-logo">
+            <a href="https://aberumirai.com">
+                <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                    style="max-width: 80px; max-height: 80px;">
+            </a>
+        </div>
+    </div>
+
+    <!-- Footer del sidebar -->
+    <div class="sidebar-footer">
+        <p>&copy;
+            <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+        </p>
+    </div>
+</nav>
 
     <header class="header">
         <button class="mobile-menu-toggle" aria-label="Abrir menú">
@@ -67,7 +242,7 @@
 
         <a href="classroom.html" class="back-link">← Volver a mis tareas</a>
     </main>
-
+<script type="module" src="app.js" defer></script>
     <script>
         // --- SOBRECARGA DE FETCH (Igual que en otros archivos) ---
         const originalFetch = window.fetch;

@@ -3,6 +3,272 @@
    Conexión con Cloudflare Worker + DeepSeek API
    ============================================ */
 
+const MiraiApp = (() => {
+    'use strict';
+
+    // ---- ESTADO INTERNO ----
+    let sidebarCollapsed = false;
+
+    // ---- SIDEBAR: DESPLEGABLES ----
+
+    /**
+     * Inicializa todos los desplegables (collapsible sections).
+     * Soporta desplegables principales y anidados.
+     */
+    function initCollapsibles() {
+        const headers = document.querySelectorAll('.collapsible-header');
+
+        headers.forEach(header => {
+            // Evitar duplicar listeners
+            if (header.dataset.collapsibleInit === 'true') return;
+            header.dataset.collapsibleInit = 'true';
+
+            header.addEventListener('click', function () {
+                const section = this.closest('.collapsible-section')
+                    || this.closest('.nested-collapsible');
+                const content = this.nextElementSibling;
+                const icon = this.querySelector('.chevron-icon');
+
+                if (!section || !content) return;
+
+                section.classList.toggle('active');
+
+                if (section.classList.contains('active')) {
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                    content.style.opacity = '1';
+                    if (icon) icon.style.transform = 'rotate(180deg)';
+                } else {
+                    content.style.maxHeight = null;
+                    content.style.opacity = '0';
+                    if (icon) icon.style.transform = 'rotate(0deg)';
+                }
+
+                // Recalcular altura del padre si es un desplegable anidado
+                recalcParentHeight(content);
+            });
+
+            // Soporte teclado (accesibilidad)
+            header.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.click();
+                }
+            });
+        });
+    }
+
+    /**
+     * Recalcula la altura del contenedor padre
+     * cuando un submenú anidado cambia de tamaño.
+     */
+    function recalcParentHeight(child) {
+        const parentContent = child.closest('.collapsible-content');
+        if (parentContent && parentContent.style.maxHeight) {
+            parentContent.style.maxHeight = parentContent.scrollHeight + 'px';
+        }
+    }
+
+    // ---- SIDEBAR: GRID DE NAVEGACIÓN ----
+
+    /**
+     * Inicializa el grid de navegación (resaltado de ítem activo).
+     */
+    function initNavGrid() {
+        const items = document.querySelectorAll('.nav-grid-item');
+
+        items.forEach(item => {
+            if (item.dataset.navInit === 'true') return;
+            item.dataset.navInit = 'true';
+
+            item.addEventListener('click', function () {
+                items.forEach(i => i.classList.remove('active-link'));
+                this.classList.add('active-link');
+            });
+        });
+    }
+
+    // ---- SIDEBAR: TOGGLE MÓVIL ----
+
+    /**
+     * Inicializa el botón hamburguesa y overlay para móvil.
+     */
+    function initMobileSidebar() {
+        const toggle = document.querySelector('.mobile-menu-toggle');
+        const sidebar = document.querySelector('.mobile-sidebar');
+        const overlay = document.querySelector('.mobile-overlay');
+        const closeBtn = document.querySelector('.close-menu');
+
+        if (toggle) {
+            toggle.addEventListener('click', () => {
+                sidebar?.classList.toggle('active');
+                overlay?.classList.toggle('active');
+                toggle.classList.toggle('active');
+            });
+        }
+
+        if (overlay) {
+            overlay.addEventListener('click', () => {
+                sidebar?.classList.remove('active');
+                overlay?.classList.remove('active');
+                toggle?.classList.remove('active');
+            });
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                sidebar?.classList.remove('active');
+                overlay?.classList.remove('active');
+                toggle?.classList.remove('active');
+            });
+        }
+    }
+
+    // ---- SIDEBAR: COLAPSO DOCK (PC) ----
+
+    /**
+     * Inicializa el botón de colapsar/expandir el sidebar en escritorio.
+     */
+    function initSidebarCollapse() {
+        const btn = document.getElementById('sidebar-collapse-btn');
+        const sidebar = document.querySelector('.mobile-sidebar');
+
+        if (!btn || !sidebar) return;
+
+        btn.addEventListener('click', () => {
+            sidebarCollapsed = !sidebarCollapsed;
+            sidebar.classList.toggle('collapsed', sidebarCollapsed);
+
+            // Rotar ícono del botón
+            const svg = btn.querySelector('svg');
+            if (svg) {
+                svg.style.transform = sidebarCollapsed
+                    ? 'rotate(180deg)'
+                    : 'rotate(0deg)';
+            }
+        });
+    }
+
+    // ---- TEMA CLARO/OSCURO ----
+
+    /**
+     * Inicializa el toggle de tema claro/oscuro.
+     * Persiste la preferencia en localStorage.
+     */
+    function initThemeToggle() {
+        const btn = document.querySelector('.theme-toggle');
+        const saved = localStorage.getItem('mirai-theme');
+
+        // Aplicar tema guardado
+        if (saved === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                const newTheme = isDark ? 'light' : 'dark';
+
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('mirai-theme', newTheme);
+            });
+        }
+    }
+
+    // ---- UTILIDADES PÚBLICAS ----
+
+    /**
+     * Abre un desplegable específico por selector.
+     * Útil desde otras páginas para forzar apertura.
+     */
+    function openCollapsible(selector) {
+        const section = document.querySelector(selector);
+        if (!section) return;
+
+        const content = section.querySelector('.collapsible-content');
+        const icon = section.querySelector('.chevron-icon');
+
+        section.classList.add('active');
+        if (content) {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            content.style.opacity = '1';
+        }
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    }
+
+    /**
+     * Cierra un desplegable específico por selector.
+     */
+    function closeCollapsible(selector) {
+        const section = document.querySelector(selector);
+        if (!section) return;
+
+        const content = section.querySelector('.collapsible-content');
+        const icon = section.querySelector('.chevron-icon');
+
+        section.classList.remove('active');
+        if (content) {
+            content.style.maxHeight = null;
+            content.style.opacity = '0';
+        }
+        if (icon) icon.style.transform = 'rotate(0deg)';
+    }
+
+    /**
+     * Marca como activo el enlace de navegación
+     * correspondiente a la URL actual.
+     */
+    function setActiveNavByURL() {
+        const currentPath = window.location.pathname;
+        const navItems = document.querySelectorAll('.nav-grid-item');
+
+        navItems.forEach(item => {
+            const href = item.getAttribute('href');
+            if (href && currentPath.includes(href.replace('https://ai.aberumirai.com', ''))) {
+                navItems.forEach(i => i.classList.remove('active-link'));
+                item.classList.add('active-link');
+            }
+        });
+    }
+
+    /**
+     * Inicialización completa del sidebar y componentes comunes.
+     * Llamar desde DOMContentLoaded en cada página.
+     */
+    function init() {
+        initCollapsibles();
+        initNavGrid();
+        initMobileSidebar();
+        initSidebarCollapse();
+        initThemeToggle();
+        setActiveNavByURL();
+    }
+
+    // ---- AUTO-INICIO ----
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // ---- API PÚBLICA ----
+    return {
+        init,
+        initCollapsibles,
+        initNavGrid,
+        initMobileSidebar,
+        initSidebarCollapse,
+        initThemeToggle,
+        openCollapsible,
+        closeCollapsible,
+        setActiveNavByURL,
+        recalcParentHeight,
+
+        // Getters de estado
+        isSidebarCollapsed: () => sidebarCollapsed,
+        getTheme: () => document.documentElement.getAttribute('data-theme') || 'light',
+    };
+})();
+
 // --- CONSTANTES Y CONFIGURACIÓN ---
 const CONFIG = {
   API_ENDPOINT: '/api/chat',
