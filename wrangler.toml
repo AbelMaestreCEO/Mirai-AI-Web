@@ -6,9 +6,6 @@ compatibility_date = "2024-01-01"
 # Esto sirve automáticamente los archivos de la carpeta 'public/'
 assets = { directory = "./public" }
 
-# Variables de entorno (se pueden sobreescribir con .dev.vars o en la CLI)
-vars = { ENVIRONMENT = "production"}
-
 # --- BINDING DE BASE DE DATOS D1 ---
 # Nombre del binding en tu código: DB
 # El nombre del dataset en Cloudflare debe coincidir con 'database_name'
@@ -43,6 +40,7 @@ binding = "AI"
 
 [vars]
 VAPID_PUBLIC_KEY = "BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ" # tu clave actual
+ENVIRONMENT = "production"
 
 [[kv_namespaces]]
 binding = "KV_RATE"
