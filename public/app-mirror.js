@@ -3,7 +3,7 @@
 // Desarrollado por Devs Aberu & Mirai Company
 // ============================================
 
-const CONFIG = {
+const MIRROR_CONFIG = {
     API_ENDPOINT: '/api/process',
     MAX_FILE_SIZE: 50 * 1024 * 1024,
     ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'],
@@ -29,22 +29,41 @@ let state = {
     isProcessing: false
 };
 
-// Inicialización segura
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar elementos críticos
-    if (!elements.dropZone || !elements.imageInput) {
-        console.error("CRÍTICO: Elementos del DOM no encontrados. Verifica los IDs en el HTML.");
-        return;
+    // 1. Inicializar Tema (Usando la lógica de MiraiApp si existe, o local)
+    if (typeof MiraiApp !== 'undefined') {
+        // Si MiraiApp ya manejó el tema, no hacemos nada.
+        // Si no, inicializamos el toggle localmente
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                const newTheme = current === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                // Actualizar iconos
+                const sun = document.querySelector('.sun-icon');
+                const moon = document.querySelector('.moon-icon');
+                if(sun && moon) {
+                    if(newTheme === 'dark') { sun.style.display='none'; moon.style.display='block'; }
+                    else { sun.style.display='block'; moon.style.display='none'; }
+                }
+            });
+        }
+    } else {
+        // Fallback si MiraiApp no carga
+        initLocalTheme();
     }
 
+    // 2. Inicializar Lógica de Mirror
+    if (!elements.dropZone || !elements.imageInput) {
+        console.error("CRÍTICO: Elementos del DOM no encontrados.");
+        return;
+    }
     initializeEventListeners();
     updateUIState();
     logAppStart();
-    
-    // Forzar re-renderizado de iconos si Lucide cargó tarde
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
 function logAppStart() {
@@ -122,12 +141,12 @@ function handleFileSelect(e) {
 
 function handleFiles(files) {
     const newFiles = Array.from(files).filter(file => {
-        if (!CONFIG.ALLOWED_TYPES.includes(file.type)) {
+        if (!MIRROR_CONFIG.ALLOWED_TYPES.includes(file.type)) {
             showStatus(`Archivo "${file.name}" no es una imagen válida.`, 'error');
             return false;
         }
         
-        if (file.size > CONFIG.MAX_FILE_SIZE) {
+        if (file.size > MIRROR_CONFIG.MAX_FILE_SIZE) {
             showStatus(`Archivo "${file.name}" excede el límite de 50MB.`, 'error');
             return false;
         }
@@ -135,8 +154,8 @@ function handleFiles(files) {
         return true;
     });
 
-    if (state.selectedFiles.length + newFiles.length > CONFIG.MAX_FILES) {
-        showStatus(`Máximo ${CONFIG.MAX_FILES} archivos permitidos.`, 'error');
+    if (state.selectedFiles.length + newFiles.length > MIRROR_CONFIG.MAX_FILES) {
+        showStatus(`Máximo ${MIRROR_CONFIG.MAX_FILES} archivos permitidos.`, 'error');
         return;
     }
 
@@ -249,7 +268,7 @@ async function processImages() {
         const formData = new FormData();
         state.selectedFiles.forEach(file => formData.append('images', file));
 
-        const response = await fetch(CONFIG.API_ENDPOINT, {
+        const response = await fetch(MIRROR_CONFIG.API_ENDPOINT, {
             method: 'POST',
             body: formData
         });
@@ -427,12 +446,16 @@ document.addEventListener('keydown', (e) => {
 // ============================================
 // GESTIÓN DE TEMA (CLARO / OSCURO)
 // ============================================
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 
-                       (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    setTheme(savedTheme);
+function initLocalTheme() {
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const sun = document.querySelector('.sun-icon');
+    const moon = document.querySelector('.moon-icon');
+    if(sun && moon) {
+        if(savedTheme === 'dark') { sun.style.display='none'; moon.style.display='block'; }
+        else { sun.style.display='block'; moon.style.display='none'; }
+    }
 }
-
 function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
@@ -461,7 +484,7 @@ function toggleTheme() {
 if (!document.body.dataset.themeInitialized) {
     document.body.dataset.themeInitialized = 'true';
     document.addEventListener('DOMContentLoaded', () => {
-        initTheme();
+        initLocalTheme();
         const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
             themeToggle.addEventListener('click', toggleTheme);

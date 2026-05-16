@@ -4,7 +4,7 @@
    ============================================ */
 
 // --- CONSTANTES Y CONFIGURACIÓN ---
-const CONFIG = {
+const INV_CONFIG = {
     API_ENDPOINT: '/api/inventory',
     UPLOAD_ENDPOINT: '/api/inventory/upload',
     STORAGE_KEY_THEME: 'mirai-ai-theme',
@@ -55,13 +55,60 @@ let state = {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-    initializeTheme();
-    setupMobileMenu();
+    // 1. Delegar Tema y Menú a MiraiApp
+    if (typeof MiraiApp !== 'undefined') {
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle && !themeToggle.dataset.initialized) {
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                const newTheme = current === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('mirai-ai-theme', newTheme);
+                const sun = document.querySelector('.sun-icon');
+                const moon = document.querySelector('.moon-icon');
+                if(sun && moon) {
+                    if(newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+                    else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
+                }
+                themeToggle.dataset.initialized = 'true';
+            });
+        }
+    } else {
+        initLocalTheme();
+        setupLocalMobileMenu();
+    }
+
+    // 2. Inicializar Lógica de Inventario
     setupEventListeners();
     await loadInventory();
     updateStats();
 });
+function initLocalTheme() {
+    const savedTheme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const sun = document.querySelector('.sun-icon');
+    const moon = document.querySelector('.moon-icon');
+    if(sun && moon) {
+        if(savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+        else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
+    }
+}
 
+function setupLocalMobileMenu() {
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
+    const closeMenu = document.querySelector('.close-menu');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
+    function toggleMenu() {
+        const isActive = sidebar.classList.contains('active');
+        if (isActive) { sidebar.classList.remove('active'); overlay.classList.remove('active'); menuToggle.classList.remove('active'); document.body.style.overflow = ''; }
+        else { sidebar.classList.add('active'); overlay.classList.add('active'); menuToggle.classList.add('active'); document.body.style.overflow = 'hidden'; }
+    }
+    menuToggle.addEventListener('click', toggleMenu);
+    closeMenu.addEventListener('click', toggleMenu);
+    overlay.addEventListener('click', toggleMenu);
+}
 // --- CARGAR INVENTARIO DESDE API (CORREGIDO) ---
 async function loadInventory() {
     try {
@@ -85,7 +132,7 @@ async function loadInventory() {
             'Content-Type': 'application/json'
         };
 
-        const response = await fetch(`${CONFIG.API_ENDPOINT}/list`, {
+        const response = await fetch(`${INV_CONFIG.API_ENDPOINT}/list`, {
             method: 'GET',
             headers: headers
         });
@@ -317,8 +364,8 @@ function createProductCard(product) {
 
 // --- NIVEL DE STOCK ---
 function getStockLevel(quantity) {
-    if (quantity <= CONFIG.STOCK_CRITICAL_THRESHOLD) return 'critical';
-    if (quantity <= CONFIG.STOCK_LOW_THRESHOLD) return 'low';
+    if (quantity <= INV_CONFIG.STOCK_CRITICAL_THRESHOLD) return 'critical';
+    if (quantity <= INV_CONFIG.STOCK_LOW_THRESHOLD) return 'low';
     return 'available';
 }
 
@@ -486,7 +533,7 @@ function setupEventListeners() {
     elements.inventoryForm.addEventListener('submit', handleFormSubmit);
 
     // Búsqueda
-    elements.inventorySearch.addEventListener('input', debounce(handleSearch, CONFIG.DEBOUNCE_DELAY));
+    elements.inventorySearch.addEventListener('input', debounce(handleSearch, INV_CONFIG.DEBOUNCE_DELAY));
 
     // Filtros categoría
     elements.filterPills.addEventListener('click', (e) => {
@@ -584,7 +631,7 @@ function handleFileSelect(e) {
     if (!file) return;
 
     // Validar tamaño
-    if (file.size > CONFIG.MAX_FILE_SIZE) {
+    if (file.size > INV_CONFIG.MAX_FILE_SIZE) {
         showStatus('El archivo excede 10MB', 'error');
         return;
     }
@@ -700,7 +747,7 @@ async function handleFormSubmit(e) {
             formData.append('specs', specs);
             formData.append('unit_price', price);
 
-            const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
+            const response = await fetch(INV_CONFIG.UPLOAD_ENDPOINT, {
                 method: 'POST',
                 headers: authHeaders, // ✅ Token en FormData (no se necesita Content-Type, el browser lo pone)
                 body: formData
@@ -1082,7 +1129,7 @@ function debounce(func, wait) {
 
 // --- TEMA ---
 function initializeTheme() {
-    const savedTheme = localStorage.getItem(CONFIG.STORAGE_KEY_THEME);
+    const savedTheme = localStorage.getItem(INV_CONFIG.STORAGE_KEY_THEME);
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const theme = savedTheme || (prefersDark ? 'dark' : 'light');
     applyTheme(theme);
@@ -1139,23 +1186,6 @@ function setupMobileMenu() {
         }
     });
 }
-
-// --- CERRAR SESIÓN ---
-document.getElementById('logout-btn')?.addEventListener('click', () => {
-    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-        localStorage.removeItem('mirai_auth_token');
-        localStorage.removeItem('mirai_user_dni');
-        window.location.href = 'login.html';
-    }
-});
-
-// --- TEMA TOGGLE ---
-document.getElementById('theme-toggle')?.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    applyTheme(newTheme);
-    localStorage.setItem(CONFIG.STORAGE_KEY_THEME, newTheme);
-});
 
 // Función global para cerrar el modal de detalles (llamada desde HTML)
 window.closeProductDetail = function () {

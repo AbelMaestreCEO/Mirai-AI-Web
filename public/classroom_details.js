@@ -2,89 +2,55 @@
 
 console.log('🔍 classroom_details.js cargado');
 
-// --- SOBRECARGA DE FETCH ---
-const originalFetch = window.fetch;
-window.fetch = async function (url, options = {}) {
-    console.log('📡 Fetch:', url);
-    if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
-        const token = localStorage.getItem('mirai_auth_token');
-        console.log('🔐 Token:', token ? 'EXISTS' : 'MISSING');
-        if (token) {
-            options.headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`
-            };
-        } else {
-            console.warn('⚠️ Sin token, redirigiendo a login');
-            window.location.href = 'login.html';
-            return;
-        }
-    }
-    return originalFetch.call(this, url, options);
-};
-
-// --- FUNCIÓN UNIFICADA DE TEMA ---
-function initUnifiedTheme() {
-    const savedTheme = localStorage.getItem('mirai-ai-theme') || 
-                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    applyTheme(savedTheme);
-}
-
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    
-    const sunIcon = document.querySelector('.sun-icon');
-    const moonIcon = document.querySelector('.moon-icon');
-    
-    if (sunIcon && moonIcon) {
-        if (theme === 'dark') {
-            sunIcon.classList.add('hidden');
-            moonIcon.classList.remove('hidden');
-        } else {
-            sunIcon.classList.remove('hidden');
-            moonIcon.classList.add('hidden');
-        }
-    }
-}
-
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    applyTheme(newTheme);
-    localStorage.setItem('mirai-ai-theme', newTheme);
-}
-
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ DOMContentLoaded');
 
-    // 1. Inicializar Tema
-    initUnifiedTheme();
-
-    // 2. Configurar listener del botón de tema
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
-
     const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
 
-    console.log('👤 Token:', token ? 'OK' : 'MISSING');
-    console.log('👤 DNI:', dni ? dni : 'MISSING');
-
     if (!token || !dni) {
-        console.error('❌ No autenticado');
         window.location.href = 'login.html';
         return;
     }
 
-    setupMobileMenu();
-    setupLogout();
+    // Delegar Tema y Menú a MiraiApp
+    if (typeof MiraiApp !== 'undefined') {
+        // MiraiApp ya maneja el tema y el menú
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle && !themeToggle.dataset.initialized) {
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                const newTheme = current === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('mirai-ai-theme', newTheme);
+                const sun = document.querySelector('.sun-icon');
+                const moon = document.querySelector('.moon-icon');
+                if(sun && moon) {
+                    if(newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+                    else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
+                }
+                themeToggle.dataset.initialized = 'true';
+            });
+        }
+    } else {
+        initLocalTheme();
+    }
 
-    console.log('🔄 Cargando detalles de tarea...');
+    setupLogout();
     await loadAssignmentDetails();
 });
+
+function initLocalTheme() {
+    const savedTheme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const sun = document.querySelector('.sun-icon');
+    const moon = document.querySelector('.moon-icon');
+    if(sun && moon) {
+        if(savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+        else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
+    }
+}
 
 // --- CARGA DE DATOS ---
 async function loadAssignmentDetails() {
@@ -537,37 +503,6 @@ function showError(message) {
     } else {
         alert(message);
     }
-}
-
-function setupMobileMenu() {
-    const menuToggle = document.querySelector('.mobile-menu-toggle');
-    const closeMenu = document.querySelector('.close-menu');
-    const sidebar = document.querySelector('.mobile-sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
-
-    if (!menuToggle || !closeMenu || !sidebar || !overlay) {
-        console.warn('⚠️ Elementos del menú no encontrados');
-        return;
-    }
-
-    function toggleMenu() {
-        const isActive = sidebar.classList.contains('active');
-        if (isActive) {
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            menuToggle.classList.remove('active');
-            document.body.style.overflow = '';
-        } else {
-            sidebar.classList.add('active');
-            overlay.classList.add('active');
-            menuToggle.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-
-    menuToggle.addEventListener('click', toggleMenu);
-    closeMenu.addEventListener('click', toggleMenu);
-    overlay.addEventListener('click', toggleMenu);
 }
 
 function setupLogout() {

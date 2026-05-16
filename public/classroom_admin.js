@@ -1,82 +1,27 @@
 // classroom_admin.js - Versión Unificada de Tema
 
-// --- AUTH OVERRIDE ---
-const originalFetch = window.fetch;
-window.fetch = async function (url, options = {}) {
-    if (url.startsWith('/api/') && !url.includes('login')) {
-        const token = localStorage.getItem('mirai_auth_token');
-        if (token) {
-            options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
-        } else {
-            window.location.href = 'login.html';
-            return;
-        }
-    }
-    return originalFetch.call(this, url, options);
-};
-
-// --- FUNCIÓN UNIFICADA DE TEMA ---
-function initUnifiedTheme() {
-    const savedTheme = localStorage.getItem('mirai-ai-theme') || 
-                       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    applyTheme(savedTheme);
-}
-
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    
-    const sunIcon = document.querySelector('.sun-icon');
-    const moonIcon = document.querySelector('.moon-icon');
-    
-    if (sunIcon && moonIcon) {
-        if (theme === 'dark') {
-            sunIcon.classList.add('hidden');
-            moonIcon.classList.remove('hidden');
-        } else {
-            sunIcon.classList.remove('hidden');
-            moonIcon.classList.add('hidden');
-        }
-    }
-}
-
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    applyTheme(newTheme);
-    localStorage.setItem('mirai-ai-theme', newTheme);
-}
-
 let currentUserDni = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Inicializar Tema
-    initUnifiedTheme();
-
-    // 2. Configurar listener del botón de tema
-    const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
-
-    // 3. Auth Check
+    // 1. Auth Check (Sin redefinir fetch)
     currentUserDni = localStorage.getItem('mirai_user_dni');
-    if (!currentUserDni) {
+    const token = localStorage.getItem('mirai_auth_token');
+
+    if (!token || !currentUserDni) {
         window.location.href = 'login.html';
         return;
     }
 
+    // 2. Verificar rol de profesor
     try {
-        const checkResponse = await fetch('/api/check-professor-role');
-        
+        const checkResponse = await fetch('/api/check-professor-role'); // Usa el fetch global de app.js
         if (checkResponse.status === 401) {
             window.location.href = 'login.html';
             return;
         }
-        
         const checkData = await checkResponse.json();
-        
         if (!checkData.is_professor) {
-            alert('⛔ Acceso denegado. Este panel es exclusivo para profesores autorizados.');
+            alert('⛔ Acceso denegado.');
             window.location.href = 'index.html';
             return;
         }
@@ -87,8 +32,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('professor-greeting').textContent = `Hola, Profesor ${currentUserDni}`;
-    
-    setupMobileMenu();
+
+    // 3. Inicializar UI (Tema y Menú delegados a MiraiApp)
+    if (typeof MiraiApp !== 'undefined') {
+        // MiraiApp ya inicializó el tema y el menú.
+        // Solo aseguramos que el toggle funcione si no lo hizo MiraiApp completamente
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle && !themeToggle.dataset.initialized) {
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                const newTheme = current === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('mirai-ai-theme', newTheme);
+                // Actualizar iconos
+                const sun = document.querySelector('.sun-icon');
+                const moon = document.querySelector('.moon-icon');
+                if(sun && moon) {
+                    if(newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+                    else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
+                }
+                themeToggle.dataset.initialized = 'true';
+            });
+        }
+    } else {
+        // Fallback si MiraiApp no carga
+        initLocalTheme();
+    }
+
+    // 4. Cargar datos
     setupLogout();
     setupTabs();
     setupCreateCourseModal();
@@ -151,6 +122,17 @@ async function loadCourses() {
         addOpt.appendChild(addOpt);
         
         updateStats();
+    }
+}
+
+function initLocalTheme() {
+    const savedTheme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const sun = document.querySelector('.sun-icon');
+    const moon = document.querySelector('.moon-icon');
+    if(sun && moon) {
+        if(savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+        else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
     }
 }
 
@@ -525,28 +507,6 @@ function updateStats() {
 
 async function loadStats() {
     await loadTasksList();
-}
-
-function setupMobileMenu() {
-    const menuToggle = document.querySelector('.mobile-menu-toggle');
-    const closeMenu = document.querySelector('.close-menu');
-    const sidebar = document.querySelector('.mobile-sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
-    if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
-
-    function toggleMenu() {
-        const isActive = sidebar.classList.contains('active');
-        if (isActive) {
-            sidebar.classList.remove('active'); overlay.classList.remove('active');
-            menuToggle.classList.remove('active'); document.body.style.overflow = '';
-        } else {
-            sidebar.classList.add('active'); overlay.classList.add('active');
-            menuToggle.classList.add('active'); document.body.style.overflow = 'hidden';
-        }
-    }
-    menuToggle.addEventListener('click', toggleMenu);
-    closeMenu.addEventListener('click', toggleMenu);
-    overlay.addEventListener('click', toggleMenu);
 }
 
 function setupLogout() {

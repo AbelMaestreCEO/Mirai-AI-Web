@@ -406,9 +406,6 @@ window.fetch = async function (url, options = {}) {
 document.addEventListener('DOMContentLoaded', async () => {
   if (!checkAuth()) return;
 
-  initializeTheme();
-  setupMobileMenu();
-
   const urlParams = new URLSearchParams(window.location.search);
   const contextTask = urlParams.get('context_task');
   const contextMode = urlParams.get('context_mode');
@@ -612,15 +609,6 @@ function handleSuggestionClick(text, chip) {
     autoResizeTextarea();
     handleSendMessage();
   }
-}
-
-// --- GESTIÓN DE TEMA ---
-function initializeTheme() {
-  const savedTheme = localStorage.getItem(CONFIG.STORAGE_KEY_THEME);
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  state.theme = savedTheme || (prefersDark ? 'dark' : 'light');
-  applyTheme(state.theme);
 }
 
 // --- INICIALIZACIÓN DE SUBIDA DE ARCHIVOS ---
@@ -1375,26 +1363,6 @@ function toggleVoiceRecognition() {
       console.error('Error iniciando reconocimiento:', err);
     }
   }
-}
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  state.theme = theme;
-
-  if (theme === 'dark') {
-    elements.sunIcon.classList.add('hidden');
-    elements.moonIcon.classList.remove('hidden');
-  } else {
-    elements.sunIcon.classList.remove('hidden');
-    elements.moonIcon.classList.add('hidden');
-  }
-
-  localStorage.setItem(CONFIG.STORAGE_KEY_THEME, theme);
-}
-
-function toggleTheme() {
-  const newTheme = state.theme === 'light' ? 'dark' : 'light';
-  applyTheme(newTheme);
 }
 
 // --- INICIALIZACIÓN DE CHAT ---
@@ -2462,47 +2430,6 @@ function debounce(func, wait) {
   };
 }
 
-// --- MENÚ LATERAL MÓVIL ---
-function setupMobileMenu() {
-  const menuToggle = document.querySelector('.mobile-menu-toggle');
-  const closeMenu = document.querySelector('.close-menu');
-  const sidebar = document.querySelector('.mobile-sidebar');
-  const overlay = document.querySelector('.mobile-overlay');
-
-  // Verificar que todos los elementos existan
-  if (!menuToggle || !closeMenu || !sidebar || !overlay) {
-    console.warn('⚠️ Elementos del menú móvil no encontrados. Verifica el HTML.');
-    return;
-  }
-
-  function toggleMenu() {
-    const isActive = sidebar.classList.contains('active');
-
-    if (isActive) {
-      sidebar.classList.remove('active');
-      overlay.classList.remove('active');
-      menuToggle.classList.remove('active');
-      document.body.style.overflow = '';
-    } else {
-      sidebar.classList.add('active');
-      overlay.classList.add('active');
-      menuToggle.classList.add('active');
-      document.body.style.overflow = 'hidden';
-    }
-  }
-
-  menuToggle.addEventListener('click', toggleMenu);
-  closeMenu.addEventListener('click', toggleMenu);
-  overlay.addEventListener('click', toggleMenu);
-
-  // Cerrar con Escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-      toggleMenu();
-    }
-  });
-}
-
 // ============================================
 // GESTIÓN DE CONVERSACIONES (SIDEBAR)
 // ============================================
@@ -3205,78 +3132,3 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     window.location.href = 'login.html';
   }
 });
-
-function initSidebarCollapse() {
-  const collapseBtn = document.getElementById('sidebar-collapse-btn');
-  const sidebar = document.querySelector('.mobile-sidebar');
-  const STORAGE_KEY = 'mirai_sidebar_state'; // Clave para localStorage
-
-  if (!collapseBtn || !sidebar) return;
-
-  // Función para aplicar el estado
-  const applyState = (isCollapsed) => {
-    if (isCollapsed) {
-      sidebar.classList.add('collapsed');
-      // Cambiar icono a flecha derecha
-      const svgPath = collapseBtn.querySelector('svg path');
-      if (svgPath) {
-        svgPath.setAttribute('d', 'M10 17l5-5-5-5v10z');
-      }
-      collapseBtn.title = 'Expandir barra';
-    } else {
-      sidebar.classList.remove('collapsed');
-      // Cambiar icono a flecha izquierda
-      const svgPath = collapseBtn.querySelector('svg path');
-      if (svgPath) {
-        svgPath.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z');
-      }
-      collapseBtn.title = 'Colapsar barra';
-    }
-  };
-
-  // 1. Restaurar estado al cargar la página
-  const savedState = localStorage.getItem(STORAGE_KEY);
-  const isCollapsed = savedState === 'true';
-
-  // Aplicar estado solo si estamos en escritorio (>768px)
-  if (window.innerWidth > 768) {
-    applyState(isCollapsed);
-    collapseBtn.style.display = 'flex';
-  } else {
-    collapseBtn.style.display = 'none';
-  }
-
-  // 2. Manejar el clic en el botón
-  collapseBtn.addEventListener('click', () => {
-    const newState = !sidebar.classList.contains('collapsed');
-
-    // Aplicar visualmente
-    applyState(newState);
-
-    // Guardar en localStorage
-    localStorage.setItem(STORAGE_KEY, newState.toString());
-  });
-
-  // 3. Verificar al redimensionar la ventana
-  window.addEventListener('resize', () => {
-    if (window.innerWidth > 768) {
-      collapseBtn.style.display = 'flex';
-      // Re-aplicar el estado guardado si cambiamos de móvil a escritorio
-      const saved = localStorage.getItem(STORAGE_KEY) === 'true';
-      if (saved !== sidebar.classList.contains('collapsed')) {
-        applyState(saved);
-      }
-    } else {
-      collapseBtn.style.display = 'none';
-      // En móvil, asegurarnos de que no esté colapsado visualmente
-      sidebar.classList.remove('collapsed');
-    }
-  });
-}
-
-// Llamar a la función cuando cargue la página
-document.addEventListener('DOMContentLoaded', initSidebarCollapse);
-
-// También verificar al redimensionar la ventana
-window.addEventListener('resize', initSidebarCollapse);
-
