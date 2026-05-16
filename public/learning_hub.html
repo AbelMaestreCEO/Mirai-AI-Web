@@ -95,7 +95,7 @@
                 </div>
                 <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
                     <div class="nav-grid">
-                        <a href="https://ai.aberumirai.com" class="nav-grid-item" data-tooltip="Chat">
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
                             <span class="nav-icon">💬</span>
                             <span class="nav-label">Chat</span>
                         </a>
@@ -334,9 +334,6 @@
 
             // 🔴 CLAVE: Usamos un ID único basado en la tarea y el modo para buscar el chat existente
             const uniqueChatId = `task_${taskId}_mode_${mode}`;
-
-            // Redirigir a index.html con parámetros que forzaran la creación/reapertura del chat correcto
-            // Nota: index.html debe estar modificado para leer estos parámetros
             window.location.href = `index.html?context_task=${taskId}&context_mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
         }
     </script>

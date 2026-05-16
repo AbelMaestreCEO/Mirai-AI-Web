@@ -358,7 +358,7 @@
                         btn.textContent = 'Redirigiendo...';
                         btn.disabled = true;
                         setTimeout(() => {
-                            window.location.href = `index.html?course=${courseId}&mode=education`;
+                            window.location.href = `chat.html?course=${courseId}&mode=education`;
                         }, 300);
                     }
                 }
@@ -597,7 +597,7 @@
                                 if (cid && lid) {
                                     btn.textContent = 'Redirigiendo...';
                                     setTimeout(() => {
-                                        window.location.href = `index.html?course=${cid}&lesson=${lid}&mode=education`;
+                                        window.location.href = `chat.html?course=${cid}&lesson=${lid}&mode=education`;
                                     }, 300);
                                 }
                             }
@@ -716,7 +716,7 @@
     // ============================================
 
     window.startLesson = (courseId, lessonId) => {
-        window.location.href = `index.html?course=${courseId}&lesson=${lessonId}&mode=education`;
+        window.location.href = `chat.html?course=${courseId}&lesson=${lessonId}&mode=education`;
     };
 
     window.selectCourse = (courseId) => {
