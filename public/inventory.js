@@ -1151,42 +1151,6 @@ function applyTheme(theme) {
     }
 }
 
-// --- MENÚ MÓVIL ---
-function setupMobileMenu() {
-    const menuToggle = document.querySelector('.mobile-menu-toggle');
-    const closeMenu = document.querySelector('.close-menu');
-    const sidebar = document.querySelector('.mobile-sidebar');
-    const overlay = document.querySelector('.mobile-overlay');
-
-    if (!menuToggle || !closeMenu || !sidebar || !overlay) return;
-
-    function toggleMenu() {
-        const isActive = sidebar.classList.contains('active');
-
-        if (isActive) {
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            menuToggle.classList.remove('active');
-            document.body.style.overflow = '';
-        } else {
-            sidebar.classList.add('active');
-            overlay.classList.add('active');
-            menuToggle.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-
-    menuToggle.addEventListener('click', toggleMenu);
-    closeMenu.addEventListener('click', toggleMenu);
-    overlay.addEventListener('click', toggleMenu);
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-            toggleMenu();
-        }
-    });
-}
-
 // Función global para cerrar el modal de detalles (llamada desde HTML)
 window.closeProductDetail = function () {
     const modal = document.getElementById('product-detail-modal');
