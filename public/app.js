@@ -88,9 +88,9 @@ const MiraiApp = (() => {
      */
     function initMobileSidebar() {
         const toggle = document.querySelector('.mobile-menu-toggle');
-        const sidebar = document.querySelector('.mobile-sidebar');
-        const overlay = document.querySelector('.mobile-overlay');
-        const closeBtn = document.querySelector('.close-menu');
+    const sidebar = document.querySelector('.mobile-sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    const closeBtn = document.querySelector('.close-menu');
 
         console.log('[MiraiApp] Debug Mobile Sidebar:');
         console.log('- Toggle encontrado:', !!toggle);
@@ -98,9 +98,13 @@ const MiraiApp = (() => {
         console.log('- Overlay encontrado:', !!overlay);
 
         if (!toggle || !sidebar) {
-            console.error('[MiraiApp] Error: No se encontraron los elementos del menú móvil. Verifica el HTML.');
-            return;
+        // Reintento si el DOM no estaba listo
+        if (document.readyState !== 'complete') {
+            window.addEventListener('load', initMobileSidebar, { once: true });
         }
+        console.error('[MiraiApp] Elementos no encontrados, reintentando en load...');
+        return;
+    }
 
         // Guard: evitar registrar listeners duplicados
         if (toggle.dataset.mobileInit === 'true') return;
