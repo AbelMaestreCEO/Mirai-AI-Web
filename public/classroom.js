@@ -18,7 +18,7 @@
 
         // 2. Inicializar Lógica Específica del Aula
         await loadTasks(dni);
-        
+
         // 3. Configurar botones específicos del aula
         setupProfessorButton();
         setupLogoutButton();
@@ -26,7 +26,7 @@
         // 4. Asegurar que el menú de navegación se vea activo en esta página
         if (typeof MiraiApp !== 'undefined') {
             MiraiApp.setActiveNavByURL();
-            
+
             // Opcional: Si quieres que el menú de "Navegación" esté cerrado al entrar al aula
             // MiraiApp.closeCollapsible('.collapsible-section:nth-child(1)');
         }
@@ -42,7 +42,12 @@
 
         try {
             // El fetch global ya inyecta el token gracias a app.js
-            const response = await fetch(`/api/my-submissions?user_dni=${userDni}`);
+            const token = localStorage.getItem('mirai_auth_token');
+            const response = await fetch(`/api/my-submissions?user_dni=${userDni}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
             if (!response.ok) {
                 if (response.status === 401) {
@@ -107,7 +112,7 @@
     function renderTasks(assignments, submissions) {
         const container = document.getElementById('tasks-container');
         if (!container) return;
-        
+
         container.innerHTML = '';
 
         assignments.forEach(assignment => {
@@ -175,7 +180,10 @@
 
         btn.addEventListener('click', async () => {
             try {
-                const checkResponse = await fetch('/api/check-professor-role');
+                const token = localStorage.getItem('mirai_auth_token');
+const checkResponse = await fetch('/api/check-professor-role', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
                 const checkData = await checkResponse.json();
 
                 if (checkData.is_professor) {
@@ -190,23 +198,23 @@
     }
 
     function setupLogoutButton() {
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                try {
-                    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-                } catch (e) {}
-                localStorage.removeItem('mirai_user_dni');
-                localStorage.removeItem('mirai_user_name');
-                localStorage.removeItem('mirai-ai-conversation-id');
-                localStorage.removeItem('mirai-ai-course-id');
-                localStorage.removeItem('mirai-ai-lesson-id');
-                window.location.href = 'login.html';
-            }
-        });
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                    try {
+                        await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+                    } catch (e) { }
+                    localStorage.removeItem('mirai_user_dni');
+                    localStorage.removeItem('mirai_user_name');
+                    localStorage.removeItem('mirai-ai-conversation-id');
+                    localStorage.removeItem('mirai-ai-course-id');
+                    localStorage.removeItem('mirai-ai-lesson-id');
+                    window.location.href = 'login.html';
+                }
+            });
+        }
     }
-}
 
     function escapeHtml(text) {
         if (!text) return '';

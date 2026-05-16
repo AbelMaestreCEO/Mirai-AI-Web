@@ -339,12 +339,19 @@ let state = {
 };
 
 function checkAuth() {
-  // Con cookies HttpOnly el token ya no está en localStorage.
-  // Solo verificamos que haya datos de usuario (no sensibles).
+  const token = localStorage.getItem('mirai_auth_token');
   const dni = localStorage.getItem('mirai_user_dni');
-  if (!dni) {
-    window.location.href = 'login.html';
-    return false;
+
+  // Páginas que NO requieren auth (públicas)
+  const publicPages = ['course_category', 'courses', 'course_details', 'login', 'register', 'verify'];
+  const currentPage = window.location.pathname;
+  const isPublicPage = publicPages.some(p => currentPage.includes(p));
+
+  if (!token || !dni) {
+    if (!isPublicPage) {
+      window.location.href = 'login.html';
+      return false;
+    }
   }
   return true;
 }

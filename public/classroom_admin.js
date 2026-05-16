@@ -14,7 +14,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. Verificar rol de profesor
     try {
-        const checkResponse = await fetch('/api/check-professor-role'); // Usa el fetch global de app.js
+        const token = localStorage.getItem('mirai_auth_token');
+        const checkResponse = await fetch('/api/check-professor-role', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (checkResponse.status === 401) {
             window.location.href = 'login.html';
             return;
@@ -47,8 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Actualizar iconos
                 const sun = document.querySelector('.sun-icon');
                 const moon = document.querySelector('.moon-icon');
-                if(sun && moon) {
-                    if(newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+                if (sun && moon) {
+                    if (newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
                     else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
                 }
                 themeToggle.dataset.initialized = 'true';
@@ -65,7 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupCreateCourseModal();
     setupCreateTaskForm();
     setupStudentManagement();
-    
+
     await loadCourses();
     await loadTasksList();
     await loadStats();
@@ -79,11 +82,11 @@ async function loadCourses() {
 
     try {
         const res = await fetch(`/api/user-courses?user_dni=${currentUserDni}`);
-        
+
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
         }
-        
+
         const courses = await res.json();
 
         if (!Array.isArray(courses)) {
@@ -113,14 +116,14 @@ async function loadCourses() {
         console.error('Error cargando cursos:', error);
         window.userCourses = [];
         select.innerHTML = '<option value="">Sin cursos disponibles</option>';
-        
+
         const addOpt = document.createElement('option');
         addOpt.value = '__ADD_NEW__';
         addOpt.textContent = '+ Agregar Nuevo Curso';
         addOpt.style.fontWeight = 'bold';
         addOpt.style.color = 'var(--primary-color)';
         addOpt.appendChild(addOpt);
-        
+
         updateStats();
     }
 }
@@ -130,8 +133,8 @@ function initLocalTheme() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     const sun = document.querySelector('.sun-icon');
     const moon = document.querySelector('.moon-icon');
-    if(sun && moon) {
-        if(savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+    if (sun && moon) {
+        if (savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
         else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
     }
 }
@@ -240,9 +243,9 @@ async function loadTasksList() {
 
     try {
         const res = await fetch('/api/admin-tasks');
-        
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
+
         const tasks = await res.json();
 
         if (!Array.isArray(tasks)) throw new Error('Respuesta inválida');
@@ -284,7 +287,7 @@ async function loadTasksList() {
 
 async function loadDisputedAssignments() {
     const container = document.getElementById('disputed-assignments-list');
-    
+
     if (!container) {
         console.warn('Contenedor de disputas no encontrado en HTML');
         return;
@@ -294,7 +297,7 @@ async function loadDisputedAssignments() {
 
     try {
         const response = await fetch('/api/professor-disputes');
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -333,11 +336,11 @@ async function loadDisputedAssignments() {
 
 async function reviewDispute(submissionId, maxScore) {
     const newNote = prompt(`Ingresa la nueva nota (0-${maxScore}):`);
-    
-    if (newNote === null) return; 
-    
+
+    if (newNote === null) return;
+
     const parsedNote = parseInt(newNote);
-    
+
     if (isNaN(parsedNote) || parsedNote < 0 || parsedNote > maxScore) {
         alert('Nota inválida. Debe ser un número entre 0 y ' + maxScore);
         return;
@@ -435,7 +438,7 @@ async function addStudent() {
 async function loadAssignedStudents() {
     const taskId = document.getElementById('student-task-select').value;
     const list = document.getElementById('assigned-students-list');
-    
+
     if (!taskId) {
         list.innerHTML = '<p style="padding:10px; color:var(--text-secondary)">Selecciona una tarea primero</p>';
         return;
@@ -444,7 +447,7 @@ async function loadAssignedStudents() {
     try {
         const res = await fetch(`/api/task-students?assignment_id=${taskId}`);
         const students = await res.json();
-        
+
         list.innerHTML = '';
         if (students.length === 0) {
             list.innerHTML = '<p style="padding:10px">No hay estudiantes asignados</p>';
@@ -485,10 +488,10 @@ async function removeStudent(assignmentId, userDni) {
 function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    
+
     const content = document.getElementById(`tab-${tabName}`);
     const btn = event ? event.target : document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
-    
+
     if (content) content.classList.add('active');
     if (btn) btn.classList.add('active');
 
@@ -516,7 +519,7 @@ function setupLogout() {
             if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                 try {
                     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-                } catch (e) {}
+                } catch (e) { }
                 localStorage.removeItem('mirai_user_dni');
                 localStorage.removeItem('mirai_user_name');
                 localStorage.removeItem('mirai-ai-conversation-id');
@@ -528,7 +531,7 @@ function setupLogout() {
     }
 }
 
-function escapeHtml(text) { if(!text) return ''; const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
+function escapeHtml(text) { if (!text) return ''; const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
 
 function setupTabs() {
     console.log('Tabs system initialized');
