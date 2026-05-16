@@ -102,6 +102,10 @@ const MiraiApp = (() => {
             return;
         }
 
+        // Guard: evitar registrar listeners duplicados
+        if (toggle.dataset.mobileInit === 'true') return;
+        toggle.dataset.mobileInit = 'true';
+
         const toggleMenu = (forceClose = false) => {
             const isActive = sidebar.classList.contains('active');
 
@@ -362,15 +366,16 @@ window.fetch = async function (url, options = {}) {
 document.addEventListener('DOMContentLoaded', async () => {
   if (!checkAuth()) return;
 
+  // Solo ejecutar lógica de chat si existe el elemento #chat-messages en la página
+  const isChatPage = !!document.getElementById('chat-messages');
+  if (!isChatPage) return; // En otras páginas (inventory, mirror, courses…), MiraiApp ya inicializó el sidebar
+
   const urlParams = new URLSearchParams(window.location.search);
   const contextTask = urlParams.get('context_task');
   const contextMode = urlParams.get('context_mode');
   const contextSystem = urlParams.get('context_system');
 
-  // Bandera para saber si ya manejamos el chat manualmente
   let learningSessionActive = false;
-
-  // En app.js, dentro de DOMContentLoaded
 
   if (contextTask && contextMode) {
     console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${contextTask}, Modo ${contextMode}`);
@@ -399,13 +404,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const chatId = data.chat_id;
       console.log("✅ Chat ID obtenido:", chatId);
 
-      // Cargar historial
-      await loadConversationHistory(chatId);
-
-      // 🔴🔴🔴 LÍNEAS FALTANTES - AÑADIR AQUÍ 🔴🔴🔴
       state.currentConversationId = chatId;
       localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, chatId);
-      // 🔴🔴🔴 FIN DE LÍNEAS FALTANTES 🔴🔴🔴
+
+      await loadConversationHistory(chatId);
 
       if (data.is_new && contextSystem) {
         console.log("🔄 Estableciendo System Prompt...");
@@ -438,41 +440,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadOrCreateConversation();
   }
 
-  // ✨ Lógica Condicional: Solo inicializar chat normal si NO estamos en aprendizaje
-  const isChatPage = !!document.getElementById('chat-messages');
-
-  if (isChatPage) {
-    // Si NO es una sesión de aprendizaje, hacemos la carga normal
-    if (!learningSessionActive) {
-      console.log("🔄 Cargando chat normal...");
-      loadOrCreateConversation();
-    } else {
-      console.log("🎓 Sesión de aprendizaje activa. Saltando carga normal.");
-    }
-
-    // Siempre inicializamos los listeners y UI, pero solo una vez
-    initializeChat();
-    setupEventListeners();
-    initializeFileUpload();
-    loadConversations();
-    initializeAudioMode();
+  // Inicializar chat (solo en página de chat)
+  if (!learningSessionActive) {
+    console.log("🔄 Cargando chat normal...");
+    // loadOrCreateConversation ya fue llamado arriba en el else
+  } else {
+    console.log("🎓 Sesión de aprendizaje activa. Saltando carga normal.");
   }
 
-  // Configuración del Sidebar (Acordeón)
-  const headers = document.querySelectorAll('.collapsible-header');
-  headers.forEach(header => {
-    header.addEventListener('click', () => {
-      const section = header.parentElement;
-      section.classList.toggle('active');
-    });
-
-    header.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        section.classList.toggle('active');
-      }
-    });
-  });
+  initializeChat();
+  setupEventListeners();
+  initializeFileUpload();
+  loadConversations();
+  initializeAudioMode();
 });
 
 async function sendInitialSystemPrompt(prompt) {
@@ -1424,6 +1404,7 @@ async function getCourseName(courseId) {
   return data.title || "Curso";
 }
 async function loadConversationHistory(conversationId) {
+  if (!elements.chatMessages) return; // Guard: solo en página de chat
   try {
     const response = await fetch(`/api/history/${conversationId}`);
     if (!response.ok) return;
@@ -3072,18 +3053,16 @@ function detectVideoRequest(text) {
   return keywords.some(keyword => lowerText.includes(keyword));
 }
 
-document.getElementById('logout-btn').addEventListener('click', () => {
-  if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-    // 1. Limpiar datos de autenticación
-    localStorage.removeItem('mirai_auth_token');
-    localStorage.removeItem('mirai_user_dni');
-
-    // 2. Limpiar contexto de conversación actual
-    localStorage.removeItem('mirai-ai-conversation-id');
-    localStorage.removeItem('mirai-ai-course-id');
-    localStorage.removeItem('mirai-ai-lesson-id');
-
-    // 3. Redirigir a la página de login
-    window.location.href = 'login.html';
-  }
-});
+const _logoutBtn = document.getElementById('logout-btn');
+if (_logoutBtn) {
+  _logoutBtn.addEventListener('click', () => {
+    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+      localStorage.removeItem('mirai_auth_token');
+      localStorage.removeItem('mirai_user_dni');
+      localStorage.removeItem('mirai-ai-conversation-id');
+      localStorage.removeItem('mirai-ai-course-id');
+      localStorage.removeItem('mirai-ai-lesson-id');
+      window.location.href = 'login.html';
+    }
+  });
+}

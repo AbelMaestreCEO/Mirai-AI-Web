@@ -3986,21 +3986,34 @@ svg {
   fill: currentColor;
 }
 
-/* Estado expandido */
-.collapsible-section.active .collapsible-content {
-  max-height: 500px;
+/* Contenido colapsado por defecto */
+.collapsible-content {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s cubic-bezier(0.05, 0.7, 0.1, 1), opacity 0.3s ease;
+}
+
+/* Estado expandido — sección principal */
+.collapsible-section.active > .collapsible-content {
+  max-height: 2000px;
   opacity: 1;
   margin-top: 0.5rem;
 }
 
-.collapsible-section.active .chevron-icon {
+.collapsible-section.active > .collapsible-header .chevron-icon {
   transform: rotate(180deg);
 }
 
-/* Contenido colapsado por defecto */
-.collapsible-content {
-  overflow: hidden;
-  transition: max-height 0.3s cubic-bezier(0.05, 0.7, 0.1, 1), opacity 0.3s ease;
+/* Estado expandido — secciones anidadas */
+.nested-collapsible.active > .collapsible-content {
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 0.25rem;
+}
+
+.nested-collapsible.active > .collapsible-header .chevron-icon {
+  transform: rotate(180deg);
 }
 
 /* Opcional: Asegurar que Navegación y Conversaciones sigan visibles siempre */
