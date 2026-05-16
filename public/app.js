@@ -23,35 +23,52 @@ const MiraiApp = (() => {
             if (header.dataset.collapsibleInit === 'true') return;
             header.dataset.collapsibleInit = 'true';
 
-            header.addEventListener('click', function () {
-                const section = this.closest('.collapsible-section')
-                    || this.closest('.nested-collapsible');
+            header.addEventListener('click', function (e) {
+                e.stopPropagation(); 
+                
+                // Identificar la sección (principal o anidada)
+                const section = this.closest('.collapsible-section') || this.closest('.nested-collapsible');
                 const content = this.nextElementSibling;
                 const icon = this.querySelector('.chevron-icon');
 
                 if (!section || !content) return;
 
-                section.classList.toggle('active');
+                // Determinar si está abierto o cerrado actualmente
+                const isOpen = section.classList.contains('active');
 
-                if (section.classList.contains('active')) {
-                    content.style.maxHeight = content.scrollHeight + 'px';
-                    content.style.opacity = '1';
-                    if (icon) icon.style.transform = 'rotate(180deg)';
-                } else {
+                if (isOpen) {
+                    // CERRAR
+                    section.classList.remove('active');
                     content.style.maxHeight = null;
                     content.style.opacity = '0';
                     if (icon) icon.style.transform = 'rotate(0deg)';
-                }
+                } else {
+                    // ABRIR
+                    section.classList.add('active');
+                    
+                    // Lógica para anidados: asegurar que el padre esté abierto para medir
+                    const parentSection = section.closest('.collapsible-section') || section.closest('.nested-collapsible');
+                    if (parentSection && !parentSection.classList.contains('active')) {
+                        // Abrimos el padre temporalmente para medir
+                        parentSection.classList.add('active');
+                        const parentContent = parentSection.querySelector('.collapsible-content');
+                        if (parentContent) {
+                            parentContent.style.maxHeight = 'none'; // Altura natural
+                        }
+                    }
 
-                // Recalcular altura del padre si es un desplegable anidado
-                recalcParentHeight(content);
-            });
+                    // Medir y aplicar altura
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                    content.style.opacity = '1';
+                    if (icon) icon.style.transform = 'rotate(180deg)';
 
-            // Soporte teclado (accesibilidad)
-            header.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.click();
+                    // Si abrimos un padre temporalmente, recalculamos su altura
+                    if (parentSection && parentSection !== section) {
+                        const parentContent = parentSection.querySelector('.collapsible-content');
+                        if (parentContent) {
+                            parentContent.style.maxHeight = parentContent.scrollHeight + 'px';
+                        }
+                    }
                 }
             });
         });

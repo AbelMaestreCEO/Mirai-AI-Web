@@ -890,14 +890,24 @@ footer.footer {
 
 @media (max-width: 768px) {
   .mobile-menu-toggle {
-    display: flex;
-  }
+        display: flex !important;
+        position: fixed !important;
+        top: 16px;
+        left: 16px;
+        z-index: 2001 !important; /* Por encima del sidebar */
+        width: 48px;
+        height: 48px;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
 
-  .chat-container,
-  .header,
-  footer.footer {
-    margin-left: 0 !important;
-  }
+  .chat-container, .header, footer.footer, .main-content {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
 
   .hamburger-line {
     display: block;
@@ -931,23 +941,23 @@ footer.footer {
 
   /* Overlay visible en móvil */
   .mobile-overlay {
-        display: block;
-        position: fixed;
+        display: block !important;
+        position: fixed !important;
         top: 0;
         left: 0;
         width: 100vw;
         height: 100vh;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1999 !important;
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.3s ease !important;
     }
 
 
   .mobile-overlay.active {
-        opacity: 1;
-        pointer-events: auto;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
 
   /* Sidebar oculto por defecto en móvil */
@@ -961,16 +971,15 @@ footer.footer {
 
   /* Botón de cierre visible en móvil */
   .close-menu {
-    display: block;
-    background: transparent;
-    border: none;
-    font-size: 1.8rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-    transition: color 0.2s;
-  }
+        display: block !important;
+        background: transparent;
+        border: none;
+        font-size: 2rem;
+        color: var(--text-primary);
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
 
   .close-menu:hover {
     color: var(--text-primary);
@@ -4759,19 +4768,25 @@ svg {
 /* Ajustes responsive para que en móvil no se aplique el colapso */
 @media (max-width: 768px) {
   .mobile-sidebar {
-    transform: translateX(-100%);
-    width: 280px;
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-    transition: transform 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
-  }
+        /* FORZAMOS que esté oculto inicialmente */
+        transform: translateX(-100%) !important; 
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        width: 280px;
+        height: 100vh;
+        z-index: 2000 !important; /* Por encima de todo */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        /* Aseguramos que no interfiera con el contenido */
+        pointer-events: none; 
+    }
 
   .mobile-sidebar.active {
-    transform: translateX(0);
-  }
+        transform: translateX(0) !important;
+        pointer-events: auto !important;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.3) !important;
+    }
+
 
   /* El contenido principal NO debe tener margen en móvil */
   .chat-container,
