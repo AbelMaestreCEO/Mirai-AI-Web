@@ -1,4 +1,5 @@
-const CACHE_NAME = 'mirai-ai-v1';
+const CACHE_NAME = 'mirai-ai-v3'; // 👈 Cambia esto en cada deploy
+
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,43 +13,69 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('Cache abierto');
         return cache.addAll(urlsToCache);
       })
   );
+  // Forzar activación inmediata sin esperar que cierren las pestañas
+  self.skipWaiting();
 });
 
-// Activación: Limpiar cachés antiguas
+// Activación: Limpiar cachés antiguas y tomar control de inmediato
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
+    caches.keys().then(cacheNames =>
+      Promise.all(
+        cacheNames
+          .filter(cacheName => cacheName !== CACHE_NAME)
+          .map(cacheName => {
+            console.log('Eliminando caché antigua:', cacheName);
             return caches.delete(cacheName);
-          }
+          })
+      )
+    ).then(() => self.clients.claim()) // 👈 Toma control de todas las pestañas abiertas
+  );
+});
+
+// Fetch: Network First para HTML, Cache First para assets estáticos
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // Solo manejar requests del mismo origen
+  if (url.origin !== location.origin) {
+    return;
+  }
+
+  // HTML: siempre intentar red primero (detecta actualizaciones)
+  if (request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          return response;
         })
-      );
+        .catch(() => caches.match(request)) // Fallback a caché si no hay red
+    );
+    return;
+  }
+
+  // CSS, JS, imágenes: Cache First con actualización en background
+  event.respondWith(
+    caches.match(request).then(cached => {
+      const networkFetch = fetch(request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        return response;
+      });
+      return cached || networkFetch;
     })
   );
 });
 
-// Fetch: Servir desde caché si está disponible, sino de la red
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      }
-    )
-  );
-});
-
-// En sw.js
-self.addEventListener('push', (event) => {
+// Push notifications
+self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const title = data.notification?.title || 'Mirai AI';
   const body = data.notification?.body || 'Tienes una nueva notificación.';
@@ -56,8 +83,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.registration.showNotification(title, {
-      body: body,
-      icon: icon,
+      body,
+      icon,
       badge: '/badge.png',
       tag: 'inventory-alert',
       requireInteraction: true
@@ -65,7 +92,7 @@ self.addEventListener('push', (event) => {
   );
 });
 
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
     clients.openWindow('https://ai.aberumirai.com/inventory.html')

@@ -672,24 +672,6 @@ body::before {
 .mobile-menu-toggle {
   display: none;
   /* Oculto en PC por defecto */
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 1001;
-  /* Por encima de todo */
-  width: 48px;
-  height: 48px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-  padding: 12px;
-  box-shadow: var(--glass-shadow);
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  transition: all var(--transition-fast);
 }
 
 
