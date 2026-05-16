@@ -130,9 +130,30 @@ function isValidEmail(email) {
   return re.test(email);
 }
 
+// --- INTERCEPTOR DE AUTENTICACIÓN (cookie HttpOnly + Bearer como fallback) ---
+function getTokenFromRequest(request) {
+  // 1. Intentar leer desde cookie HttpOnly (método seguro)
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const cookieMatch = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
+  if (cookieMatch) return cookieMatch[1];
+
+  // 2. Fallback: Bearer token (compatibilidad con clientes viejos)
+  const authHeader = request.headers.get('Authorization') || '';
+  if (authHeader.startsWith('Bearer ')) return authHeader.slice(7);
+
+  return null;
+}
+
+function makeSessionCookie(token, maxAgeSecs = 7 * 24 * 3600) {
+  return `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSecs}`;
+}
+
+function clearSessionCookie() {
+  return `session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
 async function requireAuth(request, env) {
-  // Leer token desde cookie HttpOnly (método seguro)
-  const token = getTokenFromCookie(request);
+  const token = getTokenFromRequest(request);
   if (!token) return null;
 
   const session = await env.MIRAI_AI_DB.prepare(
@@ -326,16 +347,22 @@ async function handleVerify(request, env, corsHeaders) {
       "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
     ).bind(dni.toUpperCase()).run();
 
-    // 🆕 Responder con el token y datos para redirigir a index.html
-    return jsonResponse({
+    // DESPUÉS — pon esto:
+    return new Response(JSON.stringify({
       success: true,
-      token: token,
+      token: token,          // lo dejamos en el body para compatibilidad con verify.js
       dni: dni.toUpperCase(),
       first_name: user.first_name,
       last_name: user.last_name,
       message: '¡Verificación exitosa! Redirigiendo...'
-    }, 200, corsHeaders);
-
+    }), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Set-Cookie': makeSessionCookie(token)
+      }
+    });
   } catch (error) {
     console.error('Error verificación:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);

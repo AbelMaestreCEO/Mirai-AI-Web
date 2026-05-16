@@ -339,9 +339,8 @@ let state = {
 };
 
 function checkAuth() {
-  // La sesión viaja en cookie HttpOnly — el servidor la valida.
-  // En el frontend solo verificamos si hay datos de usuario en localStorage
-  // (datos no sensibles guardados al hacer login, para mostrar en la UI).
+  // Con cookies HttpOnly el token ya no está en localStorage.
+  // Solo verificamos que haya datos de usuario (no sensibles).
   const dni = localStorage.getItem('mirai_user_dni');
   if (!dni) {
     window.location.href = 'login.html';
