@@ -49,10 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
             showSuccess(successMsg, '✅ ¡Verificación exitosa! Redirigiendo a tu panel...');
             hideMessage(errorMsg);
 
-            // Guardar datos de sesión
-            localStorage.setItem('mirai_auth_token', data.token);
-            localStorage.setItem('mirai_user_dni', data.dni);
-            localStorage.setItem('mirai_user_name', `${data.first_name} ${data.last_name}`);
+            // La cookie de sesión llega automáticamente desde el servidor (HttpOnly)
+            // Solo guardamos datos no sensibles para la UI
+            if (data.dni) localStorage.setItem('mirai_user_dni', data.dni);
+            if (data.first_name && data.last_name)
+              localStorage.setItem('mirai_user_name', `${data.first_name} ${data.last_name}`);
 
             // Limpiar formulario y DNI pendiente
             verifyForm.reset();

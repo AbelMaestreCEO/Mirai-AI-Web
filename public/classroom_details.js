@@ -330,13 +330,9 @@ function renderUploadForm(container, assignmentId) {
             const extractedText = await extractDocumentText(file);
             console.log(`🔍 [FRONTEND] Texto extraído: ${extractedText.length} caracteres`);
 
-            // 🔴 NUEVO: Guardar el texto extraído en localStorage temporalmente
-            const tempKey = `temp_submission_${assignmentId}_${Date.now()}`;
-            localStorage.setItem(tempKey, JSON.stringify({
-                text: extractedText,
-                filename: file.name,
-                timestamp: Date.now()
-            }));
+            // Enviar el texto extraído junto con el archivo en el mismo request
+            formData.append('extracted_text', extractedText);
+            // NO guardar en localStorage — el texto puede ser sensible
 
             // Subir el archivo original a R2 (para almacenamiento)
             const formData = new FormData();
@@ -509,8 +505,10 @@ function setupLogout() {
     const btn = document.getElementById('logout-btn');
     if (btn) {
         btn.addEventListener('click', () => {
-            localStorage.clear();
-            window.location.href = 'login.html';
+            await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+                    localStorage.removeItem('mirai_user_dni');
+                    localStorage.removeItem('mirai_user_name');
+                    window.location.href = 'login.html';
         });
     }
 }

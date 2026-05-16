@@ -114,22 +114,11 @@ async function loadInventory() {
     try {
         showLoadingState();
 
-        // 1. Obtener el token de sesión guardado (ajusta la clave según tu sistema)
-        // Normalmente se guarda en localStorage como 'mirai_auth_token' o similar
-        const token = localStorage.getItem('mirai_auth_token');
         const userDni = localStorage.getItem('mirai_user_dni');
 
-        if (!token) {
-            console.warn('⚠️ No se encontró token de sesión. Redirigiendo a login...');
-            // Opcional: Redirigir a login si no hay token
-            // window.location.href = 'login.html';
-            // Pero para mostrar el mensaje de "agregar producto", manejamos el 401 abajo
-            throw new Error('No autorizado: No hay sesión activa.');
-        }
-
         const headers = {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
+            // La cookie HttpOnly se envía automáticamente
         };
 
         const response = await fetch(`${INV_CONFIG.API_ENDPOINT}/list`, {
@@ -678,18 +667,6 @@ async function handleFormSubmit(e) {
         return;
     }
 
-    // ✅ Obtener token de sesión
-    const token = localStorage.getItem('mirai_auth_token');
-    if (!token) {
-        showStatus('❌ No has iniciado sesión. Serás redirigido...', 'error');
-        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
-        return;
-    }
-
-    const authHeaders = {
-        'Authorization': `Bearer ${token}`
-    };
-
     state.isSubmitting = true;
     setLoadingState(true);
 
@@ -709,8 +686,8 @@ async function handleFormSubmit(e) {
 
             const response = await fetch('/api/inventory/update', {
                 method: 'PUT',
+                credentials: 'same-origin',
                 headers: {
-                    ...authHeaders,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
@@ -795,21 +772,12 @@ async function deleteProduct(productId) {
     if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y se borrará la imagen asociada.')) {
         return;
     }
-
-    // ✅ Obtener token
-    const token = localStorage.getItem('mirai_auth_token');
-    if (!token) {
-        showStatus('❌ No has iniciado sesión.', 'error');
-        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
-        return;
-    }
-
+    
     try {
         const response = await fetch(`/api/inventory/delete?id=${productId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            credentials: 'same-origin'
+            // La cookie se envía automáticamente
         });
 
         const data = await response.json();
@@ -1203,8 +1171,11 @@ async function subscribeUser() {
     try {
         const registration = await navigator.serviceWorker.ready;
 
-        // REEMPLAZA CON TU PUBLIC KEY VAPID O FCM
-        const applicationServerKey = urlBase64ToUint8Array('BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ');
+        // Obtener la clave pública VAPID desde el servidor (permite rotarla sin cambiar código)
+        const vapidRes = await fetch('/api/vapid-key', { credentials: 'same-origin' });
+        if (!vapidRes.ok) throw new Error('No se pudo obtener la clave VAPID');
+        const { publicKey } = await vapidRes.json();
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
 
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
@@ -1215,12 +1186,11 @@ async function subscribeUser() {
         const { p256dh, auth } = keys;
 
         // Enviar al servidor
-        const token = localStorage.getItem('mirai_auth_token');
         const response = await fetch('/api/notifications/subscribe', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                credentials: 'same-origin'
             },
             body: JSON.stringify({ endpoint, p256dh, auth })
         });

@@ -53,10 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || 'Error de login');
             }
 
-            // Si llegamos aquí, el login fue exitoso (aunque con la nueva lógica, esto nunca debería pasar directamente)
-            // Pero por seguridad, si el backend devuelve token aquí (caso raro), guardamos y redirigimos.
-            localStorage.setItem('mirai_auth_token', data.token);
-            localStorage.setItem('mirai_user_dni', data.dni);
+            // El token ya viaja en cookie HttpOnly (el servidor la pone automáticamente)
+            // Solo guardamos datos NO sensibles para mostrar en la UI
+            if (data.dni) localStorage.setItem('mirai_user_dni', data.dni);
+            if (data.first_name) localStorage.setItem('mirai_user_name', data.first_name);
             window.location.href = 'index.html';
 
         } catch (err) {

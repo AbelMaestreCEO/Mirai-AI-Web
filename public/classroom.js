@@ -194,7 +194,9 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 if (confirm('¿Cerrar sesión?')) {
-                    localStorage.clear();
+                    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+                    localStorage.removeItem('mirai_user_dni');
+                    localStorage.removeItem('mirai_user_name');
                     window.location.href = 'login.html';
                 }
             });

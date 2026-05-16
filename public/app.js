@@ -339,29 +339,23 @@ let state = {
 };
 
 function checkAuth() {
-  const token = localStorage.getItem('mirai_auth_token');
+  // La sesión viaja en cookie HttpOnly — el servidor la valida.
+  // En el frontend solo verificamos si hay datos de usuario en localStorage
+  // (datos no sensibles guardados al hacer login, para mostrar en la UI).
   const dni = localStorage.getItem('mirai_user_dni');
-
-  if (!token || !dni) {
-    // Si no hay sesión, redirigir a login
+  if (!dni) {
     window.location.href = 'login.html';
     return false;
   }
   return true;
 }
 
-// Modificar fetch requests para incluir el token
+// La cookie HttpOnly se envía automáticamente por el navegador en cada petición.
+// Solo necesitamos asegurarnos de que fetch incluya credentials:
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
-  // Solo agregar token a rutas de API, no a estáticas
-  if (url.startsWith('/api/') && !url.includes('login') && !url.includes('register')) {
-    const token = localStorage.getItem('mirai_auth_token');
-    if (token) {
-      options.headers = {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
-      };
-    }
+  if (typeof url === 'string' && url.startsWith('/api/')) {
+    options.credentials = 'same-origin'; // Envía la cookie automáticamente
   }
   return originalFetch.call(this, url, options);
 };
@@ -1452,9 +1446,11 @@ async function loadConversationHistory(conversationId) {
   } catch (error) {
     if (error.status === 403 || error.status === 500) {
       console.warn('⚠️ Sesión inválida detectada. Limpiando...');
-      localStorage.removeItem('mirai_auth_token');
-      localStorage.removeItem('mirai_user_dni');
-      window.location.href = 'login.html';
+      // Llamar al servidor para invalidar la sesión y borrar la cookie
+await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+localStorage.removeItem('mirai_user_dni');
+localStorage.removeItem('mirai_user_name');
+window.location.href = 'login.html';
     }
     console.error('Error cargando historial:', error);
   }
@@ -2399,9 +2395,11 @@ async function loadConversations() {
   } catch (error) {
     if (error.status === 403 || error.status === 500) {
       console.warn('⚠️ Sesión inválida detectada. Limpiando...');
-      localStorage.removeItem('mirai_auth_token');
-      localStorage.removeItem('mirai_user_dni');
-      window.location.href = 'login.html';
+      // Llamar al servidor para invalidar la sesión y borrar la cookie
+await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+localStorage.removeItem('mirai_user_dni');
+localStorage.removeItem('mirai_user_name');
+window.location.href = 'login.html';
     }
     console.error('Error cargando conversaciones:', error);
   }
@@ -3061,12 +3059,14 @@ const _logoutBtn = document.getElementById('logout-btn');
 if (_logoutBtn) {
   _logoutBtn.addEventListener('click', () => {
     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-      localStorage.removeItem('mirai_auth_token');
-      localStorage.removeItem('mirai_user_dni');
+      // Llamar al servidor para invalidar la sesión y borrar la cookie
+await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+localStorage.removeItem('mirai_user_dni');
+localStorage.removeItem('mirai_user_name');
+window.location.href = 'login.html';
       localStorage.removeItem('mirai-ai-conversation-id');
       localStorage.removeItem('mirai-ai-course-id');
       localStorage.removeItem('mirai-ai-lesson-id');
-      window.location.href = 'login.html';
     }
   });
 }

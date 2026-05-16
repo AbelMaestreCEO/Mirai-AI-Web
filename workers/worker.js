@@ -2021,6 +2021,10 @@ NO agregues texto adicional fuera del JSON.`;
       return await handleServeVideo(path, env);
     }
 
+    if (path === '/api/vapid-key' && request.method === 'GET') {
+      return jsonResponse({ publicKey: env.VAPID_PUBLIC_KEY || '' }, 200, corsHeaders);
+    }
+
     // Ruta: PUT /api/conversations/rename
     if (path === '/api/conversations/rename' && request.method === 'PUT') {
       return await handleRenameConversation(request, env, corsHeaders);

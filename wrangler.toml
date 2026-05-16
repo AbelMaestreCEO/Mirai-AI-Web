@@ -40,3 +40,10 @@ bucket_name = 'mirai-photos'
 
 [ai]
 binding = "AI"
+
+[vars]
+VAPID_PUBLIC_KEY = "BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ" # tu clave actual
+
+[[kv_namespaces]]
+binding = "KV_RATE"
+id = "47c1023e992845449851b4572dcf37e7"

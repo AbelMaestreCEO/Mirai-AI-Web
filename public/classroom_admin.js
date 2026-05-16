@@ -511,7 +511,10 @@ async function loadStats() {
 
 function setupLogout() {
     const btn = document.getElementById('logout-btn');
-    if (btn) btn.addEventListener('click', () => { localStorage.clear(); window.location.href = 'login.html'; });
+    if (btn) btn.addEventListener('click', () => { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+                    localStorage.removeItem('mirai_user_dni');
+                    localStorage.removeItem('mirai_user_name');
+                    window.location.href = 'login.html'; });
 }
 
 function escapeHtml(text) { if(!text) return ''; const d=document.createElement('div'); d.textContent=text; return d.innerHTML; }
