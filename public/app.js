@@ -19,57 +19,34 @@ const MiraiApp = (() => {
         const headers = document.querySelectorAll('.collapsible-header');
 
         headers.forEach(header => {
-            // Evitar duplicar listeners
             if (header.dataset.collapsibleInit === 'true') return;
             header.dataset.collapsibleInit = 'true';
 
             header.addEventListener('click', function (e) {
-                e.stopPropagation(); 
-                
-                // Identificar la sección (principal o anidada)
+                e.stopPropagation();
+
                 const section = this.closest('.collapsible-section') || this.closest('.nested-collapsible');
-                const content = this.nextElementSibling;
-                const icon = this.querySelector('.chevron-icon');
+                if (!section) return;
 
-                if (!section || !content) return;
+                section.classList.toggle('active');
+            });
+        });
+    }
 
-                // Determinar si está abierto o cerrado actualmente
-                const isOpen = section.classList.contains('active');
-
-                if (isOpen) {
-                    // CERRAR
-                    section.classList.remove('active');
-                    content.style.maxHeight = null;
-                    content.style.opacity = '0';
-                    if (icon) icon.style.transform = 'rotate(0deg)';
-                } else {
-                    // ABRIR
-                    section.classList.add('active');
-                    
-                    // Lógica para anidados: asegurar que el padre esté abierto para medir
-                    const parentSection = section.closest('.collapsible-section') || section.closest('.nested-collapsible');
-                    if (parentSection && !parentSection.classList.contains('active')) {
-                        // Abrimos el padre temporalmente para medir
-                        parentSection.classList.add('active');
-                        const parentContent = parentSection.querySelector('.collapsible-content');
-                        if (parentContent) {
-                            parentContent.style.maxHeight = 'none'; // Altura natural
-                        }
-                    }
-
-                    // Medir y aplicar altura
-                    content.style.maxHeight = content.scrollHeight + 'px';
-                    content.style.opacity = '1';
-                    if (icon) icon.style.transform = 'rotate(180deg)';
-
-                    // Si abrimos un padre temporalmente, recalculamos su altura
-                    if (parentSection && parentSection !== section) {
-                        const parentContent = parentSection.querySelector('.collapsible-content');
-                        if (parentContent) {
-                            parentContent.style.maxHeight = parentContent.scrollHeight + 'px';
-                        }
-                    }
-                }
+    /**
+     * Cierra todos los desplegables al iniciar, eliminando estilos inline
+     * que puedan interferir con la lógica CSS/JS.
+     */
+    function initCollapsiblesState() {
+        document.querySelectorAll('.collapsible-section, .nested-collapsible').forEach(section => {
+            section.classList.remove('active');
+            // Limpiar cualquier estilo inline residual
+            const contents = section.querySelectorAll('.collapsible-content');
+            contents.forEach(c => {
+                c.style.removeProperty('max-height');
+                c.style.removeProperty('opacity');
+                c.style.removeProperty('overflow');
+                c.style.removeProperty('margin-top');
             });
         });
     }
@@ -127,23 +104,21 @@ const MiraiApp = (() => {
 
         const toggleMenu = (forceClose = false) => {
             const isActive = sidebar.classList.contains('active');
-            
-            if (isActive && !forceClose) return; // Ya está abierto
 
-            if (!isActive || forceClose) {
-                // ABRIR
-                sidebar.classList.add('active');
-                overlay?.classList.add('active');
-                toggle.classList.add('active');
-                document.body.style.overflow = 'hidden'; // Bloquear scroll
-                console.log('[MiraiApp] Menú ABIERTO');
-            } else {
+            if (forceClose || isActive) {
                 // CERRAR
                 sidebar.classList.remove('active');
                 overlay?.classList.remove('active');
                 toggle.classList.remove('active');
                 document.body.style.overflow = '';
                 console.log('[MiraiApp] Menú CERRADO');
+            } else {
+                // ABRIR
+                sidebar.classList.add('active');
+                overlay?.classList.add('active');
+                toggle.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                console.log('[MiraiApp] Menú ABIERTO');
             }
         };
 
@@ -233,34 +208,13 @@ const MiraiApp = (() => {
     function openCollapsible(selector) {
         const section = document.querySelector(selector);
         if (!section) return;
-
-        const content = section.querySelector('.collapsible-content');
-        const icon = section.querySelector('.chevron-icon');
-
         section.classList.add('active');
-        if (content) {
-            content.style.maxHeight = content.scrollHeight + 'px';
-            content.style.opacity = '1';
-        }
-        if (icon) icon.style.transform = 'rotate(180deg)';
     }
 
-    /**
-     * Cierra un desplegable específico por selector.
-     */
     function closeCollapsible(selector) {
         const section = document.querySelector(selector);
         if (!section) return;
-
-        const content = section.querySelector('.collapsible-content');
-        const icon = section.querySelector('.chevron-icon');
-
         section.classList.remove('active');
-        if (content) {
-            content.style.maxHeight = null;
-            content.style.opacity = '0';
-        }
-        if (icon) icon.style.transform = 'rotate(0deg)';
     }
 
     /**
@@ -285,6 +239,7 @@ const MiraiApp = (() => {
      * Llamar desde DOMContentLoaded en cada página.
      */
     function init() {
+        initCollapsiblesState();
         initCollapsibles();
         initNavGrid();
         initMobileSidebar();
@@ -304,6 +259,7 @@ const MiraiApp = (() => {
     return {
         init,
         initCollapsibles,
+        initCollapsiblesState,
         initNavGrid,
         initMobileSidebar,
         initSidebarCollapse,
