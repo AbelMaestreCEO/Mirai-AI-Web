@@ -205,6 +205,7 @@
         }
     </style>
 
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Mirai Mirror">
@@ -239,7 +240,7 @@
                     <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                 </svg>
             </div>
-            <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+            <div class="collapsible-content" >
                 <div class="nav-grid">
                     <a href="https://ai.aberumirai.com" class="nav-grid-item" data-tooltip="Chat">
                         <span class="nav-icon">💬</span>
@@ -577,80 +578,6 @@
             }
         });
 
-        // --- LÓGICA DEL SIDEBAR (Compartida) ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Inicializar iconos Lucide
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-
-            // Lógica del menú móvil
-            const menuToggle = document.querySelector('.mobile-menu-toggle');
-            const closeMenu = document.querySelector('.close-menu');
-            const sidebar = document.querySelector('.mobile-sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-
-            function toggleMenu() {
-                if (!sidebar || !overlay) return;
-                const isActive = sidebar.classList.contains('active');
-
-                if (isActive) {
-                    sidebar.classList.remove('active');
-                    overlay.classList.remove('active');
-                    document.body.style.overflow = '';
-                } else {
-                    sidebar.classList.add('active');
-                    overlay.classList.add('active');
-                    document.body.style.overflow = 'hidden';
-                }
-            }
-
-            if (menuToggle) menuToggle.addEventListener('click', toggleMenu);
-            if (closeMenu) closeMenu.addEventListener('click', toggleMenu);
-            if (overlay) overlay.addEventListener('click', toggleMenu);
-
-            // Cerrar con Escape
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && sidebar && sidebar.classList.contains('active')) {
-                    toggleMenu();
-                }
-            });
-
-            // Colapsar Sidebar (Desktop)
-            const collapseBtn = document.getElementById('sidebar-collapse-btn');
-            if (collapseBtn && window.innerWidth > 768) {
-                const savedState = localStorage.getItem('mirai_sidebar_state') === 'true';
-                if (savedState) sidebar.classList.add('collapsed');
-                
-                collapseBtn.addEventListener('click', () => {
-                    const newState = !sidebar.classList.contains('collapsed');
-                    sidebar.classList.toggle('collapsed', newState);
-                    localStorage.setItem('mirai_sidebar_state', newState.toString());
-                    
-                    // Cambiar icono
-                    const path = collapseBtn.querySelector('svg path');
-                    if (newState) {
-                        path.setAttribute('d', 'M10 17l5-5-5-5v10z');
-                        collapseBtn.title = 'Expandir barra';
-                    } else {
-                        path.setAttribute('d', 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z');
-                        collapseBtn.title = 'Colapsar barra';
-                    }
-                });
-            }
-
-            // Logout
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', () => {
-                    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                        localStorage.removeItem('mirai_auth_token');
-                        localStorage.removeItem('mirai_user_dni');
-                        window.location.href = 'login.html';
-                    }
-                });
-            }
-        });
     </script>
 <script type="module" src="app.js" defer></script>
     <!-- Script Específico de Mirror (Lógica de Fotos) -->
