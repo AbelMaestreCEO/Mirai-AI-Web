@@ -76,6 +76,21 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
 
+// --- HELPERS DE COOKIE ---
+function getTokenFromCookie(request) {
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const match = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+function makeSessionCookie(token, maxAgeSecs = 7 * 24 * 3600) {
+  return `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSecs}`;
+}
+
+function clearSessionCookie() {
+  return `session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
 // Hash de contraseña usando PBKDF2 nativo
 async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
@@ -115,20 +130,11 @@ function isValidEmail(email) {
   return re.test(email);
 }
 
-// --- NUEVO: INTERCEPTOR DE AUTENTICACIÓN ---
 async function requireAuth(request, env) {
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
+  // Leer token desde cookie HttpOnly (método seguro)
+  const token = getTokenFromCookie(request);
+  if (!token) return null;
 
-  const token = authHeader.split(' ')[1];
-
-  // Verificar token en KV (recomendado para sesiones) o D1
-  // Para simplicidad, asumiremos que el token es el DNI + un hash temporal 
-  // O mejor: implementar un sistema simple de JWT o sesiones en D1.
-
-  // IMPLEMENTACIÓN SIMPLE: Guardar sesión en D1
   const session = await env.MIRAI_AI_DB.prepare(
     "SELECT user_dni FROM sessions WHERE token = ? AND expires_at > datetime('now')"
   ).bind(token).first();
