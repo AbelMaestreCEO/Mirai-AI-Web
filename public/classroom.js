@@ -190,18 +190,23 @@
     }
 
     function setupLogoutButton() {
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                if (confirm('¿Cerrar sesión?')) {
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                try {
                     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-                    localStorage.removeItem('mirai_user_dni');
-                    localStorage.removeItem('mirai_user_name');
-                    window.location.href = 'login.html';
-                }
-            });
-        }
+                } catch (e) {}
+                localStorage.removeItem('mirai_user_dni');
+                localStorage.removeItem('mirai_user_name');
+                localStorage.removeItem('mirai-ai-conversation-id');
+                localStorage.removeItem('mirai-ai-course-id');
+                localStorage.removeItem('mirai-ai-lesson-id');
+                window.location.href = 'login.html';
+            }
+        });
     }
+}
 
     function escapeHtml(text) {
         if (!text) return '';

@@ -57,6 +57,7 @@ let state = {
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Delegar Tema y Menú a MiraiApp
     if (typeof MiraiApp !== 'undefined') {
+        MiraiApp.init(); 
         const themeToggle = document.getElementById('theme-toggle');
         if (themeToggle && !themeToggle.dataset.initialized) {
             themeToggle.addEventListener('click', () => {
