@@ -83,10 +83,6 @@ function getTokenFromCookie(request) {
   return match ? match[1] : null;
 }
 
-function makeSessionCookie(token, maxAgeSecs = 7 * 24 * 3600) {
-  return `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSecs}`;
-}
-
 // Hash de contraseña usando PBKDF2 nativo
 async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
