@@ -1537,7 +1537,6 @@ function setupEventListeners() {
       handleSendMessage();
     }
   });
-  elements.themeToggle.addEventListener('click', toggleTheme);
   initializeAudioPlayers();
   // Inicializar lightbox y botones de descarga
   initializeLightbox();
