@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Tu asistente inteligente potenciado por DeepSeek">
+
+    <title>Mirai AI - Chat</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        svg { display: block; }
+        .message-content { counter-reset: list-item; }
+    </style>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mirai AI">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+
+<body>
+
+    <nav class="mobile-sidebar">
+    <div class="sidebar-header">
+        <h3>Mirai AI</h3>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+            </button>
+            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+        </div>
+    </div>
+
+    <div class="sidebar-content">
+        <!-- Sección 1: Navegación -->
+        <section class="sidebar-section collapsible-section active">
+            <div class="collapsible-header" role="button" tabindex="0">
+                <h4>Navegación</h4>
+                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                </svg>
+            </div>
+            <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+                <div class="nav-grid">
+                    <a href="chat.html" class="nav-grid-item active-link" data-tooltip="Chat">
+                        <span class="nav-icon">💬</span>
+                        <span class="nav-label">Chat</span>
+                    </a>
+                    <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                        <span class="nav-icon">📚</span>
+                        <span class="nav-label">Cursos</span>
+                    </a>
+                    <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
+                        <span class="nav-icon">🏫</span>
+                        <span class="nav-label">Aula</span>
+                    </a>
+                    <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                        <span class="nav-icon">📦</span>
+                        <span class="nav-label">Inventario</span>
+                    </a>
+                    <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
+                        <span class="nav-icon">🖼️</span>
+                        <span class="nav-label">Fotos</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección 2: Conversaciones -->
+        <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+            <div class="conversations-header">
+                <h4>Conversaciones</h4>
+                <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                </button>
+            </div>
+            <ul id="conversations-list" class="conversations-list"></ul>
+        </section>
+
+        <!-- Sección 3: Explorar -->
+        <section class="sidebar-section collapsible-section">
+            <div class="collapsible-header" role="button" tabindex="0">
+                <h4>Explorar</h4>
+                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                </svg>
+            </div>
+            <div class="collapsible-content">
+                <div class="nested-collapsible">
+                    <div class="collapsible-header nested-header" role="button" tabindex="0">
+                        <h5>Servicios</h5>
+                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                        </svg>
+                    </div>
+                    <div class="collapsible-content nested-content">
+                        <ul class="sidebar-links">
+                            <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                            <li><a href="https://aberumirai.com#education">Educación</a></li>
+                            <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                            <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                            <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="nested-collapsible">
+                    <div class="collapsible-header nested-header" role="button" tabindex="0">
+                        <h5>Empresa</h5>
+                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                        </svg>
+                    </div>
+                    <div class="collapsible-content nested-content">
+                        <ul class="sidebar-links">
+                            <li><a href="https://aberumirai.com">Sobre Nosotros</a></li>
+                            <li><a href="https://aberumirai.com#contact">Contacto</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="sidebar-extra">
+        <section class="sidebar-section">
+            <h4>Síguenos</h4>
+            <div class="sidebar-social">
+                <a href="https://twitter.com/AberuMirai" aria-label="Twitter">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                </a>
+                <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                </a>
+                <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                </a>
+                <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                </a>
+            </div>
+        </section>
+
+        <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+            </svg>
+            <span>Cerrar Sesión</span>
+        </button>
+
+        <div class="sidebar-logo">
+            <a href="https://aberumirai.com">
+                <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                    style="max-width: 80px; max-height: 80px;">
+            </a>
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <p>&copy;
+            <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+        </p>
+    </div>
+</nav>
+
+    <div class="mobile-overlay"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+
+        <button id="audio-mode-toggle" class="audio-mode-toggle" title="Alternar modo audio/texto">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+            </svg>
+            <span>Auto</span>
+        </button>
+
+        <div class="header-title"></div>
+
+        <select id="model-selector" class="model-selector" title="Seleccionar modelo de IA">
+            <option value="deepseek">🚀 DeepSeek (Default)</option>
+            <option value="llama">🦙 Llama 3.3 70B</option>
+        </select>
+
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+            </svg>
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- Contenedor Principal -->
+    <div class="chat-container">
+
+        <!-- Área de Mensajes -->
+        <main id="chat-messages" class="chat-messages" aria-live="polite">
+            <!-- Mensaje de bienvenida inicial -->
+            <div class="message ai">
+                <div class="message-avatar">M</div>
+                <div class="message-content">
+                    Hola. Soy <strong>Mirai AI</strong>.
+                    <br><br>
+                    ¿En qué puedo ayudarte hoy? Puedo escribir código, analizar datos o simplemente charlar.
+                </div>
+            </div>
+        </main>
+
+        <!-- Indicador de escritura -->
+        <div id="typing-indicator" class="message ai hidden" style="margin-bottom: 20px;">
+            <div class="message-avatar">M</div>
+            <div class="message-content">
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+                <div class="recording-indicator hidden">
+                    <div class="mic-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                        </svg>
+                    </div>
+                    <div class="sound-waves">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <span class="recording-text"></span>
+                </div>
+                <div class="music-indicator hidden">
+                    <div class="music-note">🎵</div>
+                    <div class="music-wave"></div>
+                    <div class="music-wave"></div>
+                    <div class="music-wave"></div>
+                </div>
+                <div class="video-indicator hidden">
+                    <div class="video-loader">
+                        <svg viewBox="0 0 24 24" width="24" height="24" class="video-icon">
+                            <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" fill="currentColor" />
+                        </svg>
+                        <div class="video-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="suggestions-bar" id="suggestions-bar"></div>
+
+    <!-- Área de Entrada -->
+    <footer class="input-area">
+        <div class="input-wrapper">
+            <button id="attach-btn" class="attach-btn" title="Adjuntar archivo" aria-label="Adjuntar archivo">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z" />
+                </svg>
+            </button>
+
+            <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv"
+                style="display: none;">
+
+            <div id="attachments-area" class="attachments-area"></div>
+
+            <textarea id="message-input" class="message-input" placeholder="Escribe tu mensaje aquí..." rows="1"
+                autocomplete="off" spellcheck="false"></textarea>
+
+            <button id="clear-conversation" class="clear-btn" title="Limpiar conversación">🗑️</button>
+
+            <button id="voice-btn" class="voice-btn" title="Hablar" aria-label="Activar reconocimiento de voz">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                </svg>
+            </button>
+
+            <button id="send-button" class="send-button" aria-label="Enviar mensaje">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                </svg>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Modal Lightbox para Imágenes -->
+    <div id="image-lightbox" class="image-lightbox hidden">
+        <div class="lightbox-overlay"></div>
+        <div class="lightbox-content">
+            <button class="lightbox-close" aria-label="Cerrar">&times;</button>
+            <button class="lightbox-download" aria-label="Descargar imagen">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                </svg>
+            </button>
+            <img id="lightbox-img" src="" alt="Imagen en pantalla completa">
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(r => console.log('SW registered:', r))
+                    .catch(e => console.log('SW failed:', e));
+            });
+        }
+
+        // Inyectar initial_message desde la página de bienvenida
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const msg = params.get('initial_message');
+            if (msg) {
+                // Esperar a que app.js cargue y el input esté listo
+                window.addEventListener('DOMContentLoaded', function () {
+                    const tryInject = setInterval(function () {
+                        const input = document.getElementById('message-input');
+                        const sendBtn = document.getElementById('send-button');
+                        if (input && sendBtn) {
+                            clearInterval(tryInject);
+                            input.value = decodeURIComponent(msg);
+                            input.dispatchEvent(new Event('input'));
+                            // Pequeño delay para que app.js inicialice listeners
+                            setTimeout(function () {
+                                sendBtn.click();
+                            }, 600);
+                            // Limpiar la URL sin recargar
+                            window.history.replaceState({}, '', 'chat.html');
+                        }
+                    }, 100);
+                });
+            }
+        })();
+    </script>
+    <script type="module" src="app.js" defer></script>
+</body>
+
+</html>

@@ -189,7 +189,7 @@ const MiraiApp = (() => {
      */
     function initThemeToggle() {
         const btn = document.querySelector('.theme-toggle');
-        const saved = localStorage.getItem('mirai-theme');
+        const saved = localStorage.getItem('mirai-ai-theme');
 
         // Aplicar tema guardado
         if (saved === 'dark') {
@@ -202,7 +202,7 @@ const MiraiApp = (() => {
                 const newTheme = isDark ? 'light' : 'dark';
 
                 document.documentElement.setAttribute('data-theme', newTheme);
-                localStorage.setItem('mirai-theme', newTheme);
+                localStorage.setItem('mirai-ai-theme', newTheme);
             });
         }
     }
