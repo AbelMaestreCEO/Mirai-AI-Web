@@ -339,21 +339,9 @@ let state = {
 };
 
 function checkAuth() {
-  const token = localStorage.getItem('mirai_auth_token');
-  const dni = localStorage.getItem('mirai_user_dni');
-
-  // Páginas que NO requieren auth (públicas)
-  const publicPages = ['course_category', 'courses', 'course_details', 'login', 'register', 'verify'];
-  const currentPage = window.location.pathname;
-  const isPublicPage = publicPages.some(p => currentPage.includes(p));
-
-  if (!token || !dni) {
-    if (!isPublicPage) {
-      window.location.href = 'login.html';
-      return false;
-    }
-  }
-  return true;
+// El guard ya corrió en auth-guard.js antes de cargar este script.
+// Esta función queda como no-op para no romper llamadas existentes.
+return true;
 }
 
 // La cookie HttpOnly se envía automáticamente por el navegador en cada petición.
@@ -368,7 +356,6 @@ window.fetch = async function (url, options = {}) {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-  if (!checkAuth()) return;
 
   // Solo ejecutar lógica de chat si existe el elemento #chat-messages en la página
   const isChatPage = !!document.getElementById('chat-messages');
