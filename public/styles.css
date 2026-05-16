@@ -891,20 +891,20 @@ footer.footer {
    ============================================ */
 
 @media (max-width: 768px) {
-  .mobile-menu-toggle {
-        display: flex !important;
-        position: fixed !important;
-        top: 16px;
-        left: 16px;
-        z-index: 2001 !important; /* Por encima del sidebar */
-        width: 48px;
-        height: 48px;
-        background: var(--glass-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
+   .mobile-menu-toggle {
+    display: flex !important;
+    position: relative !important;  /* <-- cambia fixed → relative */
+    top: unset !important;
+    left: unset !important;
+    z-index: 1 !important;          /* ya no necesita z-index alto */
+    width: 48px;
+    height: 48px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
 
   .chat-container, .header, footer.footer, .main-content {
         margin-left: 0 !important;
