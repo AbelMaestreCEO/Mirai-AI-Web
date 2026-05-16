@@ -3057,16 +3057,19 @@ function detectVideoRequest(text) {
 
 const _logoutBtn = document.getElementById('logout-btn');
 if (_logoutBtn) {
-  _logoutBtn.addEventListener('click', () => {
+  _logoutBtn.addEventListener('click', async () => {
     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-      // Llamar al servidor para invalidar la sesión y borrar la cookie
-await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-localStorage.removeItem('mirai_user_dni');
-localStorage.removeItem('mirai_user_name');
-window.location.href = 'login.html';
+      try {
+        await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+      } catch (e) {
+        // Continuar aunque falle el servidor
+      }
+      localStorage.removeItem('mirai_user_dni');
+      localStorage.removeItem('mirai_user_name');
       localStorage.removeItem('mirai-ai-conversation-id');
       localStorage.removeItem('mirai-ai-course-id');
       localStorage.removeItem('mirai-ai-lesson-id');
+      window.location.href = 'login.html';
     }
   });
 }
