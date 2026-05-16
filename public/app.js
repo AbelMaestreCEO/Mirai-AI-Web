@@ -339,9 +339,11 @@ let state = {
 };
 
 function checkAuth() {
-// El guard ya corrió en auth-guard.js antes de cargar este script.
-// Esta función queda como no-op para no romper llamadas existentes.
-return true;
+  // auth-guard.js ya se encargó del redirect antes de que app.js cargue.
+  // Esta función queda como wrapper para no romper la llamada existente.
+  const token = localStorage.getItem('mirai_auth_token');
+  const dni = localStorage.getItem('mirai_user_dni');
+  return !!(token && dni);
 }
 
 // La cookie HttpOnly se envía automáticamente por el navegador en cada petición.
