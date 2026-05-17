@@ -248,139 +248,157 @@
             });
         })();
         (function () {
-    const mensajes = {
-        0: [ // Domingo
-            '¡Feliz domingo! 😊',
-            '¿En qué te ayudo?',
-            'Descansa y aprende.',
-            '¡Hola! ¿Qué necesitas?',
-            'Domingo de productividad 🚀',
-            '¿Lista nueva hoy?',
-            'Bienvenido de nuevo.',
-            '¿Exploramos algo nuevo?',
-            'Tu IA está lista.',
-            '¿Qué aprendemos hoy?'
-        ],
-        1: [ // Lunes
-            '¡Feliz lunes! 💪',
-            '¿En qué te ayudo hoy?',
-            'Nuevo lunes, nuevas metas.',
-            '¡Arranquemos la semana!',
-            '¿Comenzamos con fuerza?',
-            '¿Qué necesitas hoy?',
-            'Lunes de productividad 🚀',
-            '¿En qué puedo ayudarte?',
-            'Tu semana empieza bien.',
-            '¡Hola! Estoy aquí.'
-        ],
-        2: [ // Martes
-            '¡Feliz martes! ✨',
-            '¿En qué te ayudo?',
-            '¿Seguimos avanzando?',
-            'Martes de enfoque 🎯',
-            '¿Qué aprendemos hoy?',
-            '¡Hola! ¿Qué necesitas?',
-            '¿En qué puedo ayudarte?',
-            'Estoy listo para ti.',
-            '¿Productividad al máximo?',
-            '¡Vamos con todo!'
-        ],
-        3: [ // Miércoles
-            '¡Feliz miércoles! 🌟',
-            '¡Mitad de semana, vamos!',
-            '¿En qué te ayudo?',
-            '¿Qué necesitas hoy?',
-            'Miércoles en marcha 🚀',
-            '¡Hola! Aquí estoy.',
-            '¿En qué puedo ayudarte?',
-            '¿Exploramos algo nuevo?',
-            'La semana va genial.',
-            '¿Qué aprendemos hoy?'
-        ],
-        4: [ // Jueves
-            '¡Feliz jueves! 🎉',
-            '¿En qué te ayudo?',
-            '¡Ya casi es viernes!',
-            '¿Qué necesitas hoy?',
-            'Jueves productivo 💡',
-            '¡Hola! Estoy listo.',
-            '¿En qué puedo ayudarte?',
-            '¿Terminamos fuerte?',
-            '¡Ánimo, casi llegamos!',
-            '¿Qué aprendemos hoy?'
-        ],
-        5: [ // Viernes
-            '¡Feliz viernes! 🎊',
-            '¡Cerremos con todo!',
-            '¿En qué te ayudo?',
-            '¡Casi fin de semana!',
-            'Viernes de logros 🏆',
-            '¿Qué necesitas hoy?',
-            '¡Hola! ¿Qué pendientes?',
-            '¿En qué puedo ayudarte?',
-            '¡Un gran cierre de semana!',
-            '¿Lo último de la semana?'
-        ],
-        6: [ // Sábado
-            '¡Feliz sábado! 🌈',
-            '¿En qué te ayudo?',
-            'Sábado de aprendizaje 📚',
-            '¿Qué exploramos hoy?',
-            '¡Hola! ¿Por dónde empezamos?',
-            '¿Fin de semana productivo?',
-            '¿En qué puedo ayudarte?',
-            '¡Relax con propósito!',
-            '¿Qué aprendemos hoy?',
-            'Tu IA no descansa. 😄'
-        ]
-    };
- 
-    function iniciarTituloDinamico() {
-        const titulo = document.querySelector('.welcome-title');
-        if (!titulo) return;
- 
-        const dia = new Date().getDay(); // 0=Dom … 6=Sáb
-        const lista = mensajes[dia];
- 
-        // Elegir un mensaje aleatorio — solo al cargar la página
-        const idx = Math.floor(Math.random() * lista.length);
-        const palabras = lista[idx].split(' ');
- 
-        // Vaciar el título y armar un <span> por palabra
-        titulo.innerHTML = '';
-        titulo.style.display = 'inline-flex';
-        titulo.style.flexWrap = 'wrap';
-        titulo.style.justifyContent = 'center';
-        titulo.style.gap = '0.25em';
-        titulo.style.overflow = 'visible';
- 
-        palabras.forEach(function (palabra, i) {
-            const span = document.createElement('span');
-            span.textContent = palabra;
-            span.style.display  = 'inline-block';
-            span.style.opacity  = '0';
-            span.style.transform = 'translateY(16px)';
-            span.style.transition =
-                'opacity 0.4s ease, transform 0.4s ease';
-            titulo.appendChild(span);
- 
-            // Disparar animación escalonada
-            setTimeout(function () {
-                span.style.opacity   = '1';
-                span.style.transform = 'translateY(0)';
-            }, 80 * i); // 80 ms de retraso por cada palabra
-        });
-    }
- 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', iniciarTituloDinamico);
-    } else {
-        iniciarTituloDinamico();
-    }
-})();
+            const mensajes = {
+                0: [ // Domingo
+                    '¡Feliz domingo! 😊',
+                    '¿En qué te ayudo?',
+                    'Descansa y aprende.',
+                    '¡Hola! ¿Qué necesitas?',
+                    'Domingo de productividad 🚀',
+                    '¿Lista nueva hoy?',
+                    'Bienvenido de nuevo.',
+                    '¿Exploramos algo nuevo?',
+                    'Tu IA está lista.',
+                    '¿Qué aprendemos hoy?'
+                ],
+                1: [ // Lunes
+                    '¡Feliz lunes! 💪',
+                    '¿En qué te ayudo hoy?',
+                    'Nuevo lunes, nuevas metas.',
+                    '¡Arranquemos la semana!',
+                    '¿Comenzamos con fuerza?',
+                    '¿Qué necesitas hoy?',
+                    'Lunes de productividad 🚀',
+                    '¿En qué puedo ayudarte?',
+                    'Tu semana empieza bien.',
+                    '¡Hola! Estoy aquí.'
+                ],
+                2: [ // Martes
+                    '¡Feliz martes! ✨',
+                    '¿En qué te ayudo?',
+                    '¿Seguimos avanzando?',
+                    'Martes de enfoque 🎯',
+                    '¿Qué aprendemos hoy?',
+                    '¡Hola! ¿Qué necesitas?',
+                    '¿En qué puedo ayudarte?',
+                    'Estoy listo para ti.',
+                    '¿Productividad al máximo?',
+                    '¡Vamos con todo!'
+                ],
+                3: [ // Miércoles
+                    '¡Feliz miércoles! 🌟',
+                    '¡Mitad de semana, vamos!',
+                    '¿En qué te ayudo?',
+                    '¿Qué necesitas hoy?',
+                    'Miércoles en marcha 🚀',
+                    '¡Hola! Aquí estoy.',
+                    '¿En qué puedo ayudarte?',
+                    '¿Exploramos algo nuevo?',
+                    'La semana va genial.',
+                    '¿Qué aprendemos hoy?'
+                ],
+                4: [ // Jueves
+                    '¡Feliz jueves! 🎉',
+                    '¿En qué te ayudo?',
+                    '¡Ya casi es viernes!',
+                    '¿Qué necesitas hoy?',
+                    'Jueves productivo 💡',
+                    '¡Hola! Estoy listo.',
+                    '¿En qué puedo ayudarte?',
+                    '¿Terminamos fuerte?',
+                    '¡Ánimo, casi llegamos!',
+                    '¿Qué aprendemos hoy?'
+                ],
+                5: [ // Viernes
+                    '¡Feliz viernes! 🎊',
+                    '¡Cerremos con todo!',
+                    '¿En qué te ayudo?',
+                    '¡Casi fin de semana!',
+                    'Viernes de logros 🏆',
+                    '¿Qué necesitas hoy?',
+                    '¡Hola! ¿Qué pendientes?',
+                    '¿En qué puedo ayudarte?',
+                    '¡Un gran cierre de semana!',
+                    '¿Lo último de la semana?'
+                ],
+                6: [ // Sábado
+                    '¡Feliz sábado! 🌈',
+                    '¿En qué te ayudo?',
+                    'Sábado de aprendizaje 📚',
+                    '¿Qué exploramos hoy?',
+                    '¡Hola! ¿Por dónde empezamos?',
+                    '¿Fin de semana productivo?',
+                    '¿En qué puedo ayudarte?',
+                    '¡Relax con propósito!',
+                    '¿Qué aprendemos hoy?',
+                    'Tu IA no descansa. 😄'
+                ]
+            };
+
+            function iniciarTituloDinamico() {
+                const titulo = document.querySelector('.welcome-title');
+                if (!titulo) return;
+
+                const dia = new Date().getDay(); // 0=Dom … 6=Sáb
+                const lista = mensajes[dia];
+
+                // Elegir un mensaje aleatorio — solo al cargar la página
+                const idx = Math.floor(Math.random() * lista.length);
+                const palabras = lista[idx].split(' ');
+
+                // Vaciar el título y armar un <span> por palabra
+                titulo.innerHTML = '';
+                titulo.style.display = 'inline-flex';
+                titulo.style.flexWrap = 'wrap';
+                titulo.style.justifyContent = 'center';
+                titulo.style.gap = '0.25em';
+                titulo.style.overflow = 'visible';
+
+                // Obtener el gradiente definido en CSS para reutilizarlo en cada span
+                const gradiente = getComputedStyle(titulo).getPropertyValue('--accent-gradient').trim()
+                    || 'linear-gradient(135deg, #6750A4 0%, #7F67BE 50%, #9A82DB 100%)';
+
+                // Quitar el clip del h1 para que no interfiera con los spans
+                titulo.style.webkitTextFillColor = 'unset';
+                titulo.style.backgroundImage = 'none';
+                titulo.style.background = 'none';
+
+                palabras.forEach(function (palabra, i) {
+                    const span = document.createElement('span');
+                    span.textContent = palabra;
+
+                    // Aplicar gradiente directamente a cada span
+                    span.style.display = 'inline-block';
+                    span.style.backgroundImage = gradiente;
+                    span.style.webkitBackgroundClip = 'text';
+                    span.style.backgroundClip = 'text';
+                    span.style.webkitTextFillColor = 'transparent';
+                    span.style.color = 'transparent';
+
+                    // Estado inicial de la animación
+                    span.style.opacity = '0';
+                    span.style.transform = 'translateY(16px)';
+                    span.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
+
+                    titulo.appendChild(span);
+
+                    // Disparar animación escalonada
+                    setTimeout(function () {
+                        span.style.opacity = '1';
+                        span.style.transform = 'translateY(0)';
+                    }, 80 * i);
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', iniciarTituloDinamico);
+            } else {
+                iniciarTituloDinamico();
+            }
+        })();
     </script>
-    <script src="mirai-boot.js"></script> 
-<script src="auth-guard.js"></script>
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
 </body>
 
