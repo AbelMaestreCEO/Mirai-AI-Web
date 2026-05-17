@@ -1,4 +1,4 @@
-// classroom.js - Versión Corregida
+// classroom.js - Versión Unificada
 // Depende de app.js para: Menú, Tema.
 // La autenticación la maneja auth-guard.js (verifica mirai_user_dni).
 
@@ -6,15 +6,12 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', async () => {
-        // Auth: solo verificar DNI (token es opcional / HttpOnly cookie)
-        // auth-guard.js ya redirigió si no hay DNI, pero por doble seguridad:
         const dni = localStorage.getItem('mirai_user_dni');
         if (!dni) {
             window.location.replace('login.html');
             return;
         }
 
-        // Inicializar Lógica del Aula
         await loadTasks(dni);
         setupProfessorButton();
         setupLogoutButton();
@@ -32,23 +29,21 @@
         if (greeting) greeting.textContent = `Hola, ${userDni}`;
 
         try {
-            // Intentar con token si existe; si no, confiar en cookie HttpOnly
             const headers = { 'Content-Type': 'application/json' };
             const token = localStorage.getItem('mirai_auth_token');
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
             const response = await fetch(`/api/my-submissions?user_dni=${encodeURIComponent(userDni)}`, {
                 method: 'GET',
-                credentials: 'same-origin', // envía cookies HttpOnly automáticamente
+                credentials: 'same-origin',
                 headers
             });
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    // Sesión expirada en servidor: mostrar mensaje, no redirigir en loop
                     if (container) container.innerHTML = `
                         <div class="empty-state">
-                            <div style="font-size:3rem;margin-bottom:10px">⚠️</div>
+                            <span class="empty-state-icon">⚠️</span>
                             <h3>Sesión expirada</h3>
                             <p>Por favor, <a href="login.html">inicia sesión de nuevo</a>.</p>
                         </div>`;
@@ -60,16 +55,15 @@
             const data = await response.json();
             const { assignments, submissions } = data;
 
-            // Actualizar contadores
-            updateStats(assignments, submissions);
-
             if (!assignments || assignments.length === 0) {
                 if (container) container.innerHTML = `
                     <div class="empty-state">
-                        <div style="font-size:3rem;margin-bottom:10px">📭</div>
+                        <span class="empty-state-icon">📭</span>
                         <h3>No tienes tareas asignadas</h3>
                         <p>Por ahora no hay ninguna tarea pendiente para ti.</p>
                     </div>`;
+                updateStatsDOM(0, 0, '-');
+                updateCountLabel(0);
                 return;
             }
 
@@ -79,91 +73,131 @@
             console.error('Error cargando tareas:', error);
             if (container) container.innerHTML = `
                 <div class="empty-state">
-                    <div style="font-size:3rem;margin-bottom:10px">❌</div>
+                    <span class="empty-state-icon">❌</span>
                     <h3>Error cargando tareas</h3>
                     <p>${escapeHtml(error.message)}</p>
                 </div>`;
         }
     }
 
-    function updateStats(assignments, submissions) {
-        if (!assignments) return;
+    // ── RENDERIZADO ───────────────────────────────────────────────────────────
+    function renderTasks(container, assignments, submissions) {
+        container.innerHTML = '';
+
+        // Mapa de submissions por assignment_id para búsqueda O(1)
         const subMap = {};
         if (submissions) submissions.forEach(s => { subMap[s.assignment_id] = s; });
 
         let pending = 0, completed = 0, totalScore = 0, scoredCount = 0;
-        assignments.forEach(a => {
-            const sub = subMap[a.id];
-            if (sub && sub.score !== null) {
-                completed++;
-                totalScore += sub.score;
-                scoredCount++;
-            } else {
-                pending++;
-            }
-        });
-
-        const pendEl   = document.getElementById('pending-count');
-        const compEl   = document.getElementById('completed-count');
-        const avgEl    = document.getElementById('avg-score');
-        if (pendEl)  pendEl.textContent  = pending;
-        if (compEl)  compEl.textContent  = completed;
-        if (avgEl)   avgEl.textContent   = scoredCount > 0 ? (totalScore / scoredCount).toFixed(1) : '-';
-    }
-
-    function renderTasks(container, assignments, submissions) {
-        container.innerHTML = '';
-        const subMap = {};
-        if (submissions) submissions.forEach(s => { subMap[s.assignment_id] = s; });
 
         assignments.forEach(assignment => {
             const submission = subMap[assignment.id];
-            const card = document.createElement('div');
-            card.className = 'task-card';
 
-            let statusText  = 'Pendiente';
-            let statusClass = 'status-pending';
-            let actionText  = 'Ver Tarea';
-            let actionHref  = `classroom_details.html?id=${assignment.id}`;
+            // Determinar estado y acento
+            let statusText, statusClass, cardAccent, taskIcon, actionText, actionHref;
+            actionHref = `classroom_details.html?id=${assignment.id}`;
 
             if (submission) {
                 if (submission.score !== null) {
                     statusText  = `Calificado: ${submission.score}`;
                     statusClass = 'status-completed';
+                    cardAccent  = 'linear-gradient(135deg, #4caf50, #81c784)';
+                    taskIcon    = '✅';
+                    actionText  = 'Ver Calificación';
+                    completed++;
+                    totalScore += submission.score;
+                    scoredCount++;
                 } else {
                     statusText  = 'Entregado';
                     statusClass = 'status-completed';
+                    cardAccent  = 'linear-gradient(135deg, #4caf50, #81c784)';
+                    taskIcon    = '✅';
                     actionText  = 'Ver Entrega';
+                    completed++;
                 }
-                card.classList.add('completed');
+            } else {
+                const isLate = assignment.due_date && new Date(assignment.due_date) < new Date();
+                if (isLate) {
+                    statusText  = 'Atrasada';
+                    statusClass = 'status-late';
+                    cardAccent  = 'linear-gradient(135deg, #e53935, #ef9a9a)';
+                    taskIcon    = '🚨';
+                } else {
+                    statusText  = 'Pendiente';
+                    statusClass = 'status-pending';
+                    cardAccent  = 'linear-gradient(135deg, #6750A4, #9A82DB)';
+                    taskIcon    = '🧠';
+                }
+                actionText = 'Ver Tarea';
+                pending++;
             }
 
+            const isCompleted = !!submission;
+            const dueDate = assignment.due_date
+                ? new Date(assignment.due_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+                : 'Sin fecha límite';
+
+            const card = document.createElement('div');
+            card.className = `task-card${isCompleted ? ' completed' : ''}`;
+            card.style.setProperty('--card-accent', cardAccent);
+
             card.innerHTML = `
-                <div class="task-info">
-                    <h3>${escapeHtml(assignment.title)}</h3>
-                    <div class="task-meta">
-                        <span>📚 Curso: ${escapeHtml(assignment.course_title || 'General')}</span>
-                        ${assignment.due_date ? `<span>🕒 Vence: ${new Date(assignment.due_date).toLocaleDateString()}</span>` : ''}
-                        ${submission && submission.score !== null ? `<span>🏆 Nota: ${submission.score}</span>` : ''}
-                    </div>
-                    ${assignment.description ? `<p style="margin-top:8px;font-size:.9rem;color:var(--text-secondary)">${escapeHtml(assignment.description.substring(0, 100))}...</p>` : ''}
+                <span class="status-badge ${statusClass}">${statusText}</span>
+
+                <div class="task-icon">${taskIcon}</div>
+
+                <h3 class="task-title">${escapeHtml(assignment.title)}</h3>
+
+                <p class="task-course-name">📚 ${escapeHtml(assignment.course_title || 'Curso general')}</p>
+
+                <div class="task-meta">
+                    <span class="task-meta-item"><span>📅</span> ${dueDate}</span>
+                    ${submission && submission.score !== null
+                        ? `<span class="task-meta-item"><span>⭐</span> ${submission.score} pts</span>`
+                        : ''}
                 </div>
+
                 <div class="task-actions">
-                    <span class="status-badge ${statusClass}">${statusText}</span>
-                    <button class="btn-learn" data-id="${assignment.id}" data-title="${escapeHtml(assignment.title)}" title="Prepararte para esta tarea">🧠 Aprender</button>
+                    <button class="btn-secondary btn-learn"
+                            data-id="${assignment.id}"
+                            data-title="${escapeHtml(assignment.title)}">
+                        🧠 Aprender
+                    </button>
                     <a href="${actionHref}" class="btn-primary">${actionText}</a>
                 </div>`;
 
             container.appendChild(card);
         });
 
-        document.querySelectorAll('.btn-learn').forEach(btn => {
+        // Eventos del botón Aprender
+        container.querySelectorAll('.btn-learn').forEach(btn => {
             btn.addEventListener('click', e => {
                 const id    = e.currentTarget.dataset.id;
                 const title = e.currentTarget.dataset.title;
                 window.location.href = `learning_hub.html?task_id=${id}&task_title=${encodeURIComponent(title)}`;
             });
         });
+
+        // Estadísticas
+        const avg = scoredCount > 0 ? (totalScore / scoredCount).toFixed(1) : '-';
+        updateStatsDOM(pending, completed, avg);
+        updateCountLabel(assignments.length);
+    }
+
+    function updateStatsDOM(pending, completed, avg) {
+        const pendEl = document.getElementById('pending-count');
+        const compEl = document.getElementById('completed-count');
+        const avgEl  = document.getElementById('avg-score');
+        if (pendEl) pendEl.textContent = pending;
+        if (compEl) compEl.textContent = completed;
+        if (avgEl)  avgEl.textContent  = avg;
+    }
+
+    function updateCountLabel(count) {
+        const el = document.getElementById('tasks-count');
+        if (el) el.textContent = count > 0
+            ? `Mostrando ${count} tarea${count !== 1 ? 's' : ''}`
+            : 'Sin tareas';
     }
 
     // ── BOTÓN PROFESOR ────────────────────────────────────────────────────────
@@ -185,7 +219,7 @@
                 } else {
                     alert('⛔ No tienes acceso al panel de profesor. Contacta al administrador.');
                 }
-            } catch (error) {
+            } catch {
                 alert('Error verificando acceso. Inténtalo de nuevo.');
             }
         });
@@ -201,11 +235,8 @@
             try {
                 await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
             } catch (_) {}
-            localStorage.removeItem('mirai_user_dni');
-            localStorage.removeItem('mirai_user_name');
-            localStorage.removeItem('mirai-ai-conversation-id');
-            localStorage.removeItem('mirai-ai-course-id');
-            localStorage.removeItem('mirai-ai-lesson-id');
+            ['mirai_user_dni', 'mirai_user_name', 'mirai-ai-conversation-id',
+             'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
             window.location.href = 'login.html';
         });
     }

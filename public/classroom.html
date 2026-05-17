@@ -6,244 +6,548 @@
     <title>Aula Virtual - Mirai AI</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* Estilos específicos para Classroom (se mantienen igual) */
-        .classroom-container { max-width: 1200px; margin: 0 auto; padding: 20px; padding-top: 80px; }
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px; }
-        .stat-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center; }
-        .stat-number { font-size: 2rem; font-weight: bold; color: var(--primary-color); }
-        .task-list { display: grid; gap: 20px; }
-        .task-card { background: var(--card-bg); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; border-left: 4px solid var(--accent-color); }
-        .task-card:hover { transform: translateY(-2px); }
-        .task-card.completed { border-left-color: #4caf50; opacity: 0.8; }
-        .task-info h3 { margin: 0 0 8px 0; font-size: 1.1rem; }
-        .task-meta { font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 15px; flex-wrap: wrap; }
-        .task-actions { display: flex; gap: 10px; }
-        .btn-primary { background: var(--primary-color); color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; }
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-completed { background: #d4edda; color: #155724; }
-        .status-late { background: #f8d7da; color: #721c24; }
-        .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 1.1rem; }
+        /* Estilos mínimos necesarios no cubiertos por styles.css */
+
+        /* Header de la página (igual que courses-hero) */
+        .classroom-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+
+        /* Grid de stats — reutiliza stat-card de styles.css */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 0 0 32px;
+        }
+
+        /* Tarjeta de tarea — inspirada en course-card */
+        .task-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 28px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--glass-shadow);
+            animation: cardFadeIn 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+            opacity: 0;
+        }
+
+        .task-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--card-accent, var(--accent-gradient));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .task-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1), 0 4px 20px var(--accent-glow);
+            border-color: var(--accent-color);
+        }
+
+        .task-card:hover::before {
+            opacity: 1;
+        }
+
+        .task-card:nth-child(1) { animation-delay: 0.05s; }
+        .task-card:nth-child(2) { animation-delay: 0.1s; }
+        .task-card:nth-child(3) { animation-delay: 0.15s; }
+        .task-card:nth-child(4) { animation-delay: 0.2s; }
+        .task-card:nth-child(5) { animation-delay: 0.25s; }
+        .task-card:nth-child(6) { animation-delay: 0.3s; }
+
+        /* Icono de la tarea — igual que course-icon */
+        .task-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: var(--border-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-bottom: 16px;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            transition: transform var(--transition-fast);
+        }
+
+        .task-card:hover .task-icon {
+            transform: scale(1.1) rotate(-5deg);
+        }
+
+        /* Título y descripción */
+        .task-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+            line-height: 1.3;
+        }
+
+        .task-course-name {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            margin-bottom: 16px;
+            flex: 1;
+        }
+
+        /* Meta info — reutiliza course-meta */
+        .task-meta {
+            display: flex;
+            gap: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--glass-border);
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .task-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.78rem;
+            color: var(--text-tertiary);
+        }
+
+        /* Botones de acción — en columna en móvil */
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .task-actions .btn-primary,
+        .task-actions .btn-learn,
+        .task-actions .btn-secondary {
+            flex: 1 1 auto;
+            min-width: 0;
+            text-align: center;
+            white-space: nowrap;
+            padding: 10px 12px;
+            font-size: 0.82rem;
+        }
+
+        /* En móvil los botones van en columna */
+        @media (max-width: 600px) {
+            .task-actions {
+                flex-direction: column;
+            }
+
+            .task-actions .btn-primary,
+            .task-actions .btn-learn,
+            .task-actions .btn-secondary {
+                width: 100%;
+                flex: none;
+            }
+        }
+
+        /* Grid de tareas — igual que courses-grid */
+        .task-list {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: 0;
+        }
+
+        @media (max-width: 1200px) {
+            .task-list { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 900px) {
+            .task-list { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        }
+
+        @media (max-width: 600px) {
+            .task-list { grid-template-columns: 1fr; gap: 14px; }
+        }
+
+        /* Hero — igual que courses-hero pero ajustado */
+        .classroom-hero {
+            text-align: center;
+            padding: 60px 20px 20px;
+        }
+
+        .classroom-hero h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .classroom-hero p {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 520px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Header row con botón profesor */
+        .classroom-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 20px 0 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Contador — igual que courses-count */
+        .tasks-count {
+            padding: 4px 0 0;
+            font-size: 0.82rem;
+            color: var(--text-tertiary);
+            margin-bottom: 16px;
+        }
+
+        /* Estado loading / vacío */
+        .loading-state,
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-tertiary);
+            font-size: 1rem;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        /* Badge de estado — reutiliza course-level */
+        .status-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 3px 10px;
+            border-radius: var(--border-radius-pill);
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-pending {
+            background: rgba(255, 159, 10, 0.15);
+            color: #FF9F0A;
+            border: 1px solid rgba(255, 159, 10, 0.25);
+        }
+
+        .status-completed {
+            background: rgba(56, 106, 32, 0.15);
+            color: #386A20;
+            border: 1px solid rgba(56, 106, 32, 0.25);
+        }
+
+        .status-late {
+            background: rgba(208, 0, 0, 0.15);
+            color: #D00000;
+            border: 1px solid rgba(208, 0, 0, 0.25);
+        }
+
+        [data-theme="dark"] .status-completed {
+            background: rgba(168, 216, 140, 0.15);
+            color: #A8D88C;
+            border-color: rgba(168, 216, 140, 0.25);
+        }
+
+        /* Tarea completada — opacidad reducida */
+        .task-card.completed {
+            opacity: 0.75;
+        }
+
+        /* Ajuste: stat-card en classroom usa stat-number */
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent-color);
+            line-height: 1.2;
+        }
+
+        /* Promedio con color especial */
+        .stat-number.avg {
+            color: #386A20;
+        }
+
+        [data-theme="dark"] .stat-number.avg {
+            color: #A8D88C;
+        }
+
+        @media (max-width: 768px) {
+            .classroom-hero { padding: 40px 16px 12px; }
+            .classroom-hero h1 { font-size: 1.8rem; }
+            .classroom-hero p { font-size: 0.92rem; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- SIDEBAR -->
     <nav class="mobile-sidebar">
-    <div class="sidebar-header">
-        <h3>Mirai AI</h3>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
-                <svg viewBox="0 0 24 24" width="18" height="18">
-                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </svg>
-            </button>
-            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
-        </div>
-    </div>
-
-    <div class="sidebar-content">
-        <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
-        <section class="sidebar-section collapsible-section active">
-            <div class="collapsible-header" role="button" tabindex="0">
-                <h4>Navegación</h4>
-                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                </svg>
-            </div>
-            <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
-                <div class="nav-grid">
-                    <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
-                        <span class="nav-icon">🏠</span>
-                        <span class="nav-label">Hogar</span>
-                    </a>
-<a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
-                        <span class="nav-icon">💬</span>
-                        <span class="nav-label">Chat</span>
-                    </a>
-                    <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
-                        <span class="nav-icon">📚</span>
-                        <span class="nav-label">Cursos</span>
-                    </a>
-                    <a href="classroom.html" class="nav-grid-item active-link" data-tooltip="Aula">
-                        <span class="nav-icon">🏫</span>
-                        <span class="nav-label">Aula</span>
-                    </a>
-                    <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
-                        <span class="nav-icon">📦</span>
-                        <span class="nav-label">Inventario</span>
-                    </a>
-                    <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
-                        <span class="nav-icon">🖼️</span>
-                        <span class="nav-label">Fotos</span>
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
-        <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-            <div class="conversations-header">
-                <h4>Conversaciones</h4>
-                <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                     </svg>
                 </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
             </div>
-            <ul id="conversations-list" class="conversations-list">
-                <!-- Se llenará dinámicamente -->
-            </ul>
-        </section>
-
-        <!-- Sección 3: Explorar (Desplegable Maestro) -->
-        <section class="sidebar-section collapsible-section">
-            <div class="collapsible-header" role="button" tabindex="0">
-                <h4>Explorar</h4>
-                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                </svg>
-            </div>
-            <div class="collapsible-content">
-                
-                <!-- Submenú: Servicios -->
-                <div class="nested-collapsible">
-                    <div class="collapsible-header nested-header" role="button" tabindex="0">
-                        <h5>Servicios</h5>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </div>
-                    <div class="collapsible-content nested-content">
-                        <ul class="sidebar-links">
-                            <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
-                            <li><a href="https://aberumirai.com#education">Educación</a></li>
-                            <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
-                            <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
-                            <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Submenú: Empresa -->
-                <div class="nested-collapsible">
-                    <div class="collapsible-header nested-header" role="button" tabindex="0">
-                        <h5>Empresa</h5>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </div>
-                    <div class="collapsible-content nested-content">
-                        <ul class="sidebar-links">
-                            <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
-                            <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
-                            <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
-                            <li><a href="#">Quiénes somos</a></li>
-                            <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Submenú: Enlaces Externos -->
-                <div class="nested-collapsible">
-                    <div class="collapsible-header nested-header" role="button" tabindex="0">
-                        <h5>Enlaces Externos</h5>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </div>
-                    <div class="collapsible-content nested-content">
-                        <ul class="sidebar-links">
-                            <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
-                            <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
-                            <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
-                            <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- Sección 4: Redes Sociales -->
-        <section class="sidebar-section">
-            <h4>Síguenos</h4>
-            <div class="sidebar-social">
-                <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
-                </a>
-                <a href="#" aria-label="Twitter/X">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
-                </a>
-                <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
-                </a>
-                <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
-                </a>
-                <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
-                </a>
-            </div>
-        </section>
-
-        <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                <path
-                    d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-            </svg>
-            <span>Cerrar Sesión</span>
-        </button>
-
-        <div class="sidebar-logo">
-            <a href="https://aberumirai.com">
-                <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
-                    style="max-width: 80px; max-height: 80px;">
-            </a>
         </div>
-    </div>
 
-    <!-- Footer del sidebar -->
-    <div class="sidebar-footer">
-        <p>&copy;
-            <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
-        </p>
-    </div>
-</nav>
+        <div class="sidebar-content">
+            <!-- Sección 1: Navegación -->
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
+                        </a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
+                        </a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
+                        </a>
+                        <a href="classroom.html" class="nav-grid-item active-link" data-tooltip="Aula">
+                            <span class="nav-icon">🏫</span>
+                            <span class="nav-label">Aula</span>
+                        </a>
+                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">Inventario</span>
+                        </a>
+                        <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
+                            <span class="nav-icon">🖼️</span>
+                            <span class="nav-label">Fotos</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 2: Conversaciones -->
+            <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list"></ul>
+            </section>
+
+            <!-- Sección 3: Explorar -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Explorar</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Servicios</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                                <li><a href="https://aberumirai.com#education">Educación</a></li>
+                                <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                                <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                                <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Empresa</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                                <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                                <li><a href="#">Quiénes somos</a></li>
+                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Enlaces Externos</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                                <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                                <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                                <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 4: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
+                </a>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
+        </div>
+    </nav>
     <div class="mobile-overlay"></div>
 
     <!-- HEADER -->
     <header class="header">
         <button class="mobile-menu-toggle" aria-label="Abrir menú">
-            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
         </button>
-        <div class="header-title">Aula Virtual</div>
-        <button id="theme-toggle" class="theme-toggle">🌓</button>
+        <div class="header-title"></div>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+            </svg>
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
     </header>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <main class="classroom-container">
-        <div class="dashboard-header">
-            <h1>Mis Tareas</h1>
-            <div id="user-greeting">Hola, Estudiante</div>
+    <div class="classroom-container">
+
+        <!-- Hero -->
+        <div class="classroom-hero">
+            <h1>Aula Virtual</h1>
+            <p>Revisa y entrega tus tareas asignadas. Mantén tu progreso al día.</p>
+        </div>
+
+        <!-- Toolbar: saludo + botón profesor -->
+        <div class="classroom-toolbar">
+            <div id="user-greeting" style="font-size: 1rem; color: var(--text-secondary);">Hola, Estudiante</div>
             <button id="professor-btn" class="btn-secondary" title="Acceso para Profesores">
-            👨‍🏫 ¿Es un profesor?
-        </button>
+                👨‍🏫 ¿Es un profesor?
+            </button>
         </div>
 
+        <!-- Stats -->
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-number" id="pending-count">0</div><div>Pendientes</div></div>
-            <div class="stat-card"><div class="stat-number" id="completed-count">0</div><div>Completadas</div></div>
-            <div class="stat-card"><div class="stat-number" id="avg-score">-</div><div>Promedio</div></div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-content">
+                    <span class="stat-label">Pendientes</span>
+                    <span class="stat-value stat-number" id="pending-count">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <span class="stat-label">Completadas</span>
+                    <span class="stat-value stat-number" id="completed-count">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <span class="stat-label">Promedio</span>
+                    <span class="stat-value stat-number avg" id="avg-score">-</span>
+                </div>
+            </div>
         </div>
 
+        <!-- Contador -->
+        <div class="tasks-count" id="tasks-count">Cargando tareas...</div>
+
+        <!-- Grid de tareas -->
         <div id="tasks-container" class="task-list">
-            <div class="loading-state">Cargando tareas...</div>
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                Cargando tareas...
+            </div>
         </div>
-    </main>
-<script src="mirai-boot.js"></script> 
-<script src="auth-guard.js"></script>
-<script type="module" src="app.js" defer></script>
-<script type="module" src="classroom.js" defer></script>
+
+    </div><!-- /classroom-container -->
+
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+    <script type="module" src="classroom.js" defer></script>
 </body>
 </html>
