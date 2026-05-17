@@ -389,7 +389,7 @@
     </main>
 
     <!-- MODAL: Crear Curso -->
-    <div id="modal-new-course" class="modal">
+    <div id="modal-new-course" class="modal" style="display:none;">
         <div class="modal-overlay" onclick="closeModal()"></div>
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -414,28 +414,65 @@
         </div>
     </div>
 
+    <!-- Tab system y modal — debe ir ANTES de classroom_admin.js -->
+    <script>
+        // ── TABS ──────────────────────────────────────────────
+        function switchTab(tabId) {
+            document.querySelectorAll('.admin-tab-content').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.admin-tab-btn').forEach(function(btn) {
+                btn.classList.remove('active');
+            });
+            var content = document.getElementById('tab-' + tabId);
+            if (content) content.style.display = 'block';
+            var btn = document.querySelector('.admin-tab-btn[data-tab="' + tabId + '"]');
+            if (btn) btn.classList.add('active');
+        }
+
+        // Inicializar tabs al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ocultar todos los tabs con style directo (no depende de CSS externo)
+            document.querySelectorAll('.admin-tab-content').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            // Mostrar solo el primero
+            var first = document.getElementById('tab-create');
+            if (first) first.style.display = 'block';
+
+            // Botón agregar curso → abrir modal
+            var btnAddCourse = document.getElementById('btn-add-course');
+            if (btnAddCourse) {
+                btnAddCourse.addEventListener('click', function() {
+                    openModal();
+                });
+            }
+        });
+
+        // ── MODAL ─────────────────────────────────────────────
+        function openModal() {
+            var modal = document.getElementById('modal-new-course');
+            if (modal) {
+                modal.style.display = 'flex';
+                // Forzar reflow para animación
+                modal.offsetHeight;
+                modal.classList.add('show');
+            }
+        }
+
+        function closeModal() {
+            var modal = document.getElementById('modal-new-course');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
     <script src="classroom_admin.js" defer></script>
-    <script>
-        function switchTab(tabId) {
-            // Ocultar todos los contenidos
-            document.querySelectorAll('.admin-tab-content').forEach(function(el) {
-                el.classList.remove('active');
-            });
-            // Desactivar todos los botones
-            document.querySelectorAll('.admin-tab-btn').forEach(function(btn) {
-                btn.classList.remove('active');
-            });
-            // Activar el tab seleccionado
-            var content = document.getElementById('tab-' + tabId);
-            if (content) content.classList.add('active');
-            // Activar el botón correspondiente
-            var btn = document.querySelector('.admin-tab-btn[data-tab="' + tabId + '"]');
-            if (btn) btn.classList.add('active');
-        }
-    </script>
 </body>
 
 </html>
