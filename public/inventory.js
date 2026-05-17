@@ -461,7 +461,6 @@ async function showProductDetails(product) {
         
         <div class="detail-actions">
             <button class="btn-secondary" onclick="closeProductDetail()">Cerrar</button>
-            <button class="btn-primary" onclick="alert('Función de edición próximamente')">Editar</button>
         </div>
     `;
 
