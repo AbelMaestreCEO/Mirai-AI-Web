@@ -6894,15 +6894,7 @@ svg {
     border-color: #d32f2f;
 }
 
-/* Modal visible/oculto — compatible con JS del original */
-.modal {
-    display: flex;
-}
 
-.modal.hidden,
-.modal:not([style*="display"]) {
-    display: none;
-}
 
 /* Responsive admin dashboard */
 @media (max-width: 768px) {

@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Docente - Mirai AI</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles-additions.css">
+    <style>
+        /* Tabs críticos — garantizan el comportamiento correcto */
+        .admin-tab-content          { display: none !important; }
+        .admin-tab-content.active   { display: block !important; }
+    </style>
 </head>
 
 <body>
@@ -412,6 +418,24 @@
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
     <script src="classroom_admin.js" defer></script>
+    <script>
+        function switchTab(tabId) {
+            // Ocultar todos los contenidos
+            document.querySelectorAll('.admin-tab-content').forEach(function(el) {
+                el.classList.remove('active');
+            });
+            // Desactivar todos los botones
+            document.querySelectorAll('.admin-tab-btn').forEach(function(btn) {
+                btn.classList.remove('active');
+            });
+            // Activar el tab seleccionado
+            var content = document.getElementById('tab-' + tabId);
+            if (content) content.classList.add('active');
+            // Activar el botón correspondiente
+            var btn = document.querySelector('.admin-tab-btn[data-tab="' + tabId + '"]');
+            if (btn) btn.classList.add('active');
+        }
+    </script>
 </body>
 
 </html>
