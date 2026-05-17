@@ -3,74 +3,31 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hub de Aprendizaje - Mirai AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Hub de Aprendizaje">
+
+    <title>Mirai AI - Hub de Aprendizaje</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="styles.css">
+
     <style>
-        .hub-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            padding-top: 100px;
-            text-align: center;
+        /* Único estilo nuevo: ancho de tarjeta de modo limitado para no exceder 3 columnas */
+        .hub-modes-grid {
+            grid-template-columns: repeat(3, 1fr);
         }
-
-        .mode-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 25px;
-            margin-top: 40px;
+        @media (max-width: 900px) {
+            .hub-modes-grid { grid-template-columns: repeat(2, 1fr); }
         }
-
-        .mode-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 30px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        }
-
-        .mode-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary-color);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .mode-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-            display: block;
-        }
-
-        .mode-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: var(--text-primary);
-        }
-
-        .mode-desc {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        .back-link {
-            display: inline-block;
-            margin-top: 30px;
-            color: var(--text-secondary);
-            text-decoration: none;
-        }
-
-        .back-link:hover {
-            color: var(--primary-color);
+        @media (max-width: 600px) {
+            .hub-modes-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 
 <body>
+
     <nav class="mobile-sidebar">
         <div class="sidebar-header">
             <h3>Mirai AI</h3>
@@ -85,7 +42,7 @@
         </div>
 
         <div class="sidebar-content">
-            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
+            <!-- Sección 1: Navegación -->
             <section class="sidebar-section collapsible-section active">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Navegación</h4>
@@ -95,6 +52,10 @@
                 </div>
                 <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
                     <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
+                        </a>
                         <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
                             <span class="nav-icon">💬</span>
                             <span class="nav-label">Chat</span>
@@ -103,7 +64,7 @@
                             <span class="nav-icon">📚</span>
                             <span class="nav-label">Cursos</span>
                         </a>
-                        <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
+                        <a href="classroom.html" class="nav-grid-item active-link" data-tooltip="Aula">
                             <span class="nav-icon">🏫</span>
                             <span class="nav-label">Aula</span>
                         </a>
@@ -119,7 +80,7 @@
                 </div>
             </section>
 
-            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
+            <!-- Sección 2: Conversaciones -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                 <div class="conversations-header">
                     <h4>Conversaciones</h4>
@@ -129,12 +90,10 @@
                         </svg>
                     </button>
                 </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
+                <ul id="conversations-list" class="conversations-list"></ul>
             </section>
 
-            <!-- Sección 3: Explorar (Desplegable Maestro) -->
+            <!-- Sección 3: Explorar -->
             <section class="sidebar-section collapsible-section">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Explorar</h4>
@@ -143,8 +102,6 @@
                     </svg>
                 </div>
                 <div class="collapsible-content">
-
-                    <!-- Submenú: Servicios -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Servicios</h5>
@@ -162,8 +119,6 @@
                             </ul>
                         </div>
                     </div>
-
-                    <!-- Submenú: Empresa -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Empresa</h5>
@@ -181,8 +136,6 @@
                             </ul>
                         </div>
                     </div>
-
-                    <!-- Submenú: Enlaces Externos -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Enlaces Externos</h5>
@@ -199,7 +152,6 @@
                             </ul>
                         </div>
                     </div>
-
                 </div>
             </section>
 
@@ -227,21 +179,18 @@
 
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                    <path
-                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
 
             <div class="sidebar-logo">
                 <a href="https://aberumirai.com">
-                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
-                        style="max-width: 80px; max-height: 80px;">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
                 </a>
             </div>
         </div>
 
-        <!-- Footer del sidebar -->
         <div class="sidebar-footer">
             <p>&copy;
                 <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
@@ -249,56 +198,96 @@
         </div>
     </nav>
 
+    <div class="mobile-overlay"></div>
+
+    <!-- Header -->
     <header class="header">
         <button class="mobile-menu-toggle" aria-label="Abrir menú">
-            <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
         </button>
-        <div class="header-title">Hub de Aprendizaje</div>
-        <button id="theme-toggle" class="theme-toggle">🌓</button>
+
+        <div class="header-title"></div>
+
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+            </svg>
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
     </header>
 
-    <main class="hub-container">
-        <h1 id="task-title-display">Preparando tu aprendizaje</h1>
-        <p>Elige cómo quieres prepararte antes de entregar tu trabajo:</p>
+    <!-- Contenedor Principal -->
+    <div class="courses-container">
 
-        <div class="mode-grid">
-            <div class="mode-card" onclick="startLearning('theory')">
-                <span class="mode-icon">📖</span>
-                <div class="mode-title">Teoría</div>
-                <div class="mode-desc">Mirai te explicará los conceptos clave, definiciones y fundamentos necesarios
-                    para esta tarea.</div>
-            </div>
-
-            <div class="mode-card" onclick="startLearning('quiz')">
-                <span class="mode-icon">❓</span>
-                <div class="mode-title">Quiz Interactivo</div>
-                <div class="mode-desc">Preguntas y respuestas para validar tu comprensión. ¡Aprende jugando!</div>
-            </div>
-
-            <div class="mode-card" onclick="startLearning('practice')">
-                <span class="mode-icon">💻</span>
-                <div class="mode-title">Práctica con Ejemplos</div>
-                <div class="mode-desc">Ejercicios guiados y ejemplos de código o casos de estudio relacionados con la
-                    tarea.</div>
-            </div>
+        <!-- Hero -->
+        <div class="courses-hero">
+            <h1 id="task-title-display">Preparando tu aprendizaje</h1>
+            <p>Elige cómo quieres prepararte antes de entregar tu trabajo.</p>
         </div>
 
-        <a href="classroom.html" class="back-link">← Volver a mis tareas</a>
-    </main>
-    <script src="mirai-boot.js"></script> 
-<script src="auth-guard.js"></script>
-<script type="module" src="app.js" defer></script>
-    <script>
-        // La cookie HttpOnly se envía automáticamente por el navegador en cada petición.
-        // Solo necesitamos asegurarnos de que fetch incluya credentials:
-        const originalFetch = window.fetch;
-        window.fetch = async function (url, options = {}) {
-            if (typeof url === 'string' && url.startsWith('/api/')) {
-                options.credentials = 'same-origin'; // Envía la cookie automáticamente
-            }
-            return originalFetch.call(this, url, options);
-        };
+        <!-- Contador -->
+        <div class="courses-count">3 modos disponibles</div>
 
+        <!-- Grid de Modos -->
+        <div class="courses-grid hub-modes-grid" id="modes-grid">
+
+            <div class="course-card" style="--card-accent: linear-gradient(135deg, #6750A4, #9A82DB);">
+                <span class="course-level principiante">Conceptual</span>
+                <div class="course-icon">📖</div>
+                <h3 class="course-title">Teoría</h3>
+                <p class="course-description">Mirai te explicará los conceptos clave, definiciones y fundamentos necesarios para esta tarea. Aprende el «por qué» antes de ponerte a trabajar.</p>
+                <div class="course-meta">
+                    <span class="course-meta-item"><span>🧠</span> Conceptos clave</span>
+                    <span class="course-meta-item"><span>📝</span> Explicaciones claras</span>
+                </div>
+                <button class="course-start-btn" onclick="startLearning('theory')">Comenzar con Teoría</button>
+            </div>
+
+            <div class="course-card" style="--card-accent: linear-gradient(135deg, #FF9F0A, #f5a623);">
+                <span class="course-level intermedio">Interactivo</span>
+                <div class="course-icon">❓</div>
+                <h3 class="course-title">Quiz Interactivo</h3>
+                <p class="course-description">Preguntas y respuestas para validar tu comprensión. Mirai lleva el puntaje y te da feedback en cada respuesta. ¡Aprende jugando!</p>
+                <div class="course-meta">
+                    <span class="course-meta-item"><span>🎯</span> Preguntas guiadas</span>
+                    <span class="course-meta-item"><span>⭐</span> Feedback al instante</span>
+                </div>
+                <button class="course-start-btn" onclick="startLearning('quiz')">Comenzar Quiz</button>
+            </div>
+
+            <div class="course-card" style="--card-accent: linear-gradient(135deg, #009688, #4caf50);">
+                <span class="course-level avanzado">Práctico</span>
+                <div class="course-icon">💻</div>
+                <h3 class="course-title">Práctica con Ejemplos</h3>
+                <p class="course-description">Ejercicios guiados y ejemplos de código o casos de estudio relacionados con la tarea. Mirai te guiará paso a paso sin darte la solución directa.</p>
+                <div class="course-meta">
+                    <span class="course-meta-item"><span>🔧</span> Ejercicios reales</span>
+                    <span class="course-meta-item"><span>📌</span> Paso a paso</span>
+                </div>
+                <button class="course-start-btn" onclick="startLearning('practice')">Comenzar Práctica</button>
+            </div>
+
+        </div><!-- /courses-grid -->
+
+        <!-- Volver -->
+        <div style="text-align: center; padding: 20px 0 60px;">
+            <a href="classroom.html" class="back-btn">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                Volver a mis tareas
+            </a>
+        </div>
+
+    </div><!-- /courses-container -->
+
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
             const taskId = params.get('task_id');
@@ -310,33 +299,33 @@
             }
 
             if (taskTitle) {
-                document.getElementById('task-title-display').textContent = `Preparación: ${decodeURIComponent(taskTitle)}`;
+                document.getElementById('task-title-display').textContent =
+                    `Preparación: ${decodeURIComponent(taskTitle)}`;
             }
 
-            // Guardar contexto temporalmente para la navegación
-            window.learningContext = { taskId, taskTitle: decodeURIComponent(taskTitle || '') };
+            window.learningContext = {
+                taskId,
+                taskTitle: decodeURIComponent(taskTitle || '')
+            };
         });
 
         function startLearning(mode) {
             const { taskId, taskTitle } = window.learningContext;
 
-            // Construir el sistema de prompts para el backend
-            // Esto le dice a Mirai exactamente qué rol tomar
             const systemPrompt = `
                 Eres un tutor experto en la tarea: "${taskTitle}".
                 El usuario ha seleccionado el modo: "${mode.toUpperCase()}".
-                
+
                 Reglas específicas según el modo:
                 - TEORÍA: Explica los conceptos fundamentales de forma clara y estructurada. Usa analogías. No des la solución directa, enseña el "por qué".
                 - QUIZ: Haz una pregunta a la vez. Espera la respuesta del usuario. Evalúa si es correcta, da feedback y pasa a la siguiente. Lleva un conteo de aciertos.
                 - PRÁCTICA: Proporciona un ejemplo resuelto paso a paso. Luego, pide al usuario que intente algo similar o modifica el ejemplo para que el usuario lo complete.
-                
+
                 Mantén un tono alentador y pedagógico. Si el usuario pide la respuesta directa en modo Quiz o Práctica, guíalo en lugar de dársela.
             `;
 
-            // 🔴 CLAVE: Usamos un ID único basado en la tarea y el modo para buscar el chat existente
-            const uniqueChatId = `task_${taskId}_mode_${mode}`;
-            window.location.href = `index.html?context_task=${taskId}&context_mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
+            window.location.href =
+                `index.html?context_task=${taskId}&context_mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
         }
     </script>
 </body>
