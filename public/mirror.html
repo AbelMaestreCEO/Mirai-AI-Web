@@ -9,400 +9,769 @@
 
     <title>Mirai Mirror | Organizador de Fotos</title>
 
-    <!-- Preload de fuentes del sistema para evitar FOIT -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
 
-    <!-- Hoja de estilos (Compartida con Mirai AI) -->
+    <!-- Iconos Lucide: carga síncrona antes del body para que estén disponibles -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Hoja de estilos compartida -->
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Iconos (SVG inline para evitar carga externa) -->
     <style>
-        /* Ajustes específicos para Mirror */
+        /* ============================================
+           MIRROR MAIN LAYOUT
+           ============================================ */
         .mirror-main {
-            padding: 2rem 1rem;
-            max-width: 1200px;
+            padding: 2rem 1.5rem 4rem;
+            max-width: 1100px;
             margin: 0 auto;
         }
 
-        .upload-area {
-            border: 2px dashed var(--primary-color);
-            border-radius: 12px;
-            padding: 3rem 2rem;
+        /* ============================================
+           HERO
+           ============================================ */
+        .mirror-hero {
             text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            background: rgba(var(--primary-color-rgb), 0.05);
+            margin-bottom: 2.5rem;
         }
 
-        .upload-area.dragover {
-            background: rgba(var(--primary-color-rgb), 0.15);
-            border-color: var(--accent-color);
-            transform: scale(1.02);
+        .mirror-hero h1 {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(135deg, #c45f8a 0%, #a050b0 50%, #7060d0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .mirror-hero p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .mirror-hero .tagline {
+            display: inline-block;
+            margin-top: 0.4rem;
+            font-size: 0.85rem;
+            color: #a04070;
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        /* ============================================
+           DROP ZONE — REDISEÑADO
+           ============================================ */
+        .drop-zone-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            margin-bottom: 1.5rem;
+        }
+
+        .drop-zone-area {
+            position: relative;
+            border-radius: 18px;
+            padding: 3.5rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+            overflow: hidden;
+
+            /* Fondo con patrón de puntos sutiles */
+            background-color: rgba(196, 95, 138, 0.04);
+            background-image:
+                radial-gradient(circle, rgba(196, 95, 138, 0.18) 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+
+            /* Borde animado via outline dashed */
+            outline: 2px dashed rgba(196, 95, 138, 0.35);
+            outline-offset: -2px;
+        }
+
+        /* Shimmer de fondo animado */
+        .drop-zone-area::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(
+                135deg,
+                rgba(196, 95, 138, 0.0) 0%,
+                rgba(160, 80, 176, 0.07) 50%,
+                rgba(112, 96, 208, 0.0) 100%
+            );
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+        }
+
+        .drop-zone-area:hover::before,
+        .drop-zone-area.dragover::before {
+            opacity: 1;
+        }
+
+        .drop-zone-area:hover,
+        .drop-zone-area.dragover {
+            background-color: rgba(196, 95, 138, 0.08);
+            outline-color: rgba(196, 95, 138, 0.7);
+            outline-offset: 0px;
+            transform: scale(1.008);
+        }
+
+        .drop-zone-area.dragover {
+            background-color: rgba(196, 95, 138, 0.13);
+            outline-color: #c45f8a;
+            outline-width: 2.5px;
+        }
+
+        /* Icono central */
+        .dz-icon-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 88px;
+            height: 88px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .dz-icon-bg {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(196, 95, 138, 0.15), rgba(112, 96, 208, 0.15));
+            border: 1.5px solid rgba(196, 95, 138, 0.25);
+            transition: all 0.35s ease;
+        }
+
+        .drop-zone-area:hover .dz-icon-bg,
+        .drop-zone-area.dragover .dz-icon-bg {
+            transform: scale(1.12);
+            background: linear-gradient(135deg, rgba(196, 95, 138, 0.25), rgba(112, 96, 208, 0.25));
+            border-color: rgba(196, 95, 138, 0.5);
+        }
+
+        /* Anillo de pulso en drag */
+        .dz-icon-ring {
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            border: 2px solid rgba(196, 95, 138, 0.4);
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.35s ease;
+        }
+
+        .drop-zone-area.dragover .dz-icon-ring {
+            opacity: 1;
+            transform: scale(1);
+            animation: ringPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes ringPulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50%       { transform: scale(1.1); opacity: 1; }
+        }
+
+        .dz-main-icon {
+            position: relative;
+            z-index: 1;
+            color: #c45f8a;
+            transition: transform 0.3s cubic-bezier(0.05, 0.7, 0.1, 1);
+        }
+
+        .drop-zone-area:hover .dz-main-icon,
+        .drop-zone-area.dragover .dz-main-icon {
+            transform: translateY(-4px) scale(1.1);
+        }
+
+        /* Texto del drop zone */
+        .dz-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
+            letter-spacing: -0.01em;
+        }
+
+        .dz-subtitle {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .dz-formats {
+            display: inline-flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1.25rem;
+        }
+
+        .dz-format-pill {
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(196, 95, 138, 0.1);
+            border: 1px solid rgba(196, 95, 138, 0.2);
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #a04070;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        [data-theme="dark"] .dz-format-pill {
+            background: rgba(196, 95, 138, 0.15);
+            border-color: rgba(196, 95, 138, 0.3);
+            color: #e080b0;
+        }
+
+        /* Separador "o" */
+        .dz-or {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 1rem 2rem;
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+        }
+        .dz-or::before, .dz-or::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--glass-border);
+        }
+
+        /* Botón explorar (label sobre input hidden) */
+        .btn-explore {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 22px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #c45f8a, #a050b0);
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+            border: none;
+            box-shadow: 0 2px 12px rgba(196, 95, 138, 0.35);
+            letter-spacing: -0.01em;
+        }
+
+        .btn-explore:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(196, 95, 138, 0.45);
+        }
+
+        .btn-explore:active {
+            transform: translateY(0) scale(0.97);
+        }
+
+        /* ============================================
+           PREVIEW
+           ============================================ */
+        .preview-section {
+            margin-top: 1.5rem;
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .preview-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .preview-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 7px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #c45f8a, #a050b0);
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 700;
         }
 
         .image-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
         }
 
         .image-item {
             position: relative;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
             aspect-ratio: 1;
-            background: var(--card-bg);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            animation: itemEnter 0.35s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+            opacity: 0;
+        }
+
+        @keyframes itemEnter {
+            from { opacity: 0; transform: scale(0.88); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        .image-item:hover {
+            transform: scale(1.04);
+            box-shadow: 0 6px 18px rgba(196, 95, 138, 0.25);
         }
 
         .image-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            display: block;
+        }
+
+        .image-item .image-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 8px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
+        }
+
+        .image-item .image-name {
+            display: block;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.9);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .image-item .image-size {
+            display: block;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.65);
         }
 
         .image-item .remove-btn {
             position: absolute;
             top: 5px;
             right: 5px;
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
-            background: rgba(255, 59, 48, 0.9);
+            background: rgba(220, 30, 60, 0.88);
             color: white;
             border: none;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 10;
+            line-height: 1;
+            transition: all 0.2s ease;
+            opacity: 0;
         }
 
-        .status {
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
+        .image-item:hover .remove-btn {
+            opacity: 1;
+        }
+
+        .remove-btn:hover {
+            background: rgba(220, 30, 60, 1) !important;
+            transform: scale(1.15);
+        }
+
+        /* ============================================
+           STATUS
+           ============================================ */
+        .status-bar {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-        }
-
-        .status.info {
-            background: rgba(0, 122, 255, 0.1);
-            color: var(--primary-color);
-        }
-
-        .status.success {
-            background: rgba(52, 199, 89, 0.1);
-            color: #34c759;
-        }
-
-        .status.error {
-            background: rgba(255, 59, 48, 0.1);
-            color: #ff3b30;
-        }
-
-        .status.show {
-            display: flex;
-        }
-
-        .status.hidden {
-            display: none;
-        }
-
-        .spinner {
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-top-color: var(--primary-color);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
+            gap: 10px;
+            padding: 12px 16px;
             border-radius: 12px;
-            padding: 1.5rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
+            margin: 1.25rem 0 0;
+            font-size: 0.88rem;
             font-weight: 500;
             transition: all 0.3s ease;
+        }
+
+        .status-bar.info    { background: rgba(103, 80, 164, 0.08); color: #6750A4; border: 1px solid rgba(103,80,164,0.15); }
+        .status-bar.success { background: rgba(52, 199, 89, 0.1);   color: #1a7a35; border: 1px solid rgba(52,199,89,0.2); }
+        .status-bar.error   { background: rgba(255, 59, 48, 0.08);  color: #c0392b; border: 1px solid rgba(255,59,48,0.15); }
+
+        [data-theme="dark"] .status-bar.info    { color: #d0bcff; border-color: rgba(208,188,255,0.15); }
+        [data-theme="dark"] .status-bar.success { color: #a8d88c; border-color: rgba(168,216,140,0.2); }
+        [data-theme="dark"] .status-bar.error   { color: #ff8a80; border-color: rgba(255,138,128,0.15); }
+
+        .status-bar.hidden { display: none; }
+        .status-bar .status-icon { flex-shrink: 0; }
+
+        /* Spinner */
+        .mirror-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(196, 95, 138, 0.2);
+            border-top-color: #c45f8a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ============================================
+           BOTONES DE ACCIÓN
+           ============================================ */
+        .action-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 1.5rem;
+        }
+
+        .btn-mirror {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 8px;
+            padding: 11px 22px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+            letter-spacing: -0.01em;
         }
 
-        .btn-primary {
-            background: var(--primary-color);
+        .btn-mirror:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-process {
+            background: linear-gradient(135deg, #c45f8a, #a050b0);
             color: white;
+            box-shadow: 0 2px 12px rgba(196, 95, 138, 0.3);
         }
 
-        .btn-primary:hover:not(:disabled) {
-            background: var(--accent-color);
+        .btn-process:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(196, 95, 138, 0.45);
+        }
+
+        .btn-download {
+            background: rgba(52, 199, 89, 0.12);
+            color: #1a7a35;
+            border: 1px solid rgba(52, 199, 89, 0.3);
+        }
+
+        .btn-download:not(:disabled):hover {
+            background: rgba(52, 199, 89, 0.2);
             transform: translateY(-2px);
         }
 
-        .btn-secondary {
-            background: rgba(var(--primary-color-rgb), 0.1);
-            color: var(--primary-color);
-            border: 1px solid var(--primary-color);
+        [data-theme="dark"] .btn-download { color: #a8d88c; border-color: rgba(168,216,140,0.3); }
+
+        .btn-reset {
+            background: rgba(255, 59, 48, 0.08);
+            color: #c0392b;
+            border: 1px solid rgba(255, 59, 48, 0.2);
         }
 
-        .btn-secondary:hover {
-            background: rgba(var(--primary-color-rgb), 0.2);
+        .btn-reset:hover {
+            background: rgba(255, 59, 48, 0.15);
+            transform: translateY(-2px);
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        [data-theme="dark"] .btn-reset { color: #ff8a80; border-color: rgba(255,138,128,0.25); }
+
+        /* ============================================
+           EXPIRATION WARNING
+           ============================================ */
+        .expiration-warning {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(255, 159, 10, 0.1);
+            border: 1px solid rgba(255, 159, 10, 0.25);
+            color: #b07000;
+            font-size: 0.82rem;
+            font-weight: 500;
+            margin-top: 0.75rem;
         }
 
-        .hidden {
-            display: none !important;
+        [data-theme="dark"] .expiration-warning { color: #ffb74d; border-color: rgba(255,183,77,0.3); }
+
+        /* ============================================
+           SECCIÓN "CÓMO FUNCIONA"
+           ============================================ */
+        .how-it-works {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
         }
 
+        .how-title {
+            text-align: center;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+            letter-spacing: -0.02em;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .step-card {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-radius: 16px;
+            background: rgba(196, 95, 138, 0.04);
+            border: 1px solid rgba(196, 95, 138, 0.1);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .step-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(196, 95, 138, 0.15);
+        }
+
+        .step-icon-wrap {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(196, 95, 138, 0.15), rgba(112, 96, 208, 0.15));
+            border: 1.5px solid rgba(196, 95, 138, 0.25);
+            color: #c45f8a;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            line-height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c45f8a, #a050b0);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .step-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        /* ============================================
+           UTILIDADES
+           ============================================ */
+        .hidden { display: none !important; }
         .mt-2 { margin-top: 1rem; }
         .mt-3 { margin-top: 1.5rem; }
-        .mb-2 { margin-bottom: 1rem; }
-        .text-center { text-align: center; }
 
         .animate-up {
-            animation: animateUp 0.5s ease-out;
+            animation: animUp 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) both;
+        }
+        .animate-up.delay-1 { animation-delay: 0.1s; }
+        .animate-up.delay-2 { animation-delay: 0.2s; }
+
+        @keyframes animUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes animateUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* Responsive */
+        @media (max-width: 600px) {
+            .mirror-main { padding: 1.25rem 1rem 3rem; }
+            .drop-zone-area { padding: 2.5rem 1rem; }
+            .action-row { flex-direction: column; }
+            .btn-mirror { width: 100%; justify-content: center; }
         }
     </style>
 
     <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Mirai Mirror">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
-
-    <!-- Librerías necesarias para Mirror -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 
 <body>
 
+    <!-- ============ SIDEBAR ============ -->
     <nav class="mobile-sidebar">
-    <div class="sidebar-header">
-        <h3>Mirai AI</h3>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
-                <svg viewBox="0 0 24 24" width="18" height="18">
-                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </svg>
-            </button>
-            <button class="close-menu" aria-label="Cerrar menú">&times;</button>
-        </div>
-    </div>
-
-    <div class="sidebar-content">
-        <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
-        <section class="sidebar-section collapsible-section active">
-            <div class="collapsible-header" role="button" tabindex="0">
-                <h4>Navegación</h4>
-                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                </svg>
-            </div>
-            <div class="collapsible-content" >
-                <div class="nav-grid">
-                    <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
-                        <span class="nav-icon">🏠</span>
-                        <span class="nav-label">Hogar</span>
-                    </a>
-<a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
-                        <span class="nav-icon">💬</span>
-                        <span class="nav-label">Chat</span>
-                    </a>
-                    <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
-                        <span class="nav-icon">📚</span>
-                        <span class="nav-label">Cursos</span>
-                    </a>
-                    <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
-                        <span class="nav-icon">🏫</span>
-                        <span class="nav-label">Aula</span>
-                    </a>
-                    <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
-                        <span class="nav-icon">📦</span>
-                        <span class="nav-label">Inventario</span>
-                    </a>
-                    <a href="mirror.html" class="nav-grid-item active-link" data-tooltip="Organizador">
-                        <span class="nav-icon">🖼️</span>
-                        <span class="nav-label">Fotos</span>
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
-        <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-            <div class="conversations-header">
-                <h4>Conversaciones</h4>
-                <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                    </svg>
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
                 </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
             </div>
-            <ul id="conversations-list" class="conversations-list">
-                <!-- Se llenará dinámicamente -->
-            </ul>
-        </section>
-
-        <!-- Sección 3: Explorar (Desplegable Maestro) -->
-        <section class="sidebar-section collapsible-section">
-            <div class="collapsible-header" role="button" tabindex="0">
-                <h4>Explorar</h4>
-                <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                </svg>
-            </div>
-            <div class="collapsible-content">
-                
-                <!-- Submenú: Servicios -->
-                <div class="nested-collapsible">
-                    <div class="collapsible-header nested-header" role="button" tabindex="0">
-                        <h5>Servicios</h5>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </div>
-                    <div class="collapsible-content nested-content">
-                        <ul class="sidebar-links">
-                            <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
-                            <li><a href="https://aberumirai.com#education">Educación</a></li>
-                            <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
-                            <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
-                            <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Submenú: Empresa -->
-                <div class="nested-collapsible">
-                    <div class="collapsible-header nested-header" role="button" tabindex="0">
-                        <h5>Empresa</h5>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </div>
-                    <div class="collapsible-content nested-content">
-                        <ul class="sidebar-links">
-                            <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
-                            <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
-                            <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
-                            <li><a href="#">Quiénes somos</a></li>
-                            <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Submenú: Enlaces Externos -->
-                <div class="nested-collapsible">
-                    <div class="collapsible-header nested-header" role="button" tabindex="0">
-                        <h5>Enlaces Externos</h5>
-                        <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                        </svg>
-                    </div>
-                    <div class="collapsible-content nested-content">
-                        <ul class="sidebar-links">
-                            <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
-                            <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
-                            <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
-                            <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- Sección 4: Redes Sociales -->
-        <section class="sidebar-section">
-            <h4>Síguenos</h4>
-            <div class="sidebar-social">
-                <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
-                </a>
-                <a href="#" aria-label="Twitter/X">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
-                </a>
-                <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
-                </a>
-                <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
-                </a>
-                <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
-                    <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
-                </a>
-            </div>
-        </section>
-
-        <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                <path
-                    d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-            </svg>
-            <span>Cerrar Sesión</span>
-        </button>
-
-        <div class="sidebar-logo">
-            <a href="https://aberumirai.com">
-                <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
-                    style="max-width: 80px; max-height: 80px;">
-            </a>
         </div>
-    </div>
 
-    <!-- Footer del sidebar -->
-    <div class="sidebar-footer">
-        <p>&copy;
-            <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
-        </p>
-    </div>
-</nav>
+        <div class="sidebar-content">
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar"><span class="nav-icon">🏠</span><span class="nav-label">Hogar</span></a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat"><span class="nav-icon">💬</span><span class="nav-label">Chat</span></a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos"><span class="nav-icon">📚</span><span class="nav-label">Cursos</span></a>
+                        <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula"><span class="nav-icon">🏫</span><span class="nav-label">Aula</span></a>
+                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario"><span class="nav-icon">📦</span><span class="nav-label">Inventario</span></a>
+                        <a href="mirror.html" class="nav-grid-item active-link" data-tooltip="Organizador"><span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span></a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sidebar-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list"></ul>
+            </section>
+
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Explorar</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Servicios</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                                <li><a href="https://aberumirai.com#education">Educación</a></li>
+                                <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                                <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                                <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Empresa</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                                <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                                <li><a href="#">Quiénes somos</a></li>
+                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Enlaces Externos</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                                <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                                <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                                <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook"></a>
+                    <a href="#" aria-label="Twitter/X"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter"></a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok"></a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram"></a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub"></a>
+                </div>
+            </section>
+
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai">
+                </a>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p>&copy; <span id="sidebarYear"></span> Aberu & Mirai Company</p>
+        </div>
+    </nav>
+
     <div class="mobile-overlay"></div>
 
+    <!-- ============ HEADER ============ -->
     <header class="header">
-        <!-- Botón Hamburguesa (Solo visible en móvil) -->
         <button class="mobile-menu-toggle" aria-label="Abrir menú">
             <span class="hamburger-line"></span>
             <span class="hamburger-line"></span>
@@ -410,182 +779,419 @@
         </button>
 
         <div class="header-title">
-            <h2 style="margin: 0; font-size: 1.25rem;">🖼️ Mirai Mirror</h2>
+            <span style="font-size:1.3rem;">🖼️</span>
+            <span>Mirai Mirror</span>
         </div>
 
-        <!-- Botón de Tema (Compartido) -->
         <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
-            <!-- Icono de Sol (Claro) -->
+            <!-- Sol -->
             <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-1.03.39-1.41 0-.39.39-1.03.39-1.41 0l1.06 1.06c.39.39 1.03.39 1.41 0s1.03-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-1.03.39-1.41 0l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39 1.03-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-1.03.39-1.41 0s-1.03 1.03 0 1.41l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-1.03.39-1.41 0s-1.03 1.03 0 1.41l1.06-1.06z" />
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06c.39-.38.39-1.02 0-1.41zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41l-1.06-1.06c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.38.39 1.02.39 1.41 0z"/>
             </svg>
-            <!-- Icono de Luna (Oscuro) -->
+            <!-- Luna -->
             <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
             </svg>
         </button>
     </header>
 
-    <!-- Contenedor Principal (Contenido específico de Mirror) -->
+    <!-- ============ MAIN ============ -->
     <div class="mirror-main">
-        
-        <!-- Hero Section -->
-        <section class="text-center mb-3 animate-up">
-            <h1>Refleja tus recuerdos</h1>
-            <p>Sube, ordena por fecha y descarga en un solo archivo ZIP.<br>
-            <span style="color: var(--sakura-brown); font-size: 0.9em; font-style: italic;">Donde cada flor cuenta una historia.</span></p>
-        </section>
 
-        <!-- Panel Principal de Cristal -->
-        <section id="upload" class="glass-card animate-up" style="animation-delay: 0.1s;">
-            
-            <!-- Zona de Carga (Drag & Drop) -->
-            <div id="dropZone" class="upload-area">
-                <div class="upload-area-icon">
-                    <i data-lucide="image-plus" style="width: 48px; height: 48px; stroke: var(--sakura-pink-deep);"></i>
+        <!-- Hero -->
+        <div class="mirror-hero animate-up">
+            <h1>Refleja tus recuerdos</h1>
+            <p>Sube, ordena por fecha y descarga en un solo archivo ZIP.</p>
+            <span class="tagline">Donde cada flor cuenta una historia.</span>
+        </div>
+
+        <!-- Card principal con Drop Zone -->
+        <section class="drop-zone-card animate-up delay-1">
+
+            <!-- Zona Drag & Drop -->
+            <div id="dropZone" class="drop-zone-area" role="button" tabindex="0" aria-label="Zona de carga de imágenes">
+
+                <!-- Icono central -->
+                <div class="dz-icon-wrap">
+                    <div class="dz-icon-ring"></div>
+                    <div class="dz-icon-bg"></div>
+                    <svg class="dz-main-icon" xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Imagen + flecha: icono compuesto manual -->
+                        <rect x="3" y="3" width="18" height="18" rx="3"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                        <polyline points="16 5 16 11 12 11" style="display:none"/>
+                    </svg>
+                    <!-- Icono SVG alternativo: subir fotos -->
+                    <svg class="dz-main-icon" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);" xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
                 </div>
-                <p>Arrastra tus fotos aquí o</p>
-                <label for="imageInput" class="btn btn-secondary" style="display: inline-block; margin-top: 1rem;">
-                    <i data-lucide="folder-open" style="width: 18px; height: 18px;"></i>
-                    Explorar Archivos
+
+                <p class="dz-title">Arrastra tus fotos aquí</p>
+                <p class="dz-subtitle">Suelta una o varias imágenes para comenzar</p>
+
+                <div class="dz-or">o</div>
+
+                <label for="imageInput" class="btn-explore">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Explorar archivos
                 </label>
                 <input type="file" id="imageInput" multiple accept="image/*" hidden>
-                <p class="mt-2" style="font-size: 0.8rem; opacity: 0.7;">Soporta JPG, PNG, HEIC (hasta 50MB)</p>
-            </div>
 
-            <!-- Lista de Previsualización -->
-            <div id="previewContainer" class="hidden mt-3">
-                <h2 class="mb-2" style="font-size: 1.25rem; color: var(--sakura-brown-dark);">
-                    <i data-lucide="images" style="width: 20px; height: 20px; vertical-align: middle;"></i>
-                    Vista Previa (<span id="imageCount">0</span> imágenes)
-                </h2>
-                <div id="imageList" class="image-list">
-                    <!-- Las imágenes se insertarán aquí dinámicamente -->
+                <div class="dz-formats">
+                    <span class="dz-format-pill">JPG</span>
+                    <span class="dz-format-pill">PNG</span>
+                    <span class="dz-format-pill">GIF</span>
+                    <span class="dz-format-pill">WEBP</span>
+                    <span class="dz-format-pill">HEIC</span>
+                    <span class="dz-format-pill">50 MB máx.</span>
                 </div>
             </div>
 
-            <!-- Estado y Mensajes -->
-            <div id="statusMessage" class="status info show">
-                <i data-lucide="info" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.5rem;"></i>
-                Listo para subir imágenes.
+            <!-- Preview -->
+            <div id="previewContainer" class="preview-section hidden">
+                <div class="preview-header">
+                    <div class="preview-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c45f8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        Vista previa
+                        <span class="preview-count-badge" id="imageCount">0</span>
+                    </div>
+                </div>
+                <div id="imageList" class="image-list"></div>
             </div>
 
-            <!-- Spinner de Carga -->
-            <div id="loadingSpinner" class="spinner hidden"></div>
+            <!-- Estado -->
+            <div id="statusMessage" class="status-bar info">
+                <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Listo para subir imágenes.</span>
+            </div>
 
-            <!-- Botones de Acción -->
-            <div class="mt-3 text-center">
-                <button id="processBtn" class="btn btn-primary" disabled>
-                    <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
-                    <span>Procesar y Ordenar</span>
+            <!-- Spinner -->
+            <div id="loadingSpinner" class="status-bar info hidden" style="gap:12px;">
+                <div class="mirror-spinner"></div>
+                <span>Procesando imágenes…</span>
+            </div>
+
+            <!-- Warning de expiración -->
+            <div id="expirationWarning" class="expiration-warning hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                El enlace de descarga expira en 30 minutos.
+            </div>
+
+            <!-- Botones -->
+            <div class="action-row">
+                <button id="processBtn" class="btn-mirror btn-process" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    Procesar y Ordenar
                 </button>
-                
-                <button id="downloadBtn" class="btn btn-secondary hidden">
-                    <i data-lucide="download" style="width: 18px; height: 18px;"></i>
-                    <span>Descargar ZIP</span>
+
+                <button id="downloadBtn" class="btn-mirror btn-download hidden" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Descargar ZIP
                 </button>
-                
-                <button id="resetBtn" class="btn btn-secondary hidden" style="background: rgba(255, 59, 48, 0.15); border-color: rgba(255, 59, 48, 0.3); color: #8b2626;">
-                    <i data-lucide="rotate-ccw" style="width: 18px; height: 18px;"></i>
-                    <span>Reiniciar</span>
+
+                <button id="resetBtn" class="btn-mirror btn-reset hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                    Reiniciar
                 </button>
             </div>
         </section>
 
-        <!-- Sección Informativa -->
-        <section id="about" class="glass-panel mt-3 animate-up" style="animation-delay: 0.2s; padding: 2rem;">
-            <h2 class="mb-2 text-center">
-                <i data-lucide="help-circle" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 0.5rem; color: var(--sakura-pink-deep);"></i>
-                ¿Cómo funciona?
-            </h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; margin-top: 2rem;">
-                
-                <!-- Paso 1 -->
-                <div class="text-center">
-                    <div style="width: 64px; height: 64px; margin: 0 auto 1rem; background: rgba(244, 114, 182, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(244, 114, 182, 0.3);">
-                        <i data-lucide="upload-cloud" style="width: 32px; height: 32px; stroke: var(--sakura-pink-deep);"></i>
+        <!-- Cómo funciona -->
+        <section class="how-it-works mt-3 animate-up delay-2">
+            <h2 class="how-title">¿Cómo funciona?</h2>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-icon-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </div>
-                    <strong style="color: var(--sakura-brown-dark); font-size: 1.1rem;">1. Subida Segura</strong>
-                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Las imágenes viajan cifradas directamente a Cloudflare R2.</p>
+                    <div class="step-number">1</div>
+                    <p class="step-title">Subida Segura</p>
+                    <p class="step-desc">Las imágenes viajan cifradas directamente a Cloudflare R2.</p>
                 </div>
-                
-                <!-- Paso 2 -->
-                <div class="text-center">
-                    <div style="width: 64px; height: 64px; margin: 0 auto 1rem; background: rgba(244, 114, 182, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(244, 114, 182, 0.3);">
-                        <i data-lucide="scan-search" style="width: 32px; height: 32px; stroke: var(--sakura-pink-deep);"></i>
+
+                <div class="step-card">
+                    <div class="step-icon-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </div>
-                    <strong style="color: var(--sakura-brown-dark); font-size: 1.1rem;">2. Análisis EXIF</strong>
-                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Extraemos la fecha real de captura para ordenarlas cronológicamente.</p>
+                    <div class="step-number">2</div>
+                    <p class="step-title">Análisis EXIF</p>
+                    <p class="step-desc">Extraemos la fecha real de captura para ordenarlas cronológicamente.</p>
                 </div>
-                
-                <!-- Paso 3 -->
-                <div class="text-center">
-                    <div style="width: 64px; height: 64px; margin: 0 auto 1rem; background: rgba(244, 114, 182, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(244, 114, 182, 0.3);">
-                        <i data-lucide="package" style="width: 32px; height: 32px; stroke: var(--sakura-pink-deep);"></i>
+
+                <div class="step-card">
+                    <div class="step-icon-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                     </div>
-                    <strong style="color: var(--sakura-brown-dark); font-size: 1.1rem;">3. Empaquetado</strong>
-                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Se crea un ZIP organizado y se descarga en tu dispositivo.</p>
+                    <div class="step-number">3</div>
+                    <p class="step-title">Empaquetado</p>
+                    <p class="step-desc">Se crea un ZIP organizado y se descarga en tu dispositivo.</p>
                 </div>
             </div>
         </section>
 
-    </div>
+    </div><!-- /mirror-main -->
 
-     <!-- Scripts Globales (Necesarios para el Sidebar y Tema) -->
+    <!-- ============ SCRIPTS ============ -->
+
+    <!-- Tema: inline para evitar FOUC -->
     <script>
-        (function initTheme() {
-            const toggleBtn = document.getElementById('theme-toggle');
+        (function() {
             const root = document.documentElement;
-            
-            // Detectar tema guardado o usar preferencia del sistema
-            const savedTheme = localStorage.getItem('mirai-ai-theme') || 
-                               (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            
-            applyTheme(savedTheme);
+            const saved = localStorage.getItem('mirai-ai-theme')
+                || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            root.setAttribute('data-theme', saved);
 
-            function applyTheme(theme) {
-                root.setAttribute('data-theme', theme);
-                localStorage.setItem('mirai-ai-theme', theme);
-                
-                const sunIcon = document.querySelector('.sun-icon');
-                const moonIcon = document.querySelector('.moon-icon');
-                
-                if (sunIcon && moonIcon) {
-                    if (theme === 'dark') {
-                        sunIcon.classList.add('hidden');
-                        moonIcon.classList.remove('hidden');
-                    } else {
-                        sunIcon.classList.remove('hidden');
-                        moonIcon.classList.add('hidden');
-                    }
-                }
+            function applyTheme(t) {
+                root.setAttribute('data-theme', t);
+                localStorage.setItem('mirai-ai-theme', t);
+                const sun  = document.querySelector('.sun-icon');
+                const moon = document.querySelector('.moon-icon');
+                if (!sun || !moon) return;
+                if (t === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+                else              { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
             }
 
-            if (toggleBtn) {
-                toggleBtn.addEventListener('click', () => {
-                    const current = root.getAttribute('data-theme');
-                    const newTheme = current === 'light' ? 'dark' : 'light';
-                    applyTheme(newTheme);
+            applyTheme(saved);
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var btn = document.getElementById('theme-toggle');
+                if (btn) btn.addEventListener('click', function() {
+                    applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
                 });
-            }
+                var y = document.getElementById('sidebarYear');
+                if (y) y.textContent = new Date().getFullYear();
+            });
         })();
+    </script>
 
-        // --- AÑO AUTOMÁTICO (CORREGIDO - Espera DOMContentLoaded) ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const yearElement = document.getElementById('currentYear');
-            if (yearElement) {
-                yearElement.textContent = new Date().getFullYear();
+    <script src="mirai-boot.js" defer></script>
+    <script src="auth-guard.js" defer></script>
+    <script type="module" src="app.js" defer></script>
+
+    <!-- Lógica Mirror: inline para evitar dependencia de módulo externo en este demo -->
+    <script>
+    (function() {
+        'use strict';
+
+        const CONFIG = {
+            API_ENDPOINT: '/api/process',
+            MAX_FILE_SIZE: 50 * 1024 * 1024,
+            ALLOWED_TYPES: ['image/jpeg','image/png','image/gif','image/webp','image/heic'],
+            MAX_FILES: 200
+        };
+
+        const $ = id => document.getElementById(id);
+        const el = {
+            dropZone:          $('dropZone'),
+            imageInput:        $('imageInput'),
+            previewContainer:  $('previewContainer'),
+            imageList:         $('imageList'),
+            imageCount:        $('imageCount'),
+            processBtn:        $('processBtn'),
+            downloadBtn:       $('downloadBtn'),
+            resetBtn:          $('resetBtn'),
+            statusMessage:     $('statusMessage'),
+            loadingSpinner:    $('loadingSpinner'),
+            expirationWarning: $('expirationWarning')
+        };
+
+        let state = { files: [], blob: null, processing: false };
+
+        // ── DROP ZONE ──────────────────────────────
+        function setup() {
+            const dz = el.dropZone;
+            if (!dz || !el.imageInput) return;
+
+            ['dragenter','dragover','dragleave','drop'].forEach(e => {
+                dz.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); });
+                document.body.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); });
+            });
+
+            ['dragenter','dragover'].forEach(e => dz.addEventListener(e, () => dz.classList.add('dragover')));
+            ['dragleave','drop']    .forEach(e => dz.addEventListener(e, () => dz.classList.remove('dragover')));
+
+            dz.addEventListener('drop',   ev => addFiles(ev.dataTransfer.files));
+            dz.addEventListener('click',  () => el.imageInput.click());
+            dz.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') el.imageInput.click(); });
+            el.imageInput.addEventListener('change', ev => addFiles(ev.target.files));
+
+            el.processBtn.addEventListener('click',  processImages);
+            el.downloadBtn.addEventListener('click', downloadResult);
+            el.resetBtn.addEventListener('click',    reset);
+
+            updateUI();
+        }
+
+        function addFiles(fileList) {
+            const valid = Array.from(fileList).filter(f => {
+                if (!CONFIG.ALLOWED_TYPES.includes(f.type)) { showStatus(`"${f.name}" no es una imagen válida.`, 'error'); return false; }
+                if (f.size > CONFIG.MAX_FILE_SIZE)          { showStatus(`"${f.name}" excede 50 MB.`, 'error'); return false; }
+                return true;
+            });
+
+            if (state.files.length + valid.length > CONFIG.MAX_FILES) {
+                showStatus(`Máximo ${CONFIG.MAX_FILES} archivos permitidos.`, 'error'); return;
             }
+
+            state.files = [...state.files, ...valid];
+            renderPreview();
+            updateUI();
+            if (state.files.length > 0)
+                showStatus(`${state.files.length} imagen(es) lista(s) para procesar.`, 'success');
+        }
+
+        // ── PREVIEW ────────────────────────────────
+        function renderPreview() {
+            el.imageList.innerHTML = '';
+            if (state.files.length === 0) {
+                el.previewContainer.classList.add('hidden');
+                return;
+            }
+            el.previewContainer.classList.remove('hidden');
+            el.imageCount.textContent = state.files.length;
+
+            state.files.forEach((file, i) => {
+                const url  = URL.createObjectURL(file);
+                const item = document.createElement('div');
+                item.className = 'image-item';
+                item.style.animationDelay = Math.min(i * 0.04, 0.3) + 's';
+                item.innerHTML = `
+                    <img src="${url}" alt="${escHtml(file.name)}" loading="lazy" onload="URL.revokeObjectURL(this.src)">
+                    <div class="image-info">
+                        <span class="image-name">${escHtml(file.name)}</span>
+                        <span class="image-size">${fmtSize(file.size)}</span>
+                    </div>
+                    <button class="remove-btn" data-i="${i}" title="Eliminar" aria-label="Eliminar ${escHtml(file.name)}">✕</button>`;
+                item.querySelector('.remove-btn').addEventListener('click', ev => {
+                    ev.stopPropagation();
+                    state.files.splice(Number(ev.currentTarget.dataset.i), 1);
+                    renderPreview();
+                    updateUI();
+                });
+                el.imageList.appendChild(item);
+            });
+        }
+
+        // ── PROCESS ────────────────────────────────
+        async function processImages() {
+            if (!state.files.length || state.processing) return;
+            state.processing = true;
+            updateUI();
+
+            try {
+                const fd = new FormData();
+                state.files.forEach(f => fd.append('images', f));
+
+                const res = await fetch(CONFIG.API_ENDPOINT, {
+                    method: 'POST', credentials: 'same-origin', body: fd
+                });
+                if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
+
+                state.blob = await res.blob();
+                showStatus('✅ ¡Imágenes procesadas! Descarga lista.', 'success');
+                el.downloadBtn.classList.remove('hidden');
+                el.downloadBtn.disabled = false;
+                el.expirationWarning.classList.remove('hidden');
+
+                setTimeout(() => {
+                    state.blob = null;
+                    el.downloadBtn.disabled = true;
+                    el.expirationWarning.classList.add('hidden');
+                    showStatus('El archivo ha expirado. Procesa de nuevo.', 'error');
+                }, 30 * 60 * 1000);
+
+            } catch (err) {
+                showStatus(`Error: ${err.message}`, 'error');
+            } finally {
+                state.processing = false;
+                updateUI();
+            }
+        }
+
+        function downloadResult() {
+            if (!state.blob) return;
+            const url  = URL.createObjectURL(state.blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `mirai-mirror-${Date.now()}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function reset() {
+            state = { files: [], blob: null, processing: false };
+            el.imageInput.value = '';
+            el.downloadBtn.classList.add('hidden');
+            el.downloadBtn.disabled = true;
+            el.expirationWarning.classList.add('hidden');
+            el.resetBtn.classList.add('hidden');
+            renderPreview();
+            updateUI();
+            showStatus('Listo para nuevas imágenes.', 'info');
+        }
+
+        // ── UI STATE ───────────────────────────────
+        function updateUI() {
+            el.processBtn.disabled = !state.files.length || state.processing;
+
+            if (state.processing) {
+                el.loadingSpinner.classList.remove('hidden');
+                el.statusMessage.classList.add('hidden');
+                el.processBtn.disabled = true;
+                el.processBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> Procesando…`;
+            } else {
+                el.loadingSpinner.classList.add('hidden');
+                el.statusMessage.classList.remove('hidden');
+                el.processBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Procesar y Ordenar`;
+            }
+
+            if (state.files.length > 0) el.resetBtn.classList.remove('hidden');
+        }
+
+        function showStatus(msg, type = 'info') {
+            const icons = {
+                info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+                success: '<polyline points="20 6 9 17 4 12"/>',
+                error:   '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
+            };
+            const s = el.statusMessage;
+            s.className = `status-bar ${type}`;
+            s.innerHTML = `<svg class="status-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[type] || icons.info}</svg><span>${msg}</span>`;
+            if (type === 'success') setTimeout(() => showStatus('Listo para nuevas imágenes.', 'info'), 6000);
+        }
+
+        // ── UTILS ──────────────────────────────────
+        function escHtml(t) {
+            const d = document.createElement('div');
+            d.textContent = t;
+            return d.innerHTML;
+        }
+
+        function fmtSize(b) {
+            if (b < 1024)     return b + ' B';
+            if (b < 1024**2)  return (b/1024).toFixed(1) + ' KB';
+            return (b/1024**2).toFixed(1) + ' MB';
+        }
+
+        // ── GLOBAL EVENTS ──────────────────────────
+        window.addEventListener('offline', () => showStatus('Sin conexión a internet.', 'error'));
+        window.addEventListener('online',  () => showStatus('Conexión restaurada.', 'success'));
+        document.addEventListener('keydown', ev => {
+            if (ev.key === 'Escape' && state.files.length) reset();
         });
 
+        document.addEventListener('DOMContentLoaded', setup);
+    })();
     </script>
-<script src="mirai-boot.js"></script> 
-<script src="auth-guard.js"></script>
-<script type="module" src="app.js" defer></script>
-    <!-- Script Específico de Mirror (Lógica de Fotos) -->
-    <script type="module" src="app-mirror.js"></script>
-</body>
 
+</body>
 </html>
