@@ -6,360 +6,196 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai Mirror | Organizador de Fotos - Aberu & Mirai Company">
-
     <title>Mirai Mirror | Organizador de Fotos</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-
-    <!-- Iconos Lucide: carga síncrona antes del body para que estén disponibles -->
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
-    <!-- JSZip -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-    <!-- Hoja de estilos compartida -->
     <link rel="stylesheet" href="styles.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <style>
         /* ============================================
-           MIRROR MAIN LAYOUT
+           MIRROR — Solo estilos que no existen en styles.css
            ============================================ */
+
+        /* Layout de página (no existe en styles.css) */
         .mirror-main {
             padding: 2rem 1.5rem 4rem;
             max-width: 1100px;
             margin: 0 auto;
         }
 
-        /* ============================================
-           HERO
-           ============================================ */
+        /* Hero — mismo patrón que .courses-hero */
         .mirror-hero {
             text-align: center;
-            margin-bottom: 2.5rem;
+            padding: 48px 20px 20px;
         }
-
         .mirror-hero h1 {
-            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-size: 2.4rem;
             font-weight: 800;
             letter-spacing: -0.04em;
-            background: linear-gradient(135deg, #c45f8a 0%, #a050b0 50%, #7060d0 100%);
+            background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
         }
-
         .mirror-hero p {
+            font-size: 1.05rem;
             color: var(--text-secondary);
-            font-size: 1rem;
+            max-width: 520px;
+            margin: 0 auto;
             line-height: 1.6;
         }
-
         .mirror-hero .tagline {
-            display: inline-block;
-            margin-top: 0.4rem;
-            font-size: 0.85rem;
-            color: #a04070;
+            font-size: 0.88rem;
+            color: var(--text-tertiary);
             font-style: italic;
-            opacity: 0.8;
+            display: block;
+            margin-top: 6px;
         }
 
-        /* ============================================
-           DROP ZONE — REDISEÑADO
-           ============================================ */
-        .drop-zone-card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 2rem;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-            margin-bottom: 1.5rem;
-        }
-
-        .drop-zone-area {
-            position: relative;
-            border-radius: 18px;
-            padding: 3.5rem 2rem;
+        /* Drop Zone (no existe en styles.css) */
+        .upload-area {
+            border: 2px dashed var(--glass-border);
+            border-radius: var(--border-radius-md);
+            padding: 3rem 2rem;
             text-align: center;
             cursor: pointer;
-            transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
-            overflow: hidden;
-
-            /* Fondo con patrón de puntos sutiles */
-            background-color: rgba(196, 95, 138, 0.04);
-            background-image:
-                radial-gradient(circle, rgba(196, 95, 138, 0.18) 1.5px, transparent 1.5px);
-            background-size: 24px 24px;
-
-            /* Borde animado via outline dashed */
-            outline: 2px dashed rgba(196, 95, 138, 0.35);
-            outline-offset: -2px;
+            transition: all var(--transition-fast);
+            background: var(--message-user-bg);
+        }
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--accent-color);
+            background: rgba(103, 80, 164, 0.10);
+        }
+        .upload-area.dragover {
+            transform: scale(1.01);
+            box-shadow: 0 0 0 4px var(--accent-glow);
         }
 
-        /* Shimmer de fondo animado */
-        .drop-zone-area::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background: linear-gradient(
-                135deg,
-                rgba(196, 95, 138, 0.0) 0%,
-                rgba(160, 80, 176, 0.07) 50%,
-                rgba(112, 96, 208, 0.0) 100%
-            );
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            pointer-events: none;
-        }
-
-        .drop-zone-area:hover::before,
-        .drop-zone-area.dragover::before {
-            opacity: 1;
-        }
-
-        .drop-zone-area:hover,
-        .drop-zone-area.dragover {
-            background-color: rgba(196, 95, 138, 0.08);
-            outline-color: rgba(196, 95, 138, 0.7);
-            outline-offset: 0px;
-            transform: scale(1.008);
-        }
-
-        .drop-zone-area.dragover {
-            background-color: rgba(196, 95, 138, 0.13);
-            outline-color: #c45f8a;
-            outline-width: 2.5px;
-        }
-
-        /* Icono central */
-        .dz-icon-wrap {
-            position: relative;
-            display: inline-flex;
+        /* Icono del drop zone */
+        .upload-icon-wrap {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            display: flex;
             align-items: center;
             justify-content: center;
-            width: 88px;
-            height: 88px;
-            margin: 0 auto 1.5rem;
+            margin: 0 auto 1.25rem;
+            color: var(--accent-color);
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
         }
-
-        .dz-icon-bg {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: linear-gradient(135deg, rgba(196, 95, 138, 0.15), rgba(112, 96, 208, 0.15));
-            border: 1.5px solid rgba(196, 95, 138, 0.25);
-            transition: all 0.35s ease;
-        }
-
-        .drop-zone-area:hover .dz-icon-bg,
-        .drop-zone-area.dragover .dz-icon-bg {
-            transform: scale(1.12);
-            background: linear-gradient(135deg, rgba(196, 95, 138, 0.25), rgba(112, 96, 208, 0.25));
-            border-color: rgba(196, 95, 138, 0.5);
-        }
-
-        /* Anillo de pulso en drag */
-        .dz-icon-ring {
-            position: absolute;
-            inset: -8px;
-            border-radius: 50%;
-            border: 2px solid rgba(196, 95, 138, 0.4);
-            opacity: 0;
-            transform: scale(0.8);
-            transition: all 0.35s ease;
-        }
-
-        .drop-zone-area.dragover .dz-icon-ring {
-            opacity: 1;
-            transform: scale(1);
-            animation: ringPulse 1.4s ease-in-out infinite;
-        }
-
-        @keyframes ringPulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50%       { transform: scale(1.1); opacity: 1; }
-        }
-
-        .dz-main-icon {
-            position: relative;
-            z-index: 1;
-            color: #c45f8a;
-            transition: transform 0.3s cubic-bezier(0.05, 0.7, 0.1, 1);
-        }
-
-        .drop-zone-area:hover .dz-main-icon,
-        .drop-zone-area.dragover .dz-main-icon {
+        .upload-area:hover .upload-icon-wrap,
+        .upload-area.dragover .upload-icon-wrap {
             transform: translateY(-4px) scale(1.1);
+            box-shadow: 0 6px 18px var(--accent-glow);
+        }
+        .upload-area.dragover .upload-icon-wrap {
+            animation: iconPulse 1.2s ease-in-out infinite;
+        }
+        @keyframes iconPulse {
+            0%, 100% { transform: translateY(-4px) scale(1.1); }
+            50%       { transform: translateY(-7px) scale(1.15); }
         }
 
-        /* Texto del drop zone */
-        .dz-title {
-            font-size: 1.15rem;
-            font-weight: 700;
+        .upload-title {
+            font-size: 1.1rem;
+            font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 0.35rem;
-            letter-spacing: -0.01em;
+            margin-bottom: 6px;
         }
-
-        .dz-subtitle {
-            font-size: 0.88rem;
+        .upload-area p {
             color: var(--text-secondary);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
-        .dz-formats {
-            display: inline-flex;
+        /* Pills de formato */
+        .format-pills {
+            display: flex;
             gap: 6px;
             flex-wrap: wrap;
             justify-content: center;
             margin-top: 1.25rem;
         }
-
-        .dz-format-pill {
+        .format-pill {
             padding: 3px 10px;
-            border-radius: 999px;
-            background: rgba(196, 95, 138, 0.1);
-            border: 1px solid rgba(196, 95, 138, 0.2);
+            border-radius: var(--border-radius-pill);
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
             font-size: 0.72rem;
             font-weight: 600;
-            color: #a04070;
-            letter-spacing: 0.03em;
+            color: var(--text-secondary);
+            letter-spacing: 0.04em;
             text-transform: uppercase;
         }
 
-        [data-theme="dark"] .dz-format-pill {
-            background: rgba(196, 95, 138, 0.15);
-            border-color: rgba(196, 95, 138, 0.3);
-            color: #e080b0;
-        }
-
-        /* Separador "o" */
-        .dz-or {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 1rem 2rem;
-            color: var(--text-tertiary);
-            font-size: 0.8rem;
-        }
-        .dz-or::before, .dz-or::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--glass-border);
-        }
-
-        /* Botón explorar (label sobre input hidden) */
-        .btn-explore {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 22px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #c45f8a, #a050b0);
-            color: white;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
-            border: none;
-            box-shadow: 0 2px 12px rgba(196, 95, 138, 0.35);
-            letter-spacing: -0.01em;
-        }
-
-        .btn-explore:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(196, 95, 138, 0.45);
-        }
-
-        .btn-explore:active {
-            transform: translateY(0) scale(0.97);
-        }
-
-        /* ============================================
-           PREVIEW
-           ============================================ */
-        .preview-section {
-            margin-top: 1.5rem;
-        }
-
+        /* Preview header */
         .preview-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 10px;
             margin-bottom: 1rem;
         }
-
-        .preview-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .preview-header h3 {
             font-size: 1rem;
             font-weight: 700;
             color: var(--text-primary);
+            margin: 0;
         }
-
-        .preview-count-badge {
+        .count-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             min-width: 24px;
             height: 24px;
             padding: 0 7px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, #c45f8a, #a050b0);
+            border-radius: var(--border-radius-pill);
+            background: var(--accent-gradient);
             color: white;
             font-size: 0.72rem;
             font-weight: 700;
         }
 
+        /* Grid de miniaturas */
         .image-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 10px;
         }
-
         .image-item {
             position: relative;
-            border-radius: 12px;
+            border-radius: var(--border-radius-sm);
             overflow: hidden;
             aspect-ratio: 1;
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            animation: itemEnter 0.35s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+            box-shadow: var(--glass-shadow);
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+            animation: cardFadeIn 0.4s var(--ease-smooth) forwards;
             opacity: 0;
         }
-
-        @keyframes itemEnter {
-            from { opacity: 0; transform: scale(0.88); }
-            to   { opacity: 1; transform: scale(1); }
-        }
-
         .image-item:hover {
-            transform: scale(1.04);
-            box-shadow: 0 6px 18px rgba(196, 95, 138, 0.25);
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 8px 24px var(--accent-glow);
+            border-color: var(--accent-color);
         }
-
         .image-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
         }
-
         .image-item .image-info {
             position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px 8px 6px;
-            background: linear-gradient(to top, rgba(0,0,0,0.65), transparent);
+            bottom: 0; left: 0; right: 0;
+            padding: 22px 8px 6px;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
         }
-
-        .image-item .image-name {
+        .image-name {
             display: block;
             font-size: 0.65rem;
             color: rgba(255,255,255,0.9);
@@ -368,273 +204,155 @@
             text-overflow: ellipsis;
             font-weight: 500;
         }
-
-        .image-item .image-size {
+        .image-size {
             display: block;
             font-size: 0.6rem;
             color: rgba(255,255,255,0.65);
         }
-
         .image-item .remove-btn {
             position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 26px;
-            height: 26px;
+            top: 5px; right: 5px;
+            width: 26px; height: 26px;
             border-radius: 50%;
-            background: rgba(220, 30, 60, 0.88);
+            background: rgba(208,0,0,0.85);
             color: white;
             border: none;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             display: flex;
             align-items: center;
             justify-content: center;
-            line-height: 1;
-            transition: all 0.2s ease;
             opacity: 0;
+            transition: opacity var(--transition-fast), transform var(--transition-fast);
         }
+        .image-item:hover .remove-btn { opacity: 1; }
+        .remove-btn:hover { transform: scale(1.15); background: rgba(208,0,0,1) !important; }
 
-        .image-item:hover .remove-btn {
-            opacity: 1;
-        }
-
-        .remove-btn:hover {
-            background: rgba(220, 30, 60, 1) !important;
-            transform: scale(1.15);
-        }
-
-        /* ============================================
-           STATUS
-           ============================================ */
-        .status-bar {
+        /* Status bar */
+        #statusMessage {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             padding: 12px 16px;
-            border-radius: 12px;
-            margin: 1.25rem 0 0;
+            border-radius: var(--border-radius-sm);
             font-size: 0.88rem;
             font-weight: 500;
-            transition: all 0.3s ease;
+            margin-top: 1.25rem;
         }
-
-        .status-bar.info    { background: rgba(103, 80, 164, 0.08); color: #6750A4; border: 1px solid rgba(103,80,164,0.15); }
-        .status-bar.success { background: rgba(52, 199, 89, 0.1);   color: #1a7a35; border: 1px solid rgba(52,199,89,0.2); }
-        .status-bar.error   { background: rgba(255, 59, 48, 0.08);  color: #c0392b; border: 1px solid rgba(255,59,48,0.15); }
-
-        [data-theme="dark"] .status-bar.info    { color: #d0bcff; border-color: rgba(208,188,255,0.15); }
-        [data-theme="dark"] .status-bar.success { color: #a8d88c; border-color: rgba(168,216,140,0.2); }
-        [data-theme="dark"] .status-bar.error   { color: #ff8a80; border-color: rgba(255,138,128,0.15); }
-
-        .status-bar.hidden { display: none; }
-        .status-bar .status-icon { flex-shrink: 0; }
+        #statusMessage.info    { background: var(--message-user-bg); color: var(--accent-color); border: 1px solid var(--glass-border); }
+        #statusMessage.success { background: rgba(56,106,32,0.1); color: #386A20; border: 1px solid rgba(56,106,32,0.2); }
+        #statusMessage.error   { background: rgba(208,0,0,0.08); color: #D00000; border: 1px solid rgba(208,0,0,0.15); }
+        [data-theme="dark"] #statusMessage.success { color: #A8D88C; border-color: rgba(168,216,140,0.2); }
+        [data-theme="dark"] #statusMessage.error   { color: #ff8a80; border-color: rgba(255,138,128,0.15); }
 
         /* Spinner */
         .mirror-spinner {
-            width: 20px;
-            height: 20px;
-            border: 2.5px solid rgba(196, 95, 138, 0.2);
-            border-top-color: #c45f8a;
+            width: 18px; height: 18px;
+            border: 2.5px solid var(--glass-border);
+            border-top-color: var(--accent-color);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             flex-shrink: 0;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* ============================================
-           BOTONES DE ACCIÓN
-           ============================================ */
-        .action-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: 1.5rem;
-        }
-
-        .btn-mirror {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 11px 22px;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
-            letter-spacing: -0.01em;
-        }
-
-        .btn-mirror:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        .btn-process {
-            background: linear-gradient(135deg, #c45f8a, #a050b0);
-            color: white;
-            box-shadow: 0 2px 12px rgba(196, 95, 138, 0.3);
-        }
-
-        .btn-process:not(:disabled):hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(196, 95, 138, 0.45);
-        }
-
-        .btn-download {
-            background: rgba(52, 199, 89, 0.12);
-            color: #1a7a35;
-            border: 1px solid rgba(52, 199, 89, 0.3);
-        }
-
-        .btn-download:not(:disabled):hover {
-            background: rgba(52, 199, 89, 0.2);
-            transform: translateY(-2px);
-        }
-
-        [data-theme="dark"] .btn-download { color: #a8d88c; border-color: rgba(168,216,140,0.3); }
-
-        .btn-reset {
-            background: rgba(255, 59, 48, 0.08);
-            color: #c0392b;
-            border: 1px solid rgba(255, 59, 48, 0.2);
-        }
-
-        .btn-reset:hover {
-            background: rgba(255, 59, 48, 0.15);
-            transform: translateY(-2px);
-        }
-
-        [data-theme="dark"] .btn-reset { color: #ff8a80; border-color: rgba(255,138,128,0.25); }
-
-        /* ============================================
-           EXPIRATION WARNING
-           ============================================ */
+        /* Expiration warning */
         .expiration-warning {
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 10px 14px;
-            border-radius: 10px;
-            background: rgba(255, 159, 10, 0.1);
-            border: 1px solid rgba(255, 159, 10, 0.25);
-            color: #b07000;
+            border-radius: var(--border-radius-sm);
+            background: rgba(255,159,10,0.1);
+            border: 1px solid rgba(255,159,10,0.25);
+            color: #855000;
             font-size: 0.82rem;
             font-weight: 500;
             margin-top: 0.75rem;
         }
+        [data-theme="dark"] .expiration-warning { color: #FFB74D; border-color: rgba(255,183,77,0.3); }
 
-        [data-theme="dark"] .expiration-warning { color: #ffb74d; border-color: rgba(255,183,77,0.3); }
-
-        /* ============================================
-           SECCIÓN "CÓMO FUNCIONA"
-           ============================================ */
-        .how-it-works {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 2rem;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-        }
-
-        .how-title {
-            text-align: center;
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 2rem;
-            letter-spacing: -0.02em;
-        }
-
+        /* Steps — extiende el patrón de .course-card */
         .steps-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1.5rem;
+            margin-top: 1.75rem;
         }
-
         .step-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            padding: 1.75rem 1.25rem;
             text-align: center;
-            padding: 1.5rem 1rem;
-            border-radius: 16px;
-            background: rgba(196, 95, 138, 0.04);
-            border: 1px solid rgba(196, 95, 138, 0.1);
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            box-shadow: var(--glass-shadow);
+            transition: all 0.35s var(--ease-smooth);
+            position: relative;
+            overflow: hidden;
         }
-
+        .step-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
         .step-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(196, 95, 138, 0.15);
+            transform: translateY(-6px);
+            box-shadow: 0 16px 48px rgba(0,0,0,0.1), 0 4px 20px var(--accent-glow);
+            border-color: var(--accent-color);
         }
+        .step-card:hover::before { opacity: 1; }
 
         .step-icon-wrap {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 1rem;
+            width: 64px; height: 64px;
             border-radius: 50%;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, rgba(196, 95, 138, 0.15), rgba(112, 96, 208, 0.15));
-            border: 1.5px solid rgba(196, 95, 138, 0.25);
-            color: #c45f8a;
+            margin: 0 auto 1rem;
+            color: var(--accent-color);
+            transition: transform var(--transition-fast);
         }
+        .step-card:hover .step-icon-wrap { transform: scale(1.1) rotate(-5deg); }
 
         .step-number {
-            display: inline-block;
-            width: 22px;
-            height: 22px;
-            line-height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px; height: 22px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #c45f8a, #a050b0);
+            background: var(--accent-gradient);
             color: white;
             font-size: 0.7rem;
             font-weight: 700;
-            text-align: center;
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
         }
-
         .step-title {
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
-
         .step-desc {
             font-size: 0.85rem;
             color: var(--text-secondary);
             line-height: 1.55;
         }
 
-        /* ============================================
-           UTILIDADES
-           ============================================ */
-        .hidden { display: none !important; }
-        .mt-2 { margin-top: 1rem; }
-        .mt-3 { margin-top: 1.5rem; }
+        /* Animate-up reutiliza cardFadeIn ya definido en styles.css */
+        .animate-up          { animation: cardFadeIn 0.5s var(--ease-smooth) forwards; opacity: 0; }
+        .animate-up.delay-1  { animation-delay: 0.1s; }
+        .animate-up.delay-2  { animation-delay: 0.2s; }
 
-        .animate-up {
-            animation: animUp 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) both;
-        }
-        .animate-up.delay-1 { animation-delay: 0.1s; }
-        .animate-up.delay-2 { animation-delay: 0.2s; }
-
-        @keyframes animUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Responsive */
         @media (max-width: 600px) {
-            .mirror-main { padding: 1.25rem 1rem 3rem; }
-            .drop-zone-area { padding: 2.5rem 1rem; }
-            .action-row { flex-direction: column; }
-            .btn-mirror { width: 100%; justify-content: center; }
+            .mirror-main  { padding: 1rem 1rem 3rem; }
+            .mirror-hero h1 { font-size: 1.8rem; }
+            .upload-area  { padding: 2.5rem 1rem; }
         }
     </style>
 
@@ -764,7 +482,7 @@
         </div>
 
         <div class="sidebar-footer">
-            <p>&copy; <span id="sidebarYear"></span> Aberu & Mirai Company</p>
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
         </div>
     </nav>
 
@@ -779,16 +497,13 @@
         </button>
 
         <div class="header-title">
-            <span style="font-size:1.3rem;">🖼️</span>
-            <span>Mirai Mirror</span>
+            🖼️ Mirai Mirror
         </div>
 
         <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
-            <!-- Sol -->
             <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41.39.39 1.03.39 1.41 0l1.06-1.06c.39-.38.39-1.02 0-1.41zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41l-1.06-1.06c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.38.39 1.02.39 1.41 0z"/>
             </svg>
-            <!-- Luna -->
             <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
             </svg>
@@ -799,119 +514,163 @@
     <div class="mirror-main">
 
         <!-- Hero -->
-        <div class="mirror-hero animate-up">
+        <section class="mirror-hero animate-up">
             <h1>Refleja tus recuerdos</h1>
             <p>Sube, ordena por fecha y descarga en un solo archivo ZIP.</p>
             <span class="tagline">Donde cada flor cuenta una historia.</span>
-        </div>
+        </section>
 
-        <!-- Card principal con Drop Zone -->
-        <section class="drop-zone-card animate-up delay-1">
+        <!-- Panel de subida — .glass-card ya existe en styles.css (mirror.html original) -->
+        <section class="glass-card animate-up delay-1" style="margin-bottom:1.5rem;">
 
-            <!-- Zona Drag & Drop -->
-            <div id="dropZone" class="drop-zone-area" role="button" tabindex="0" aria-label="Zona de carga de imágenes">
+            <!-- Drop Zone -->
+            <div id="dropZone" class="upload-area" role="button" tabindex="0" aria-label="Zona de carga de imágenes">
 
-                <!-- Icono central -->
-                <div class="dz-icon-wrap">
-                    <div class="dz-icon-ring"></div>
-                    <div class="dz-icon-bg"></div>
-                    <svg class="dz-main-icon" xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                        <!-- Imagen + flecha: icono compuesto manual -->
-                        <rect x="3" y="3" width="18" height="18" rx="3"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                        <polyline points="16 5 16 11 12 11" style="display:none"/>
-                    </svg>
-                    <!-- Icono SVG alternativo: subir fotos -->
-                    <svg class="dz-main-icon" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);" xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <div class="upload-icon-wrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="17 8 12 3 7 8"/>
                         <line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
                 </div>
 
-                <p class="dz-title">Arrastra tus fotos aquí</p>
-                <p class="dz-subtitle">Suelta una o varias imágenes para comenzar</p>
+                <p class="upload-title">Arrastra tus fotos aquí</p>
+                <p>o elige archivos desde tu dispositivo</p>
 
-                <div class="dz-or">o</div>
-
-                <label for="imageInput" class="btn-explore">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <!-- .btn .btn-secondary ya existen en styles.css -->
+                <label for="imageInput"
+                       class="btn btn-secondary"
+                       style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-top:0.25rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                     </svg>
                     Explorar archivos
                 </label>
                 <input type="file" id="imageInput" multiple accept="image/*" hidden>
 
-                <div class="dz-formats">
-                    <span class="dz-format-pill">JPG</span>
-                    <span class="dz-format-pill">PNG</span>
-                    <span class="dz-format-pill">GIF</span>
-                    <span class="dz-format-pill">WEBP</span>
-                    <span class="dz-format-pill">HEIC</span>
-                    <span class="dz-format-pill">50 MB máx.</span>
+                <div class="format-pills">
+                    <span class="format-pill">JPG</span>
+                    <span class="format-pill">PNG</span>
+                    <span class="format-pill">GIF</span>
+                    <span class="format-pill">WEBP</span>
+                    <span class="format-pill">HEIC</span>
+                    <span class="format-pill">50 MB máx.</span>
                 </div>
             </div>
 
             <!-- Preview -->
-            <div id="previewContainer" class="preview-section hidden">
+            <div id="previewContainer" class="hidden" style="margin-top:1.5rem;">
                 <div class="preview-header">
-                    <div class="preview-title">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c45f8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        Vista previa
-                        <span class="preview-count-badge" id="imageCount">0</span>
-                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                         fill="none" stroke="var(--accent-color)" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <h3>Vista previa</h3>
+                    <span class="count-badge" id="imageCount">0</span>
                 </div>
                 <div id="imageList" class="image-list"></div>
             </div>
 
-            <!-- Estado -->
-            <div id="statusMessage" class="status-bar info">
-                <svg class="status-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span>Listo para subir imágenes.</span>
+            <!-- Status -->
+            <div id="statusMessage" class="info">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                Listo para subir imágenes.
             </div>
 
-            <!-- Spinner -->
-            <div id="loadingSpinner" class="status-bar info hidden" style="gap:12px;">
+            <!-- Spinner de proceso -->
+            <div id="loadingSpinner" style="display:none;align-items:center;gap:10px;margin-top:1rem;padding:12px 16px;border-radius:var(--border-radius-sm);background:var(--message-user-bg);font-size:0.88rem;color:var(--accent-color);">
                 <div class="mirror-spinner"></div>
-                <span>Procesando imágenes…</span>
+                Procesando imágenes…
             </div>
 
-            <!-- Warning de expiración -->
+            <!-- Expiration -->
             <div id="expirationWarning" class="expiration-warning hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
                 El enlace de descarga expira en 30 minutos.
             </div>
 
-            <!-- Botones -->
-            <div class="action-row">
-                <button id="processBtn" class="btn-mirror btn-process" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <!-- Botones — .btn .btn-primary / .btn-secondary ya existen en styles.css -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:1.5rem;">
+
+                <button id="processBtn"
+                        class="btn btn-primary"
+                        style="display:inline-flex;align-items:center;gap:8px;"
+                        disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
                     Procesar y Ordenar
                 </button>
 
-                <button id="downloadBtn" class="btn-mirror btn-download hidden" disabled>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <button id="downloadBtn"
+                        class="btn btn-secondary"
+                        style="display:none;align-items:center;gap:8px;"
+                        disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
                     Descargar ZIP
                 </button>
 
-                <button id="resetBtn" class="btn-mirror btn-reset hidden">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                <button id="resetBtn"
+                        class="btn btn-secondary"
+                        style="display:none;align-items:center;gap:8px;background:rgba(208,0,0,0.08);border-color:rgba(208,0,0,0.25);color:#8b2626;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                    </svg>
                     Reiniciar
                 </button>
             </div>
         </section>
 
-        <!-- Cómo funciona -->
-        <section class="how-it-works mt-3 animate-up delay-2">
-            <h2 class="how-title">¿Cómo funciona?</h2>
+        <!-- ¿Cómo funciona? — .glass-card ya existe en styles.css -->
+        <section class="glass-card animate-up delay-2">
+            <h2 style="text-align:center;font-size:1.2rem;font-weight:700;color:var(--text-primary);margin-bottom:0.25rem;letter-spacing:-0.02em;">
+                ¿Cómo funciona?
+            </h2>
+            <p style="text-align:center;font-size:0.88rem;color:var(--text-tertiary);margin-bottom:0;">
+                Tres pasos para ordenar tus recuerdos
+            </p>
+
             <div class="steps-grid">
+
                 <div class="step-card">
                     <div class="step-icon-wrap">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
                     </div>
                     <div class="step-number">1</div>
                     <p class="step-title">Subida Segura</p>
@@ -920,7 +679,12 @@
 
                 <div class="step-card">
                     <div class="step-icon-wrap">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
                     </div>
                     <div class="step-number">2</div>
                     <p class="step-title">Análisis EXIF</p>
@@ -929,26 +693,31 @@
 
                 <div class="step-card">
                     <div class="step-icon-wrap">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.8"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="21 8 21 21 3 21 3 8"/>
+                            <rect x="1" y="3" width="22" height="5"/>
+                            <line x1="10" y1="12" x2="14" y2="12"/>
+                        </svg>
                     </div>
                     <div class="step-number">3</div>
                     <p class="step-title">Empaquetado</p>
                     <p class="step-desc">Se crea un ZIP organizado y se descarga en tu dispositivo.</p>
                 </div>
+
             </div>
         </section>
 
     </div><!-- /mirror-main -->
 
     <!-- ============ SCRIPTS ============ -->
-
-    <!-- Tema: inline para evitar FOUC -->
     <script>
-        (function() {
-            const root = document.documentElement;
+        /* Tema inline para evitar FOUC */
+        (function () {
+            const root  = document.documentElement;
             const saved = localStorage.getItem('mirai-ai-theme')
                 || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            root.setAttribute('data-theme', saved);
 
             function applyTheme(t) {
                 root.setAttribute('data-theme', t);
@@ -962,13 +731,11 @@
 
             applyTheme(saved);
 
-            document.addEventListener('DOMContentLoaded', function() {
-                var btn = document.getElementById('theme-toggle');
-                if (btn) btn.addEventListener('click', function() {
+            document.addEventListener('DOMContentLoaded', function () {
+                const btn = document.getElementById('theme-toggle');
+                if (btn) btn.addEventListener('click', function () {
                     applyTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
                 });
-                var y = document.getElementById('sidebarYear');
-                if (y) y.textContent = new Date().getFullYear();
             });
         })();
     </script>
@@ -977,16 +744,16 @@
     <script src="auth-guard.js" defer></script>
     <script type="module" src="app.js" defer></script>
 
-    <!-- Lógica Mirror: inline para evitar dependencia de módulo externo en este demo -->
+    <!-- Lógica Mirror -->
     <script>
-    (function() {
+    (function () {
         'use strict';
 
         const CONFIG = {
-            API_ENDPOINT: '/api/process',
+            API_ENDPOINT : '/api/process',
             MAX_FILE_SIZE: 50 * 1024 * 1024,
             ALLOWED_TYPES: ['image/jpeg','image/png','image/gif','image/webp','image/heic'],
-            MAX_FILES: 200
+            MAX_FILES    : 200
         };
 
         const $ = id => document.getElementById(id);
@@ -1006,22 +773,19 @@
 
         let state = { files: [], blob: null, processing: false };
 
-        // ── DROP ZONE ──────────────────────────────
         function setup() {
-            const dz = el.dropZone;
-            if (!dz || !el.imageInput) return;
+            if (!el.dropZone || !el.imageInput) return;
 
-            ['dragenter','dragover','dragleave','drop'].forEach(e => {
-                dz.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); });
-                document.body.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); });
+            ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+                el.dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+                document.body.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
             });
+            ['dragenter','dragover'].forEach(ev => el.dropZone.addEventListener(ev, () => el.dropZone.classList.add('dragover')));
+            ['dragleave','drop']    .forEach(ev => el.dropZone.addEventListener(ev, () => el.dropZone.classList.remove('dragover')));
 
-            ['dragenter','dragover'].forEach(e => dz.addEventListener(e, () => dz.classList.add('dragover')));
-            ['dragleave','drop']    .forEach(e => dz.addEventListener(e, () => dz.classList.remove('dragover')));
-
-            dz.addEventListener('drop',   ev => addFiles(ev.dataTransfer.files));
-            dz.addEventListener('click',  () => el.imageInput.click());
-            dz.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') el.imageInput.click(); });
+            el.dropZone.addEventListener('drop',    ev  => addFiles(ev.dataTransfer.files));
+            el.dropZone.addEventListener('click',   ()  => el.imageInput.click());
+            el.dropZone.addEventListener('keydown', ev  => { if (ev.key==='Enter'||ev.key===' ') el.imageInput.click(); });
             el.imageInput.addEventListener('change', ev => addFiles(ev.target.files));
 
             el.processBtn.addEventListener('click',  processImages);
@@ -1037,11 +801,9 @@
                 if (f.size > CONFIG.MAX_FILE_SIZE)          { showStatus(`"${f.name}" excede 50 MB.`, 'error'); return false; }
                 return true;
             });
-
             if (state.files.length + valid.length > CONFIG.MAX_FILES) {
                 showStatus(`Máximo ${CONFIG.MAX_FILES} archivos permitidos.`, 'error'); return;
             }
-
             state.files = [...state.files, ...valid];
             renderPreview();
             updateUI();
@@ -1049,13 +811,9 @@
                 showStatus(`${state.files.length} imagen(es) lista(s) para procesar.`, 'success');
         }
 
-        // ── PREVIEW ────────────────────────────────
         function renderPreview() {
             el.imageList.innerHTML = '';
-            if (state.files.length === 0) {
-                el.previewContainer.classList.add('hidden');
-                return;
-            }
+            if (!state.files.length) { el.previewContainer.classList.add('hidden'); return; }
             el.previewContainer.classList.remove('hidden');
             el.imageCount.textContent = state.files.length;
 
@@ -1063,52 +821,43 @@
                 const url  = URL.createObjectURL(file);
                 const item = document.createElement('div');
                 item.className = 'image-item';
-                item.style.animationDelay = Math.min(i * 0.04, 0.3) + 's';
+                item.style.animationDelay = Math.min(i * 0.04, 0.4) + 's';
                 item.innerHTML = `
-                    <img src="${url}" alt="${escHtml(file.name)}" loading="lazy" onload="URL.revokeObjectURL(this.src)">
+                    <img src="${esc(url)}" alt="${esc(file.name)}" loading="lazy" onload="URL.revokeObjectURL(this.src)">
                     <div class="image-info">
-                        <span class="image-name">${escHtml(file.name)}</span>
+                        <span class="image-name">${esc(file.name)}</span>
                         <span class="image-size">${fmtSize(file.size)}</span>
                     </div>
-                    <button class="remove-btn" data-i="${i}" title="Eliminar" aria-label="Eliminar ${escHtml(file.name)}">✕</button>`;
+                    <button class="remove-btn" data-i="${i}" title="Eliminar">✕</button>`;
                 item.querySelector('.remove-btn').addEventListener('click', ev => {
                     ev.stopPropagation();
                     state.files.splice(Number(ev.currentTarget.dataset.i), 1);
-                    renderPreview();
-                    updateUI();
+                    renderPreview(); updateUI();
                 });
                 el.imageList.appendChild(item);
             });
         }
 
-        // ── PROCESS ────────────────────────────────
         async function processImages() {
             if (!state.files.length || state.processing) return;
             state.processing = true;
             updateUI();
-
             try {
                 const fd = new FormData();
                 state.files.forEach(f => fd.append('images', f));
-
-                const res = await fetch(CONFIG.API_ENDPOINT, {
-                    method: 'POST', credentials: 'same-origin', body: fd
-                });
+                const res = await fetch(CONFIG.API_ENDPOINT, { method:'POST', credentials:'same-origin', body:fd });
                 if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
-
                 state.blob = await res.blob();
                 showStatus('✅ ¡Imágenes procesadas! Descarga lista.', 'success');
-                el.downloadBtn.classList.remove('hidden');
+                el.downloadBtn.style.display = 'inline-flex';
                 el.downloadBtn.disabled = false;
                 el.expirationWarning.classList.remove('hidden');
-
                 setTimeout(() => {
                     state.blob = null;
                     el.downloadBtn.disabled = true;
                     el.expirationWarning.classList.add('hidden');
                     showStatus('El archivo ha expirado. Procesa de nuevo.', 'error');
                 }, 30 * 60 * 1000);
-
             } catch (err) {
                 showStatus(`Error: ${err.message}`, 'error');
             } finally {
@@ -1119,76 +868,68 @@
 
         function downloadResult() {
             if (!state.blob) return;
-            const url  = URL.createObjectURL(state.blob);
-            const a    = document.createElement('a');
-            a.href     = url;
-            a.download = `mirai-mirror-${Date.now()}.zip`;
+            const a = Object.assign(document.createElement('a'), {
+                href: URL.createObjectURL(state.blob),
+                download: `mirai-mirror-${Date.now()}.zip`
+            });
             a.click();
-            URL.revokeObjectURL(url);
+            URL.revokeObjectURL(a.href);
         }
 
         function reset() {
-            state = { files: [], blob: null, processing: false };
+            state = { files:[], blob:null, processing:false };
             el.imageInput.value = '';
-            el.downloadBtn.classList.add('hidden');
+            el.downloadBtn.style.display = 'none';
             el.downloadBtn.disabled = true;
+            el.resetBtn.style.display = 'none';
             el.expirationWarning.classList.add('hidden');
-            el.resetBtn.classList.add('hidden');
             renderPreview();
             updateUI();
             showStatus('Listo para nuevas imágenes.', 'info');
         }
 
-        // ── UI STATE ───────────────────────────────
+        const SVG_ICONS = {
+            process  : '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+            processing: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>',
+            info     : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+            success  : '<polyline points="20 6 9 17 4 12"/>',
+            error    : '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
+        };
+
+        function svgIcon(key, size=16) {
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0">${SVG_ICONS[key]}</svg>`;
+        }
+
         function updateUI() {
             el.processBtn.disabled = !state.files.length || state.processing;
-
             if (state.processing) {
-                el.loadingSpinner.classList.remove('hidden');
-                el.statusMessage.classList.add('hidden');
-                el.processBtn.disabled = true;
-                el.processBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> Procesando…`;
+                el.loadingSpinner.style.display = 'flex';
+                el.processBtn.innerHTML = svgIcon('processing') + ' Procesando…';
             } else {
-                el.loadingSpinner.classList.add('hidden');
-                el.statusMessage.classList.remove('hidden');
-                el.processBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Procesar y Ordenar`;
+                el.loadingSpinner.style.display = 'none';
+                el.processBtn.innerHTML = svgIcon('process') + ' Procesar y Ordenar';
             }
-
-            if (state.files.length > 0) el.resetBtn.classList.remove('hidden');
+            if (state.files.length > 0) el.resetBtn.style.display = 'inline-flex';
         }
 
         function showStatus(msg, type = 'info') {
-            const icons = {
-                info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
-                success: '<polyline points="20 6 9 17 4 12"/>',
-                error:   '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'
-            };
             const s = el.statusMessage;
-            s.className = `status-bar ${type}`;
-            s.innerHTML = `<svg class="status-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[type] || icons.info}</svg><span>${msg}</span>`;
-            if (type === 'success') setTimeout(() => showStatus('Listo para nuevas imágenes.', 'info'), 6000);
+            s.className = type;
+            s.innerHTML = svgIcon(type, 15) + msg;
+            if (type === 'success')
+                setTimeout(() => showStatus('Listo para nuevas imágenes.', 'info'), 6000);
         }
 
-        // ── UTILS ──────────────────────────────────
-        function escHtml(t) {
-            const d = document.createElement('div');
-            d.textContent = t;
-            return d.innerHTML;
-        }
-
+        function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
         function fmtSize(b) {
-            if (b < 1024)     return b + ' B';
-            if (b < 1024**2)  return (b/1024).toFixed(1) + ' KB';
+            if (b < 1024)    return b + ' B';
+            if (b < 1024**2) return (b/1024).toFixed(1) + ' KB';
             return (b/1024**2).toFixed(1) + ' MB';
         }
 
-        // ── GLOBAL EVENTS ──────────────────────────
         window.addEventListener('offline', () => showStatus('Sin conexión a internet.', 'error'));
         window.addEventListener('online',  () => showStatus('Conexión restaurada.', 'success'));
-        document.addEventListener('keydown', ev => {
-            if (ev.key === 'Escape' && state.files.length) reset();
-        });
-
+        document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && state.files.length) reset(); });
         document.addEventListener('DOMContentLoaded', setup);
     })();
     </script>
