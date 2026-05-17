@@ -6702,3 +6702,222 @@ svg {
   padding-left: 0;
   margin: 0;
 }
+
+/* ============================================
+   ADMIN DASHBOARD TABS
+   Clases mínimas para el sistema de pestañas
+   del panel docente (classroom_admin.html)
+   ============================================ */
+
+/* Contenedor de tabs */
+.tabs-container {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+    max-width: 1200px;
+    margin: 20px auto 0;
+}
+
+/* Nav de tabs — usa el mismo look que filter-pills pero anclado */
+.admin-tabs-nav {
+    display: flex;
+    background: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid var(--glass-border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.admin-tabs-nav::-webkit-scrollbar {
+    display: none;
+}
+
+[data-theme="dark"] .admin-tabs-nav {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-tab-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 18px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    position: relative;
+    white-space: nowrap;
+}
+
+.admin-tab-btn:hover {
+    color: var(--accent-color);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.admin-tab-btn.active {
+    color: var(--accent-color);
+    background: var(--glass-bg);
+}
+
+.admin-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--accent-gradient);
+    border-radius: 3px 3px 0 0;
+}
+
+/* Contenido de tabs */
+.admin-tab-content {
+    display: none;
+    padding: 30px;
+    animation: fadeIn 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+.admin-tab-content.active {
+    display: block;
+}
+
+/* Tabla de datos — hereda de .data-table existente */
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-tertiary);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.data-table td {
+    background: var(--bg-primary);
+    padding: 14px 16px;
+    vertical-align: middle;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.data-table td:first-child {
+    border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
+}
+
+.data-table td:last-child {
+    border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+}
+
+.data-table tr {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: all var(--transition-fast);
+}
+
+.data-table tr:hover td {
+    background: var(--secondary-container);
+}
+
+/* Badges de estado en tabla */
+.badge {
+    padding: 4px 10px;
+    border-radius: var(--border-radius-pill);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    display: inline-block;
+}
+
+.badge-pending {
+    background: rgba(255, 159, 10, 0.15);
+    color: #FF9F0A;
+}
+
+.badge-completed {
+    background: rgba(56, 106, 32, 0.15);
+    color: #386A20;
+}
+
+[data-theme="dark"] .badge-pending {
+    background: rgba(255, 159, 10, 0.2);
+    color: #FFB74D;
+}
+
+[data-theme="dark"] .badge-completed {
+    background: rgba(56, 106, 32, 0.2);
+    color: #A8D88C;
+}
+
+/* Botones de acción en tabla */
+.action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    margin-right: 4px;
+    font-family: inherit;
+}
+
+.btn-edit {
+    background: rgba(33, 150, 243, 0.1);
+    color: #1976d2;
+    border: 1px solid rgba(33, 150, 243, 0.2);
+}
+
+.btn-edit:hover {
+    background: #1976d2;
+    color: white;
+    border-color: #1976d2;
+}
+
+.btn-delete {
+    background: rgba(208, 0, 0, 0.1);
+    color: #d32f2f;
+    border: 1px solid rgba(208, 0, 0, 0.2);
+}
+
+.btn-delete:hover {
+    background: #d32f2f;
+    color: white;
+    border-color: #d32f2f;
+}
+
+/* Modal visible/oculto — compatible con JS del original */
+.modal {
+    display: flex;
+}
+
+.modal.hidden,
+.modal:not([style*="display"]) {
+    display: none;
+}
+
+/* Responsive admin dashboard */
+@media (max-width: 768px) {
+    .admin-tab-content {
+        padding: 20px 16px;
+    }
+
+    .admin-tab-btn {
+        padding: 14px 12px;
+        font-size: 0.82rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px 12px;
+        font-size: 0.82rem;
+    }
+}
