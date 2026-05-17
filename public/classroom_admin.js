@@ -5,18 +5,16 @@ let currentUserDni = null;
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Auth Check (Sin redefinir fetch)
     currentUserDni = localStorage.getItem('mirai_user_dni');
-    const token = localStorage.getItem('mirai_auth_token');
 
-    if (!token || !currentUserDni) {
+    if (!currentUserDni) {
         window.location.href = 'login.html';
         return;
     }
 
     // 2. Verificar rol de profesor
     try {
-        const token = localStorage.getItem('mirai_auth_token');
         const checkResponse = await fetch('/api/check-professor-role', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            credentials: 'same-origin'
         });
         if (checkResponse.status === 401) {
             window.location.href = 'login.html';

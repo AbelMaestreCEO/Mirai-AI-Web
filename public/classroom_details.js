@@ -6,10 +6,9 @@ console.log('🔍 classroom_details.js cargado');
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ DOMContentLoaded');
 
-    const token = localStorage.getItem('mirai_auth_token');
     const dni = localStorage.getItem('mirai_user_dni');
 
-    if (!token || !dni) {
+    if (!dni) {
         window.location.href = 'login.html';
         return;
     }
@@ -26,8 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 localStorage.setItem('mirai-ai-theme', newTheme);
                 const sun = document.querySelector('.sun-icon');
                 const moon = document.querySelector('.moon-icon');
-                if(sun && moon) {
-                    if(newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+                if (sun && moon) {
+                    if (newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
                     else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
                 }
                 themeToggle.dataset.initialized = 'true';
@@ -46,8 +45,8 @@ function initLocalTheme() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     const sun = document.querySelector('.sun-icon');
     const moon = document.querySelector('.moon-icon');
-    if(sun && moon) {
-        if(savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
+    if (sun && moon) {
+        if (savedTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
         else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
     }
 }
@@ -88,7 +87,7 @@ async function loadAssignmentDetails() {
         const response = await fetch(`/api/assignment-details?id=${assignmentId}`);
         console.log('📊 Response Status:', response.status);
 
-               const data = await response.json();
+        const data = await response.json();
         console.log('📦 Data recibida:', data);
 
         if (!response.ok) {
@@ -508,7 +507,7 @@ function setupLogout() {
             if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                 try {
                     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-                } catch (e) {}
+                } catch (e) { }
                 localStorage.removeItem('mirai_user_dni');
                 localStorage.removeItem('mirai_user_name');
                 localStorage.removeItem('mirai-ai-conversation-id');
