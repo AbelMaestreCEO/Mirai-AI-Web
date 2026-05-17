@@ -961,10 +961,8 @@ function openAddProductModal(product = null) {
 }
 
 function closeModals() {
-    const modal = document.getElementById('add-product-modal');
-    modal.classList.add('hidden');
-
-    // Resetear estado del formulario después de la animación
+    document.getElementById('add-product-modal').classList.add('hidden');
+    document.getElementById('product-detail-modal').classList.add('hidden');
     setTimeout(() => {
         resetForm();
     }, 300);
@@ -1108,11 +1106,9 @@ window.closeProductDetail = function () {
 
 // También asegurémonos de que las otras funciones de cierre sean globales si se llaman desde HTML
 window.closeModals = function () {
-    const addModal = document.getElementById('add-product-modal');
-    const detailModal = document.getElementById('product-detail-modal');
-    if (addModal) addModal.classList.add('hidden');
-    if (detailModal) detailModal.classList.add('hidden');
-    resetForm();
+    document.getElementById('add-product-modal').classList.add('hidden');
+    document.getElementById('product-detail-modal').classList.add('hidden');
+    setTimeout(() => resetForm(), 300); // ← agrega el resetForm aquí también
 };
 
 // ============================================
