@@ -1,6 +1,7 @@
 // ============================================
-// MIRAI MIRROR - app.js (LIMPIO Y CORREGIDO)
-// Desarrollado por Devs Aberu & Mirai Company
+// MIRAI MIRROR - app-mirror.js (Corregido)
+// Tema y Sidebar → delegados a mirai-boot.js / MiraiApp
+// Clave de tema UNIFICADA: 'mirai-ai-theme'
 // ============================================
 
 const MIRROR_CONFIG = {
@@ -11,15 +12,15 @@ const MIRROR_CONFIG = {
 };
 
 const elements = {
-    dropZone: document.getElementById('dropZone'),
-    imageInput: document.getElementById('imageInput'),
-    previewContainer: document.getElementById('previewContainer'),
-    imageList: document.getElementById('imageList'),
-    processBtn: document.getElementById('processBtn'),
-    downloadBtn: document.getElementById('downloadBtn'),
-    resetBtn: document.getElementById('resetBtn'),
-    statusMessage: document.getElementById('statusMessage'),
-    loadingSpinner: document.getElementById('loadingSpinner'),
+    dropZone:          document.getElementById('dropZone'),
+    imageInput:        document.getElementById('imageInput'),
+    previewContainer:  document.getElementById('previewContainer'),
+    imageList:         document.getElementById('imageList'),
+    processBtn:        document.getElementById('processBtn'),
+    downloadBtn:       document.getElementById('downloadBtn'),
+    resetBtn:          document.getElementById('resetBtn'),
+    statusMessage:     document.getElementById('statusMessage'),
+    loadingSpinner:    document.getElementById('loadingSpinner'),
     expirationWarning: document.getElementById('expirationWarning')
 };
 
@@ -29,240 +30,162 @@ let state = {
     isProcessing: false
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Inicializar Tema (Usando la lógica de MiraiApp si existe, o local)
-    if (typeof MiraiApp !== 'undefined') {
-        // Si MiraiApp ya manejó el tema, no hacemos nada.
-        // Si no, inicializamos el toggle localmente
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme');
-                const newTheme = current === 'light' ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', newTheme);
-                localStorage.setItem('theme', newTheme);
-                // Actualizar iconos
-                const sun = document.querySelector('.sun-icon');
-                const moon = document.querySelector('.moon-icon');
-                if(sun && moon) {
-                    if(newTheme === 'dark') { sun.style.display='none'; moon.style.display='block'; }
-                    else { sun.style.display='block'; moon.style.display='none'; }
-                }
-            });
-        }
-    } else {
-        // Fallback si MiraiApp no carga
-        initLocalTheme();
-    }
+// ============================================
+// GESTIÓN DE TEMA — DELEGADA A MIRAI-BOOT.JS
+// La clave universal es 'mirai-ai-theme'.
+// mirai-boot.js ya aplica el tema antes de que
+// este script corra. Solo mantenemos las
+// funciones por compatibilidad interna.
+// ============================================
+const THEME_KEY = 'mirai-ai-theme'; // ← UNIFICADA
 
-    // 2. Inicializar Lógica de Mirror
+function initLocalTheme() {
+    const savedTheme = localStorage.getItem(THEME_KEY)
+        || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    syncThemeIcons(savedTheme);
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    syncThemeIcons(theme);
+}
+
+function syncThemeIcons(theme) {
+    const sun  = document.querySelector('.sun-icon');
+    const moon = document.querySelector('.moon-icon');
+    if (!sun || !moon) return;
+    if (theme === 'dark') {
+        sun.classList.add('hidden');
+        moon.classList.remove('hidden');
+    } else {
+        sun.classList.remove('hidden');
+        moon.classList.add('hidden');
+    }
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    setTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+    // El tema ya fue aplicado por mirai-boot.js.
+    // Solo asegurar que el toggle de Mirror esté vinculado
+    // si mirai-boot.js no lo encontró (id="themeToggle" en mirror.html).
+    const themeToggle = document.getElementById('themeToggle')
+                     || document.getElementById('theme-toggle');
+    if (themeToggle && !themeToggle.dataset.bootInit) {
+        themeToggle.addEventListener('click', toggleTheme);
+        themeToggle.dataset.bootInit = 'true';
+    }
+    // Sincronizar iconos por si acaso
+    syncThemeIcons(document.documentElement.getAttribute('data-theme') || 'light');
+
+    // Inicializar lógica de Mirror
     if (!elements.dropZone || !elements.imageInput) {
-        console.error("CRÍTICO: Elementos del DOM no encontrados.");
+        console.error('CRÍTICO: Elementos del DOM no encontrados. Verifica el HTML.');
         return;
     }
-    initializeEventListeners();
+    setupDropZone();
+    setupButtons();
     updateUIState();
-    logAppStart();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
-function logAppStart() {
-    console.log('%c🌸 Mirai Mirror Initialized', 'color: #0a84ff; font-size: 14px; font-weight: bold;');
-    console.log('%cDevs Aberu & Mirai Company', 'color: #5ac8fa; font-size: 12px;');
-}
-
-function initializeEventListeners() {
-    // Click en dropzone para abrir input
-    if (elements.dropZone) {
-        elements.dropZone.addEventListener('click', (e) => {
-            if (e.target.tagName !== 'LABEL' && e.target.closest('label') === null) {
-                elements.imageInput.click();
-            }
-        });
-    }
-
-    // Cambio en input file
-    if (elements.imageInput) {
-        elements.imageInput.addEventListener('change', handleFileSelect);
-    }
-
-    // Setup Drag & Drop
-    setupDragAndDrop();
-
-    // Botones de acción
-    if (elements.processBtn) elements.processBtn.addEventListener('click', processImages);
-    if (elements.downloadBtn) elements.downloadBtn.addEventListener('click', downloadZip);
-    if (elements.resetBtn) elements.resetBtn.addEventListener('click', resetApplication);
-
-    // Prevenir defaults en el body para drag & drop
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        document.body.addEventListener(eventName, preventDefaults, false);
+// ============================================
+// DROP ZONE
+// ============================================
+function setupDropZone() {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+        elements.dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        document.body.addEventListener(evt,     e => { e.preventDefault(); e.stopPropagation(); }, false);
     });
+    ['dragenter', 'dragover'].forEach(evt => elements.dropZone.addEventListener(evt, highlight, false));
+    ['dragleave', 'drop']    .forEach(evt => elements.dropZone.addEventListener(evt, unhighlight, false));
+    elements.dropZone.addEventListener('drop', handleDrop, false);
+    elements.imageInput.addEventListener('change', handleFileSelect, false);
+    elements.dropZone.addEventListener('click', () => elements.imageInput.click());
 }
 
-function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
-}
+function highlight()  { if (elements.dropZone) elements.dropZone.classList.add('dragover'); }
+function unhighlight(){ if (elements.dropZone) elements.dropZone.classList.remove('dragover'); }
 
-function setupDragAndDrop() {
-    const dropZone = elements.dropZone;
-    if (!dropZone) return;
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-
-    dropZone.addEventListener('drop', handleDrop, false);
-}
-
-function highlight(e) {
-    if (elements.dropZone) elements.dropZone.classList.add('dragover');
-}
-
-function unhighlight(e) {
-    if (elements.dropZone) elements.dropZone.classList.remove('dragover');
-}
-
-function handleDrop(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    handleFiles(files);
-}
-
-function handleFileSelect(e) {
-    const files = e.target.files;
-    handleFiles(files);
-}
+function handleDrop(e)       { handleFiles(e.dataTransfer.files); }
+function handleFileSelect(e) { handleFiles(e.target.files); }
 
 function handleFiles(files) {
     const newFiles = Array.from(files).filter(file => {
         if (!MIRROR_CONFIG.ALLOWED_TYPES.includes(file.type)) {
-            showStatus(`Archivo "${file.name}" no es una imagen válida.`, 'error');
-            return false;
+            showStatus(`"${file.name}" no es una imagen válida.`, 'error'); return false;
         }
-        
         if (file.size > MIRROR_CONFIG.MAX_FILE_SIZE) {
-            showStatus(`Archivo "${file.name}" excede el límite de 50MB.`, 'error');
-            return false;
+            showStatus(`"${file.name}" excede el límite de 50 MB.`, 'error'); return false;
         }
-        
         return true;
     });
 
     if (state.selectedFiles.length + newFiles.length > MIRROR_CONFIG.MAX_FILES) {
-        showStatus(`Máximo ${MIRROR_CONFIG.MAX_FILES} archivos permitidos.`, 'error');
-        return;
+        showStatus(`Máximo ${MIRROR_CONFIG.MAX_FILES} archivos permitidos.`, 'error'); return;
     }
 
     state.selectedFiles = [...state.selectedFiles, ...newFiles];
-    
     renderPreview();
     updateUIState();
-    
-    if (state.selectedFiles.length > 0) {
+    if (state.selectedFiles.length > 0)
         showStatus(`${state.selectedFiles.length} imagen(es) lista(s) para procesar.`, 'success');
-    }
 }
 
 // ============================================
-// RENDERIZADO DE VISTA PREVIA
+// PREVIEW
 // ============================================
 function renderPreview() {
     if (!elements.imageList) return;
-    
     elements.imageList.innerHTML = '';
-    
-    if (state.selectedFiles.length === 0) {
-        if (elements.previewContainer) elements.previewContainer.classList.add('hidden');
-        return;
-    }
 
-    if (elements.previewContainer) elements.previewContainer.classList.remove('hidden');
+    if (state.selectedFiles.length === 0) {
+        elements.previewContainer?.classList.add('hidden'); return;
+    }
+    elements.previewContainer?.classList.remove('hidden');
 
     state.selectedFiles.forEach((file, index) => {
-        const imageItem = document.createElement('div');
-        imageItem.className = 'image-item animate-up';
-        imageItem.style.animationDelay = `${index * 0.05}s`;
-
-        const img = document.createElement('img');
-        img.alt = file.name;
-        img.loading = 'lazy';
-        
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-btn';
-        removeBtn.title = 'Eliminar';
-        removeBtn.innerHTML = '×';
-        removeBtn.onclick = (e) => {
-            e.stopPropagation();
-            removeFile(index);
-        };
-
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; padding: 0.25rem; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
-        overlay.textContent = file.name;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            img.src = e.target.result;
-            img.style.display = 'block';
-        };
-        reader.onerror = (err) => {
-            console.error('Error reading file:', err);
-            img.src = 'data:image/svg+xml,<svg xmlns="https://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23ddd" width="100" height="100"/><text x="50%" y="50%" text-anchor="middle" fill="%23999">Error</text></svg>';
-        };
-        reader.readAsDataURL(file);
-
-        imageItem.appendChild(img);
-        imageItem.appendChild(removeBtn);
-        imageItem.appendChild(overlay);
-        
-        elements.imageList.appendChild(imageItem);
+        const item = document.createElement('div');
+        item.className = 'image-item';
+        const url = URL.createObjectURL(file);
+        item.innerHTML = `
+            <img src="${url}" alt="${file.name}" onload="URL.revokeObjectURL(this.src)">
+            <div class="image-info">
+                <span class="image-name">${escapeHtml(file.name)}</span>
+                <span class="image-size">${formatFileSize(file.size)}</span>
+            </div>
+            <button class="remove-btn" data-index="${index}" title="Eliminar">✕</button>`;
+        item.querySelector('.remove-btn').addEventListener('click', e => {
+            const i = parseInt(e.currentTarget.dataset.index);
+            state.selectedFiles.splice(i, 1);
+            renderPreview();
+            updateUIState();
+        });
+        elements.imageList.appendChild(item);
     });
 }
 
-function removeFile(index) {
-    state.selectedFiles.splice(index, 1);
-    renderPreview();
-    updateUIState();
-    
-    if (state.selectedFiles.length === 0) {
-        showStatus('Ninguna imagen seleccionada.', 'info');
-    } else {
-        showStatus(`${state.selectedFiles.length} imagen(es) restante(s).`, 'info');
-    }
+// ============================================
+// BOTONES
+// ============================================
+function setupButtons() {
+    if (elements.processBtn)  elements.processBtn.addEventListener('click',  processImages);
+    if (elements.downloadBtn) elements.downloadBtn.addEventListener('click', downloadResult);
+    if (elements.resetBtn)    elements.resetBtn.addEventListener('click',    resetApplication);
 }
 
-// ============================================
-// PROCESAMIENTO
-// ============================================
 async function processImages() {
-    if (state.selectedFiles.length === 0) {
-        showStatus('Selecciona al menos una imagen.', 'error');
-        return;
-    }
-
-    if (state.isProcessing) return;
-
+    if (state.selectedFiles.length === 0 || state.isProcessing) return;
     state.isProcessing = true;
-    state.processedBlob = null;
-
-    if (elements.downloadBtn) elements.downloadBtn.classList.add('hidden');
-    if (elements.resetBtn) elements.resetBtn.classList.add('hidden');
-    if (elements.expirationWarning) {
-        elements.expirationWarning.classList.add('hidden');
-        elements.expirationWarning.classList.remove('show');
-    }
-
     updateUIState();
-    showStatus(
-        `Enviando ${state.selectedFiles.length} imagen(es) al servidor... esto puede tardar unos segundos.`,
-        'info'
-    );
+    showStatus('Procesando imágenes...', 'info');
 
     try {
         const formData = new FormData();
@@ -270,224 +193,104 @@ async function processImages() {
 
         const response = await fetch(MIRROR_CONFIG.API_ENDPOINT, {
             method: 'POST',
+            credentials: 'same-origin',
             body: formData
         });
 
-        if (!response.ok) {
-            let errMsg = `Error del servidor: ${response.status}`;
-            const ct = response.headers.get('Content-Type') || '';
-            if (ct.includes('application/json')) {
-                const errData = await response.json().catch(() => ({}));
-                errMsg = errData.error || errData.message || errMsg;
-            }
-            throw new Error(errMsg);
-        }
+        if (!response.ok) throw new Error(`Error del servidor: ${response.status}`);
 
-        const contentType = response.headers.get('Content-Type') || '';
-        if (!contentType.includes('application/zip') && !contentType.includes('octet-stream')) {
-            const text = await response.text();
-            let errMsg = 'Respuesta inesperada del servidor.';
-            try {
-                const errData = JSON.parse(text);
-                errMsg = errData.error || errData.message || errMsg;
-            } catch (_) { /* no era JSON */ }
-            throw new Error(errMsg);
-        }
+        state.processedBlob = await response.blob();
+        showStatus('✅ ¡Imágenes procesadas! Descarga lista.', 'success');
 
-        const blob = await response.blob();
+        if (elements.downloadBtn) elements.downloadBtn.disabled = false;
+        if (elements.expirationWarning) elements.expirationWarning.classList.remove('hidden');
 
-        if (!blob || blob.size === 0) {
-            throw new Error('El archivo ZIP generado está vacío.');
-        }
-
-        state.processedBlob = blob;
-
-        const count = response.headers.get('X-Files-Count') || state.selectedFiles.length;
-        showStatus(`¡${count} imagen(es) procesada(s) con éxito! Listas para descargar.`, 'success');
-
-        if (elements.downloadBtn) elements.downloadBtn.classList.remove('hidden');
-        if (elements.resetBtn) elements.resetBtn.classList.remove('hidden');
-
-        if (elements.expirationWarning) {
-            elements.expirationWarning.classList.remove('hidden');
-            elements.expirationWarning.classList.add('show');
-        }
+        // Auto-expirar descarga en 30 min
+        setTimeout(() => {
+            state.processedBlob = null;
+            if (elements.downloadBtn) elements.downloadBtn.disabled = true;
+            if (elements.expirationWarning) elements.expirationWarning.classList.add('hidden');
+            showStatus('El archivo ha expirado. Procesa de nuevo.', 'error');
+        }, 30 * 60 * 1000);
 
     } catch (error) {
-        console.error('Error al procesar:', error);
-        showStatus(`Error: ${error.message}. Intenta nuevamente.`, 'error');
-        if (elements.resetBtn) elements.resetBtn.classList.remove('hidden');
+        console.error('Error procesando:', error);
+        showStatus(`Error: ${error.message}`, 'error');
     } finally {
         state.isProcessing = false;
         updateUIState();
     }
 }
 
-// ============================================
-// DESCARGA
-// ============================================
-function downloadZip() {
-    if (!state.processedBlob) {
-        showStatus('No hay archivo para descargar.', 'error');
-        return;
-    }
-
-    const url = window.URL.createObjectURL(state.processedBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    
-    const now = new Date();
-    const timestamp = now.toISOString().slice(0, 10).replace(/-/g, '');
-    a.download = `mirai_mirror_${timestamp}.zip`;
-    
-    document.body.appendChild(a);
-    a.click();
-    
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    
-    showStatus('Descarga iniciada. ¡Disfruta tus fotos organizadas!', 'success');
+function downloadResult() {
+    if (!state.processedBlob) return;
+    const url  = URL.createObjectURL(state.processedBlob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = `mirai-mirror-${Date.now()}.zip`;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
-// ============================================
-// REINICIO
-// ============================================
 function resetApplication() {
-    state.selectedFiles = [];
-    state.processedBlob = null;
-    state.isProcessing = false;
-    
+    state.selectedFiles  = [];
+    state.processedBlob  = null;
+    state.isProcessing   = false;
     if (elements.imageInput) elements.imageInput.value = '';
-    
-    if (elements.imageList) elements.imageList.innerHTML = '';
-    if (elements.previewContainer) elements.previewContainer.classList.add('hidden');
-    if (elements.downloadBtn) elements.downloadBtn.classList.add('hidden');
-    if (elements.resetBtn) elements.resetBtn.classList.add('hidden');
-    
-    if (elements.expirationWarning) {
-        elements.expirationWarning.classList.add('hidden');
-        elements.expirationWarning.classList.remove('show');
-    }
-    
-    showStatus('Aplicación reiniciada. Listo para nuevas imágenes.', 'info');
+    if (elements.downloadBtn) elements.downloadBtn.disabled = true;
+    if (elements.expirationWarning) elements.expirationWarning.classList.add('hidden');
+    renderPreview();
     updateUIState();
+    showStatus('Listo para nuevas imágenes.', 'info');
 }
 
 // ============================================
-// UTILIDADES UI
+// UI STATE
 // ============================================
 function updateUIState() {
-    if (elements.processBtn) {
+    if (elements.processBtn)
         elements.processBtn.disabled = state.selectedFiles.length === 0 || state.isProcessing;
-    }
-    
+
     if (state.isProcessing) {
-        if (elements.loadingSpinner) elements.loadingSpinner.classList.remove('hidden');
-        if (elements.processBtn) {
-            elements.processBtn.innerHTML = '<span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span> Procesando...';
-        }
+        elements.loadingSpinner?.classList.remove('hidden');
+        if (elements.processBtn) elements.processBtn.textContent = 'Procesando...';
     } else {
-        if (elements.loadingSpinner) elements.loadingSpinner.classList.add('hidden');
-        if (elements.processBtn) {
-            elements.processBtn.innerHTML = `
-                <i data-lucide="sparkles" style="width: 18px; height: 18px;"></i>
-                <span>Procesar y Ordenar</span>
-            `;
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-        }
+        elements.loadingSpinner?.classList.add('hidden');
+        if (elements.processBtn) elements.processBtn.innerHTML = `
+            <i data-lucide="sparkles" style="width:18px;height:18px"></i>
+            <span>Procesar y Ordenar</span>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 }
 
 function showStatus(message, type = 'info') {
-    if (!elements.statusMessage) {
-        console.warn(`Estado (${type}): ${message}`);
-        return;
-    }
-    
+    if (!elements.statusMessage) { console.warn(`[Mirror] ${type}: ${message}`); return; }
     elements.statusMessage.textContent = message;
     elements.statusMessage.className = `status ${type} show`;
-    
-    elements.statusMessage.classList.remove('info', 'success', 'error');
-    elements.statusMessage.classList.add(type, 'show');
-    
-    if (type === 'success') {
-        setTimeout(() => {
-            if (elements.statusMessage) {
-                elements.statusMessage.classList.remove('show');
-            }
-        }, 5000);
-    }
+    if (type === 'success')
+        setTimeout(() => elements.statusMessage?.classList.remove('show'), 5000);
 }
 
 // ============================================
-// MANEJO DE ERRORES GLOBALES
+// ERRORES GLOBALES
 // ============================================
-window.addEventListener('error', (e) => {
-    console.error('Error global:', e.error);
-    showStatus('Ocurrió un error inesperado. Por favor recarga la página.', 'error');
-});
-
-window.addEventListener('offline', () => {
-    showStatus('Sin conexión. Verifica tu conexión a internet.', 'error');
-});
-
-window.addEventListener('online', () => {
-    showStatus('Conexión restaurada.', 'success');
-});
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state.selectedFiles.length > 0) {
-        resetApplication();
-    }
-});
+window.addEventListener('error',   e => showStatus('Error inesperado. Recarga la página.', 'error'));
+window.addEventListener('offline', () => showStatus('Sin conexión. Verifica tu internet.', 'error'));
+window.addEventListener('online',  () => showStatus('Conexión restaurada.', 'success'));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.selectedFiles.length > 0) resetApplication(); });
 
 // ============================================
-// GESTIÓN DE TEMA (CLARO / OSCURO)
+// UTILIDADES
 // ============================================
-function initLocalTheme() {
-    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    const sun = document.querySelector('.sun-icon');
-    const moon = document.querySelector('.moon-icon');
-    if(sun && moon) {
-        if(savedTheme === 'dark') { sun.style.display='none'; moon.style.display='block'; }
-        else { sun.style.display='block'; moon.style.display='none'; }
-    }
-}
-function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-    
-    const sunIcon = document.querySelector('.sun-icon');
-    const moonIcon = document.querySelector('.moon-icon');
-    
-    if (sunIcon && moonIcon) {
-        if (theme === 'light') {
-            sunIcon.style.display = 'none';
-            moonIcon.style.display = 'block';
-        } else {
-            sunIcon.style.display = 'block';
-            moonIcon.style.display = 'none';
-        }
-    }
+function escapeHtml(text) {
+    if (!text) return '';
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
 }
 
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-}
-
-// Inicializar tema al cargar (si no se ha hecho ya en DOMContentLoaded)
-if (!document.body.dataset.themeInitialized) {
-    document.body.dataset.themeInitialized = 'true';
-    document.addEventListener('DOMContentLoaded', () => {
-        initLocalTheme();
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', toggleTheme);
-        }
-    });
+function formatFileSize(bytes) {
+    if (bytes < 1024)       return `${bytes} B`;
+    if (bytes < 1024**2)    return `${(bytes/1024).toFixed(1)} KB`;
+    return `${(bytes/1024**2).toFixed(1)} MB`;
 }
