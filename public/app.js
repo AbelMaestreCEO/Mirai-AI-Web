@@ -190,17 +190,21 @@ const MiraiApp = (() => {
     function initThemeToggle() {
         const btn = document.querySelector('.theme-toggle');
         const saved = localStorage.getItem('mirai-ai-theme');
-
+ 
         // Aplicar tema guardado
         if (saved === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
         }
-
+ 
+        // Si mirai-boot.js ya registró el listener, NO duplicar
+        // (evita el bug de "tema se revierte solo al hacer click")
+        if (btn && btn.dataset.bootInit === 'true') return;
+ 
         if (btn) {
             btn.addEventListener('click', () => {
                 const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
                 const newTheme = isDark ? 'light' : 'dark';
-
+ 
                 document.documentElement.setAttribute('data-theme', newTheme);
                 localStorage.setItem('mirai-ai-theme', newTheme);
             });

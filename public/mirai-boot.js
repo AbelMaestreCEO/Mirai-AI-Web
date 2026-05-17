@@ -1,35 +1,38 @@
 /**
  * ============================================
- * MIRAI BOOT - v1.0 - Script Universal de Arranque
+ * MIRAI BOOT - v2.0 DEFINITIVO
  * ============================================
- * PROPÓSITO: Garantizar tema y sidebar en TODAS las páginas,
- * sin importar si MiraiApp (app.js) carga o no.
+ * ESTRATEGIA: Este script es el ÚNICO dueño del tema y sidebar.
  *
- * INSTRUCCIONES:
- * Incluir como PRIMER script (sin defer, sin module) en cada
- * página protegida, ANTES de auth-guard.js y app.js:
+ * Problema raíz:
+ *   - app.js usaba querySelector('.theme-toggle') → registraba listener
+ *   - mirai-boot v1 usaba getElementById('theme-toggle') → registraba otro
+ *   - MISMO elemento, DOS listeners opuestos → tema no cambiaba (revertía solo)
+ *   - Sidebar: dataset.bootInit vs dataset.mobileInit → ambos se registraban
+ *     → abría pero no cerraba (o al revés)
  *
+ * Solución: cloneNode() reemplaza el elemento y borra TODOS los listeners
+ * anteriores antes de registrar uno solo y limpio.
+ * Usa dataset.mobileInit (el guard de app.js) para que app.js lo salte.
+ *
+ * INSTALACIÓN — en cada HTML protegido, PRIMER script antes de auth-guard:
  *   <script src="mirai-boot.js"></script>
  *   <script src="auth-guard.js"></script>
  *   <script type="module" src="app.js" defer></script>
- *   ...
- *
- * NO incluir en: login.html, registration.html, verify.html
+ *   <script type="module" src="[pagina].js" defer></script>
  * ============================================
  */
 (function () {
     'use strict';
 
-    var THEME_KEY = 'mirai-ai-theme'; // Clave ÚNICA y universal
+    var THEME_KEY = 'mirai-ai-theme';
 
-    // ── 1. APLICAR TEMA INMEDIATAMENTE (evita flash) ──────────────────────────
-    var saved = localStorage.getItem(THEME_KEY);
-    if (!saved) {
-        saved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    document.documentElement.setAttribute('data-theme', saved);
+    // ── 1. TEMA INMEDIATO (evita flash blanco/negro al cargar) ───────────────
+    var savedTheme = localStorage.getItem(THEME_KEY)
+        || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // ── 2. SINCRONIZAR ICONOS SOL/LUNA ────────────────────────────────────────
+    // ── 2. SINCRONIZAR ICONOS SOL / LUNA ─────────────────────────────────────
     function syncIcons(theme) {
         var sun  = document.querySelector('.sun-icon');
         var moon = document.querySelector('.moon-icon');
@@ -43,15 +46,27 @@
         }
     }
 
-    // ── 3. TOGGLE DE TEMA (cualquier id o clase) ──────────────────────────────
-    function bindThemeToggle() {
-        // Soporta: id="theme-toggle", class="theme-toggle", id="themeToggle"
+    // ── 3. CLONAR ELEMENTO: elimina TODOS los event listeners previos ─────────
+    function cleanClone(el) {
+        if (!el || !el.parentNode) return el;
+        var clone = el.cloneNode(true);
+        el.parentNode.replaceChild(clone, el);
+        return clone;
+    }
+
+    // ── 4. BIND TEMA ──────────────────────────────────────────────────────────
+    function bindTheme() {
         var btn = document.getElementById('theme-toggle')
                || document.getElementById('themeToggle')
                || document.querySelector('.theme-toggle');
+        if (!btn) return;
 
-        if (!btn || btn.dataset.bootInit === 'true') return;
-        btn.dataset.bootInit = 'true';
+        // Limpiar listeners previos (app.js, courses.js, inventory.js, etc.)
+        btn = cleanClone(btn);
+
+        // Guard que app.js respeta — así no vuelve a registrar
+        btn.dataset.mobileInit = 'true'; // (reutilizamos para consistencia)
+        btn.dataset.bootInit   = 'true';
 
         btn.addEventListener('click', function () {
             var current = document.documentElement.getAttribute('data-theme') || 'light';
@@ -62,71 +77,81 @@
         });
     }
 
-    // ── 4. SIDEBAR / MENÚ MÓVIL ───────────────────────────────────────────────
+    // ── 5. BIND SIDEBAR ───────────────────────────────────────────────────────
     function bindSidebar() {
-        var toggle  = document.querySelector('.mobile-menu-toggle');
-        var sidebar = document.querySelector('.mobile-sidebar');
-        var overlay = document.querySelector('.mobile-overlay');
-        var closeBtn= document.querySelector('.close-menu');
+        var toggle   = document.querySelector('.mobile-menu-toggle');
+        var sidebar  = document.querySelector('.mobile-sidebar');
+        var overlay  = document.querySelector('.mobile-overlay');
+        var closeBtn = document.querySelector('.close-menu');
 
         if (!toggle || !sidebar) return;
-        if (toggle.dataset.bootInit === 'true') return; // evitar doble bind
-        toggle.dataset.bootInit = 'true';
+
+        // Clonar para eliminar todos los listeners previos
+        toggle  = cleanClone(toggle);
+        if (overlay)  overlay  = cleanClone(overlay);
+        if (closeBtn) closeBtn = cleanClone(closeBtn);
+
+        // Marcar con el guard de app.js para que no re-registre
+        toggle.dataset.mobileInit = 'true';
+        toggle.dataset.bootInit   = 'true';
 
         function openMenu() {
             sidebar.classList.add('active');
-            if (overlay) overlay.classList.add('active');
+            if (overlay)  overlay.classList.add('active');
             toggle.classList.add('active');
             document.body.style.overflow = 'hidden';
         }
 
         function closeMenu() {
             sidebar.classList.remove('active');
-            if (overlay) overlay.classList.remove('active');
+            if (overlay)  overlay.classList.remove('active');
             toggle.classList.remove('active');
             document.body.style.overflow = '';
-        }
-
-        function toggleMenu() {
-            sidebar.classList.contains('active') ? closeMenu() : openMenu();
         }
 
         toggle.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleMenu();
+            sidebar.classList.contains('active') ? closeMenu() : openMenu();
         });
 
         if (overlay)  overlay.addEventListener('click',  closeMenu);
         if (closeBtn) closeBtn.addEventListener('click', closeMenu);
 
-        // Cerrar al navegar (mobile)
-        var links = sidebar.querySelectorAll('.nav-grid-item, .sidebar-links a');
-        links.forEach(function (link) {
+        // Cerrar al navegar en mobile
+        sidebar.querySelectorAll('.nav-grid-item, .sidebar-links a').forEach(function (link) {
             link.addEventListener('click', function () {
                 if (window.innerWidth <= 768) closeMenu();
             });
         });
     }
 
-    // ── 5. INICIALIZAR AL CARGAR DOM ──────────────────────────────────────────
-    function onDOMReady() {
+    // ── 6. EJECUTAR ───────────────────────────────────────────────────────────
+    function init() {
         syncIcons(document.documentElement.getAttribute('data-theme') || 'light');
-        bindThemeToggle();
+        bindTheme();
         bindSidebar();
     }
 
+    // Ejecutar al tener DOM listo
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', onDOMReady);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        onDOMReady();
+        init();
     }
 
-    // ── 6. RE-BIND TRAS app.js (por si app.js reemplaza elementos) ────────────
-    // Escucha el evento que MiraiApp puede disparar al terminar de montar el DOM
+    // Re-ejecutar tras load() por si app.js (module+defer) regeneró el header
     window.addEventListener('load', function () {
-        bindThemeToggle();
-        bindSidebar();
+        var toggle = document.querySelector('.mobile-menu-toggle');
+        var btn    = document.getElementById('theme-toggle')
+                  || document.getElementById('themeToggle')
+                  || document.querySelector('.theme-toggle');
+
+        // Solo re-bindear si el guard fue perdido (DOM regenerado)
+        if (toggle && toggle.dataset.mobileInit !== 'true') bindSidebar();
+        if (btn    && btn.dataset.bootInit !== 'true')       bindTheme();
+
+        syncIcons(document.documentElement.getAttribute('data-theme') || 'light');
     });
 
 })();
