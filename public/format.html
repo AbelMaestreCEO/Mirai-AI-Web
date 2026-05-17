@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Formateador de Documentos DOCX">
+    <title>Mirai AI - Mirai Format</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ── Contenido principal ── */
+        .format-main {
+            padding: 1.5rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .format-hero {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .format-hero h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 0.25rem;
+        }
+
+        .format-hero p {
+            color: var(--text-secondary);
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        /* ── Grid de dos columnas ── */
+        .format-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .format-grid { grid-template-columns: 1fr; }
+        }
+
+        .format-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .format-card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ── Zona de subida ── */
+        .upload-zone {
+            border: 2px dashed var(--glass-border);
+            border-radius: var(--border-radius-md);
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            color: var(--text-secondary);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent-color);
+            background: var(--accent-glow);
+            color: var(--accent-color);
+        }
+
+        .upload-zone .upload-icon { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
+        .upload-zone p { margin: 0; font-size: 0.9rem; }
+
+        /* ── Lista de archivos ── */
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0.9rem;
+            background: var(--message-user-bg);
+            border: 1px solid var(--message-user-border);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .file-size { color: var(--text-tertiary); margin-left: 0.5rem; font-size: 0.8rem; }
+
+        .btn-remove-file {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 0.25rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .btn-remove-file:hover { color: #ef4444; }
+
+        /* ── Reglas ── */
+        .rule-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .rule-form label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .rule-form input[type="text"] {
+            width: 100%;
+            padding: 0.6rem 0.9rem;
+            background: var(--message-ai-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .rule-form input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .style-checkboxes {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .style-check {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .style-check input { accent-color: var(--accent-color); width: 16px; height: 16px; cursor: pointer; }
+
+        /* ── Tabla de reglas ── */
+        .rules-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .rules-table th {
+            text-align: left;
+            color: var(--text-tertiary);
+            font-weight: 500;
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .rules-table td {
+            padding: 0.5rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 3px;
+        }
+
+        .badge-b { background: var(--secondary-container); color: var(--accent-color); font-weight: 900; }
+        .badge-i { background: var(--tertiary-container); color: var(--tertiary-color); font-style: italic; }
+        .badge-u { background: var(--message-user-bg); color: var(--text-primary); text-decoration: underline; }
+
+        /* ── Barra de progreso ── */
+        .progress-wrap {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .progress-bar-track {
+            flex: 1;
+            height: 6px;
+            background: var(--glass-border);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-gradient);
+            border-radius: 99px;
+            transition: width 0.4s var(--ease-smooth);
+        }
+
+        .progress-label {
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            white-space: nowrap;
+            min-width: 3rem;
+            text-align: right;
+        }
+
+        /* ── Status ── */
+        .format-status {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        /* ── Botones ── */
+        .btn-primary-format {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem 1.25rem;
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            border-radius: var(--border-radius-md);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+            margin-top: 1rem;
+        }
+
+        .btn-primary-format:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary-format:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .btn-accent-format {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            width: 100%;
+            padding: 0.6rem 1rem;
+            background: var(--secondary-container);
+            color: var(--accent-color);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-accent-format:hover { background: var(--accent-glow); }
+
+        /* ── Stats ── */
+        .col-stats {
+            display: flex;
+            gap: 1.25rem;
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .stat-item { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+        .stat-value { font-size: 1.3rem; font-weight: 700; color: var(--accent-color); }
+        .stat-label { font-size: 0.75rem; color: var(--text-tertiary); }
+
+        .empty-state-row { color: var(--text-tertiary); font-size: 0.85rem; text-align: center; padding: 0.75rem; }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ SIDEBAR DE MIRAI AI ═══ -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
+                        </a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
+                        </a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
+                        </a>
+                        <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
+                            <span class="nav-icon">🏫</span>
+                            <span class="nav-label">Aula</span>
+                        </a>
+                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">Inventario</span>
+                        </a>
+                        <a href="format.html" class="nav-grid-item active-link" data-tooltip="Formato">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-label">Formato</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Usuario -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Cuenta</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="sidebar-user-info">
+                        <span id="sidebar-username" class="sidebar-username">Cargando...</span>
+                    </div>
+                    <button id="logout-btn" class="sidebar-logout-btn">Cerrar sesión</button>
+                </div>
+            </section>
+
+            <!-- Tema -->
+            <div class="theme-toggle-row">
+                <span>Tema</span>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+                    <svg class="sun-icon" viewBox="0 0 24 24" width="18" height="18">
+                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="moon-icon hidden" viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══ TOPBAR MÓVIL ═══ -->
+    <header class="mobile-header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <svg viewBox="0 0 24 24" width="22" height="22">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+            </svg>
+        </button>
+        <span class="mobile-header-title">Mirai Format</span>
+        <div style="width:40px"></div>
+    </header>
+
+    <!-- ═══ CONTENIDO PRINCIPAL ═══ -->
+    <main class="main-content-area">
+        <div class="format-main">
+
+            <!-- Hero -->
+            <div class="format-hero">
+                <h1>📝 Mirai Format</h1>
+                <p>Formatea palabras clave en documentos DOCX aplicando negrita, cursiva y subrayado de forma automática.</p>
+            </div>
+
+            <!-- Barra de progreso -->
+            <div class="progress-wrap" id="progress-wrap" style="display:none">
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="fmt-progress-bar"></div>
+                </div>
+                <span class="progress-label" id="fmt-progress-text">0%</span>
+            </div>
+
+            <!-- Grid principal -->
+            <div class="format-grid">
+
+                <!-- ── Columna: Documentos ── -->
+                <div class="format-card">
+                    <h2>📁 Documentos</h2>
+
+                    <div class="upload-zone" id="fmt-upload-zone">
+                        <span class="upload-icon">📂</span>
+                        <p>Arrastra archivos <strong>DOCX</strong> aquí<br>o haz clic para seleccionar</p>
+                        <input type="file" id="fmt-file-input" accept=".docx" multiple hidden>
+                    </div>
+
+                    <ul class="file-list" id="fmt-file-list">
+                        <li class="empty-state-row">No hay archivos seleccionados</li>
+                    </ul>
+
+                    <div class="col-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="fmt-file-count">0</span>
+                            <span class="stat-label">Archivos</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="fmt-total-size">0 KB</span>
+                            <span class="stat-label">Total</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Columna: Reglas ── -->
+                <div class="format-card">
+                    <h2>🎯 Reglas de Formato</h2>
+
+                    <div class="rule-form">
+                        <div>
+                            <label for="fmt-keyword">Palabra clave</label>
+                            <input type="text" id="fmt-keyword" placeholder="Ej: contrato, cláusula...">
+                        </div>
+                        <div>
+                            <label>Estilos a aplicar</label>
+                            <div class="style-checkboxes">
+                                <label class="style-check">
+                                    <input type="checkbox" id="fmt-bold"> <strong>B</strong> Negrita
+                                </label>
+                                <label class="style-check">
+                                    <input type="checkbox" id="fmt-italic"> <em>I</em> Cursiva
+                                </label>
+                                <label class="style-check">
+                                    <input type="checkbox" id="fmt-underline"> <u>U</u> Subrayado
+                                </label>
+                            </div>
+                        </div>
+                        <button class="btn-accent-format" id="fmt-add-rule-btn">➕ Añadir Regla</button>
+                    </div>
+
+                    <div style="overflow-x:auto; border-radius: var(--border-radius-sm); border: 1px solid var(--glass-border);">
+                        <table class="rules-table">
+                            <thead>
+                                <tr>
+                                    <th>Palabra</th>
+                                    <th>Estilos</th>
+                                    <th>—</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fmt-rules-body">
+                                <tr><td colspan="3" class="empty-state-row">Sin reglas definidas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="col-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="fmt-rule-count">0</span>
+                            <span class="stat-label">Reglas</span>
+                        </div>
+                    </div>
+
+                    <div class="format-status" id="fmt-status">
+                        <span id="fmt-status-icon">👋</span>
+                        <span id="fmt-status-msg">Sube archivos y define reglas para comenzar.</span>
+                    </div>
+
+                    <button class="btn-primary-format" id="fmt-process-btn" disabled>
+                        ⚡ Procesar y Descargar
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+    <script type="module" src="format.js" defer></script>
+</body>
+</html>

@@ -45,3 +45,6 @@ ENVIRONMENT = "production"
 [[kv_namespaces]]
 binding = "KV_RATE"
 id = "47c1023e992845449851b4572dcf37e7"
+
+[triggers]
+crons = ["0 * * * *"]
