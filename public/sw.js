@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v6'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v7'; // 👈 Cambia esto en cada deploy
 
 const urlsToCache = [
   '/',

@@ -691,17 +691,13 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         console.log('🚀 courses.js iniciado');
-
-        // 1. Inicializar Tema (Usa MiraiApp si está disponible)
-        initTheme();
-
-        // 2. Inicializar Menú Móvil (Usa MiraiApp si está disponible)
-        initMobileMenu();
-
-        // 3. Configurar Logout
+ 
+        // Tema y Sidebar → manejados por mirai-boot.js + app.js. No tocar aquí.
+ 
+        // 1. Configurar Logout
         setupLogout();
-
-        // 4. Cargar página específica
+ 
+        // 2. Cargar página específica
         if (currentPage === 'categories') {
             initCategoriesPage();
         } else if (currentPage === 'courses') {

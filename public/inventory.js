@@ -55,35 +55,14 @@ let state = {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Delegar Tema y Menú a MiraiApp
-    if (typeof MiraiApp !== 'undefined') {
-        MiraiApp.init(); 
-        const themeToggle = document.getElementById('theme-toggle');
-        if (themeToggle && !themeToggle.dataset.initialized) {
-            themeToggle.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme');
-                const newTheme = current === 'light' ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', newTheme);
-                localStorage.setItem('mirai-ai-theme', newTheme);
-                const sun = document.querySelector('.sun-icon');
-                const moon = document.querySelector('.moon-icon');
-                if(sun && moon) {
-                    if(newTheme === 'dark') { sun.classList.add('hidden'); moon.classList.remove('hidden'); }
-                    else { sun.classList.remove('hidden'); moon.classList.add('hidden'); }
-                }
-                themeToggle.dataset.initialized = 'true';
-            });
-        }
-    } else {
-        initLocalTheme();
-        setupLocalMobileMenu();
-    }
-
-    // 2. Inicializar Lógica de Inventario
-    setupEventListeners();
-    await loadInventory();
-    updateStats();
-});
+        // Tema y Sidebar → manejados por mirai-boot.js + app.js. No tocar aquí.
+        // NO llamar MiraiApp.init() — app.js ya se auto-inicializa al cargar.
+ 
+        // Inicializar Lógica de Inventario
+        setupEventListeners();
+        await loadInventory();
+        updateStats();
+    });
 function initLocalTheme() {
     const savedTheme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', savedTheme);
