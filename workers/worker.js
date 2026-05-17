@@ -1021,7 +1021,7 @@ export default {
 
       // Servir archivos estáticos
       return serveStatic(url, env, corsHeaders);
-      
+
 
     } catch (error) {
       console.error('Worker error:', error);
@@ -1571,13 +1571,13 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       }
     }
 
-    if (path === '/api/format/upload' && method === 'POST')
+    if (path === '/api/format/upload' && request.method === 'POST')
       return handleFormatUpload(request, env, corsHeaders);
 
-    if (path === '/api/format/process' && method === 'POST')
+    if (path === '/api/format/process' && request.method === 'POST')
       return handleFormatProcess(request, env, corsHeaders);
 
-    if (path === '/api/format/download' && method === 'GET')
+    if (path === '/api/format/download' && request.method === 'GET')
       return handleFormatDownload(request, env, corsHeaders);
 
     // 7. Quitar Estudiante: DELETE /api/unassign-student
