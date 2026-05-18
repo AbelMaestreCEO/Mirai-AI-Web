@@ -7,6 +7,44 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="login-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script>
+// Aplica color y fuente guardados antes de pintar la página
+(function () {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
+ 
+    var COLORS = {
+        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8' },
+        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD' },
+        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1' },
+        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9' },
+        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0' },
+        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC' },
+        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE' },
+        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6' },
+        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7' },
+        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1' }
+    };
+ 
+    if (s.accentColor && COLORS[s.accentColor]) {
+        var c = COLORS[s.accentColor];
+        var r = document.documentElement;
+        r.style.setProperty('--accent-color', c.c);
+        r.style.setProperty('--accent-gradient', c.g);
+        r.style.setProperty('--accent-glow', c.glow);
+        r.style.setProperty('--secondary-container', c.sc);
+    }
+    if (s.fontFamily) {
+        document.documentElement.style.setProperty('--font-family', s.fontFamily);
+    }
+    if (s.fontSize) {
+        document.documentElement.style.fontSize = s.fontSize + 'px';
+    }
+    if (s.reducedMotion) {
+        document.documentElement.classList.add('reduce-motion');
+    }
+})();
+</script>
 </head>
 <body>
     <div class="auth-wrapper">
