@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Configuración">
+    <title>Mirai AI - Configuración</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* ============================================
+           SETTINGS PAGE - ESTILOS ESPECÍFICOS
+           ============================================ */
+
+        .settings-container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 28px 20px 80px;
+        }
+
+        /* Hero */
+        .settings-hero {
+            margin-bottom: 32px;
+            padding: 32px 28px;
+            background: var(--secondary-container);
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .settings-hero-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--accent-gradient);
+            border-radius: var(--border-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .settings-hero h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 4px;
+            letter-spacing: -0.02em;
+        }
+
+        .settings-hero p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Sección */
+        .settings-section {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--glass-shadow);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .settings-section-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .settings-section-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--secondary-container);
+            border-radius: var(--border-radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .settings-section-header h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 2px;
+            letter-spacing: -0.01em;
+        }
+
+        .settings-section-header p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .settings-section-body {
+            padding: 20px 24px;
+        }
+
+        /* ---- SELECTOR DE COLOR (ACENTO) ---- */
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+            gap: 10px;
+        }
+
+        .color-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .color-swatch {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            transition: all 0.25s cubic-bezier(0.05, 0.7, 0.1, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+        }
+
+        .color-option:hover .color-swatch {
+            transform: scale(1.12);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+        }
+
+        .color-option.active .color-swatch {
+            outline-color: var(--accent-color);
+            box-shadow: 0 0 0 4px var(--accent-glow), 0 4px 16px rgba(0,0,0,0.22);
+        }
+
+        .color-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .color-label {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* ---- FUENTES ---- */
+        .font-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .font-card {
+            border: 2px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.05, 0.7, 0.1, 1);
+            position: relative;
+            overflow: hidden;
+            background: var(--glass-bg);
+        }
+
+        .font-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent-color);
+            opacity: 0;
+            transition: opacity 0.25s;
+            pointer-events: none;
+        }
+
+        .font-card:hover {
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .font-card:hover::after { opacity: 0.04; }
+
+        .font-card.active {
+            border-color: var(--accent-color);
+            background: var(--secondary-container);
+            box-shadow: 0 2px 12px var(--accent-glow);
+        }
+
+        .font-card.active::after { opacity: 0.06; }
+
+        .font-card input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .font-preview {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            line-height: 1.2;
+            transition: color 0.25s;
+        }
+
+        .font-card.active .font-preview {
+            color: var(--accent-color);
+        }
+
+        .font-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .font-sample {
+            font-size: 0.78rem;
+            color: var(--text-tertiary);
+            line-height: 1.4;
+        }
+
+        .font-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+        }
+
+        .font-card.active .font-badge {
+            display: flex;
+        }
+
+        /* ---- TAMAÑO DE FUENTE ---- */
+        .font-size-control {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .font-size-slider-wrap {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .font-size-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--glass-border);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .font-size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 2px 8px var(--accent-glow);
+            transition: transform 0.2s;
+        }
+
+        .font-size-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .font-size-slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            box-shadow: 0 2px 8px var(--accent-glow);
+            border: none;
+        }
+
+        .font-size-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            min-width: 48px;
+            text-align: center;
+            background: var(--secondary-container);
+            border-radius: var(--border-radius-sm);
+            padding: 6px 10px;
+        }
+
+        .font-size-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+        }
+
+        .font-size-labels span {
+            font-size: 0.7rem;
+            color: var(--text-tertiary);
+        }
+
+        /* ---- PREVIEW ---- */
+        .settings-preview {
+            background: var(--message-ai-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            padding: 20px 24px;
+            margin-top: 8px;
+        }
+
+        .preview-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-tertiary);
+            margin-bottom: 10px;
+        }
+
+        .preview-text {
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* ---- DIVIDER ---- */
+        .settings-divider {
+            border: none;
+            border-top: 1px solid var(--glass-border);
+            margin: 16px 0;
+        }
+
+        /* ---- GUARDAR ---- */
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 28px;
+        }
+
+        .btn-settings-save {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.05, 0.7, 0.1, 1);
+            box-shadow: 0 2px 12px var(--accent-glow);
+        }
+
+        .btn-settings-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        .btn-settings-save:active {
+            transform: translateY(0);
+        }
+
+        .btn-settings-reset {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-sm);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .btn-settings-reset:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        /* Toast de confirmación */
+        .settings-toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-left: 4px solid var(--accent-color);
+            border-radius: var(--border-radius-md);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--glass-shadow);
+            z-index: 9999;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+            pointer-events: none;
+        }
+
+        .settings-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .settings-toast-icon {
+            font-size: 1.2rem;
+        }
+
+        .settings-toast-text {
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* ---- OPCIÓN ROW (toggle estilo) ---- */
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+        }
+
+        .settings-row + .settings-row {
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .settings-row-info h3 {
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0 0 2px;
+        }
+
+        .settings-row-info p {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .settings-hero {
+                flex-direction: column;
+                text-align: center;
+                padding: 24px 20px;
+            }
+
+            .color-palette {
+                grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+            }
+
+            .font-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .settings-actions {
+                flex-direction: column-reverse;
+            }
+
+            .btn-settings-save,
+            .btn-settings-reset {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .settings-toast {
+                bottom: 80px;
+                right: 16px;
+                left: 16px;
+            }
+        }
+    </style>
+    <script>
+// Aplica color y fuente guardados antes de pintar la página
+(function () {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
+ 
+    var COLORS = {
+        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8' },
+        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD' },
+        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1' },
+        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9' },
+        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0' },
+        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC' },
+        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE' },
+        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6' },
+        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7' },
+        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1' }
+    };
+ 
+    if (s.accentColor && COLORS[s.accentColor]) {
+        var c = COLORS[s.accentColor];
+        var r = document.documentElement;
+        r.style.setProperty('--accent-color', c.c);
+        r.style.setProperty('--accent-gradient', c.g);
+        r.style.setProperty('--accent-glow', c.glow);
+        r.style.setProperty('--secondary-container', c.sc);
+    }
+    if (s.fontFamily) {
+        document.documentElement.style.setProperty('--font-family', s.fontFamily);
+    }
+    if (s.fontSize) {
+        document.documentElement.style.fontSize = s.fontSize + 'px';
+    }
+    if (s.reducedMotion) {
+        document.documentElement.classList.add('reduce-motion');
+    }
+})();
+</script>
+</head>
+
+<body>
+
+    <!-- ========== SIDEBAR ========== -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Navegación -->
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
+                        </a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
+                        </a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
+                        </a>
+                        <a href="settings.html" class="nav-grid-item active-link" data-tooltip="Configuración">
+                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-label">Ajustes</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="sidebar-extra">
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://twitter.com/AberuMirai" aria-label="Twitter">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <!-- Botón Configuración -->
+            <a href="settings.html" class="settings-sidebar-btn active" title="Configuración">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                </svg>
+                <span>Configuración</span>
+            </a>
+
+            <!-- Botón Cerrar Sesión -->
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                        style="max-width: 80px; max-height: 80px;">
+                </a>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
+        </div>
+    </nav>
+
+    <div class="mobile-overlay"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+        <div class="header-title">⚙️ Configuración</div>
+        <div class="header-actions">
+            <button class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
+                <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-12.37l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0zM7.05 18.36l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0z"/>
+                </svg>
+                <svg class="moon-icon hidden" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- ========== CONTENIDO PRINCIPAL ========== -->
+    <main class="settings-container">
+
+        <!-- Hero -->
+        <div class="settings-hero">
+            <div class="settings-hero-icon">⚙️</div>
+            <div>
+                <h1>Configuración</h1>
+                <p>Personaliza la apariencia y el comportamiento de Mirai AI a tu gusto.</p>
+            </div>
+        </div>
+
+        <!-- =====================
+             SECCIÓN: COLORES
+             ===================== -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-icon">🎨</div>
+                <div>
+                    <h2>Color de Acento</h2>
+                    <p>Elige el color principal de la interfaz</p>
+                </div>
+            </div>
+            <div class="settings-section-body">
+                <div class="color-palette" role="radiogroup" aria-label="Seleccionar color de acento">
+
+                    <label class="color-option active" data-color="purple">
+                        <input type="radio" name="accent-color" value="purple" checked>
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#6750A4,#9A82DB);"></div>
+                        <span class="color-label">Violeta</span>
+                    </label>
+
+                    <label class="color-option" data-color="blue">
+                        <input type="radio" name="accent-color" value="blue">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#1565C0,#42A5F5);"></div>
+                        <span class="color-label">Azul</span>
+                    </label>
+
+                    <label class="color-option" data-color="teal">
+                        <input type="radio" name="accent-color" value="teal">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#00695C,#26C6DA);"></div>
+                        <span class="color-label">Teal</span>
+                    </label>
+
+                    <label class="color-option" data-color="green">
+                        <input type="radio" name="accent-color" value="green">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#2E7D32,#66BB6A);"></div>
+                        <span class="color-label">Verde</span>
+                    </label>
+
+                    <label class="color-option" data-color="orange">
+                        <input type="radio" name="accent-color" value="orange">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#E65100,#FFA726);"></div>
+                        <span class="color-label">Naranja</span>
+                    </label>
+
+                    <label class="color-option" data-color="pink">
+                        <input type="radio" name="accent-color" value="pink">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#AD1457,#F06292);"></div>
+                        <span class="color-label">Rosa</span>
+                    </label>
+
+                    <label class="color-option" data-color="red">
+                        <input type="radio" name="accent-color" value="red">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#B71C1C,#EF5350);"></div>
+                        <span class="color-label">Rojo</span>
+                    </label>
+
+                    <label class="color-option" data-color="indigo">
+                        <input type="radio" name="accent-color" value="indigo">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#283593,#7986CB);"></div>
+                        <span class="color-label">Índigo</span>
+                    </label>
+
+                    <label class="color-option" data-color="yellow">
+                        <input type="radio" name="accent-color" value="yellow">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#F57F17,#FFEE58);"></div>
+                        <span class="color-label">Amarillo</span>
+                    </label>
+
+                    <label class="color-option" data-color="slate">
+                        <input type="radio" name="accent-color" value="slate">
+                        <div class="color-swatch" style="background: linear-gradient(135deg,#37474F,#90A4AE);"></div>
+                        <span class="color-label">Pizarra</span>
+                    </label>
+
+                </div>
+
+                <!-- Preview del color -->
+                <div class="settings-preview" style="margin-top: 16px;">
+                    <div class="preview-label">Vista previa del acento</div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button id="preview-btn" style="padding: 8px 20px; border-radius: 8px; border: none; font-size: 0.88rem; font-weight: 600; color: white; cursor: pointer; transition: all 0.25s; background: var(--accent-gradient);">Botón principal</button>
+                        <span id="preview-link" style="font-size: 0.9rem; font-weight: 500; color: var(--accent-color); text-decoration: underline; cursor: pointer;">Enlace de ejemplo</span>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color);"></div>
+                        <div style="height: 4px; width: 80px; border-radius: 2px; background: var(--accent-gradient);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =====================
+             SECCIÓN: TIPOGRAFÍA
+             ===================== -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-icon">🔤</div>
+                <div>
+                    <h2>Tipografía</h2>
+                    <p>Selecciona la fuente de la interfaz y el tamaño del texto</p>
+                </div>
+            </div>
+            <div class="settings-section-body">
+
+                <!-- Selector de fuente -->
+                <div class="font-grid" role="radiogroup" aria-label="Seleccionar fuente">
+
+                    <label class="font-card active" data-font="Inter">
+                        <input type="radio" name="font-family" value="Inter" checked>
+                        <div class="font-badge">✓</div>
+                        <div class="font-preview" style="font-family: 'Inter', sans-serif;">Aa Bb</div>
+                        <div class="font-name">Inter</div>
+                        <div class="font-sample" style="font-family: 'Inter', sans-serif;">El rápido zorro marrón</div>
+                    </label>
+
+                    <label class="font-card" data-font="Roboto">
+                        <input type="radio" name="font-family" value="Roboto">
+                        <div class="font-badge">✓</div>
+                        <div class="font-preview" style="font-family: 'Roboto', sans-serif;">Aa Bb</div>
+                        <div class="font-name">Roboto</div>
+                        <div class="font-sample" style="font-family: 'Roboto', sans-serif;">El rápido zorro marrón</div>
+                    </label>
+
+                    <label class="font-card" data-font="Poppins">
+                        <input type="radio" name="font-family" value="Poppins">
+                        <div class="font-badge">✓</div>
+                        <div class="font-preview" style="font-family: 'Poppins', sans-serif;">Aa Bb</div>
+                        <div class="font-name">Poppins</div>
+                        <div class="font-sample" style="font-family: 'Poppins', sans-serif;">El rápido zorro marrón</div>
+                    </label>
+
+                    <label class="font-card" data-font="'Playfair Display'">
+                        <input type="radio" name="font-family" value="Playfair Display">
+                        <div class="font-badge">✓</div>
+                        <div class="font-preview" style="font-family: 'Playfair Display', serif;">Aa Bb</div>
+                        <div class="font-name">Playfair</div>
+                        <div class="font-sample" style="font-family: 'Playfair Display', serif;">El rápido zorro marrón</div>
+                    </label>
+
+                    <label class="font-card" data-font="'Roboto Mono'">
+                        <input type="radio" name="font-family" value="Roboto Mono">
+                        <div class="font-badge">✓</div>
+                        <div class="font-preview" style="font-family: 'Roboto Mono', monospace;">Aa Bb</div>
+                        <div class="font-name">Mono</div>
+                        <div class="font-sample" style="font-family: 'Roboto Mono', monospace;">El rápido zorro</div>
+                    </label>
+
+                    <label class="font-card" data-font="'Nunito'">
+                        <input type="radio" name="font-family" value="Nunito">
+                        <div class="font-badge">✓</div>
+                        <div class="font-preview" style="font-family: 'Nunito', sans-serif;">Aa Bb</div>
+                        <div class="font-name">Nunito</div>
+                        <div class="font-sample" style="font-family: 'Nunito', sans-serif;">El rápido zorro marrón</div>
+                    </label>
+
+                </div>
+
+                <hr class="settings-divider">
+
+                <!-- Tamaño de fuente -->
+                <div class="settings-row-info" style="margin-bottom: 14px;">
+                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 0 0 2px;">Tamaño del texto</h3>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0;">Ajusta el tamaño base del texto de la interfaz</p>
+                </div>
+
+                <div class="font-size-control">
+                    <div class="font-size-slider-wrap">
+                        <input type="range" class="font-size-slider" id="font-size-slider"
+                            min="12" max="20" value="15" step="1"
+                            aria-label="Tamaño de fuente">
+                        <div class="font-size-labels">
+                            <span>Pequeño (12px)</span>
+                            <span>Grande (20px)</span>
+                        </div>
+                    </div>
+                    <div class="font-size-value" id="font-size-display">15px</div>
+                </div>
+
+                <!-- Preview tipografía -->
+                <div class="settings-preview" style="margin-top: 16px;">
+                    <div class="preview-label">Vista previa del texto</div>
+                    <p class="preview-text" id="font-preview-text" style="margin: 0;">
+                        Hola, soy <strong>Mirai AI</strong>. Estoy aquí para ayudarte con tus cursos, tareas y cualquier pregunta que tengas. ¿En qué puedo ayudarte hoy?
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- =====================
+             SECCIÓN: APARIENCIA GENERAL
+             ===================== -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-icon">🌓</div>
+                <div>
+                    <h2>Apariencia</h2>
+                    <p>Modo de color e interfaz general</p>
+                </div>
+            </div>
+            <div class="settings-section-body">
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <h3>Modo oscuro</h3>
+                        <p>Usa colores oscuros para reducir el cansancio visual</p>
+                    </div>
+                    <button class="theme-toggle-inline" id="dark-mode-toggle" aria-label="Activar modo oscuro"
+                        style="background: var(--secondary-container); border: 1px solid var(--glass-border); border-radius: 20px; padding: 6px 14px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary); transition: all 0.25s; font-weight: 500;">
+                        🌙 Activar
+                    </button>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-info">
+                        <h3>Animaciones reducidas</h3>
+                        <p>Minimiza las animaciones para mejor rendimiento</p>
+                    </div>
+                    <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
+                        <input type="checkbox" id="reduced-motion" style="opacity:0; width:0; height:0;">
+                        <span id="reduced-motion-track" style="position:absolute; inset:0; background:var(--glass-border); border-radius:12px; transition:background 0.3s;"></span>
+                        <span id="reduced-motion-thumb" style="position:absolute; left:3px; top:3px; width:18px; height:18px; background:white; border-radius:50%; transition:transform 0.3s; box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
+                    </label>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="settings-actions">
+            <button class="btn-settings-reset" id="settings-reset">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+                Restablecer
+            </button>
+            <button class="btn-settings-save" id="settings-save">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                </svg>
+                Guardar cambios
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Toast de confirmación -->
+    <div class="settings-toast" id="settings-toast">
+        <span class="settings-toast-icon">✅</span>
+        <span class="settings-toast-text">¡Configuración guardada correctamente!</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/mirai-boot.js" type="module"></script>
+    <script src="app.js" type="module"></script>
+
+    <!-- Google Fonts dinámicas para Poppins, Playfair, Nunito -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ---- CONSTANTES DE COLORES ----
+        const ACCENT_COLORS = {
+            purple: {
+                color: '#6750A4',
+                gradient: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)',
+                glow: 'rgba(103,80,164,0.18)',
+                container: '#E8DEF8'
+            },
+            blue: {
+                color: '#1565C0',
+                gradient: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)',
+                glow: 'rgba(21,101,192,0.18)',
+                container: '#E3F2FD'
+            },
+            teal: {
+                color: '#00695C',
+                gradient: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)',
+                glow: 'rgba(0,105,92,0.18)',
+                container: '#E0F2F1'
+            },
+            green: {
+                color: '#2E7D32',
+                gradient: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)',
+                glow: 'rgba(46,125,50,0.18)',
+                container: '#E8F5E9'
+            },
+            orange: {
+                color: '#E65100',
+                gradient: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)',
+                glow: 'rgba(230,81,0,0.18)',
+                container: '#FFF3E0'
+            },
+            pink: {
+                color: '#AD1457',
+                gradient: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)',
+                glow: 'rgba(173,20,87,0.18)',
+                container: '#FCE4EC'
+            },
+            red: {
+                color: '#B71C1C',
+                gradient: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)',
+                glow: 'rgba(183,28,28,0.18)',
+                container: '#FFEBEE'
+            },
+            indigo: {
+                color: '#283593',
+                gradient: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)',
+                glow: 'rgba(40,53,147,0.18)',
+                container: '#E8EAF6'
+            },
+            yellow: {
+                color: '#F57F17',
+                gradient: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)',
+                glow: 'rgba(245,127,23,0.18)',
+                container: '#FFFDE7'
+            },
+            slate: {
+                color: '#37474F',
+                gradient: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)',
+                glow: 'rgba(55,71,79,0.18)',
+                container: '#ECEFF1'
+            }
+        };
+
+        const STORAGE_KEY = 'mirai-settings';
+
+        // ---- CARGAR AJUSTES ----
+        function loadSettings() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+            } catch {
+                return {};
+            }
+        }
+
+        function saveSettings(data) {
+            const current = loadSettings();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...data }));
+        }
+
+        // ---- APLICAR COLOR ----
+        function applyAccentColor(name) {
+            const c = ACCENT_COLORS[name];
+            if (!c) return;
+            const root = document.documentElement;
+            root.style.setProperty('--accent-color', c.color);
+            root.style.setProperty('--accent-gradient', c.gradient);
+            root.style.setProperty('--accent-glow', c.glow);
+            root.style.setProperty('--secondary-container', c.container);
+            root.style.setProperty('--message-user-bg', c.glow.replace('0.18', '0.08'));
+            root.style.setProperty('--message-user-border', c.glow.replace('0.18', '0.18'));
+        }
+
+        // ---- APLICAR FUENTE ----
+        function applyFont(family) {
+            document.documentElement.style.setProperty('--font-family', family);
+            document.body.style.fontFamily = family + ', system-ui, sans-serif';
+        }
+
+        // ---- APLICAR TAMAÑO ----
+        function applyFontSize(px) {
+            document.documentElement.style.fontSize = px + 'px';
+        }
+
+        // ---- INICIALIZAR ----
+        function init() {
+            const saved = loadSettings();
+
+            // Restaurar color
+            const savedColor = saved.accentColor || 'purple';
+            applyAccentColor(savedColor);
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.color === savedColor);
+                if (opt.dataset.color === savedColor) {
+                    opt.querySelector('input').checked = true;
+                }
+            });
+
+            // Restaurar fuente
+            const savedFont = saved.fontFamily || 'Inter';
+            applyFont(savedFont);
+            document.querySelectorAll('.font-card').forEach(card => {
+                const val = card.dataset.font.replace(/'/g, '').trim();
+                const isMatch = val === savedFont || card.dataset.font === savedFont;
+                card.classList.toggle('active', isMatch);
+                if (isMatch) card.querySelector('input').checked = true;
+            });
+
+            // Restaurar tamaño
+            const savedSize = saved.fontSize || 15;
+            document.getElementById('font-size-slider').value = savedSize;
+            document.getElementById('font-size-display').textContent = savedSize + 'px';
+            applyFontSize(savedSize);
+            updateSliderTrack(savedSize);
+
+            // Animaciones reducidas
+            if (saved.reducedMotion) {
+                document.getElementById('reduced-motion').checked = true;
+                updateToggle(true);
+                document.documentElement.classList.add('reduce-motion');
+            }
+
+            // Dark mode btn label
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            updateDarkBtn(isDark);
+        }
+
+        // ---- TRACK DEL SLIDER ----
+        function updateSliderTrack(val) {
+            const min = 12, max = 20;
+            const pct = ((val - min) / (max - min)) * 100;
+            const slider = document.getElementById('font-size-slider');
+            slider.style.background = `linear-gradient(to right, var(--accent-color) ${pct}%, var(--glass-border) ${pct}%)`;
+        }
+
+        // ---- TOGGLE ANIMACIONES ----
+        function updateToggle(checked) {
+            const track = document.getElementById('reduced-motion-track');
+            const thumb = document.getElementById('reduced-motion-thumb');
+            if (checked) {
+                track.style.background = 'var(--accent-color)';
+                thumb.style.transform = 'translateX(20px)';
+            } else {
+                track.style.background = 'var(--glass-border)';
+                thumb.style.transform = 'translateX(0)';
+            }
+        }
+
+        function updateDarkBtn(isDark) {
+            const btn = document.getElementById('dark-mode-toggle');
+            if (!btn) return;
+            btn.textContent = isDark ? '☀️ Desactivar' : '🌙 Activar';
+        }
+
+        // ---- EVENTOS ----
+
+        // Colores
+        document.querySelectorAll('.color-option input').forEach(input => {
+            input.addEventListener('change', () => {
+                const colorName = input.closest('.color-option').dataset.color;
+                document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+                input.closest('.color-option').classList.add('active');
+                applyAccentColor(colorName);
+            });
+        });
+
+        // Fuentes
+        document.querySelectorAll('.font-card input').forEach(input => {
+            input.addEventListener('change', () => {
+                const card = input.closest('.font-card');
+                document.querySelectorAll('.font-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                applyFont(card.dataset.font);
+                document.getElementById('font-preview-text').style.fontFamily = card.dataset.font + ', system-ui, sans-serif';
+            });
+        });
+
+        // Slider tamaño
+        const slider = document.getElementById('font-size-slider');
+        slider.addEventListener('input', () => {
+            const val = parseInt(slider.value);
+            document.getElementById('font-size-display').textContent = val + 'px';
+            applyFontSize(val);
+            updateSliderTrack(val);
+        });
+
+        // Dark mode toggle
+        document.getElementById('dark-mode-toggle').addEventListener('click', () => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const newTheme = isDark ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('mirai-ai-theme', newTheme);
+            updateDarkBtn(!isDark);
+        });
+
+        // Toggle reducción animaciones
+        document.getElementById('reduced-motion').addEventListener('change', function () {
+            updateToggle(this.checked);
+            if (this.checked) {
+                document.documentElement.classList.add('reduce-motion');
+            } else {
+                document.documentElement.classList.remove('reduce-motion');
+            }
+        });
+
+        // Guardar
+        document.getElementById('settings-save').addEventListener('click', () => {
+            const selectedColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
+            const selectedFont = document.querySelector('.font-card.active')?.dataset.font || 'Inter';
+            const fontSize = parseInt(document.getElementById('font-size-slider').value);
+            const reducedMotion = document.getElementById('reduced-motion').checked;
+
+            saveSettings({
+                accentColor: selectedColor,
+                fontFamily: selectedFont.replace(/'/g, '').trim(),
+                fontSize,
+                reducedMotion
+            });
+
+            showToast('¡Configuración guardada correctamente!', '✅');
+        });
+
+        // Restablecer
+        document.getElementById('settings-reset').addEventListener('click', () => {
+            localStorage.removeItem(STORAGE_KEY);
+            document.documentElement.removeAttribute('style');
+            document.body.style.fontFamily = '';
+            location.reload();
+        });
+
+        // ---- TOAST ----
+        function showToast(msg, icon = '✅') {
+            const toast = document.getElementById('settings-toast');
+            toast.querySelector('.settings-toast-text').textContent = msg;
+            toast.querySelector('.settings-toast-icon').textContent = icon;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Aplicar al cargar
+        document.addEventListener('DOMContentLoaded', init);
+        // O si el DOM ya está listo
+        if (document.readyState !== 'loading') init();
+
+    })();
+    </script>
+
+</body>
+</html>

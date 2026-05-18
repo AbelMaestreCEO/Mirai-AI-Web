@@ -6913,3 +6913,112 @@ svg {
         font-size: 0.82rem;
     }
 }
+
+/* ============================================
+   SETTINGS SIDEBAR BUTTON
+   Agregar en styles.css o styles-additions.css
+   ============================================ */
+
+/* Botón de Configuración — mismo estilo base que logout-btn */
+.settings-sidebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 24px);
+  margin: 0 auto 6px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-sidebar-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-color);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+.settings-sidebar-btn:hover {
+  background: var(--message-user-bg);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.settings-sidebar-btn:hover::after {
+  opacity: 0.06;
+}
+
+.settings-sidebar-btn.active {
+  background: var(--secondary-container);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.settings-sidebar-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+  fill: currentColor !important;
+  flex-shrink: 0;
+  display: block !important;
+}
+
+/* Modo oscuro */
+[data-theme="dark"] .settings-sidebar-btn {
+  border-color: #444;
+  color: #ccc;
+}
+
+[data-theme="dark"] .settings-sidebar-btn:hover,
+[data-theme="dark"] .settings-sidebar-btn.active {
+  background: rgba(208, 188, 255, 0.10);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+/* Colapsado: ocultar texto */
+.mobile-sidebar.collapsed .settings-sidebar-btn span {
+  display: none;
+}
+
+.mobile-sidebar.collapsed .settings-sidebar-btn {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0 auto 6px;
+  border-radius: 50%;
+}
+
+/* Responsivo móvil */
+@media (max-width: 768px) {
+  .settings-sidebar-btn {
+    width: calc(100% - 24px);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+}
+
+/* ============================================
+   ANIMACIONES REDUCIDAS (accesibilidad)
+   ============================================ */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
