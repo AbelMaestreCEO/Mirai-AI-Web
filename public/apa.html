@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai APA - Formateador automático de documentos a estilo APA 7">
+
+    <title>Mirai AI - Formato APA</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* ============================================
+           APA PAGE — Estilos mínimos específicos
+           Solo lo que no existe en styles.css
+           ============================================ */
+
+        /* Zona de carga de archivo DOCX */
+        .apa-dropzone {
+            border: 2px dashed var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 56px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+            background: var(--glass-bg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .apa-dropzone::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .apa-dropzone:hover,
+        .apa-dropzone.drag-over {
+            border-color: var(--accent-color);
+            background: var(--message-user-bg);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px var(--accent-glow);
+        }
+
+        .apa-dropzone:hover::before,
+        .apa-dropzone.drag-over::before {
+            opacity: 1;
+        }
+
+        .apa-dropzone-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            display: block;
+            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        .apa-dropzone:hover .apa-dropzone-icon {
+            transform: scale(1.15) translateY(-4px);
+        }
+
+        .apa-dropzone-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .apa-dropzone-hint {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            margin-bottom: 20px;
+        }
+
+        /* Barra de progreso de procesamiento */
+        .apa-processing {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .apa-processing.visible {
+            display: block;
+        }
+
+        .apa-step {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            margin-bottom: 8px;
+            transition: all var(--transition-fast);
+            animation: cardFadeIn 0.4s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+            opacity: 0;
+        }
+
+        .apa-step:nth-child(1) { animation-delay: 0.05s; }
+        .apa-step:nth-child(2) { animation-delay: 0.15s; }
+        .apa-step:nth-child(3) { animation-delay: 0.25s; }
+        .apa-step:nth-child(4) { animation-delay: 0.35s; }
+        .apa-step:nth-child(5) { animation-delay: 0.45s; }
+
+        .apa-step.active {
+            border-color: var(--accent-color);
+            background: var(--message-user-bg);
+        }
+
+        .apa-step.done {
+            border-color: rgba(56, 106, 32, 0.3);
+            background: rgba(56, 106, 32, 0.06);
+        }
+
+        [data-theme="dark"] .apa-step.done {
+            background: rgba(168, 216, 140, 0.06);
+        }
+
+        .apa-step-icon {
+            font-size: 1.3rem;
+            width: 36px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .apa-step-text {
+            flex: 1;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .apa-step-status {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            flex-shrink: 0;
+        }
+
+        .apa-step.active .apa-step-status {
+            color: var(--accent-color);
+        }
+
+        .apa-step.done .apa-step-status {
+            color: #386A20;
+        }
+
+        [data-theme="dark"] .apa-step.done .apa-step-status {
+            color: #A8D88C;
+        }
+
+        /* Tarjetas de reglas APA */
+        .apa-rules-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 16px;
+        }
+
+        @media (max-width: 1200px) { .apa-rules-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 900px)  { .apa-rules-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px)  { .apa-rules-grid { grid-template-columns: 1fr; } }
+
+        .apa-rule-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+            transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--glass-shadow);
+            animation: cardFadeIn 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+            opacity: 0;
+        }
+
+        .apa-rule-card:nth-child(1) { animation-delay: 0.05s; }
+        .apa-rule-card:nth-child(2) { animation-delay: 0.1s; }
+        .apa-rule-card:nth-child(3) { animation-delay: 0.15s; }
+        .apa-rule-card:nth-child(4) { animation-delay: 0.2s; }
+        .apa-rule-card:nth-child(5) { animation-delay: 0.25s; }
+        .apa-rule-card:nth-child(6) { animation-delay: 0.3s; }
+        .apa-rule-card:nth-child(7) { animation-delay: 0.35s; }
+        .apa-rule-card:nth-child(8) { animation-delay: 0.4s; }
+
+        .apa-rule-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--card-accent, var(--accent-gradient));
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .apa-rule-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(0,0,0,0.1), 0 4px 20px var(--accent-glow);
+            border-color: var(--accent-color);
+        }
+
+        .apa-rule-card:hover::before { opacity: 1; }
+
+        .apa-rule-icon {
+            font-size: 1.8rem;
+            margin-bottom: 14px;
+            display: block;
+            transition: transform var(--transition-fast);
+        }
+
+        .apa-rule-card:hover .apa-rule-icon {
+            transform: scale(1.15) rotate(-5deg);
+        }
+
+        .apa-rule-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            letter-spacing: -0.02em;
+        }
+
+        .apa-rule-desc {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        /* Área de resultado */
+        .apa-result-area {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .apa-result-area.visible {
+            display: block;
+            animation: cardFadeIn 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+        }
+
+        .apa-result-card {
+            background: var(--glass-bg);
+            border: 1px solid rgba(56, 106, 32, 0.3);
+            border-radius: var(--border-radius-lg);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(56, 106, 32, 0.08);
+        }
+
+        .apa-result-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #386A20, #4caf50);
+        }
+
+        .apa-result-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .apa-result-icon {
+            font-size: 2.5rem;
+        }
+
+        .apa-result-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #386A20;
+        }
+
+        [data-theme="dark"] .apa-result-title { color: #A8D88C; }
+
+        .apa-result-filename {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+
+        .apa-result-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding-top: 20px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        /* Metadata inputs */
+        .apa-metadata-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .apa-metadata-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Input de archivo oculto */
+        #apa-file-input {
+            position: absolute;
+            width: 1px; height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Spinner de carga inline */
+        .apa-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(103, 80, 164, 0.25);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        /* Sección de historial */
+        .apa-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .apa-history-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            transition: all var(--transition-fast);
+        }
+
+        .apa-history-item:hover {
+            border-color: var(--accent-color);
+            background: var(--message-user-bg);
+            transform: translateX(4px);
+        }
+
+        .apa-history-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+        .apa-history-info { flex: 1; min-width: 0; }
+
+        .apa-history-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .apa-history-date {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+
+        .apa-history-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+        /* Empty state del historial */
+        .apa-history-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+        }
+
+        .apa-history-empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Badge de versión APA */
+        .apa-version-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(103, 80, 164, 0.12);
+            border: 1px solid rgba(103, 80, 164, 0.25);
+            border-radius: var(--border-radius-pill);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            letter-spacing: 0.03em;
+        }
+
+        [data-theme="dark"] .apa-version-badge {
+            background: rgba(208, 188, 255, 0.1);
+            border-color: rgba(208, 188, 255, 0.2);
+            color: var(--accent-color);
+        }
+
+        /* Animación de éxito */
+        @keyframes successPop {
+            0%   { transform: scale(0.7); opacity: 0; }
+            60%  { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .apa-result-area.visible .apa-result-icon {
+            animation: successPop 0.5s cubic-bezier(0.2, 0, 0, 1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ===== SIDEBAR (idéntico a courses.html) ===== -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Sección 1: Navegación -->
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
+                        </a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
+                        </a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
+                        </a>
+                        <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
+                            <span class="nav-icon">🏫</span>
+                            <span class="nav-label">Aula</span>
+                        </a>
+                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">Inventario</span>
+                        </a>
+                        <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
+                            <span class="nav-icon">🖼️</span>
+                            <span class="nav-label">Fotos</span>
+                        </a>
+                        <a href="apa.html" class="nav-grid-item active-link" data-tooltip="Formato APA">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-label">Formato</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 2: Conversaciones -->
+            <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list"></ul>
+            </section>
+
+            <!-- Sección 3: Explorar -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Explorar</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Servicios</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                                <li><a href="https://aberumirai.com#education">Educación</a></li>
+                                <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                                <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                                <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Empresa</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                                <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                                <li><a href="#">Quiénes somos</a></li>
+                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Enlaces Externos</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                                <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                                <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                                <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 4: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                        style="max-width: 80px; max-height: 80px;">
+                </a>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
+        </div>
+    </nav>
+
+    <div class="mobile-overlay"></div>
+
+    <!-- ===== HEADER ===== -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+
+        <div class="header-title"></div>
+
+        <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
+            <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
+            </svg>
+            <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- ===== CONTENIDO PRINCIPAL ===== -->
+    <div class="courses-container">
+
+        <!-- Hero (misma clase que courses.html) -->
+        <div class="courses-hero">
+            <div style="margin-bottom: 12px;">
+                <span class="apa-version-badge">✨ APA 7ª Edición</span>
+            </div>
+            <h1>Formato APA</h1>
+            <p>Sube tu documento .DOCX y Mirai AI lo formateará automáticamente según las normas APA 7 en segundos.</p>
+        </div>
+
+        <!-- Input de archivo oculto -->
+        <input type="file" id="apa-file-input" accept=".docx" aria-hidden="true">
+
+        <!-- ===== SECCIÓN 1: SUBIDA ===== -->
+        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 40px;">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+
+                <!-- Panel izquierdo: Dropzone + Metadata -->
+                <div>
+                    <!-- Dropzone -->
+                    <div class="apa-dropzone" id="apa-dropzone" role="button" tabindex="0" aria-label="Zona de carga de archivo DOCX">
+                        <span class="apa-dropzone-icon">📄</span>
+                        <div class="apa-dropzone-title">Arrastra tu archivo aquí</div>
+                        <div class="apa-dropzone-hint">o haz clic para seleccionar un .DOCX · Máx. 25 MB</div>
+                        <button class="btn-primary" style="margin-top: 8px;" onclick="document.getElementById('apa-file-input').click(); event.stopPropagation();">
+                            Seleccionar archivo
+                        </button>
+                        <div id="apa-filename" style="margin-top: 14px; font-size: 0.85rem; color: var(--text-tertiary); display: none;"></div>
+                    </div>
+
+                    <!-- Metadatos del documento -->
+                    <div style="margin-top: 20px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); padding: 24px; box-shadow: var(--glass-shadow);">
+                        <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px;">
+                            Datos del documento (opcionales)
+                        </div>
+                        <div class="apa-metadata-grid">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="apa-title">Título</label>
+                                <input type="text" id="apa-title" placeholder="Título del trabajo">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="apa-author">Autor</label>
+                                <input type="text" id="apa-author" placeholder="Nombre completo">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="apa-affiliation">Afiliación</label>
+                                <input type="text" id="apa-affiliation" placeholder="Universidad / Institución">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="apa-course">Curso</label>
+                                <input type="text" id="apa-course" placeholder="Nombre del curso">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="apa-instructor">Instructor</label>
+                                <input type="text" id="apa-instructor" placeholder="Nombre del profesor">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="apa-date">Fecha</label>
+                                <input type="date" id="apa-date">
+                            </div>
+                        </div>
+                        <button class="btn-primary" id="apa-format-btn" style="width: 100%; margin-top: 4px;" disabled>
+                            Formatear documento
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panel derecho: Procesamiento + Resultado + Historial -->
+                <div>
+                    <!-- Pasos de procesamiento -->
+                    <div class="apa-processing" id="apa-processing">
+                        <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 12px;">
+                            Procesando…
+                        </div>
+                        <div class="apa-step" id="step-read">
+                            <span class="apa-step-icon">📖</span>
+                            <span class="apa-step-text">Leyendo documento</span>
+                            <span class="apa-step-status">Pendiente</span>
+                        </div>
+                        <div class="apa-step" id="step-margins">
+                            <span class="apa-step-icon">📐</span>
+                            <span class="apa-step-text">Aplicando márgenes (2.54 cm)</span>
+                            <span class="apa-step-status">Pendiente</span>
+                        </div>
+                        <div class="apa-step" id="step-typography">
+                            <span class="apa-step-icon">🔤</span>
+                            <span class="apa-step-text">Times New Roman 12pt</span>
+                            <span class="apa-step-status">Pendiente</span>
+                        </div>
+                        <div class="apa-step" id="step-spacing">
+                            <span class="apa-step-icon">↕️</span>
+                            <span class="apa-step-text">Interlineado doble y sangrías</span>
+                            <span class="apa-step-status">Pendiente</span>
+                        </div>
+                        <div class="apa-step" id="step-generate">
+                            <span class="apa-step-icon">⚙️</span>
+                            <span class="apa-step-text">Generando archivo final</span>
+                            <span class="apa-step-status">Pendiente</span>
+                        </div>
+                    </div>
+
+                    <!-- Resultado -->
+                    <div class="apa-result-area" id="apa-result">
+                        <div class="apa-result-card">
+                            <div class="apa-result-header">
+                                <span class="apa-result-icon">✅</span>
+                                <div>
+                                    <div class="apa-result-title">¡Documento formateado!</div>
+                                    <div class="apa-result-filename" id="apa-result-filename">documento_formateado_APA7.docx</div>
+                                </div>
+                            </div>
+                            <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 0;">
+                                Tu documento ha sido procesado y cumple con todas las normas APA 7ª edición. Descárgalo o guárdalo en la nube.
+                            </p>
+                            <div class="apa-result-actions">
+                                <button class="btn-primary" id="apa-download-btn">
+                                    ⬇️ Descargar .DOCX
+                                </button>
+                                <button class="btn-secondary" id="apa-reset-btn">
+                                    🔄 Formatear otro
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estado vacío (antes de subir) -->
+                    <div id="apa-idle-state" style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); padding: 40px 24px; text-align: center; box-shadow: var(--glass-shadow);">
+                        <span style="font-size: 3rem; display: block; margin-bottom: 12px;">📝</span>
+                        <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Listo para formatear</div>
+                        <div style="font-size: 0.85rem; color: var(--text-tertiary);">Sube un archivo .DOCX para comenzar el proceso de formateo APA 7</div>
+                    </div>
+
+                    <!-- Historial reciente -->
+                    <div style="margin-top: 20px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); padding: 24px; box-shadow: var(--glass-shadow);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary);">Historial reciente</div>
+                            <button class="btn-secondary" id="apa-clear-history" style="padding: 4px 12px; font-size: 0.75rem;" title="Limpiar historial">Limpiar</button>
+                        </div>
+                        <div class="apa-history-list" id="apa-history-list">
+                            <div class="apa-history-empty">
+                                <span class="apa-history-empty-icon">🕐</span>
+                                Ningún documento formateado aún
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Responsive: stack en móvil -->
+            <style>
+                @media (max-width: 768px) {
+                    div[style*="grid-template-columns: 1fr 1fr"] {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+            </style>
+        </div>
+
+        <!-- ===== SECCIÓN 2: REGLAS APA 7 ===== -->
+        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 60px;">
+            <div class="courses-count" style="padding: 0 0 12px;">Reglas aplicadas automáticamente</div>
+            <div class="apa-rules-grid">
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #6750A4, #9A82DB);">
+                    <span class="apa-rule-icon">📐</span>
+                    <div class="apa-rule-title">Márgenes uniformes</div>
+                    <div class="apa-rule-desc">2.54 cm (1 pulgada) en los cuatro lados: superior, inferior, izquierdo y derecho.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #7D5260, #EFB8C8);">
+                    <span class="apa-rule-icon">🔤</span>
+                    <div class="apa-rule-title">Tipografía APA</div>
+                    <div class="apa-rule-desc">Times New Roman 12pt como fuente principal. Negro puro en todo el cuerpo del texto.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #1976d2, #64b5f6);">
+                    <span class="apa-rule-icon">↕️</span>
+                    <div class="apa-rule-title">Interlineado doble</div>
+                    <div class="apa-rule-desc">Doble espacio (2.0) en todo el documento, incluyendo referencias y notas.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #009688, #4caf50);">
+                    <span class="apa-rule-icon">➡️</span>
+                    <div class="apa-rule-title">Sangría de párrafos</div>
+                    <div class="apa-rule-desc">Primera línea con sangría de 1.27 cm (0.5 pulgadas) en todos los párrafos del cuerpo.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #f48120, #fbad41);">
+                    <span class="apa-rule-icon">🔢</span>
+                    <div class="apa-rule-title">Numeración de páginas</div>
+                    <div class="apa-rule-desc">Número de página en la esquina superior derecha de todas las páginas, empezando en 1.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #e44d26, #f16529);">
+                    <span class="apa-rule-icon">📋</span>
+                    <div class="apa-rule-title">Portada APA</div>
+                    <div class="apa-rule-desc">Título en negrita centrado, autor, afiliación, curso, instructor y fecha correctamente posicionados.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #5d4037, #a1887f);">
+                    <span class="apa-rule-icon">📚</span>
+                    <div class="apa-rule-title">Lista de referencias</div>
+                    <div class="apa-rule-desc">Sangría francesa (hanging indent) de 1.27 cm y orden alfabético en la sección de referencias.</div>
+                </div>
+
+                <div class="apa-rule-card" style="--card-accent: linear-gradient(135deg, #336791, #5ba0d0);">
+                    <span class="apa-rule-icon">📊</span>
+                    <div class="apa-rule-title">Títulos por niveles</div>
+                    <div class="apa-rule-desc">5 niveles de títulos con alineación, negrita, cursiva y sangría según la jerarquía APA 7.</div>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /courses-container -->
+
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+
+    <script type="module">
+        // ============================================
+        // APA PAGE — Lógica de la interfaz
+        // ============================================
+
+        // --- Referencias DOM ---
+        const dropzone      = document.getElementById('apa-dropzone');
+        const fileInput     = document.getElementById('apa-file-input');
+        const formatBtn     = document.getElementById('apa-format-btn');
+        const filenameLabel = document.getElementById('apa-filename');
+        const processing    = document.getElementById('apa-processing');
+        const resultArea    = document.getElementById('apa-result');
+        const idleState     = document.getElementById('apa-idle-state');
+        const resultFilename= document.getElementById('apa-result-filename');
+        const downloadBtn   = document.getElementById('apa-download-btn');
+        const resetBtn      = document.getElementById('apa-reset-btn');
+        const historyList   = document.getElementById('apa-history-list');
+        const clearHistory  = document.getElementById('apa-clear-history');
+
+        let selectedFile = null;
+        let processedBlob = null;
+
+        // --- Dropzone ---
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+
+        dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+        dropzone.addEventListener('dragleave', e => { if (!dropzone.contains(e.relatedTarget)) dropzone.classList.remove('drag-over'); });
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropzone.classList.remove('drag-over');
+            const f = e.dataTransfer.files[0];
+            if (f) setFile(f);
+        });
+
+        fileInput.addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (f) setFile(f);
+            fileInput.value = '';
+        });
+
+        function setFile(file) {
+            if (!file.name.toLowerCase().endsWith('.docx')) {
+                showNotif('Solo se aceptan archivos .DOCX', 'error');
+                return;
+            }
+            if (file.size > 25 * 1024 * 1024) {
+                showNotif('El archivo supera el límite de 25 MB', 'error');
+                return;
+            }
+            selectedFile = file;
+            filenameLabel.textContent = `📎 ${file.name} (${formatSize(file.size)})`;
+            filenameLabel.style.display = 'block';
+            formatBtn.disabled = false;
+            showNotif(`Archivo listo: ${file.name}`, 'success');
+        }
+
+        // --- Formatear ---
+        formatBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // Recoger metadatos
+            const meta = {
+                title:      document.getElementById('apa-title').value      || 'Título del Documento',
+                author:     document.getElementById('apa-author').value     || 'Autor',
+                affiliation:document.getElementById('apa-affiliation').value|| 'Afiliación',
+                course:     document.getElementById('apa-course').value     || '',
+                instructor: document.getElementById('apa-instructor').value || '',
+                date:       document.getElementById('apa-date').value
+                            ? new Date(document.getElementById('apa-date').value).toLocaleDateString('es-ES')
+                            : new Date().toLocaleDateString('es-ES')
+            };
+
+            // UI: mostrar procesamiento
+            idleState.style.display = 'none';
+            resultArea.classList.remove('visible');
+            processing.classList.add('visible');
+            formatBtn.disabled = true;
+
+            const steps = [
+                { el: document.getElementById('step-read'),       ms: 600  },
+                { el: document.getElementById('step-margins'),    ms: 500  },
+                { el: document.getElementById('step-typography'), ms: 500  },
+                { el: document.getElementById('step-spacing'),    ms: 600  },
+                { el: document.getElementById('step-generate'),   ms: 800  },
+            ];
+
+            // Animar pasos secuencialmente
+            async function runStep(idx) {
+                if (idx >= steps.length) return;
+                const { el, ms } = steps[idx];
+                el.classList.add('active');
+                el.querySelector('.apa-step-status').textContent = 'Procesando…';
+                await sleep(ms);
+                el.classList.remove('active');
+                el.classList.add('done');
+                el.querySelector('.apa-step-status').textContent = '✓ Listo';
+                await runStep(idx + 1);
+            }
+
+            try {
+                // Iniciar animación de pasos mientras se procesa en paralelo
+                const [_, blob] = await Promise.all([
+                    runStep(0),
+                    processDocument(selectedFile, meta)
+                ]);
+
+                processedBlob = blob;
+
+                // Pequeño delay extra para que los pasos terminen de animarse visualmente
+                await sleep(300);
+
+                // Mostrar resultado
+                processing.classList.remove('visible');
+                const outName = `${sanitizeName(selectedFile.name.replace('.docx', ''))}_APA7.docx`;
+                resultFilename.textContent = outName;
+                resultArea.classList.add('visible');
+
+                // Guardar en historial
+                addToHistory(selectedFile.name, outName, blob);
+                showNotif('¡Documento formateado exitosamente!', 'success');
+
+            } catch (err) {
+                processing.classList.remove('visible');
+                idleState.style.display = 'block';
+                formatBtn.disabled = false;
+                showNotif('Error al procesar el documento: ' + err.message, 'error');
+                console.error(err);
+            }
+        });
+
+        // --- Descarga ---
+        downloadBtn.addEventListener('click', () => {
+            if (!processedBlob) return;
+            const name = resultFilename.textContent || 'documento_APA7.docx';
+            const url = URL.createObjectURL(processedBlob);
+            const a = document.createElement('a');
+            a.href = url; a.download = name;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotif('Descarga iniciada', 'success');
+        });
+
+        // --- Resetear ---
+        resetBtn.addEventListener('click', reset);
+
+        function reset() {
+            selectedFile = null;
+            processedBlob = null;
+            fileInput.value = '';
+            filenameLabel.style.display = 'none';
+            formatBtn.disabled = true;
+            resultArea.classList.remove('visible');
+            processing.classList.remove('visible');
+            idleState.style.display = 'block';
+
+            // Resetear pasos
+            document.querySelectorAll('.apa-step').forEach(s => {
+                s.classList.remove('active', 'done');
+                s.querySelector('.apa-step-status').textContent = 'Pendiente';
+            });
+
+            // Limpiar inputs
+            ['apa-title','apa-author','apa-affiliation','apa-course','apa-instructor','apa-date']
+                .forEach(id => { document.getElementById(id).value = ''; });
+        }
+
+        // --- Historial ---
+        function addToHistory(originalName, formattedName, blob) {
+            const history = getHistory();
+            history.unshift({
+                original: originalName,
+                formatted: formattedName,
+                date: new Date().toLocaleString('es-ES'),
+                size: blob.size
+            });
+            // Mantener máximo 10 entradas
+            localStorage.setItem('apa_history', JSON.stringify(history.slice(0, 10)));
+            renderHistory();
+        }
+
+        function getHistory() {
+            try { return JSON.parse(localStorage.getItem('apa_history') || '[]'); }
+            catch { return []; }
+        }
+
+        function renderHistory() {
+            const history = getHistory();
+            if (!history.length) {
+                historyList.innerHTML = `<div class="apa-history-empty"><span class="apa-history-empty-icon">🕐</span>Ningún documento formateado aún</div>`;
+                return;
+            }
+            historyList.innerHTML = history.map((item, i) => `
+                <div class="apa-history-item">
+                    <span class="apa-history-icon">📄</span>
+                    <div class="apa-history-info">
+                        <div class="apa-history-name" title="${item.formatted}">${item.formatted}</div>
+                        <div class="apa-history-date">Desde: ${item.original} · ${item.date}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        clearHistory.addEventListener('click', () => {
+            localStorage.removeItem('apa_history');
+            renderHistory();
+            showNotif('Historial limpiado', 'info');
+        });
+
+        renderHistory();
+
+        // --- Procesamiento real del DOCX ---
+        async function processDocument(file, meta) {
+            // Intentar usar las librerías disponibles (mammoth + docx)
+            // Si no están cargadas, generamos un blob de demostración válido
+            if (typeof mammoth !== 'undefined' && typeof docx !== 'undefined') {
+                return await processWithLibraries(file, meta);
+            } else {
+                // Fallback: simular procesamiento y devolver el archivo original
+                // (en producción, el worker de Cloudflare lo procesa en el backend)
+                await sleep(1000); // Tiempo mínimo para la animación
+                return await uploadToBackend(file, meta);
+            }
+        }
+
+        async function processWithLibraries(file, meta) {
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            const htmlContent = result.value;
+
+            const parser = new DOMParser();
+            const dom = parser.parseFromString(htmlContent, 'text/html');
+
+            const paragraphs = [];
+            dom.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li').forEach(el => {
+                const text = el.textContent.trim();
+                if (!text) return;
+                const tag = el.tagName.toLowerCase();
+                const headingLevels = { h1:1, h2:2, h3:3, h4:4, h5:5, h6:6 };
+                paragraphs.push({ text, level: headingLevels[tag] || 0 });
+            });
+
+            // Construir documento DOCX con estilos APA 7
+            const children = [
+                // Portada
+                ...buildTitlePage(meta),
+                // Cuerpo
+                ...paragraphs.map(p => buildParagraph(p))
+            ];
+
+            const doc = new docx.Document({
+                sections: [{
+                    properties: {
+                        page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } }
+                    },
+                    headers: {
+                        default: new docx.Header({
+                            children: [new docx.Paragraph({
+                                alignment: docx.AlignmentType.RIGHT,
+                                children: [new docx.TextRun({ children: [docx.PageNumber.CURRENT], font: 'Times New Roman', size: 24 })]
+                            })]
+                        })
+                    },
+                    children
+                }],
+                styles: {
+                    default: {
+                        document: { run: { font: 'Times New Roman', size: 24 } }
+                    }
+                }
+            });
+
+            return await docx.Packer.toBlob(doc);
+        }
+
+        function buildTitlePage(meta) {
+            const spacer = () => new docx.Paragraph({ spacing: { before: 0, after: 0, line: 480 }, children: [] });
+            const centered = (text, bold = false) => new docx.Paragraph({
+                alignment: docx.AlignmentType.CENTER,
+                spacing: { before: 200, after: 200, line: 480 },
+                children: [new docx.TextRun({ text, bold, font: 'Times New Roman', size: 24 })]
+            });
+
+            return [
+                spacer(), spacer(), spacer(), spacer(),
+                centered(meta.title, true),
+                centered(meta.author),
+                centered(meta.affiliation),
+                ...(meta.course     ? [centered(meta.course)]     : []),
+                ...(meta.instructor ? [centered(meta.instructor)] : []),
+                centered(meta.date),
+                spacer(), spacer()
+            ];
+        }
+
+        function buildParagraph({ text, level }) {
+            const isHeading = level > 0;
+            return new docx.Paragraph({
+                alignment: (isHeading && level === 1) ? docx.AlignmentType.CENTER : docx.AlignmentType.LEFT,
+                spacing: { before: isHeading ? 240 : 0, after: isHeading ? 120 : 0, line: 480 },
+                indent: isHeading ? undefined : { firstLine: 720 },
+                children: [new docx.TextRun({ text, bold: isHeading, font: 'Times New Roman', size: 24 })]
+            });
+        }
+
+        async function uploadToBackend(file, meta) {
+            // Enviar al Cloudflare Worker para procesamiento
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('metadata', JSON.stringify(meta));
+
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
+            const data = await res.json();
+
+            // Descargar el archivo formateado
+            const dlRes = await fetch(`/api/download/${data.fileId}`);
+            if (!dlRes.ok) throw new Error('No se pudo obtener el archivo procesado');
+            return await dlRes.blob();
+        }
+
+        // --- Utilidades ---
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function sanitizeName(name) {
+            return name.replace(/[^a-zA-Z0-9_\-áéíóúüñÁÉÍÓÚÜÑ\s]/g, '').replace(/\s+/g, '_');
+        }
+
+        function showNotif(msg, type = 'info') {
+            // Reutiliza el sistema de notificaciones de Mirai AI si está disponible
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(msg, type);
+                return;
+            }
+            // Fallback inline simple
+            const existing = document.getElementById('__apa_notif');
+            if (existing) existing.remove();
+            const n = document.createElement('div');
+            n.id = '__apa_notif';
+            const colors = {
+                success: 'rgba(56,106,32,0.15)',
+                error:   'rgba(208,0,0,0.15)',
+                info:    'rgba(103,80,164,0.15)',
+                warning: 'rgba(255,159,10,0.15)'
+            };
+            Object.assign(n.style, {
+                position: 'fixed', bottom: '24px', right: '24px',
+                padding: '12px 20px', borderRadius: '12px',
+                background: colors[type] || colors.info,
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem', fontWeight: '500',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                zIndex: '9999', animation: 'slideUp 0.3s ease',
+                border: '1px solid var(--glass-border)',
+                backdropFilter: 'blur(12px)',
+                maxWidth: '320px'
+            });
+            n.textContent = msg;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 3500);
+        }
+    </script>
+</body>
+
+</html>
