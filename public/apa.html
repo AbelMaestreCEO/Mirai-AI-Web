@@ -299,18 +299,6 @@
             border-top: 1px solid var(--glass-border);
         }
 
-        /* Metadata inputs */
-        .apa-metadata-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-
-        @media (max-width: 600px) {
-            .apa-metadata-grid { grid-template-columns: 1fr; }
-        }
-
         /* Input de archivo oculto */
         #apa-file-input {
             position: absolute;
@@ -421,6 +409,118 @@
 
         .apa-result-area.visible .apa-result-icon {
             animation: successPop 0.5s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        /* ============================================
+           LAYOUT PRINCIPAL — Mobile First
+           ============================================ */
+
+        .apa-page-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 16px 40px;
+            box-sizing: border-box;
+        }
+
+        .apa-main-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (min-width: 900px) {
+            .apa-main-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 24px;
+            }
+        }
+
+        .apa-rules-wrapper {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 16px 60px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 600px) {
+            .apa-result-actions {
+                flex-direction: column;
+            }
+            .apa-result-actions .btn-primary,
+            .apa-result-actions .btn-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .apa-metadata-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        @media (min-width: 480px) {
+            .apa-metadata-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+            }
+        }
+
+        .apa-card-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 20px;
+            box-shadow: var(--glass-shadow);
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        @media (min-width: 480px) {
+            .apa-card-panel { padding: 24px; }
+        }
+
+        .apa-card-panel input[type="text"],
+        .apa-card-panel input[type="date"] {
+            width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+        }
+
+        .apa-dropzone {
+            padding: 36px 16px;
+        }
+
+        @media (min-width: 480px) {
+            .apa-dropzone { padding: 56px 24px; }
+        }
+
+        .apa-rules-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        @media (min-width: 480px) {
+            .apa-rules-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (min-width: 900px) {
+            .apa-rules-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        }
+
+        @media (min-width: 1200px) {
+            .apa-rules-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .courses-container {
+            min-width: 0;
+            overflow-x: hidden;
         }
     </style>
 </head>
@@ -641,9 +741,8 @@
         <input type="file" id="apa-file-input" accept=".docx" aria-hidden="true">
 
         <!-- ===== SECCIÓN 1: SUBIDA ===== -->
-        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 40px;">
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+        <div class="apa-page-wrapper">
+            <div class="apa-main-grid">
 
                 <!-- Panel izquierdo: Dropzone + Metadata -->
                 <div>
@@ -659,7 +758,7 @@
                     </div>
 
                     <!-- Metadatos del documento -->
-                    <div style="margin-top: 20px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); padding: 24px; box-shadow: var(--glass-shadow);">
+                    <div class="apa-card-panel" style="margin-top: 20px;">
                         <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px;">
                             Datos del documento (opcionales)
                         </div>
@@ -740,7 +839,7 @@
                                 </div>
                             </div>
                             <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 0;">
-                                Tu documento ha sido procesado y cumple con todas las normas APA 7ª edición. Descárgalo o guárdalo en la nube.
+                                Tu documento ha sido procesado y cumple con todas las normas APA 7ª edición.
                             </p>
                             <div class="apa-result-actions">
                                 <button class="btn-primary" id="apa-download-btn">
@@ -754,14 +853,14 @@
                     </div>
 
                     <!-- Estado vacío (antes de subir) -->
-                    <div id="apa-idle-state" style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); padding: 40px 24px; text-align: center; box-shadow: var(--glass-shadow);">
+                    <div class="apa-card-panel" id="apa-idle-state" style="text-align: center;">
                         <span style="font-size: 3rem; display: block; margin-bottom: 12px;">📝</span>
                         <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Listo para formatear</div>
                         <div style="font-size: 0.85rem; color: var(--text-tertiary);">Sube un archivo .DOCX para comenzar el proceso de formateo APA 7</div>
                     </div>
 
                     <!-- Historial reciente -->
-                    <div style="margin-top: 20px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--border-radius-lg); padding: 24px; box-shadow: var(--glass-shadow);">
+                    <div class="apa-card-panel" style="margin-top: 20px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                             <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary);">Historial reciente</div>
                             <button class="btn-secondary" id="apa-clear-history" style="padding: 4px 12px; font-size: 0.75rem;" title="Limpiar historial">Limpiar</button>
@@ -775,19 +874,10 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Responsive: stack en móvil -->
-            <style>
-                @media (max-width: 768px) {
-                    div[style*="grid-template-columns: 1fr 1fr"] {
-                        grid-template-columns: 1fr !important;
-                    }
-                }
-            </style>
         </div>
 
         <!-- ===== SECCIÓN 2: REGLAS APA 7 ===== -->
-        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px 60px;">
+        <div class="apa-rules-wrapper">
             <div class="courses-count" style="padding: 0 0 12px;">Reglas aplicadas automáticamente</div>
             <div class="apa-rules-grid">
 
