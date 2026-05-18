@@ -12,6 +12,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="styles.css">
 
+    <!-- Librerías para procesamiento DOCX (igual que index.html original) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.min.js"></script>
+
     <style>
         /* ============================================
            APA PAGE — Estilos mínimos específicos
@@ -844,39 +850,53 @@
 
     <script type="module">
         // ============================================
-        // APA PAGE — Lógica de la interfaz
+        // APA PAGE — Usa los módulos reales de js/
         // ============================================
 
-        // --- Referencias DOM ---
-        const dropzone      = document.getElementById('apa-dropzone');
-        const fileInput     = document.getElementById('apa-file-input');
-        const formatBtn     = document.getElementById('apa-format-btn');
-        const filenameLabel = document.getElementById('apa-filename');
-        const processing    = document.getElementById('apa-processing');
-        const resultArea    = document.getElementById('apa-result');
-        const idleState     = document.getElementById('apa-idle-state');
-        const resultFilename= document.getElementById('apa-result-filename');
-        const downloadBtn   = document.getElementById('apa-download-btn');
-        const resetBtn      = document.getElementById('apa-reset-btn');
-        const historyList   = document.getElementById('apa-history-list');
-        const clearHistory  = document.getElementById('apa-clear-history');
+        // Importar el lector y escritor reales
+        import { readDocxFile } from './js/processors/docxReader.js';
+        import { generateDocx, downloadBlob } from './js/processors/docxWriter.js';
 
-        let selectedFile = null;
+        // ============================================
+        // Referencias DOM
+        // ============================================
+        const dropzone       = document.getElementById('apa-dropzone');
+        const fileInput      = document.getElementById('apa-file-input');
+        const formatBtn      = document.getElementById('apa-format-btn');
+        const filenameLabel  = document.getElementById('apa-filename');
+        const processing     = document.getElementById('apa-processing');
+        const resultArea     = document.getElementById('apa-result');
+        const idleState      = document.getElementById('apa-idle-state');
+        const resultFilename = document.getElementById('apa-result-filename');
+        const downloadBtn    = document.getElementById('apa-download-btn');
+        const resetBtn       = document.getElementById('apa-reset-btn');
+        const historyList    = document.getElementById('apa-history-list');
+        const clearHistory   = document.getElementById('apa-clear-history');
+
+        let selectedFile  = null;
         let processedBlob = null;
+        let outputName    = '';
 
-        // --- Dropzone ---
+        // ============================================
+        // Dropzone
+        // ============================================
         dropzone.addEventListener('click', () => fileInput.click());
-        dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
-
-        dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-        dropzone.addEventListener('dragleave', e => { if (!dropzone.contains(e.relatedTarget)) dropzone.classList.remove('drag-over'); });
+        dropzone.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+        });
+        dropzone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropzone.classList.add('drag-over');
+        });
+        dropzone.addEventListener('dragleave', e => {
+            if (!dropzone.contains(e.relatedTarget)) dropzone.classList.remove('drag-over');
+        });
         dropzone.addEventListener('drop', e => {
             e.preventDefault();
             dropzone.classList.remove('drag-over');
             const f = e.dataTransfer.files[0];
             if (f) setFile(f);
         });
-
         fileInput.addEventListener('change', e => {
             const f = e.target.files[0];
             if (f) setFile(f);
@@ -899,127 +919,151 @@
             showNotif(`Archivo listo: ${file.name}`, 'success');
         }
 
-        // --- Formatear ---
+        // ============================================
+        // Animación de pasos
+        // ============================================
+        const STEPS = [
+            { id: 'step-read',       label: 'Leyendo documento'              },
+            { id: 'step-margins',    label: 'Aplicando márgenes'             },
+            { id: 'step-typography', label: 'Configurando tipografía'        },
+            { id: 'step-spacing',    label: 'Ajustando interlineado'         },
+            { id: 'step-generate',   label: 'Generando archivo final'        },
+        ];
+
+        function setStepState(id, state) {
+            // state: 'active' | 'done' | 'pending'
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('active', 'done');
+            const statusEl = el.querySelector('.apa-step-status');
+            if (state === 'active') {
+                el.classList.add('active');
+                statusEl.textContent = 'Procesando…';
+            } else if (state === 'done') {
+                el.classList.add('done');
+                statusEl.textContent = '✓ Listo';
+            } else {
+                statusEl.textContent = 'Pendiente';
+            }
+        }
+
+        function resetSteps() {
+            STEPS.forEach(s => setStepState(s.id, 'pending'));
+        }
+
+        // ============================================
+        // Botón Formatear — flujo principal
+        // ============================================
         formatBtn.addEventListener('click', async () => {
             if (!selectedFile) return;
 
-            // Recoger metadatos
             const meta = {
-                title:      document.getElementById('apa-title').value      || 'Título del Documento',
-                author:     document.getElementById('apa-author').value     || 'Autor',
-                affiliation:document.getElementById('apa-affiliation').value|| 'Afiliación',
-                course:     document.getElementById('apa-course').value     || '',
-                instructor: document.getElementById('apa-instructor').value || '',
-                date:       document.getElementById('apa-date').value
-                            ? new Date(document.getElementById('apa-date').value).toLocaleDateString('es-ES')
-                            : new Date().toLocaleDateString('es-ES')
+                title:       document.getElementById('apa-title').value       || 'Título del Documento',
+                author:      document.getElementById('apa-author').value      || 'Autor',
+                affiliation: document.getElementById('apa-affiliation').value || 'Afiliación',
+                course:      document.getElementById('apa-course').value      || '',
+                instructor:  document.getElementById('apa-instructor').value  || '',
+                date:        document.getElementById('apa-date').value
+                             ? new Date(document.getElementById('apa-date').value).toLocaleDateString('es-ES')
+                             : new Date().toLocaleDateString('es-ES')
             };
 
-            // UI: mostrar procesamiento
+            // Resetear UI
             idleState.style.display = 'none';
             resultArea.classList.remove('visible');
             processing.classList.add('visible');
             formatBtn.disabled = true;
-
-            const steps = [
-                { el: document.getElementById('step-read'),       ms: 600  },
-                { el: document.getElementById('step-margins'),    ms: 500  },
-                { el: document.getElementById('step-typography'), ms: 500  },
-                { el: document.getElementById('step-spacing'),    ms: 600  },
-                { el: document.getElementById('step-generate'),   ms: 800  },
-            ];
-
-            // Animar pasos secuencialmente
-            async function runStep(idx) {
-                if (idx >= steps.length) return;
-                const { el, ms } = steps[idx];
-                el.classList.add('active');
-                el.querySelector('.apa-step-status').textContent = 'Procesando…';
-                await sleep(ms);
-                el.classList.remove('active');
-                el.classList.add('done');
-                el.querySelector('.apa-step-status').textContent = '✓ Listo';
-                await runStep(idx + 1);
-            }
+            resetSteps();
 
             try {
-                // Iniciar animación de pasos mientras se procesa en paralelo
-                const [_, blob] = await Promise.all([
-                    runStep(0),
-                    processDocument(selectedFile, meta)
-                ]);
+                // ── Paso 1: Leer el DOCX ─────────────────────────────
+                setStepState('step-read', 'active');
+                const docData = await readDocxFile(selectedFile);
+                setStepState('step-read', 'done');
+
+                // ── Paso 2: Márgenes (ya aplicados en generateDocx) ──
+                setStepState('step-margins', 'active');
+                await sleep(300);
+                setStepState('step-margins', 'done');
+
+                // ── Paso 3: Tipografía ───────────────────────────────
+                setStepState('step-typography', 'active');
+                await sleep(300);
+                setStepState('step-typography', 'done');
+
+                // ── Paso 4: Espaciado ────────────────────────────────
+                setStepState('step-spacing', 'active');
+                await sleep(300);
+                setStepState('step-spacing', 'done');
+
+                // ── Paso 5: Generar DOCX formateado ─────────────────
+                setStepState('step-generate', 'active');
+                const blob = await generateDocx(docData, meta);
+                setStepState('step-generate', 'done');
 
                 processedBlob = blob;
 
-                // Pequeño delay extra para que los pasos terminen de animarse visualmente
-                await sleep(300);
+                await sleep(400);
 
                 // Mostrar resultado
+                outputName = `${sanitizeName(selectedFile.name.replace(/\.docx$/i, ''))}_APA7.docx`;
                 processing.classList.remove('visible');
-                const outName = `${sanitizeName(selectedFile.name.replace('.docx', ''))}_APA7.docx`;
-                resultFilename.textContent = outName;
+                resultFilename.textContent = outputName;
                 resultArea.classList.add('visible');
 
-                // Guardar en historial
-                addToHistory(selectedFile.name, outName, blob);
+                addToHistory(selectedFile.name, outputName, blob);
                 showNotif('¡Documento formateado exitosamente!', 'success');
 
             } catch (err) {
+                console.error('[APA] Error al formatear:', err);
                 processing.classList.remove('visible');
                 idleState.style.display = 'block';
                 formatBtn.disabled = false;
-                showNotif('Error al procesar el documento: ' + err.message, 'error');
-                console.error(err);
+                showNotif('Error: ' + err.message, 'error');
             }
         });
 
-        // --- Descarga ---
+        // ============================================
+        // Descarga
+        // ============================================
         downloadBtn.addEventListener('click', () => {
             if (!processedBlob) return;
-            const name = resultFilename.textContent || 'documento_APA7.docx';
-            const url = URL.createObjectURL(processedBlob);
-            const a = document.createElement('a');
-            a.href = url; a.download = name;
-            document.body.appendChild(a); a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            // Usa la función downloadBlob del docxWriter real (que usa FileSaver si está disponible)
+            downloadBlob(processedBlob, outputName || 'documento_APA7.docx');
             showNotif('Descarga iniciada', 'success');
         });
 
-        // --- Resetear ---
-        resetBtn.addEventListener('click', reset);
+        // ============================================
+        // Reset
+        // ============================================
+        resetBtn.addEventListener('click', resetAll);
 
-        function reset() {
-            selectedFile = null;
+        function resetAll() {
+            selectedFile  = null;
             processedBlob = null;
+            outputName    = '';
             fileInput.value = '';
             filenameLabel.style.display = 'none';
             formatBtn.disabled = true;
             resultArea.classList.remove('visible');
             processing.classList.remove('visible');
             idleState.style.display = 'block';
-
-            // Resetear pasos
-            document.querySelectorAll('.apa-step').forEach(s => {
-                s.classList.remove('active', 'done');
-                s.querySelector('.apa-step-status').textContent = 'Pendiente';
-            });
-
-            // Limpiar inputs
+            resetSteps();
             ['apa-title','apa-author','apa-affiliation','apa-course','apa-instructor','apa-date']
-                .forEach(id => { document.getElementById(id).value = ''; });
+                .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         }
 
-        // --- Historial ---
+        // ============================================
+        // Historial (localStorage)
+        // ============================================
         function addToHistory(originalName, formattedName, blob) {
             const history = getHistory();
             history.unshift({
-                original: originalName,
+                original:  originalName,
                 formatted: formattedName,
-                date: new Date().toLocaleString('es-ES'),
-                size: blob.size
+                date:      new Date().toLocaleString('es-ES'),
+                size:      blob.size
             });
-            // Mantener máximo 10 entradas
             localStorage.setItem('apa_history', JSON.stringify(history.slice(0, 10)));
             renderHistory();
         }
@@ -1032,10 +1076,13 @@
         function renderHistory() {
             const history = getHistory();
             if (!history.length) {
-                historyList.innerHTML = `<div class="apa-history-empty"><span class="apa-history-empty-icon">🕐</span>Ningún documento formateado aún</div>`;
+                historyList.innerHTML = `<div class="apa-history-empty">
+                    <span class="apa-history-empty-icon">🕐</span>
+                    Ningún documento formateado aún
+                </div>`;
                 return;
             }
-            historyList.innerHTML = history.map((item, i) => `
+            historyList.innerHTML = history.map(item => `
                 <div class="apa-history-item">
                     <span class="apa-history-icon">📄</span>
                     <div class="apa-history-info">
@@ -1054,123 +1101,15 @@
 
         renderHistory();
 
-        // --- Procesamiento real del DOCX ---
-        async function processDocument(file, meta) {
-            // Intentar usar las librerías disponibles (mammoth + docx)
-            // Si no están cargadas, generamos un blob de demostración válido
-            if (typeof mammoth !== 'undefined' && typeof docx !== 'undefined') {
-                return await processWithLibraries(file, meta);
-            } else {
-                // Fallback: simular procesamiento y devolver el archivo original
-                // (en producción, el worker de Cloudflare lo procesa en el backend)
-                await sleep(1000); // Tiempo mínimo para la animación
-                return await uploadToBackend(file, meta);
-            }
-        }
-
-        async function processWithLibraries(file, meta) {
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.convertToHtml({ arrayBuffer });
-            const htmlContent = result.value;
-
-            const parser = new DOMParser();
-            const dom = parser.parseFromString(htmlContent, 'text/html');
-
-            const paragraphs = [];
-            dom.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li').forEach(el => {
-                const text = el.textContent.trim();
-                if (!text) return;
-                const tag = el.tagName.toLowerCase();
-                const headingLevels = { h1:1, h2:2, h3:3, h4:4, h5:5, h6:6 };
-                paragraphs.push({ text, level: headingLevels[tag] || 0 });
-            });
-
-            // Construir documento DOCX con estilos APA 7
-            const children = [
-                // Portada
-                ...buildTitlePage(meta),
-                // Cuerpo
-                ...paragraphs.map(p => buildParagraph(p))
-            ];
-
-            const doc = new docx.Document({
-                sections: [{
-                    properties: {
-                        page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } }
-                    },
-                    headers: {
-                        default: new docx.Header({
-                            children: [new docx.Paragraph({
-                                alignment: docx.AlignmentType.RIGHT,
-                                children: [new docx.TextRun({ children: [docx.PageNumber.CURRENT], font: 'Times New Roman', size: 24 })]
-                            })]
-                        })
-                    },
-                    children
-                }],
-                styles: {
-                    default: {
-                        document: { run: { font: 'Times New Roman', size: 24 } }
-                    }
-                }
-            });
-
-            return await docx.Packer.toBlob(doc);
-        }
-
-        function buildTitlePage(meta) {
-            const spacer = () => new docx.Paragraph({ spacing: { before: 0, after: 0, line: 480 }, children: [] });
-            const centered = (text, bold = false) => new docx.Paragraph({
-                alignment: docx.AlignmentType.CENTER,
-                spacing: { before: 200, after: 200, line: 480 },
-                children: [new docx.TextRun({ text, bold, font: 'Times New Roman', size: 24 })]
-            });
-
-            return [
-                spacer(), spacer(), spacer(), spacer(),
-                centered(meta.title, true),
-                centered(meta.author),
-                centered(meta.affiliation),
-                ...(meta.course     ? [centered(meta.course)]     : []),
-                ...(meta.instructor ? [centered(meta.instructor)] : []),
-                centered(meta.date),
-                spacer(), spacer()
-            ];
-        }
-
-        function buildParagraph({ text, level }) {
-            const isHeading = level > 0;
-            return new docx.Paragraph({
-                alignment: (isHeading && level === 1) ? docx.AlignmentType.CENTER : docx.AlignmentType.LEFT,
-                spacing: { before: isHeading ? 240 : 0, after: isHeading ? 120 : 0, line: 480 },
-                indent: isHeading ? undefined : { firstLine: 720 },
-                children: [new docx.TextRun({ text, bold: isHeading, font: 'Times New Roman', size: 24 })]
-            });
-        }
-
-        async function uploadToBackend(file, meta) {
-            // Enviar al Cloudflare Worker para procesamiento
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('metadata', JSON.stringify(meta));
-
-            const res = await fetch('/api/apa/upload', { method: 'POST', body: formData });
-            if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
-            const data = await res.json();
-
-            // Descargar el archivo formateado
-            const dlRes = await fetch(`/api/apa/download/${data.fileId}`);
-            if (!dlRes.ok) throw new Error('No se pudo obtener el archivo procesado');
-            return await dlRes.blob();
-        }
-
-        // --- Utilidades ---
+        // ============================================
+        // Utilidades
+        // ============================================
         function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
         function formatSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+            if (bytes < 1024)        return bytes + ' B';
+            if (bytes < 1024*1024)   return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024*1024)).toFixed(1) + ' MB';
         }
 
         function sanitizeName(name) {
@@ -1178,12 +1117,10 @@
         }
 
         function showNotif(msg, type = 'info') {
-            // Reutiliza el sistema de notificaciones de Mirai AI si está disponible
             if (typeof window.showNotification === 'function') {
                 window.showNotification(msg, type);
                 return;
             }
-            // Fallback inline simple
             const existing = document.getElementById('__apa_notif');
             if (existing) existing.remove();
             const n = document.createElement('div');
@@ -1201,7 +1138,7 @@
                 color: 'var(--text-primary)',
                 fontSize: '0.9rem', fontWeight: '500',
                 boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                zIndex: '9999', animation: 'slideUp 0.3s ease',
+                zIndex: '9999',
                 border: '1px solid var(--glass-border)',
                 backdropFilter: 'blur(12px)',
                 maxWidth: '320px'

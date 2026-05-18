@@ -4919,6 +4919,7 @@ function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, local
   central.set(nameBytes, 46);
   return central;
 }
+
 async function handleFormatUpload(request, env, corsHeaders) {
   const formData = await request.formData();
   const tempId = formData.get('tempId') || crypto.randomUUID();
