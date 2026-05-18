@@ -160,13 +160,13 @@
     <main class="courses-container" id="detail-container">
 
         <!-- Hero — idéntico al de courses.html -->
-        <div class="courses-hero">
+        <div class="courses-hero" style="animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) both;">
             <h1 id="detail-hero-title">Detalle de Tarea</h1>
             <p id="detail-hero-subtitle">Revisa la información, descripción y entrega de tu tarea.</p>
         </div>
 
         <!-- Botón Volver — ya existe .back-btn en styles.css -->
-        <div style="padding: 0 20px;">
+        <div style="padding: 0 20px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.05s both;">
             <button onclick="window.history.back()" class="back-btn">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
@@ -194,67 +194,58 @@
         <!-- Contenido de la Tarea -->
         <div id="task-content" style="display: none;">
 
-            <!-- Header de la Tarea — reutiliza .course-detail-header de styles.css -->
-            <div class="course-detail-header" style="margin: 0 20px 24px;">
-                <div class="course-detail-icon" id="task-header-icon">📝</div>
+            <!-- Header de la Tarea — reutiliza .course-detail-header
+                 IDs: task-title, task-course (los únicos que usa el JS aquí) -->
+            <div class="course-detail-header" style="margin: 0 20px 0; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.05s both;">
+                <div class="course-detail-icon">📝</div>
                 <div class="course-detail-info">
                     <h1 id="task-title" class="course-detail-title">Cargando...</h1>
                     <p id="task-course" class="course-detail-description">Curso: -</p>
-                    <div class="course-detail-meta">
-                        <span class="course-detail-meta-item">
-                            <span>📅</span>
-                            <span id="task-due">-</span>
-                        </span>
-                        <span class="course-detail-meta-item">
-                            <span>⭐</span>
-                            <span id="task-max-score">-</span> pts
-                        </span>
-                        <span id="task-status" class="status-badge status-pending">Cargando...</span>
-                    </div>
                 </div>
             </div>
 
-            <!-- Grid de Metadatos — reutiliza .task-meta-grid y .meta-item de styles.css -->
-            <div class="task-meta-grid" style="padding: 0 20px; margin-bottom: 24px;">
+            <!-- Grid de Metadatos — IDs exactos que usa classroom_details.js:
+                 task-due, task-max-score, task-status -->
+            <div class="task-meta-grid" style="padding: 0 20px; margin-bottom: 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.15s both;">
                 <div class="meta-item">
                     <span class="meta-icon">📅</span>
                     <div class="meta-content">
                         <span class="meta-label">Fecha Límite</span>
-                        <span id="task-due-detail" class="meta-value">-</span>
+                        <span id="task-due" class="meta-value">-</span>
                     </div>
                 </div>
                 <div class="meta-item">
                     <span class="meta-icon">⭐</span>
                     <div class="meta-content">
                         <span class="meta-label">Puntuación Máxima</span>
-                        <span id="task-max-score-detail" class="meta-value">-</span>
+                        <span id="task-max-score" class="meta-value">-</span>
                     </div>
                 </div>
                 <div class="meta-item">
                     <span class="meta-icon">📊</span>
                     <div class="meta-content">
                         <span class="meta-label">Estado</span>
-                        <span id="task-status-detail" class="meta-value">-</span>
+                        <span id="task-status" class="status-badge status-pending">Cargando...</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Descripción — reutiliza .task-description-card, .section-title, .task-desc-text -->
-            <div class="task-description-card" style="margin: 0 20px 24px;">
+            <!-- Descripción -->
+            <div class="task-description-card" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.25s both;">
                 <h2 class="section-title">Descripción</h2>
                 <p id="task-description" class="task-desc-text">Cargando...</p>
             </div>
 
             <!-- Sección de Entrega — se llena desde JS -->
-            <div id="submit-section" class="card submit-section-card" style="display: none; margin: 0 20px 24px;">
+            <div id="submit-section" class="card submit-section-card" style="display: none; margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.35s both;">
             </div>
 
-            <!-- Sección de Evaluación (Estudiante) — se llena desde JS -->
-            <div id="evaluate-section" class="card evaluate-section-card" style="display: none; margin: 0 20px 24px;">
+            <!-- Sección de Evaluación — se llena desde JS -->
+            <div id="evaluate-section" class="card evaluate-section-card" style="display: none; margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.4s both;">
             </div>
 
-            <!-- Sección de Feedback (Evaluado) — se llena desde JS -->
-            <div id="feedback-section" class="card feedback-section-card" style="display: none; margin: 0 20px 60px;">
+            <!-- Sección de Feedback — se llena desde JS -->
+            <div id="feedback-section" class="card feedback-section-card" style="display: none; margin: 0 20px 60px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.45s both;">
             </div>
 
         </div><!-- /task-content -->
