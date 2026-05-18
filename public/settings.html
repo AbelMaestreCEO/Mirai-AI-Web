@@ -11,8 +11,87 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-
+<script>
+// Restaura el color de acento completo (incluye fondo de página)
+// — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
+(function () {
+    var COLORS = {
+        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8',
+                   bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
+                   bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
+                   gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
+        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD',
+                   bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
+                   bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
+                   gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
+        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1',
+                   bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
+                   bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
+                   gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
+        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9',
+                   bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
+                   bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
+                   gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
+        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0',
+                   bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
+                   bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
+                   gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
+        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC',
+                   bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
+                   bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
+                   gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
+        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE',
+                   bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
+                   bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
+                   gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
+        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6',
+                   bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
+                   bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
+                   gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
+        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7',
+                   bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
+                   bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
+                   gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
+        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1',
+                   bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
+                   bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
+                   gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
+    };
+ 
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
+    var theme = localStorage.getItem('mirai-ai-theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var isDark = theme === 'dark';
+ 
+    if (s.accentColor && COLORS[s.accentColor]) {
+        var c = COLORS[s.accentColor];
+        var r = document.documentElement;
+        r.style.setProperty('--accent-color', c.c);
+        r.style.setProperty('--accent-gradient', c.g);
+        r.style.setProperty('--accent-glow', c.glow);
+        r.style.setProperty('--secondary-container', c.sc);
+        r.style.setProperty('--message-user-bg', c.glow.replace('0.18','0.08'));
+        r.style.setProperty('--message-user-border', c.glow);
+        // Fondo completo
+        r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+        r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+        r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+        // Aplicar fondo directamente al html para evitar flash
+        r.style.background = isDark ? c.bgD : c.bg;
+        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+    }
+    if (s.fontFamily) {
+        document.documentElement.style.setProperty('--font-family', s.fontFamily);
+    }
+    if (s.fontSize) {
+        document.documentElement.style.fontSize = s.fontSize + 'px';
+    }
+    if (s.reducedMotion) {
+        document.documentElement.classList.add('reduce-motion');
+    }
+})();
+</script>
     <style>
         /* ============================================
            SETTINGS PAGE - ESTILOS ESPECÍFICOS
@@ -510,48 +589,13 @@
             }
         }
     </style>
-    <script>
-// Aplica color y fuente guardados antes de pintar la página
-(function () {
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
- 
-    var COLORS = {
-        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8' },
-        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD' },
-        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1' },
-        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9' },
-        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0' },
-        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC' },
-        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE' },
-        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6' },
-        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7' },
-        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1' }
-    };
- 
-    if (s.accentColor && COLORS[s.accentColor]) {
-        var c = COLORS[s.accentColor];
-        var r = document.documentElement;
-        r.style.setProperty('--accent-color', c.c);
-        r.style.setProperty('--accent-gradient', c.g);
-        r.style.setProperty('--accent-glow', c.glow);
-        r.style.setProperty('--secondary-container', c.sc);
-    }
-    if (s.fontFamily) {
-        document.documentElement.style.setProperty('--font-family', s.fontFamily);
-    }
-    if (s.fontSize) {
-        document.documentElement.style.fontSize = s.fontSize + 'px';
-    }
-    if (s.reducedMotion) {
-        document.documentElement.classList.add('reduce-motion');
-    }
-})();
-</script>
+<link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-<nav class="mobile-sidebar">
+
+    <!-- ========== SIDEBAR ========== -->
+    <nav class="mobile-sidebar">
         <div class="sidebar-header">
             <h3>Mirai AI</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -565,7 +609,7 @@
         </div>
 
         <div class="sidebar-content">
-            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
+            <!-- Navegación -->
             <section class="sidebar-section collapsible-section active">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Navegación</h4>
@@ -587,122 +631,20 @@
                             <span class="nav-icon">📚</span>
                             <span class="nav-label">Cursos</span>
                         </a>
-                        <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
-                            <span class="nav-icon">🏫</span>
-                            <span class="nav-label">Aula</span>
-                        </a>
-                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
-                            <span class="nav-icon">📦</span>
-                            <span class="nav-label">Inventario</span>
-                        </a>
-                        <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
-                            <span class="nav-icon">🖼️</span>
-                            <span class="nav-label">Fotos</span>
-                        </a>
-                        <a href="format.html" class="nav-grid-item" data-tooltip="Formato">
-                            <span class="nav-icon">📝</span>
-                            <span class="nav-label">Formato</span>
-                        </a>
-                        <a href="apa.html" class="nav-grid-item" data-tooltip="Formato">
-                            <span class="nav-icon">📄</span>
-                            <span class="nav-label">APA 7</span>
+                        <a href="settings.html" class="nav-grid-item active-link" data-tooltip="Configuración">
+                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-label">Ajustes</span>
                         </a>
                     </div>
                 </div>
             </section>
+        </div>
 
-            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
-            <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="conversations-header">
-                    <h4>Conversaciones</h4>
-                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    </button>
-                </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
-            </section>
-
-            <!-- Sección 3: Explorar (Desplegable Maestro) -->
-            <section class="sidebar-section collapsible-section">
-                <div class="collapsible-header" role="button" tabindex="0">
-                    <h4>Explorar</h4>
-                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                    </svg>
-                </div>
-                <div class="collapsible-content">
-
-                    <!-- Submenú: Servicios -->
-                    <div class="nested-collapsible">
-                        <div class="collapsible-header nested-header" role="button" tabindex="0">
-                            <h5>Servicios</h5>
-                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                            </svg>
-                        </div>
-                        <div class="collapsible-content nested-content">
-                            <ul class="sidebar-links">
-                                <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
-                                <li><a href="https://aberumirai.com#education">Educación</a></li>
-                                <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
-                                <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
-                                <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Submenú: Empresa -->
-                    <div class="nested-collapsible">
-                        <div class="collapsible-header nested-header" role="button" tabindex="0">
-                            <h5>Empresa</h5>
-                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                            </svg>
-                        </div>
-                        <div class="collapsible-content nested-content">
-                            <ul class="sidebar-links">
-                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
-                                <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
-                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
-                                <li><a href="#">Quiénes somos</a></li>
-                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Submenú: Enlaces Externos -->
-                    <div class="nested-collapsible">
-                        <div class="collapsible-header nested-header" role="button" tabindex="0">
-                            <h5>Enlaces Externos</h5>
-                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-                            </svg>
-                        </div>
-                        <div class="collapsible-content nested-content">
-                            <ul class="sidebar-links">
-                                <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
-                                <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
-                                <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
-                                <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
-                            </ul>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-            <!-- Sección 4: Redes Sociales -->
+        <div class="sidebar-extra">
             <section class="sidebar-section">
                 <h4>Síguenos</h4>
                 <div class="sidebar-social">
-                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
-                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
-                    </a>
-                    <a href="#" aria-label="Twitter/X">
+                    <a href="https://twitter.com/AberuMirai" aria-label="Twitter">
                         <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
                     </a>
                     <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
@@ -716,26 +658,19 @@
                     </a>
                 </div>
             </section>
-            <a href="settings.html" class="settings-sidebar-btn" title="Configuración">
+
+            <!-- Botón Configuración -->
+            <a href="settings.html" class="settings-sidebar-btn active" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
-        c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96
-        c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84
-        c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33
-        c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58
-        C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61
-        l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54
-        c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
-        c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
-        c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
-        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                 </svg>
                 <span>Configuración</span>
             </a>
+
+            <!-- Botón Cerrar Sesión -->
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                    <path
-                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
@@ -748,11 +683,8 @@
             </div>
         </div>
 
-        <!-- Footer del sidebar -->
         <div class="sidebar-footer">
-            <p>&copy;
-                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
-            </p>
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
         </div>
     </nav>
 
@@ -1040,7 +972,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="mirai-boot.js" type="module"></script>
+    <script src="js/mirai-boot.js" type="module"></script>
     <script src="app.js" type="module"></script>
 
     <!-- Google Fonts dinámicas para Poppins, Playfair, Nunito -->
@@ -1051,66 +983,99 @@
         'use strict';
 
         // ---- CONSTANTES DE COLORES ----
+        // bg: fondo base claro | bgGrad: degradado fondo claro
+        // bgDark: fondo base oscuro | bgGradDark: degradado fondo oscuro
+        // orb1/orb2/orb3: colores de los orbes animados (body::before)
         const ACCENT_COLORS = {
             purple: {
-                color: '#6750A4',
-                gradient: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)',
-                glow: 'rgba(103,80,164,0.18)',
-                container: '#E8DEF8'
+                color: '#6750A4', gradient: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)',
+                glow: 'rgba(103,80,164,0.18)', container: '#E8DEF8',
+                bg: '#F5F3F8', bgGrad: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
+                bgDark: '#141218', bgGradDark: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
+                glassBorder: 'rgba(103,80,164,0.12)', glassBorderDark: 'rgba(207,188,255,0.10)',
+                orb1: 'rgba(103,80,164,0.12)', orb2: 'rgba(125,82,96,0.08)', orb3: 'rgba(98,91,113,0.06)',
+                orb1Dark: 'rgba(208,188,255,0.06)', orb2Dark: 'rgba(239,184,200,0.04)', orb3Dark: 'rgba(204,194,220,0.03)'
             },
             blue: {
-                color: '#1565C0',
-                gradient: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)',
-                glow: 'rgba(21,101,192,0.18)',
-                container: '#E3F2FD'
+                color: '#1565C0', gradient: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)',
+                glow: 'rgba(21,101,192,0.18)', container: '#E3F2FD',
+                bg: '#F3F6FB', bgGrad: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
+                bgDark: '#121520', bgGradDark: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
+                glassBorder: 'rgba(21,101,192,0.12)', glassBorderDark: 'rgba(144,202,249,0.10)',
+                orb1: 'rgba(21,101,192,0.12)', orb2: 'rgba(66,165,245,0.08)', orb3: 'rgba(30,136,229,0.06)',
+                orb1Dark: 'rgba(144,202,249,0.07)', orb2Dark: 'rgba(66,165,245,0.04)', orb3Dark: 'rgba(30,136,229,0.03)'
             },
             teal: {
-                color: '#00695C',
-                gradient: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)',
-                glow: 'rgba(0,105,92,0.18)',
-                container: '#E0F2F1'
+                color: '#00695C', gradient: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)',
+                glow: 'rgba(0,105,92,0.18)', container: '#E0F2F1',
+                bg: '#F2F9F8', bgGrad: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
+                bgDark: '#121A19', bgGradDark: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
+                glassBorder: 'rgba(0,105,92,0.12)', glassBorderDark: 'rgba(128,203,196,0.10)',
+                orb1: 'rgba(0,150,136,0.12)', orb2: 'rgba(38,198,218,0.08)', orb3: 'rgba(0,105,92,0.06)',
+                orb1Dark: 'rgba(128,203,196,0.07)', orb2Dark: 'rgba(38,198,218,0.04)', orb3Dark: 'rgba(0,105,92,0.03)'
             },
             green: {
-                color: '#2E7D32',
-                gradient: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)',
-                glow: 'rgba(46,125,50,0.18)',
-                container: '#E8F5E9'
+                color: '#2E7D32', gradient: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)',
+                glow: 'rgba(46,125,50,0.18)', container: '#E8F5E9',
+                bg: '#F3F9F3', bgGrad: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
+                bgDark: '#121812', bgGradDark: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
+                glassBorder: 'rgba(46,125,50,0.12)', glassBorderDark: 'rgba(165,214,167,0.10)',
+                orb1: 'rgba(46,125,50,0.12)', orb2: 'rgba(102,187,106,0.08)', orb3: 'rgba(56,142,60,0.06)',
+                orb1Dark: 'rgba(165,214,167,0.07)', orb2Dark: 'rgba(102,187,106,0.04)', orb3Dark: 'rgba(56,142,60,0.03)'
             },
             orange: {
-                color: '#E65100',
-                gradient: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)',
-                glow: 'rgba(230,81,0,0.18)',
-                container: '#FFF3E0'
+                color: '#E65100', gradient: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)',
+                glow: 'rgba(230,81,0,0.18)', container: '#FFF3E0',
+                bg: '#FBF6F0', bgGrad: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
+                bgDark: '#1E1610', bgGradDark: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
+                glassBorder: 'rgba(230,81,0,0.12)', glassBorderDark: 'rgba(255,183,77,0.10)',
+                orb1: 'rgba(230,81,0,0.12)', orb2: 'rgba(255,167,38,0.08)', orb3: 'rgba(245,124,0,0.06)',
+                orb1Dark: 'rgba(255,183,77,0.07)', orb2Dark: 'rgba(255,167,38,0.04)', orb3Dark: 'rgba(245,124,0,0.03)'
             },
             pink: {
-                color: '#AD1457',
-                gradient: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)',
-                glow: 'rgba(173,20,87,0.18)',
-                container: '#FCE4EC'
+                color: '#AD1457', gradient: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)',
+                glow: 'rgba(173,20,87,0.18)', container: '#FCE4EC',
+                bg: '#FAF2F6', bgGrad: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
+                bgDark: '#1C1218', bgGradDark: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
+                glassBorder: 'rgba(173,20,87,0.12)', glassBorderDark: 'rgba(240,98,146,0.10)',
+                orb1: 'rgba(173,20,87,0.12)', orb2: 'rgba(240,98,146,0.08)', orb3: 'rgba(216,27,96,0.06)',
+                orb1Dark: 'rgba(240,98,146,0.07)', orb2Dark: 'rgba(216,27,96,0.04)', orb3Dark: 'rgba(173,20,87,0.03)'
             },
             red: {
-                color: '#B71C1C',
-                gradient: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)',
-                glow: 'rgba(183,28,28,0.18)',
-                container: '#FFEBEE'
+                color: '#B71C1C', gradient: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)',
+                glow: 'rgba(183,28,28,0.18)', container: '#FFEBEE',
+                bg: '#FAF2F2', bgGrad: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
+                bgDark: '#1C1212', bgGradDark: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
+                glassBorder: 'rgba(183,28,28,0.12)', glassBorderDark: 'rgba(239,83,80,0.10)',
+                orb1: 'rgba(183,28,28,0.12)', orb2: 'rgba(239,83,80,0.08)', orb3: 'rgba(211,47,47,0.06)',
+                orb1Dark: 'rgba(239,83,80,0.07)', orb2Dark: 'rgba(211,47,47,0.04)', orb3Dark: 'rgba(183,28,28,0.03)'
             },
             indigo: {
-                color: '#283593',
-                gradient: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)',
-                glow: 'rgba(40,53,147,0.18)',
-                container: '#E8EAF6'
+                color: '#283593', gradient: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)',
+                glow: 'rgba(40,53,147,0.18)', container: '#E8EAF6',
+                bg: '#F3F3FA', bgGrad: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
+                bgDark: '#131318', bgGradDark: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
+                glassBorder: 'rgba(40,53,147,0.12)', glassBorderDark: 'rgba(121,134,203,0.10)',
+                orb1: 'rgba(40,53,147,0.12)', orb2: 'rgba(121,134,203,0.08)', orb3: 'rgba(63,81,181,0.06)',
+                orb1Dark: 'rgba(121,134,203,0.07)', orb2Dark: 'rgba(63,81,181,0.04)', orb3Dark: 'rgba(40,53,147,0.03)'
             },
             yellow: {
-                color: '#F57F17',
-                gradient: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)',
-                glow: 'rgba(245,127,23,0.18)',
-                container: '#FFFDE7'
+                color: '#F57F17', gradient: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)',
+                glow: 'rgba(245,127,23,0.18)', container: '#FFFDE7',
+                bg: '#FDFBF0', bgGrad: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
+                bgDark: '#1D1C10', bgGradDark: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
+                glassBorder: 'rgba(245,127,23,0.12)', glassBorderDark: 'rgba(255,238,88,0.10)',
+                orb1: 'rgba(245,127,23,0.12)', orb2: 'rgba(255,238,88,0.08)', orb3: 'rgba(251,192,45,0.06)',
+                orb1Dark: 'rgba(255,238,88,0.07)', orb2Dark: 'rgba(251,192,45,0.04)', orb3Dark: 'rgba(245,127,23,0.03)'
             },
             slate: {
-                color: '#37474F',
-                gradient: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)',
-                glow: 'rgba(55,71,79,0.18)',
-                container: '#ECEFF1'
+                color: '#37474F', gradient: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)',
+                glow: 'rgba(55,71,79,0.18)', container: '#ECEFF1',
+                bg: '#F3F5F6', bgGrad: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
+                bgDark: '#131618', bgGradDark: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
+                glassBorder: 'rgba(55,71,79,0.12)', glassBorderDark: 'rgba(144,164,174,0.10)',
+                orb1: 'rgba(55,71,79,0.12)', orb2: 'rgba(144,164,174,0.08)', orb3: 'rgba(84,110,122,0.06)',
+                orb1Dark: 'rgba(144,164,174,0.07)', orb2Dark: 'rgba(84,110,122,0.04)', orb3Dark: 'rgba(55,71,79,0.03)'
             }
         };
 
@@ -1135,12 +1100,31 @@
             const c = ACCENT_COLORS[name];
             if (!c) return;
             const root = document.documentElement;
+            const isDark = root.getAttribute('data-theme') === 'dark';
+
+            // Acento base
             root.style.setProperty('--accent-color', c.color);
             root.style.setProperty('--accent-gradient', c.gradient);
             root.style.setProperty('--accent-glow', c.glow);
             root.style.setProperty('--secondary-container', c.container);
             root.style.setProperty('--message-user-bg', c.glow.replace('0.18', '0.08'));
-            root.style.setProperty('--message-user-border', c.glow.replace('0.18', '0.18'));
+            root.style.setProperty('--message-user-border', c.glow);
+
+            // Fondo de página
+            root.style.setProperty('--bg-primary', isDark ? c.bgDark : c.bg);
+            root.style.setProperty('--bg-gradient', isDark ? c.bgGradDark : c.bgGrad);
+
+            // Borde de glass
+            root.style.setProperty('--glass-border', isDark ? c.glassBorderDark : c.glassBorder);
+
+            // Orbes animados del body::before
+            root.style.setProperty('--orb-1', isDark ? c.orb1Dark : c.orb1);
+            root.style.setProperty('--orb-2', isDark ? c.orb2Dark : c.orb2);
+            root.style.setProperty('--orb-3', isDark ? c.orb3Dark : c.orb3);
+
+            // Forzar fondo en body directamente
+            document.body.style.background = isDark ? c.bgDark : c.bg;
+            document.body.style.backgroundImage = isDark ? c.bgGradDark : c.bgGrad;
         }
 
         // ---- APLICAR FUENTE ----

@@ -10,26 +10,59 @@
     <title>Mirai AI - Detalles del Curso</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="styles.css">
 
 <script>
-// Aplica color y fuente guardados antes de pintar la página
+// Restaura el color de acento completo (incluye fondo de página)
+// — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
 (function () {
+    var COLORS = {
+        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8',
+                   bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
+                   bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
+                   gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
+        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD',
+                   bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
+                   bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
+                   gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
+        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1',
+                   bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
+                   bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
+                   gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
+        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9',
+                   bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
+                   bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
+                   gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
+        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0',
+                   bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
+                   bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
+                   gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
+        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC',
+                   bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
+                   bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
+                   gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
+        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE',
+                   bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
+                   bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
+                   gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
+        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6',
+                   bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
+                   bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
+                   gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
+        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7',
+                   bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
+                   bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
+                   gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
+        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1',
+                   bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
+                   bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
+                   gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
+    };
+ 
     var s = {};
     try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
- 
-    var COLORS = {
-        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8' },
-        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD' },
-        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1' },
-        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9' },
-        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0' },
-        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC' },
-        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE' },
-        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6' },
-        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7' },
-        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1' }
-    };
+    var theme = localStorage.getItem('mirai-ai-theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var isDark = theme === 'dark';
  
     if (s.accentColor && COLORS[s.accentColor]) {
         var c = COLORS[s.accentColor];
@@ -38,6 +71,15 @@
         r.style.setProperty('--accent-gradient', c.g);
         r.style.setProperty('--accent-glow', c.glow);
         r.style.setProperty('--secondary-container', c.sc);
+        r.style.setProperty('--message-user-bg', c.glow.replace('0.18','0.08'));
+        r.style.setProperty('--message-user-border', c.glow);
+        // Fondo completo
+        r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+        r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+        r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+        // Aplicar fondo directamente al html para evitar flash
+        r.style.background = isDark ? c.bgD : c.bg;
+        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
     }
     if (s.fontFamily) {
         document.documentElement.style.setProperty('--font-family', s.fontFamily);
@@ -50,6 +92,7 @@
     }
 })();
 </script>
+<link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -220,8 +263,8 @@
                 </div>
             </section>
             <a href="settings.html" class="settings-sidebar-btn" title="Configuración">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
         c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96
         c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84
         c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33
@@ -231,10 +274,10 @@
         c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
         c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
         c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
-        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
-                </svg>
-                <span>Configuración</span>
-            </a>
+        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+    </svg>
+    <span>Configuración</span>
+</a>
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
                     <path
