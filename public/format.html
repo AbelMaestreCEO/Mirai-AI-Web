@@ -215,7 +215,9 @@
         }
 
         @media (max-width: 900px) {
-            .fmt-grid { grid-template-columns: 1fr; }
+            .fmt-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* Estadísticas de columna */
@@ -286,6 +288,10 @@
                         <a href="format.html" class="nav-grid-item active-link" data-tooltip="Formato">
                             <span class="nav-icon">📝</span>
                             <span class="nav-label">Formato</span>
+                        </a>
+                        <a href="apa.html" class="nav-grid-item" data-tooltip="Formato">
+                            <span class="nav-icon">📄</span>
+                            <span class="nav-label">APA 7</span>
                         </a>
                     </div>
                 </div>
@@ -390,20 +396,24 @@
 
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:block">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
 
             <div class="sidebar-logo">
                 <a href="https://aberumirai.com">
-                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai" style="max-width:80px;max-height:80px;">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                        style="max-width:80px;max-height:80px;">
                 </a>
             </div>
         </div>
 
         <div class="sidebar-footer">
-            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
         </div>
     </nav>
 
@@ -423,10 +433,12 @@
 
         <button id="theme-toggle" class="theme-toggle" aria-label="Cambiar tema">
             <svg class="sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
+                <path
+                    d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z" />
             </svg>
             <svg class="moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                <path
+                    d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
             </svg>
         </button>
     </header>
@@ -464,7 +476,8 @@
             <div class="course-card" style="cursor:default; animation-delay:0.05s;">
 
                 <!-- Cabecera de columna -->
-                <div class="course-detail-header" style="padding:0 0 16px; margin:0 0 16px; border:none; background:transparent; box-shadow:none; gap:12px;">
+                <div class="course-detail-header"
+                    style="padding:0 0 16px; margin:0 0 16px; border:none; background:transparent; box-shadow:none; gap:12px;">
                     <div class="course-detail-icon" style="width:48px;height:48px;font-size:1.6rem;">📁</div>
                     <div>
                         <div class="course-detail-title" style="font-size:1.1rem; margin:0;">Documentos</div>
@@ -482,7 +495,8 @@
 
                 <!-- Lista de archivos -->
                 <ul class="fmt-file-list" id="fmt-file-list">
-                    <li class="empty-state" style="padding:12px; text-align:center; font-size:0.85rem; color:var(--text-tertiary);">
+                    <li class="empty-state"
+                        style="padding:12px; text-align:center; font-size:0.85rem; color:var(--text-tertiary);">
                         No hay archivos seleccionados
                     </li>
                 </ul>
@@ -510,7 +524,8 @@
             <div class="course-card" style="cursor:default; animation-delay:0.1s;">
 
                 <!-- Cabecera de columna -->
-                <div class="course-detail-header" style="padding:0 0 16px; margin:0 0 16px; border:none; background:transparent; box-shadow:none; gap:12px;">
+                <div class="course-detail-header"
+                    style="padding:0 0 16px; margin:0 0 16px; border:none; background:transparent; box-shadow:none; gap:12px;">
                     <div class="course-detail-icon" style="width:48px;height:48px;font-size:1.6rem;">🎯</div>
                     <div>
                         <div class="course-detail-title" style="font-size:1.1rem; margin:0;">Reglas de Formato</div>
@@ -548,7 +563,8 @@
                 </button>
 
                 <!-- Tabla de reglas — dentro de un contenedor con glass-shadow -->
-                <div style="overflow-x:auto; border:1px solid var(--glass-border); border-radius:var(--border-radius-sm); margin-bottom:8px;">
+                <div
+                    style="overflow-x:auto; border:1px solid var(--glass-border); border-radius:var(--border-radius-sm); margin-bottom:8px;">
                     <table class="fmt-rules-table">
                         <thead>
                             <tr>
@@ -559,7 +575,8 @@
                         </thead>
                         <tbody id="fmt-rules-body">
                             <tr>
-                                <td colspan="3" style="text-align:center; color:var(--text-tertiary); font-size:0.85rem; padding:14px;">
+                                <td colspan="3"
+                                    style="text-align:center; color:var(--text-tertiary); font-size:0.85rem; padding:14px;">
                                     Sin reglas definidas.
                                 </td>
                             </tr>
@@ -594,4 +611,5 @@
     <script type="module" src="format.js" defer></script>
 
 </body>
+
 </html>
