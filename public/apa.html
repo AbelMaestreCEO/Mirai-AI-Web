@@ -344,9 +344,18 @@
             transform: translateX(4px);
         }
 
+        /* Contener texto largo sin romper el layout */
+        .apa-history-list {
+            overflow: hidden;
+        }
+
         .apa-history-icon { font-size: 1.4rem; flex-shrink: 0; }
 
-        .apa-history-info { flex: 1; min-width: 0; }
+        .apa-history-info {
+            flex: 1;
+            min-width: 0;      /* clave: permite que flex hijo se encoja */
+            overflow: hidden;  /* impide que el texto empuje al padre */
+        }
 
         .apa-history-name {
             font-size: 0.9rem;
@@ -355,12 +364,19 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            max-width: 100%;
+            display: block;
         }
 
         .apa-history-date {
             font-size: 0.75rem;
             color: var(--text-tertiary);
             margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            display: block;
         }
 
         .apa-history-actions { display: flex; gap: 6px; flex-shrink: 0; }
@@ -478,6 +494,8 @@
             box-shadow: var(--glass-shadow);
             box-sizing: border-box;
             width: 100%;
+            min-width: 0;       /* evita que el panel se expanda por contenido */
+            overflow: hidden;   /* contiene cualquier hijo que se desborde */
         }
 
         @media (min-width: 480px) {
