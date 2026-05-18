@@ -1154,12 +1154,12 @@
             formData.append('file', file);
             formData.append('metadata', JSON.stringify(meta));
 
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const res = await fetch('/api/apa/upload', { method: 'POST', body: formData });
             if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
             const data = await res.json();
 
             // Descargar el archivo formateado
-            const dlRes = await fetch(`/api/download/${data.fileId}`);
+            const dlRes = await fetch(`/api/apa/download/${data.fileId}`);
             if (!dlRes.ok) throw new Error('No se pudo obtener el archivo procesado');
             return await dlRes.blob();
         }

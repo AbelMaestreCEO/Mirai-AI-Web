@@ -1501,6 +1501,26 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/upload' && request.method === 'POST') {
       return await handleUpload(request, env, corsHeaders);
     }
+
+    // ── RUTAS APA 7 ────────────────────────────────────────────
+    if (path === '/api/apa/upload' && request.method === 'POST') {
+      return await handleApaUpload(request, env, corsHeaders);
+    }
+ 
+    if (path.startsWith('/api/apa/download/') && request.method === 'GET') {
+      const fileId = path.replace('/api/apa/download/', '');
+      return await handleApaDownload(fileId, env, corsHeaders);
+    }
+ 
+    if (path === '/api/apa/history' && request.method === 'GET') {
+      return await handleApaHistory(request, env, corsHeaders);
+    }
+ 
+    if (path.startsWith('/api/apa/delete/') && request.method === 'DELETE') {
+      const fileId = path.replace('/api/apa/delete/', '');
+      return await handleApaDelete(fileId, env, corsHeaders);
+    }
+    // ── FIN RUTAS APA ──────────────────────────────────────────
     // --- RUTAS COMPLETADAS PARA ADMIN (Continuación) ---
 
     // 4. Eliminar Tarea: DELETE /api/delete-assignment
@@ -4993,4 +5013,132 @@ async function handleFormatDownload(request, env, corsHeaders) {
       ...corsHeaders
     }
   });
+}
+
+async function handleApaUpload(request, env, corsHeaders) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const metadataRaw = formData.get('metadata');
+ 
+    if (!file) {
+      return jsonResponse({ error: 'No file provided' }, 400, corsHeaders);
+    }
+ 
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      return jsonResponse({ error: 'Invalid file type. Only .DOCX allowed.' }, 400, corsHeaders);
+    }
+ 
+    const MAX_SIZE = 25 * 1024 * 1024; // 25 MB
+    if (file.size > MAX_SIZE) {
+      return jsonResponse({ error: 'File too large. Maximum 25MB.' }, 413, corsHeaders);
+    }
+ 
+    const fileId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    let metadata = {};
+    try { metadata = JSON.parse(metadataRaw || '{}'); } catch (_) {}
+ 
+    // Guardar en R2 (bucket MIRAI_AI_ASSETS, prefijo apa/)
+    await env.MIRAI_AI_ASSETS.put(`apa/${fileId}`, file.stream(), {
+      httpMetadata: {
+        contentType: file.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      },
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: timestamp,
+        ...metadata
+      }
+    });
+ 
+    // Registrar en D1
+    await env.MIRAI_AI_DB
+      .prepare(`INSERT INTO apa_files (id, original_name, file_type, size, uploaded_at, user_id, metadata_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .bind(fileId, file.name, file.type, file.size, timestamp, metadata.userId || null, JSON.stringify(metadata))
+      .run();
+ 
+    return jsonResponse({
+      success: true,
+      fileId,
+      message: 'Archivo guardado correctamente',
+      downloadUrl: `/api/apa/download/${fileId}`,
+      fileName: file.name
+    }, 200, corsHeaders);
+ 
+  } catch (error) {
+    console.error('[APA Upload] Error:', error);
+    return jsonResponse({ error: 'Upload failed', message: error.message }, 500, corsHeaders);
+  }
+}
+ 
+async function handleApaDownload(fileId, env, corsHeaders) {
+  if (!fileId) return jsonResponse({ error: 'File ID required' }, 400, corsHeaders);
+ 
+  try {
+    const object = await env.MIRAI_AI_ASSETS.get(`apa/${fileId}`);
+    if (!object) return jsonResponse({ error: 'File not found' }, 404, corsHeaders);
+ 
+    const headers = new Headers(corsHeaders);
+    object.writeHttpMetadata(headers);
+    headers.set('Content-Disposition', `attachment; filename="${object.customMetadata?.originalName || 'documento.docx'}"`);
+    headers.set('Cache-Control', 'no-cache');
+ 
+    return new Response(object.body, { headers });
+  } catch (error) {
+    console.error('[APA Download] Error:', error);
+    return jsonResponse({ error: 'Download failed', message: error.message }, 500, corsHeaders);
+  }
+}
+ 
+async function handleApaHistory(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+    const limit = parseInt(url.searchParams.get('limit') || '10');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
+ 
+    let query, bindings;
+    if (userId) {
+      query = `SELECT id, original_name, file_type, size, uploaded_at
+               FROM apa_files WHERE user_id = ?
+               ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`;
+      bindings = [userId, limit, offset];
+    } else {
+      query = `SELECT id, original_name, file_type, size, uploaded_at
+               FROM apa_files
+               ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`;
+      bindings = [limit, offset];
+    }
+ 
+    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
+ 
+    return jsonResponse({
+      files: results.map(r => ({
+        id: r.id,
+        fileName: r.original_name,
+        fileType: r.file_type,
+        size: r.size,
+        uploadedAt: r.uploaded_at,
+        downloadUrl: `/api/apa/download/${r.id}`
+      }))
+    }, 200, corsHeaders);
+ 
+  } catch (error) {
+    console.error('[APA History] Error:', error);
+    return jsonResponse({ error: 'History fetch failed', message: error.message }, 500, corsHeaders);
+  }
+}
+ 
+async function handleApaDelete(fileId, env, corsHeaders) {
+  if (!fileId) return jsonResponse({ error: 'File ID required' }, 400, corsHeaders);
+ 
+  try {
+    await env.MIRAI_AI_ASSETS.delete(`apa/${fileId}`);
+    await env.MIRAI_AI_DB.prepare('DELETE FROM apa_files WHERE id = ?').bind(fileId).run();
+    return jsonResponse({ success: true, message: 'Archivo eliminado correctamente' }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[APA Delete] Error:', error);
+    return jsonResponse({ error: 'Delete failed', message: error.message }, 500, corsHeaders);
+  }
 }
