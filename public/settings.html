@@ -10,88 +10,110 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script>
-// Restaura el color de acento completo (incluye fondo de página)
-// — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
-(function () {
-    var COLORS = {
-        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8',
-                   bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
-                   bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
-                   gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
-        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD',
-                   bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
-                   bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
-                   gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
-        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1',
-                   bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
-                   bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
-                   gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
-        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9',
-                   bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
-                   bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
-                   gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
-        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0',
-                   bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
-                   bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
-                   gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
-        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC',
-                   bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
-                   bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
-                   gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
-        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE',
-                   bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
-                   bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
-                   gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
-        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6',
-                   bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
-                   bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
-                   gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
-        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7',
-                   bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
-                   bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
-                   gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
-        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1',
-                   bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
-                   bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
-                   gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
-    };
- 
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
-    var theme = localStorage.getItem('mirai-ai-theme') ||
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script>
+        // Restaura el color de acento completo (incluye fondo de página)
+        // — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
+        (function () {
+            var COLORS = {
+                purple: {
+                    c: '#6750A4', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', sc: '#E8DEF8',
+                    bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
+                    bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
+                    gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)'
+                },
+                blue: {
+                    c: '#1565C0', g: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow: 'rgba(21,101,192,0.18)', sc: '#E3F2FD',
+                    bg: '#F3F6FB', bgG: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
+                    bgD: '#121520', bgGD: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
+                    gb: 'rgba(21,101,192,0.12)', gbD: 'rgba(144,202,249,0.10)'
+                },
+                teal: {
+                    c: '#00695C', g: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow: 'rgba(0,105,92,0.18)', sc: '#E0F2F1',
+                    bg: '#F2F9F8', bgG: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
+                    bgD: '#121A19', bgGD: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
+                    gb: 'rgba(0,105,92,0.12)', gbD: 'rgba(128,203,196,0.10)'
+                },
+                green: {
+                    c: '#2E7D32', g: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow: 'rgba(46,125,50,0.18)', sc: '#E8F5E9',
+                    bg: '#F3F9F3', bgG: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
+                    bgD: '#121812', bgGD: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
+                    gb: 'rgba(46,125,50,0.12)', gbD: 'rgba(165,214,167,0.10)'
+                },
+                orange: {
+                    c: '#E65100', g: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow: 'rgba(230,81,0,0.18)', sc: '#FFF3E0',
+                    bg: '#FBF6F0', bgG: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
+                    bgD: '#1E1610', bgGD: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
+                    gb: 'rgba(230,81,0,0.12)', gbD: 'rgba(255,183,77,0.10)'
+                },
+                pink: {
+                    c: '#AD1457', g: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow: 'rgba(173,20,87,0.18)', sc: '#FCE4EC',
+                    bg: '#FAF2F6', bgG: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
+                    bgD: '#1C1218', bgGD: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
+                    gb: 'rgba(173,20,87,0.12)', gbD: 'rgba(240,98,146,0.10)'
+                },
+                red: {
+                    c: '#B71C1C', g: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow: 'rgba(183,28,28,0.18)', sc: '#FFEBEE',
+                    bg: '#FAF2F2', bgG: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
+                    bgD: '#1C1212', bgGD: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
+                    gb: 'rgba(183,28,28,0.12)', gbD: 'rgba(239,83,80,0.10)'
+                },
+                indigo: {
+                    c: '#283593', g: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow: 'rgba(40,53,147,0.18)', sc: '#E8EAF6',
+                    bg: '#F3F3FA', bgG: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
+                    bgD: '#131318', bgGD: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
+                    gb: 'rgba(40,53,147,0.12)', gbD: 'rgba(121,134,203,0.10)'
+                },
+                yellow: {
+                    c: '#F57F17', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow: 'rgba(245,127,23,0.18)', sc: '#FFFDE7',
+                    bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
+                    bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
+                    gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)'
+                },
+                slate: {
+                    c: '#37474F', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow: 'rgba(55,71,79,0.18)', sc: '#ECEFF1',
+                    bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
+                    bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
+                    gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)'
+                }
+            };
+
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
+            var theme = localStorage.getItem('mirai-ai-theme') ||
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    var isDark = theme === 'dark';
- 
-    if (s.accentColor && COLORS[s.accentColor]) {
-        var c = COLORS[s.accentColor];
-        var r = document.documentElement;
-        r.style.setProperty('--accent-color', c.c);
-        r.style.setProperty('--accent-gradient', c.g);
-        r.style.setProperty('--accent-glow', c.glow);
-        r.style.setProperty('--secondary-container', c.sc);
-        r.style.setProperty('--message-user-bg', c.glow.replace('0.18','0.08'));
-        r.style.setProperty('--message-user-border', c.glow);
-        // Fondo completo
-        r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
-        r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
-        r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
-        // Aplicar fondo directamente al html para evitar flash
-        r.style.background = isDark ? c.bgD : c.bg;
-        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
-    }
-    if (s.fontFamily) {
-        document.documentElement.style.setProperty('--font-family', s.fontFamily);
-    }
-    if (s.fontSize) {
-        document.documentElement.style.fontSize = s.fontSize + 'px';
-    }
-    if (s.reducedMotion) {
-        document.documentElement.classList.add('reduce-motion');
-    }
-})();
-</script>
+            var isDark = theme === 'dark';
+
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor];
+                var r = document.documentElement;
+                r.style.setProperty('--accent-color', c.c);
+                r.style.setProperty('--accent-gradient', c.g);
+                r.style.setProperty('--accent-glow', c.glow);
+                r.style.setProperty('--secondary-container', c.sc);
+                r.style.setProperty('--message-user-bg', c.glow.replace('0.18', '0.08'));
+                r.style.setProperty('--message-user-border', c.glow);
+                // Fondo completo
+                r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+                r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                // Aplicar fondo directamente al html para evitar flash
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) {
+                document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            }
+            if (s.fontSize) {
+                document.documentElement.style.fontSize = s.fontSize + 'px';
+            }
+            if (s.reducedMotion) {
+                document.documentElement.classList.add('reduce-motion');
+            }
+        })();
+    </script>
     <style>
         /* ============================================
            SETTINGS PAGE - ESTILOS ESPECÍFICOS
@@ -213,19 +235,19 @@
             border-radius: 50%;
             border: 3px solid transparent;
             transition: all 0.25s cubic-bezier(0.05, 0.7, 0.1, 1);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             outline: 2px solid transparent;
             outline-offset: 2px;
         }
 
         .color-option:hover .color-swatch {
             transform: scale(1.12);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
         }
 
         .color-option.active .color-swatch {
             outline-color: var(--accent-color);
-            box-shadow: 0 0 0 4px var(--accent-glow), 0 4px 16px rgba(0,0,0,0.22);
+            box-shadow: 0 0 0 4px var(--accent-glow), 0 4px 16px rgba(0, 0, 0, 0.22);
         }
 
         .color-option input[type="radio"] {
@@ -276,7 +298,9 @@
             box-shadow: 0 4px 16px var(--accent-glow);
         }
 
-        .font-card:hover::after { opacity: 0.04; }
+        .font-card:hover::after {
+            opacity: 0.04;
+        }
 
         .font-card.active {
             border-color: var(--accent-color);
@@ -284,7 +308,9 @@
             box-shadow: 0 2px 12px var(--accent-glow);
         }
 
-        .font-card.active::after { opacity: 0.06; }
+        .font-card.active::after {
+            opacity: 0.06;
+        }
 
         .font-card input[type="radio"] {
             position: absolute;
@@ -539,7 +565,7 @@
             padding: 14px 0;
         }
 
-        .settings-row + .settings-row {
+        .settings-row+.settings-row {
             border-top: 1px solid var(--glass-border);
         }
 
@@ -589,7 +615,7 @@
             }
         }
     </style>
-<link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
@@ -761,8 +787,8 @@
                 </div>
             </section>
             <a href="settings.html" class="settings-sidebar-btn" title="Configuración">
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
         c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96
         c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84
         c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33
@@ -772,10 +798,10 @@
         c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
         c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
         c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
-        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
-    </svg>
-    <span>Configuración</span>
-</a>
+        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+                </svg>
+                <span>Configuración</span>
+            </a>
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
                     <path
@@ -813,10 +839,12 @@
         <div class="header-actions">
             <button class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">
                 <svg class="sun-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-12.37l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0zM7.05 18.36l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0z"/>
+                    <path
+                        d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-12.37l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0zM7.05 18.36l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0z" />
                 </svg>
                 <svg class="moon-icon hidden" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+                    <path
+                        d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
                 </svg>
             </button>
         </div>
@@ -914,10 +942,16 @@
                 <div class="settings-preview" style="margin-top: 16px;">
                     <div class="preview-label">Vista previa del acento</div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <button id="preview-btn" style="padding: 8px 20px; border-radius: 8px; border: none; font-size: 0.88rem; font-weight: 600; color: white; cursor: pointer; transition: all 0.25s; background: var(--accent-gradient);">Botón principal</button>
-                        <span id="preview-link" style="font-size: 0.9rem; font-weight: 500; color: var(--accent-color); text-decoration: underline; cursor: pointer;">Enlace de ejemplo</span>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color);"></div>
-                        <div style="height: 4px; width: 80px; border-radius: 2px; background: var(--accent-gradient);"></div>
+                        <button id="preview-btn"
+                            style="padding: 8px 20px; border-radius: 8px; border: none; font-size: 0.88rem; font-weight: 600; color: white; cursor: pointer; transition: all 0.25s; background: var(--accent-gradient);">Botón
+                            principal</button>
+                        <span id="preview-link"
+                            style="font-size: 0.9rem; font-weight: 500; color: var(--accent-color); text-decoration: underline; cursor: pointer;">Enlace
+                            de ejemplo</span>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-color);">
+                        </div>
+                        <div style="height: 4px; width: 80px; border-radius: 2px; background: var(--accent-gradient);">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -960,7 +994,8 @@
                         <div class="font-badge">✓</div>
                         <div class="font-preview" style="font-family: 'Poppins', sans-serif;">Aa Bb</div>
                         <div class="font-name">Poppins</div>
-                        <div class="font-sample" style="font-family: 'Poppins', sans-serif;">El rápido zorro marrón</div>
+                        <div class="font-sample" style="font-family: 'Poppins', sans-serif;">El rápido zorro marrón
+                        </div>
                     </label>
 
                     <label class="font-card" data-font="'Playfair Display'">
@@ -968,7 +1003,8 @@
                         <div class="font-badge">✓</div>
                         <div class="font-preview" style="font-family: 'Playfair Display', serif;">Aa Bb</div>
                         <div class="font-name">Playfair</div>
-                        <div class="font-sample" style="font-family: 'Playfair Display', serif;">El rápido zorro marrón</div>
+                        <div class="font-sample" style="font-family: 'Playfair Display', serif;">El rápido zorro marrón
+                        </div>
                     </label>
 
                     <label class="font-card" data-font="'Roboto Mono'">
@@ -993,15 +1029,16 @@
 
                 <!-- Tamaño de fuente -->
                 <div class="settings-row-info" style="margin-bottom: 14px;">
-                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 0 0 2px;">Tamaño del texto</h3>
-                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0;">Ajusta el tamaño base del texto de la interfaz</p>
+                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 0 0 2px;">Tamaño
+                        del texto</h3>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0;">Ajusta el tamaño base del
+                        texto de la interfaz</p>
                 </div>
 
                 <div class="font-size-control">
                     <div class="font-size-slider-wrap">
-                        <input type="range" class="font-size-slider" id="font-size-slider"
-                            min="12" max="20" value="15" step="1"
-                            aria-label="Tamaño de fuente">
+                        <input type="range" class="font-size-slider" id="font-size-slider" min="12" max="20" value="15"
+                            step="1" aria-label="Tamaño de fuente">
                         <div class="font-size-labels">
                             <span>Pequeño (12px)</span>
                             <span>Grande (20px)</span>
@@ -1014,7 +1051,8 @@
                 <div class="settings-preview" style="margin-top: 16px;">
                     <div class="preview-label">Vista previa del texto</div>
                     <p class="preview-text" id="font-preview-text" style="margin: 0;">
-                        Hola, soy <strong>Mirai AI</strong>. Estoy aquí para ayudarte con tus cursos, tareas y cualquier pregunta que tengas. ¿En qué puedo ayudarte hoy?
+                        Hola, soy <strong>Mirai AI</strong>. Estoy aquí para ayudarte con tus cursos, tareas y cualquier
+                        pregunta que tengas. ¿En qué puedo ayudarte hoy?
                     </p>
                 </div>
             </div>
@@ -1051,8 +1089,10 @@
                     </div>
                     <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
                         <input type="checkbox" id="reduced-motion" style="opacity:0; width:0; height:0;">
-                        <span id="reduced-motion-track" style="position:absolute; inset:0; background:var(--glass-border); border-radius:12px; transition:background 0.3s;"></span>
-                        <span id="reduced-motion-thumb" style="position:absolute; left:3px; top:3px; width:18px; height:18px; background:white; border-radius:50%; transition:transform 0.3s; box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
+                        <span id="reduced-motion-track"
+                            style="position:absolute; inset:0; background:var(--glass-border); border-radius:12px; transition:background 0.3s;"></span>
+                        <span id="reduced-motion-thumb"
+                            style="position:absolute; left:3px; top:3px; width:18px; height:18px; background:white; border-radius:50%; transition:transform 0.3s; box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
                     </label>
                 </div>
 
@@ -1063,13 +1103,15 @@
         <div class="settings-actions">
             <button class="btn-settings-reset" id="settings-reset">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                    <path
+                        d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
                 </svg>
                 Restablecer
             </button>
             <button class="btn-settings-save" id="settings-save">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                    <path
+                        d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
                 </svg>
                 Guardar cambios
             </button>
@@ -1088,330 +1130,359 @@
     <script src="app.js" type="module"></script>
 
     <!-- Google Fonts dinámicas para Poppins, Playfair, Nunito -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet">
 
     <script>
-    (function () {
-        'use strict';
+            (function () {
+                'use strict';
 
-        // ---- CONSTANTES DE COLORES ----
-        // bg: fondo base claro | bgGrad: degradado fondo claro
-        // bgDark: fondo base oscuro | bgGradDark: degradado fondo oscuro
-        // orb1/orb2/orb3: colores de los orbes animados (body::before)
-        const ACCENT_COLORS = {
-            purple: {
-                color: '#6750A4', gradient: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)',
-                glow: 'rgba(103,80,164,0.18)', container: '#E8DEF8',
-                bg: '#F5F3F8', bgGrad: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
-                bgDark: '#141218', bgGradDark: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
-                glassBorder: 'rgba(103,80,164,0.12)', glassBorderDark: 'rgba(207,188,255,0.10)',
-                orb1: 'rgba(103,80,164,0.12)', orb2: 'rgba(125,82,96,0.08)', orb3: 'rgba(98,91,113,0.06)',
-                orb1Dark: 'rgba(208,188,255,0.06)', orb2Dark: 'rgba(239,184,200,0.04)', orb3Dark: 'rgba(204,194,220,0.03)'
-            },
-            blue: {
-                color: '#1565C0', gradient: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)',
-                glow: 'rgba(21,101,192,0.18)', container: '#E3F2FD',
-                bg: '#F3F6FB', bgGrad: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
-                bgDark: '#121520', bgGradDark: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
-                glassBorder: 'rgba(21,101,192,0.12)', glassBorderDark: 'rgba(144,202,249,0.10)',
-                orb1: 'rgba(21,101,192,0.12)', orb2: 'rgba(66,165,245,0.08)', orb3: 'rgba(30,136,229,0.06)',
-                orb1Dark: 'rgba(144,202,249,0.07)', orb2Dark: 'rgba(66,165,245,0.04)', orb3Dark: 'rgba(30,136,229,0.03)'
-            },
-            teal: {
-                color: '#00695C', gradient: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)',
-                glow: 'rgba(0,105,92,0.18)', container: '#E0F2F1',
-                bg: '#F2F9F8', bgGrad: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
-                bgDark: '#121A19', bgGradDark: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
-                glassBorder: 'rgba(0,105,92,0.12)', glassBorderDark: 'rgba(128,203,196,0.10)',
-                orb1: 'rgba(0,150,136,0.12)', orb2: 'rgba(38,198,218,0.08)', orb3: 'rgba(0,105,92,0.06)',
-                orb1Dark: 'rgba(128,203,196,0.07)', orb2Dark: 'rgba(38,198,218,0.04)', orb3Dark: 'rgba(0,105,92,0.03)'
-            },
-            green: {
-                color: '#2E7D32', gradient: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)',
-                glow: 'rgba(46,125,50,0.18)', container: '#E8F5E9',
-                bg: '#F3F9F3', bgGrad: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
-                bgDark: '#121812', bgGradDark: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
-                glassBorder: 'rgba(46,125,50,0.12)', glassBorderDark: 'rgba(165,214,167,0.10)',
-                orb1: 'rgba(46,125,50,0.12)', orb2: 'rgba(102,187,106,0.08)', orb3: 'rgba(56,142,60,0.06)',
-                orb1Dark: 'rgba(165,214,167,0.07)', orb2Dark: 'rgba(102,187,106,0.04)', orb3Dark: 'rgba(56,142,60,0.03)'
-            },
-            orange: {
-                color: '#E65100', gradient: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)',
-                glow: 'rgba(230,81,0,0.18)', container: '#FFF3E0',
-                bg: '#FBF6F0', bgGrad: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
-                bgDark: '#1E1610', bgGradDark: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
-                glassBorder: 'rgba(230,81,0,0.12)', glassBorderDark: 'rgba(255,183,77,0.10)',
-                orb1: 'rgba(230,81,0,0.12)', orb2: 'rgba(255,167,38,0.08)', orb3: 'rgba(245,124,0,0.06)',
-                orb1Dark: 'rgba(255,183,77,0.07)', orb2Dark: 'rgba(255,167,38,0.04)', orb3Dark: 'rgba(245,124,0,0.03)'
-            },
-            pink: {
-                color: '#AD1457', gradient: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)',
-                glow: 'rgba(173,20,87,0.18)', container: '#FCE4EC',
-                bg: '#FAF2F6', bgGrad: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
-                bgDark: '#1C1218', bgGradDark: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
-                glassBorder: 'rgba(173,20,87,0.12)', glassBorderDark: 'rgba(240,98,146,0.10)',
-                orb1: 'rgba(173,20,87,0.12)', orb2: 'rgba(240,98,146,0.08)', orb3: 'rgba(216,27,96,0.06)',
-                orb1Dark: 'rgba(240,98,146,0.07)', orb2Dark: 'rgba(216,27,96,0.04)', orb3Dark: 'rgba(173,20,87,0.03)'
-            },
-            red: {
-                color: '#B71C1C', gradient: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)',
-                glow: 'rgba(183,28,28,0.18)', container: '#FFEBEE',
-                bg: '#FAF2F2', bgGrad: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
-                bgDark: '#1C1212', bgGradDark: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
-                glassBorder: 'rgba(183,28,28,0.12)', glassBorderDark: 'rgba(239,83,80,0.10)',
-                orb1: 'rgba(183,28,28,0.12)', orb2: 'rgba(239,83,80,0.08)', orb3: 'rgba(211,47,47,0.06)',
-                orb1Dark: 'rgba(239,83,80,0.07)', orb2Dark: 'rgba(211,47,47,0.04)', orb3Dark: 'rgba(183,28,28,0.03)'
-            },
-            indigo: {
-                color: '#283593', gradient: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)',
-                glow: 'rgba(40,53,147,0.18)', container: '#E8EAF6',
-                bg: '#F3F3FA', bgGrad: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
-                bgDark: '#131318', bgGradDark: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
-                glassBorder: 'rgba(40,53,147,0.12)', glassBorderDark: 'rgba(121,134,203,0.10)',
-                orb1: 'rgba(40,53,147,0.12)', orb2: 'rgba(121,134,203,0.08)', orb3: 'rgba(63,81,181,0.06)',
-                orb1Dark: 'rgba(121,134,203,0.07)', orb2Dark: 'rgba(63,81,181,0.04)', orb3Dark: 'rgba(40,53,147,0.03)'
-            },
-            yellow: {
-                color: '#F57F17', gradient: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)',
-                glow: 'rgba(245,127,23,0.18)', container: '#FFFDE7',
-                bg: '#FDFBF0', bgGrad: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
-                bgDark: '#1D1C10', bgGradDark: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
-                glassBorder: 'rgba(245,127,23,0.12)', glassBorderDark: 'rgba(255,238,88,0.10)',
-                orb1: 'rgba(245,127,23,0.12)', orb2: 'rgba(255,238,88,0.08)', orb3: 'rgba(251,192,45,0.06)',
-                orb1Dark: 'rgba(255,238,88,0.07)', orb2Dark: 'rgba(251,192,45,0.04)', orb3Dark: 'rgba(245,127,23,0.03)'
-            },
-            slate: {
-                color: '#37474F', gradient: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)',
-                glow: 'rgba(55,71,79,0.18)', container: '#ECEFF1',
-                bg: '#F3F5F6', bgGrad: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
-                bgDark: '#131618', bgGradDark: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
-                glassBorder: 'rgba(55,71,79,0.12)', glassBorderDark: 'rgba(144,164,174,0.10)',
-                orb1: 'rgba(55,71,79,0.12)', orb2: 'rgba(144,164,174,0.08)', orb3: 'rgba(84,110,122,0.06)',
-                orb1Dark: 'rgba(144,164,174,0.07)', orb2Dark: 'rgba(84,110,122,0.04)', orb3Dark: 'rgba(55,71,79,0.03)'
-            }
-        };
+                // ---- CONSTANTES DE COLORES ----
+                // bg: fondo base claro | bgGrad: degradado fondo claro
+                // bgDark: fondo base oscuro | bgGradDark: degradado fondo oscuro
+                // orb1/orb2/orb3: colores de los orbes animados (body::before)
+                const ACCENT_COLORS = {
+                    purple: {
+                        color: '#6750A4', gradient: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)',
+                        glow: 'rgba(103,80,164,0.18)', container: '#E8DEF8',
+                        bg: '#F5F3F8', bgGrad: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
+                        bgDark: '#141218', bgGradDark: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
+                        glassBorder: 'rgba(103,80,164,0.12)', glassBorderDark: 'rgba(207,188,255,0.10)',
+                        orb1: 'rgba(103,80,164,0.12)', orb2: 'rgba(125,82,96,0.08)', orb3: 'rgba(98,91,113,0.06)',
+                        orb1Dark: 'rgba(208,188,255,0.06)', orb2Dark: 'rgba(239,184,200,0.04)', orb3Dark: 'rgba(204,194,220,0.03)'
+                    },
+                    blue: {
+                        color: '#1565C0', gradient: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)',
+                        glow: 'rgba(21,101,192,0.18)', container: '#E3F2FD',
+                        bg: '#F3F6FB', bgGrad: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
+                        bgDark: '#121520', bgGradDark: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
+                        glassBorder: 'rgba(21,101,192,0.12)', glassBorderDark: 'rgba(144,202,249,0.10)',
+                        orb1: 'rgba(21,101,192,0.12)', orb2: 'rgba(66,165,245,0.08)', orb3: 'rgba(30,136,229,0.06)',
+                        orb1Dark: 'rgba(144,202,249,0.07)', orb2Dark: 'rgba(66,165,245,0.04)', orb3Dark: 'rgba(30,136,229,0.03)'
+                    },
+                    teal: {
+                        color: '#00695C', gradient: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)',
+                        glow: 'rgba(0,105,92,0.18)', container: '#E0F2F1',
+                        bg: '#F2F9F8', bgGrad: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
+                        bgDark: '#121A19', bgGradDark: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
+                        glassBorder: 'rgba(0,105,92,0.12)', glassBorderDark: 'rgba(128,203,196,0.10)',
+                        orb1: 'rgba(0,150,136,0.12)', orb2: 'rgba(38,198,218,0.08)', orb3: 'rgba(0,105,92,0.06)',
+                        orb1Dark: 'rgba(128,203,196,0.07)', orb2Dark: 'rgba(38,198,218,0.04)', orb3Dark: 'rgba(0,105,92,0.03)'
+                    },
+                    green: {
+                        color: '#2E7D32', gradient: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)',
+                        glow: 'rgba(46,125,50,0.18)', container: '#E8F5E9',
+                        bg: '#F3F9F3', bgGrad: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
+                        bgDark: '#121812', bgGradDark: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
+                        glassBorder: 'rgba(46,125,50,0.12)', glassBorderDark: 'rgba(165,214,167,0.10)',
+                        orb1: 'rgba(46,125,50,0.12)', orb2: 'rgba(102,187,106,0.08)', orb3: 'rgba(56,142,60,0.06)',
+                        orb1Dark: 'rgba(165,214,167,0.07)', orb2Dark: 'rgba(102,187,106,0.04)', orb3Dark: 'rgba(56,142,60,0.03)'
+                    },
+                    orange: {
+                        color: '#E65100', gradient: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)',
+                        glow: 'rgba(230,81,0,0.18)', container: '#FFF3E0',
+                        bg: '#FBF6F0', bgGrad: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
+                        bgDark: '#1E1610', bgGradDark: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
+                        glassBorder: 'rgba(230,81,0,0.12)', glassBorderDark: 'rgba(255,183,77,0.10)',
+                        orb1: 'rgba(230,81,0,0.12)', orb2: 'rgba(255,167,38,0.08)', orb3: 'rgba(245,124,0,0.06)',
+                        orb1Dark: 'rgba(255,183,77,0.07)', orb2Dark: 'rgba(255,167,38,0.04)', orb3Dark: 'rgba(245,124,0,0.03)'
+                    },
+                    pink: {
+                        color: '#AD1457', gradient: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)',
+                        glow: 'rgba(173,20,87,0.18)', container: '#FCE4EC',
+                        bg: '#FAF2F6', bgGrad: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
+                        bgDark: '#1C1218', bgGradDark: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
+                        glassBorder: 'rgba(173,20,87,0.12)', glassBorderDark: 'rgba(240,98,146,0.10)',
+                        orb1: 'rgba(173,20,87,0.12)', orb2: 'rgba(240,98,146,0.08)', orb3: 'rgba(216,27,96,0.06)',
+                        orb1Dark: 'rgba(240,98,146,0.07)', orb2Dark: 'rgba(216,27,96,0.04)', orb3Dark: 'rgba(173,20,87,0.03)'
+                    },
+                    red: {
+                        color: '#B71C1C', gradient: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)',
+                        glow: 'rgba(183,28,28,0.18)', container: '#FFEBEE',
+                        bg: '#FAF2F2', bgGrad: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
+                        bgDark: '#1C1212', bgGradDark: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
+                        glassBorder: 'rgba(183,28,28,0.12)', glassBorderDark: 'rgba(239,83,80,0.10)',
+                        orb1: 'rgba(183,28,28,0.12)', orb2: 'rgba(239,83,80,0.08)', orb3: 'rgba(211,47,47,0.06)',
+                        orb1Dark: 'rgba(239,83,80,0.07)', orb2Dark: 'rgba(211,47,47,0.04)', orb3Dark: 'rgba(183,28,28,0.03)'
+                    },
+                    indigo: {
+                        color: '#283593', gradient: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)',
+                        glow: 'rgba(40,53,147,0.18)', container: '#E8EAF6',
+                        bg: '#F3F3FA', bgGrad: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
+                        bgDark: '#131318', bgGradDark: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
+                        glassBorder: 'rgba(40,53,147,0.12)', glassBorderDark: 'rgba(121,134,203,0.10)',
+                        orb1: 'rgba(40,53,147,0.12)', orb2: 'rgba(121,134,203,0.08)', orb3: 'rgba(63,81,181,0.06)',
+                        orb1Dark: 'rgba(121,134,203,0.07)', orb2Dark: 'rgba(63,81,181,0.04)', orb3Dark: 'rgba(40,53,147,0.03)'
+                    },
+                    yellow: {
+                        color: '#F57F17', gradient: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)',
+                        glow: 'rgba(245,127,23,0.18)', container: '#FFFDE7',
+                        bg: '#FDFBF0', bgGrad: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
+                        bgDark: '#1D1C10', bgGradDark: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
+                        glassBorder: 'rgba(245,127,23,0.12)', glassBorderDark: 'rgba(255,238,88,0.10)',
+                        orb1: 'rgba(245,127,23,0.12)', orb2: 'rgba(255,238,88,0.08)', orb3: 'rgba(251,192,45,0.06)',
+                        orb1Dark: 'rgba(255,238,88,0.07)', orb2Dark: 'rgba(251,192,45,0.04)', orb3Dark: 'rgba(245,127,23,0.03)'
+                    },
+                    slate: {
+                        color: '#37474F', gradient: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)',
+                        glow: 'rgba(55,71,79,0.18)', container: '#ECEFF1',
+                        bg: '#F3F5F6', bgGrad: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
+                        bgDark: '#131618', bgGradDark: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
+                        glassBorder: 'rgba(55,71,79,0.12)', glassBorderDark: 'rgba(144,164,174,0.10)',
+                        orb1: 'rgba(55,71,79,0.12)', orb2: 'rgba(144,164,174,0.08)', orb3: 'rgba(84,110,122,0.06)',
+                        orb1Dark: 'rgba(144,164,174,0.07)', orb2Dark: 'rgba(84,110,122,0.04)', orb3Dark: 'rgba(55,71,79,0.03)'
+                    }
+                };
 
-        const STORAGE_KEY = 'mirai-settings';
+                const STORAGE_KEY = 'mirai-settings';
 
-        // ---- CARGAR AJUSTES ----
-        function loadSettings() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-            } catch {
-                return {};
-            }
-        }
-
-        function saveSettings(data) {
-            const current = loadSettings();
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...data }));
-        }
-
-        // ---- APLICAR COLOR ----
-        function applyAccentColor(name) {
-            const c = ACCENT_COLORS[name];
-            if (!c) return;
-            const root = document.documentElement;
-            const isDark = root.getAttribute('data-theme') === 'dark';
-
-            // Acento base
-            root.style.setProperty('--accent-color', c.color);
-            root.style.setProperty('--accent-gradient', c.gradient);
-            root.style.setProperty('--accent-glow', c.glow);
-            root.style.setProperty('--secondary-container', c.container);
-            root.style.setProperty('--message-user-bg', c.glow.replace('0.18', '0.08'));
-            root.style.setProperty('--message-user-border', c.glow);
-
-            // Fondo de página
-            root.style.setProperty('--bg-primary', isDark ? c.bgDark : c.bg);
-            root.style.setProperty('--bg-gradient', isDark ? c.bgGradDark : c.bgGrad);
-
-            // Borde de glass
-            root.style.setProperty('--glass-border', isDark ? c.glassBorderDark : c.glassBorder);
-
-            // Orbes animados del body::before
-            root.style.setProperty('--orb-1', isDark ? c.orb1Dark : c.orb1);
-            root.style.setProperty('--orb-2', isDark ? c.orb2Dark : c.orb2);
-            root.style.setProperty('--orb-3', isDark ? c.orb3Dark : c.orb3);
-
-            // Forzar fondo en body directamente
-            document.body.style.background = isDark ? c.bgDark : c.bg;
-            document.body.style.backgroundImage = isDark ? c.bgGradDark : c.bgGrad;
-        }
-
-        // ---- APLICAR FUENTE ----
-        function applyFont(family) {
-            document.documentElement.style.setProperty('--font-family', family);
-            document.body.style.fontFamily = family + ', system-ui, sans-serif';
-        }
-
-        // ---- APLICAR TAMAÑO ----
-        function applyFontSize(px) {
-            document.documentElement.style.fontSize = px + 'px';
-        }
-
-        // ---- INICIALIZAR ----
-        function init() {
-            const saved = loadSettings();
-
-            // Restaurar color
-            const savedColor = saved.accentColor || 'purple';
-            applyAccentColor(savedColor);
-            document.querySelectorAll('.color-option').forEach(opt => {
-                opt.classList.toggle('active', opt.dataset.color === savedColor);
-                if (opt.dataset.color === savedColor) {
-                    opt.querySelector('input').checked = true;
+                // ---- CARGAR AJUSTES ----
+                function loadSettings() {
+                    try {
+                        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+                    } catch {
+                        return {};
+                    }
                 }
-            });
 
-            // Restaurar fuente
-            const savedFont = saved.fontFamily || 'Inter';
-            applyFont(savedFont);
-            document.querySelectorAll('.font-card').forEach(card => {
-                const val = card.dataset.font.replace(/'/g, '').trim();
-                const isMatch = val === savedFont || card.dataset.font === savedFont;
-                card.classList.toggle('active', isMatch);
-                if (isMatch) card.querySelector('input').checked = true;
-            });
+                function saveSettings(data) {
+                    const current = loadSettings();
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...data }));
+                }
 
-            // Restaurar tamaño
-            const savedSize = saved.fontSize || 15;
-            document.getElementById('font-size-slider').value = savedSize;
-            document.getElementById('font-size-display').textContent = savedSize + 'px';
-            applyFontSize(savedSize);
-            updateSliderTrack(savedSize);
+                // ---- APLICAR COLOR ----
+                function applyAccentColor(name) {
+                    const c = ACCENT_COLORS[name];
+                    if (!c) return;
+                    const root = document.documentElement;
+                    const isDark = root.getAttribute('data-theme') === 'dark';
 
-            // Animaciones reducidas
-            if (saved.reducedMotion) {
-                document.getElementById('reduced-motion').checked = true;
-                updateToggle(true);
-                document.documentElement.classList.add('reduce-motion');
-            }
+                    // Acento base
+                    root.style.setProperty('--accent-color', c.color);
+                    root.style.setProperty('--accent-gradient', c.gradient);
+                    root.style.setProperty('--accent-glow', c.glow);
+                    root.style.setProperty('--secondary-container', c.container);
+                    root.style.setProperty('--message-user-bg', c.glow.replace('0.18', '0.08'));
+                    root.style.setProperty('--message-user-border', c.glow);
 
-            // Dark mode btn label
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            updateDarkBtn(isDark);
-        }
+                    // Fondo de página
+                    root.style.setProperty('--bg-primary', isDark ? c.bgDark : c.bg);
+                    root.style.setProperty('--bg-gradient', isDark ? c.bgGradDark : c.bgGrad);
 
-        // ---- TRACK DEL SLIDER ----
-        function updateSliderTrack(val) {
-            const min = 12, max = 20;
-            const pct = ((val - min) / (max - min)) * 100;
-            const slider = document.getElementById('font-size-slider');
-            slider.style.background = `linear-gradient(to right, var(--accent-color) ${pct}%, var(--glass-border) ${pct}%)`;
-        }
+                    // Borde de glass
+                    root.style.setProperty('--glass-border', isDark ? c.glassBorderDark : c.glassBorder);
 
-        // ---- TOGGLE ANIMACIONES ----
-        function updateToggle(checked) {
-            const track = document.getElementById('reduced-motion-track');
-            const thumb = document.getElementById('reduced-motion-thumb');
-            if (checked) {
-                track.style.background = 'var(--accent-color)';
-                thumb.style.transform = 'translateX(20px)';
-            } else {
-                track.style.background = 'var(--glass-border)';
-                thumb.style.transform = 'translateX(0)';
-            }
-        }
+                    // Orbes animados del body::before
+                    root.style.setProperty('--orb-1', isDark ? c.orb1Dark : c.orb1);
+                    root.style.setProperty('--orb-2', isDark ? c.orb2Dark : c.orb2);
+                    root.style.setProperty('--orb-3', isDark ? c.orb3Dark : c.orb3);
 
-        function updateDarkBtn(isDark) {
-            const btn = document.getElementById('dark-mode-toggle');
-            if (!btn) return;
-            btn.textContent = isDark ? '☀️ Desactivar' : '🌙 Activar';
-        }
+                    // Forzar fondo en body directamente
+                    document.body.style.background = isDark ? c.bgDark : c.bg;
+                    document.body.style.backgroundImage = isDark ? c.bgGradDark : c.bgGrad;
+                }
 
-        // ---- EVENTOS ----
+                // ---- APLICAR FUENTE ----
+                function applyFont(family) {
+                    document.documentElement.style.setProperty('--font-family', family);
+                    document.body.style.fontFamily = family + ', system-ui, sans-serif';
+                }
 
-        // Colores
-        document.querySelectorAll('.color-option input').forEach(input => {
-            input.addEventListener('change', () => {
-                const colorName = input.closest('.color-option').dataset.color;
-                document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
-                input.closest('.color-option').classList.add('active');
-                applyAccentColor(colorName);
-            });
-        });
+                // ---- APLICAR TAMAÑO ----
+                function applyFontSize(px) {
+                    document.documentElement.style.fontSize = px + 'px';
+                }
 
-        // Fuentes
-        document.querySelectorAll('.font-card input').forEach(input => {
-            input.addEventListener('change', () => {
-                const card = input.closest('.font-card');
-                document.querySelectorAll('.font-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-                applyFont(card.dataset.font);
-                document.getElementById('font-preview-text').style.fontFamily = card.dataset.font + ', system-ui, sans-serif';
-            });
-        });
+                // ---- INICIALIZAR ----
+                function init() {
+                    const saved = loadSettings();
 
-        // Slider tamaño
-        const slider = document.getElementById('font-size-slider');
-        slider.addEventListener('input', () => {
-            const val = parseInt(slider.value);
-            document.getElementById('font-size-display').textContent = val + 'px';
-            applyFontSize(val);
-            updateSliderTrack(val);
-        });
+                    // Restaurar color
+                    const savedColor = saved.accentColor || 'purple';
+                    applyAccentColor(savedColor);
+                    document.querySelectorAll('.color-option').forEach(opt => {
+                        opt.classList.toggle('active', opt.dataset.color === savedColor);
+                        if (opt.dataset.color === savedColor) {
+                            opt.querySelector('input').checked = true;
+                        }
+                    });
 
-        // Dark mode toggle
-        document.getElementById('dark-mode-toggle').addEventListener('click', () => {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            const newTheme = isDark ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('mirai-ai-theme', newTheme);
-            updateDarkBtn(!isDark);
-        });
+                    // Restaurar fuente
+                    const savedFont = saved.fontFamily || 'Inter';
+                    applyFont(savedFont);
+                    document.querySelectorAll('.font-card').forEach(card => {
+                        const val = card.dataset.font.replace(/'/g, '').trim();
+                        const isMatch = val === savedFont || card.dataset.font === savedFont;
+                        card.classList.toggle('active', isMatch);
+                        if (isMatch) card.querySelector('input').checked = true;
+                    });
 
-        // Toggle reducción animaciones
-        document.getElementById('reduced-motion').addEventListener('change', function () {
-            updateToggle(this.checked);
-            if (this.checked) {
-                document.documentElement.classList.add('reduce-motion');
-            } else {
-                document.documentElement.classList.remove('reduce-motion');
-            }
-        });
+                    // Restaurar tamaño
+                    const savedSize = saved.fontSize || 15;
+                    document.getElementById('font-size-slider').value = savedSize;
+                    document.getElementById('font-size-display').textContent = savedSize + 'px';
+                    applyFontSize(savedSize);
+                    updateSliderTrack(savedSize);
 
-        // Guardar
-        document.getElementById('settings-save').addEventListener('click', () => {
-            const selectedColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
-            const selectedFont = document.querySelector('.font-card.active')?.dataset.font || 'Inter';
-            const fontSize = parseInt(document.getElementById('font-size-slider').value);
-            const reducedMotion = document.getElementById('reduced-motion').checked;
+                    // Animaciones reducidas
+                    if (saved.reducedMotion) {
+                        document.getElementById('reduced-motion').checked = true;
+                        updateToggle(true);
+                        document.documentElement.classList.add('reduce-motion');
+                    }
 
-            saveSettings({
-                accentColor: selectedColor,
-                fontFamily: selectedFont.replace(/'/g, '').trim(),
-                fontSize,
-                reducedMotion
-            });
+                    // Dark mode btn label
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    updateDarkBtn(isDark);
+                }
 
-            showToast('¡Configuración guardada correctamente!', '✅');
-        });
+                // ---- TRACK DEL SLIDER ----
+                function updateSliderTrack(val) {
+                    const min = 12, max = 20;
+                    const pct = ((val - min) / (max - min)) * 100;
+                    const slider = document.getElementById('font-size-slider');
+                    slider.style.background = `linear-gradient(to right, var(--accent-color) ${pct}%, var(--glass-border) ${pct}%)`;
+                }
 
-        // Restablecer
-        document.getElementById('settings-reset').addEventListener('click', () => {
-            localStorage.removeItem(STORAGE_KEY);
-            document.documentElement.removeAttribute('style');
-            document.body.style.fontFamily = '';
-            location.reload();
-        });
+                // ---- TOGGLE ANIMACIONES ----
+                function updateToggle(checked) {
+                    const track = document.getElementById('reduced-motion-track');
+                    const thumb = document.getElementById('reduced-motion-thumb');
+                    if (checked) {
+                        track.style.background = 'var(--accent-color)';
+                        thumb.style.transform = 'translateX(20px)';
+                    } else {
+                        track.style.background = 'var(--glass-border)';
+                        thumb.style.transform = 'translateX(0)';
+                    }
+                }
 
-        // ---- TOAST ----
-        function showToast(msg, icon = '✅') {
-            const toast = document.getElementById('settings-toast');
-            toast.querySelector('.settings-toast-text').textContent = msg;
-            toast.querySelector('.settings-toast-icon').textContent = icon;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
+                function updateDarkBtn(isDark) {
+                    const btn = document.getElementById('dark-mode-toggle');
+                    if (!btn) return;
+                    btn.textContent = isDark ? '☀️ Desactivar' : '🌙 Activar';
+                }
 
-        // Aplicar al cargar
-        document.addEventListener('DOMContentLoaded', init);
-        // O si el DOM ya está listo
-        if (document.readyState !== 'loading') init();
+                // ---- EVENTOS ----
 
-    })();
+                // Colores
+                document.querySelectorAll('.color-option input').forEach(input => {
+                    input.addEventListener('change', () => {
+                        const colorName = input.closest('.color-option').dataset.color;
+                        document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+                        input.closest('.color-option').classList.add('active');
+                        applyAccentColor(colorName);
+                    });
+                });
+
+                // Fuentes
+                document.querySelectorAll('.font-card input').forEach(input => {
+                    input.addEventListener('change', () => {
+                        const card = input.closest('.font-card');
+                        document.querySelectorAll('.font-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                        applyFont(card.dataset.font);
+                        document.getElementById('font-preview-text').style.fontFamily = card.dataset.font + ', system-ui, sans-serif';
+                    });
+                });
+
+                // Slider tamaño
+                const slider = document.getElementById('font-size-slider');
+                slider.addEventListener('input', () => {
+                    const val = parseInt(slider.value);
+                    document.getElementById('font-size-display').textContent = val + 'px';
+                    applyFontSize(val);
+                    updateSliderTrack(val);
+                });
+
+                // Dark mode toggle
+                document.getElementById('dark-mode-toggle').addEventListener('click', () => {
+                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    const newTheme = isDark ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('mirai-ai-theme', newTheme);
+                    updateDarkBtn(!isDark);
+                });
+
+                // Toggle reducción animaciones
+                document.getElementById('reduced-motion').addEventListener('change', function () {
+                    updateToggle(this.checked);
+                    if (this.checked) {
+                        document.documentElement.classList.add('reduce-motion');
+                    } else {
+                        document.documentElement.classList.remove('reduce-motion');
+                    }
+                });
+
+                // Guardar
+                document.getElementById('settings-save').addEventListener('click', () => {
+                    const selectedColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
+                    const selectedFont = document.querySelector('.font-card.active')?.dataset.font || 'Inter';
+                    const fontSize = parseInt(document.getElementById('font-size-slider').value);
+                    const reducedMotion = document.getElementById('reduced-motion').checked;
+
+                    saveSettings({
+                        accentColor: selectedColor,
+                        fontFamily: selectedFont.replace(/'/g, '').trim(),
+                        fontSize,
+                        reducedMotion
+                    });
+
+                    showToast('¡Configuración guardada correctamente!', '✅');
+                });
+
+                // Restablecer
+                document.getElementById('settings-reset').addEventListener('click', () => {
+                    localStorage.removeItem(STORAGE_KEY);
+                    document.documentElement.removeAttribute('style');
+                    document.body.style.fontFamily = '';
+                    location.reload();
+                });
+
+                // ---- TOAST ----
+                function showToast(msg, icon = '✅') {
+                    const toast = document.getElementById('settings-toast');
+                    toast.querySelector('.settings-toast-text').textContent = msg;
+                    toast.querySelector('.settings-toast-icon').textContent = icon;
+                    toast.classList.add('show');
+                    setTimeout(() => toast.classList.remove('show'), 3000);
+                }
+
+                window.addEventListener('mirai-avatar-changed', () => {
+                    // Actualizar avatares ya renderizados en el chat
+                    document.querySelectorAll('.message.user .message-avatar').forEach(el => {
+                        const avatarBase64 = localStorage.getItem('mirai-user-avatar');
+                        if (avatarBase64) {
+                            el.innerHTML = `<img src="${avatarBase64}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+                            el.style.padding = '0';
+                            el.style.overflow = 'hidden';
+                        } else {
+                            const nombre = localStorage.getItem('mirai-user-nombre') || '';
+                            el.textContent = nombre.trim() ? nombre.trim().charAt(0).toUpperCase() : 'U';
+                            el.style.padding = '';
+                            el.style.overflow = '';
+                        }
+                    });
+                });
+
+                // ============================================================
+                //  ESCUCHAR CAMBIO DE MODELO DESDE settings.html
+                // ============================================================
+                window.addEventListener('mirai-model-changed', (e) => {
+                    if (elements.modelSelector) {
+                        elements.modelSelector.value = e.detail;
+                    }
+                });
+
+                // Aplicar al cargar
+                document.addEventListener('DOMContentLoaded', init);
+                // O si el DOM ya está listo
+                if (document.readyState !== 'loading') init();
+
+            })();
     </script>
 
 </body>
+
 </html>

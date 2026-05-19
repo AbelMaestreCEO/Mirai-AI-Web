@@ -1276,7 +1276,7 @@ function appendUserAudioMessage(audioUrl) {
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   messageDiv.innerHTML = `
-    <div class="message-avatar">U</div>
+    <div class="message-avatar" style="${localStorage.getItem('mirai-user-avatar') ? 'padding:0;overflow:hidden;' : ''}">${getUserAvatarHTML()}</div>
     <div class="message-content">
       <div class="audio-player-container user-audio">
         <div class="audio-player-header">
@@ -1583,6 +1583,16 @@ async function handleClearConversation() {
   }
 }
 
+function getUserAvatarHTML() {
+  const avatarBase64 = localStorage.getItem('mirai-user-avatar');
+  if (avatarBase64) {
+    return `<img src="${avatarBase64}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+  }
+  const nombre = localStorage.getItem('mirai-user-nombre') || '';
+  const initial = nombre.trim() ? nombre.trim().charAt(0).toUpperCase() : 'U';
+  return initial;
+}
+
 // --- APENDAR MENSAJE CON SOPORTE DE AUDIO ---
 function appendMessage(role, content, animate = true, audioUrl = null) {
   const messageDiv = document.createElement('div');
@@ -1590,7 +1600,7 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
 
   const escapedContent = escapeHtml(content);
   const formattedContent = formatMessageContent(escapedContent);
-  const avatar = role === 'user' ? 'U' : 'M';
+  const avatar = role === 'user' ? getUserAvatarHTML() : 'M';
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   // Lógica para determinar qué mostrar
@@ -1695,7 +1705,7 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
   }
 
   messageDiv.innerHTML = `
-    ${role !== 'system' ? `<div class="message-avatar">${avatar}</div>` : ''}
+    ${role !== 'system' ? `<div class="message-avatar" style="${role === 'user' && localStorage.getItem('mirai-user-avatar') ? 'padding:0;overflow:hidden;' : ''}">${avatar}</div>` : ''}
     <div class="message-content">
       ${contentDisplay}
       ${metaRow}
