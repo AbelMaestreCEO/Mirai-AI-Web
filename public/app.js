@@ -884,7 +884,8 @@ async function handleSendMessage() {
   // ✨ DETECTAR SI ES SOLICITUD DE MÚSICA O VIDEO
   const isMusicRequest = detectMusicRequest(userInput);
   const isVideoRequest = detectVideoRequest(userInput); // Necesitas añadir esta función
-  showTypingIndicator(isVideoRequest ? 'video' : (isMusicRequest ? 'music' : 'text'));
+  const isImageRequest = detectImageRequest(userInput);
+  showTypingIndicator(isVideoRequest ? 'video' : (isMusicRequest ? 'music' : (isImageRequest ? 'image' : 'text')));
 
   try {
     const selectedModel = elements.modelSelector?.value || 'deepseek';
@@ -1961,6 +1962,16 @@ async function modifyResponse(messageDiv, originalContent, action) {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
+      <div class="image-indicator hidden">
+      <div class="image-loader">
+        <svg class="brush-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17c3-3 6-5 9-3s5 1 7-2"/>
+          <path d="M2 22c1-1 2-2 3-2s2 1 3 1 2-2 3-3"/>
+          <path d="M15 3l6 6-9.5 9.5-6-6z"/>
+        </svg>
+        <div class="image-spinner"></div>
+      </div>
+    </div>
     </div>
   `;
   messageDiv.style.opacity = '0.7';
@@ -2041,6 +2052,16 @@ async function regenerateResponse(messageDiv, originalContent) {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
+      <div class="image-indicator hidden">
+      <div class="image-loader">
+        <svg class="brush-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17c3-3 6-5 9-3s5 1 7-2"/>
+          <path d="M2 22c1-1 2-2 3-2s2 1 3 1 2-2 3-3"/>
+          <path d="M15 3l6 6-9.5 9.5-6-6z"/>
+        </svg>
+        <div class="image-spinner"></div>
+      </div>
+    </div>
     </div>
   `;
   messageDiv.style.opacity = '0.7';
@@ -2127,6 +2148,7 @@ function showTypingIndicator(contentType = 'text') {
   const micContainer = indicator.querySelector('.recording-indicator');
   const musicContainer = indicator.querySelector('.music-indicator');
   const videoContainer = indicator.querySelector('.video-indicator');
+  const imageContainer = indicator.querySelector('.image-indicator');
 
   // Asegurar que el contenedor de video exista (si no, crearlo)
   if (!videoContainer && contentType === 'video') {
@@ -2150,6 +2172,7 @@ function showTypingIndicator(contentType = 'text') {
   if (micContainer) micContainer.classList.add('hidden');
   if (musicContainer) musicContainer.classList.add('hidden');
   if (videoContainer) videoContainer.classList.add('hidden');
+  if (imageContainer) imageContainer.classList.add('hidden');
 
   // Mostrar el indicador correcto
   if (contentType === 'video') {
@@ -2163,6 +2186,8 @@ function showTypingIndicator(contentType = 'text') {
         spinner.style.animation = 'videoSpin 1s linear infinite';
       }
     }
+  } else if (contentType === 'image') {
+    if (imageContainer) imageContainer.classList.remove('hidden');
   } else if (contentType === 'music') {
     if (musicContainer) musicContainer.classList.remove('hidden');
   } else if (contentType === 'audio') {
@@ -2269,8 +2294,10 @@ function formatMessageContent(content) {
       <div class="image-container">
         <div class="image-toolbar">
           <button class="image-download-btn" data-image-url="${displayUrl}" title="Descargar imagen">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 15V3"/>
+              <path d="M7 10l5 5 5-5"/>
+              <path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/>
             </svg>
           </button>
         </div>
@@ -3071,6 +3098,11 @@ function detectVideoRequest(text) {
   ];
 
   return keywords.some(keyword => lowerText.includes(keyword));
+}
+
+function detectImageRequest(message) {
+  const lower = message.toLowerCase();
+  return /\b(imagen|foto|dibuja|dibujo|ilustra|ilustración|crea una imagen|genera una imagen|pinta|pintura|render|artwork|picture|draw|generate image|make an image|diseña|diseño)\b/.test(lower);
 }
 
 const _logoutBtn = document.getElementById('logout-btn');

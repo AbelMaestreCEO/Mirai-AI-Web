@@ -2584,6 +2584,7 @@ footer.footer {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  color: var(--accent-color);
   font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
@@ -7035,4 +7036,58 @@ body::before {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
+}
+
+/* Animación indicador de imagen */
+.image-loader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brush-icon {
+  color: var(--accent, #a78bfa);
+  animation: brushPaint 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes brushPaint {
+  0%   { transform: rotate(-15deg) translateY(0px); opacity: 0.7; }
+  100% { transform: rotate(15deg) translateY(-4px); opacity: 1; }
+}
+
+.image-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(167, 139, 250, 0.3);
+  border-top-color: var(--accent, #a78bfa);
+  border-radius: 50%;
+  animation: imageSpin 0.8s linear infinite;
+}
+
+@keyframes imageSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Botón de descarga solo ícono */
+.image-download-btn {
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary, #ffffff);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.image-download-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.image-download-btn svg {
+  flex-shrink: 0;
 }
