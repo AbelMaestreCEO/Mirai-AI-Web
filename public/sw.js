@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v28'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v29'; // 👈 Cambia esto en cada deploy
 
 const urlsToCache = [
   '/',
@@ -11,12 +11,12 @@ const urlsToCache = [
 // Instalación: Cachear recursos estáticos
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Cache abierto');
-        return cache.addAll(urlsToCache);
-      })
-  );
+  caches.open(CACHE_NAME).then(cache => {
+    // Solo cachear GET requests
+    if (event.request.method !== 'GET') return;
+    return cache.put(event.request, response);
+  })
+);
   // Forzar activación inmediata sin esperar que cierren las pestañas
   self.skipWaiting();
 });

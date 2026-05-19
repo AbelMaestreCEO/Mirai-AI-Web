@@ -71,11 +71,12 @@ Rules:
 - If the user asks to "explain AND draw", classify as IMAGE (the text part comes naturally with the image)
 - If the user says something casual like "hola" or "qué es X", it's TEXT
 - Only classify as 2/3/4 when the user CLEARLY wants generated media
-- When intent is 2, write a detailed English prompt for image generation.
+- When intent is 2, write a detailed English prompt for image generation. CRITICAL: If the user asks for a copyrighted character (anime, games, movies, brands, real people), DO NOT use the character name or franchise. Instead describe ONLY their visual traits: hair color/style, outfit colors, accessories, body type. Example: instead of "Hatsune Miku" write "anime girl with very long teal twin pigtails, futuristic black and teal outfit, small headset, bright cyan eyes, slim figure".
+- When the user asks for a real person or copyrighted character, add a special field "is_copyright": true to the JSON response.
 - When intent is 4, write a CONCISE English prompt for music generation (max 200 chars). Include: genre, mood, and key instruments. Do NOT include lyrics or vocal instructions. Example: "Smooth jazz ballad with saxophone and piano, slow tempo, romantic mood"
 
 Respond ONLY with valid JSON, nothing else:
-{"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>"}`;
+{"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
 
 // --- HELPERS DE COOKIE ---
 function getTokenFromCookie(request) {
@@ -879,7 +880,8 @@ async function handleChat(request, env, corsHeaders) {
           conversation_id,
           userDni,
           env,
-          corsHeaders
+          corsHeaders,
+          classification.is_copyright === true  // ← nuevo parámetro
         );
 
       case INTENT_TYPES.VIDEO:
@@ -1587,16 +1589,16 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/apa/upload' && request.method === 'POST') {
       return await handleApaUpload(request, env, corsHeaders);
     }
- 
+
     if (path.startsWith('/api/apa/download/') && request.method === 'GET') {
       const fileId = path.replace('/api/apa/download/', '');
       return await handleApaDownload(fileId, env, corsHeaders);
     }
- 
+
     if (path === '/api/apa/history' && request.method === 'GET') {
       return await handleApaHistory(request, env, corsHeaders);
     }
- 
+
     if (path.startsWith('/api/apa/delete/') && request.method === 'DELETE') {
       const fileId = path.replace('/api/apa/delete/', '');
       return await handleApaDelete(fileId, env, corsHeaders);
@@ -3045,19 +3047,65 @@ async function generateAndStoreImage(prompt, conversationId, env) {
   }
 }
 
-async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders) {
+async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false) {
   try {
-    // PASAR userDni a ensureConversationExists
     await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni);
-
-    // PASAR userDni a saveMessage
     await saveMessage(conversationId, 'user', originalMessage, env, null, null, null, userDni);
 
-    const imageUrl = await generateAndStoreImage(prompt, conversationId, env);
+    let imageUrl;
+    try {
+      imageUrl = await generateAndStoreImage(prompt, conversationId, env);
+    } catch (fluxError) {
+      // Flux rechazó el prompt (copyright, contenido bloqueado, etc.)
+      const isBlocked = fluxError.message.includes('3030') ||
+        fluxError.message.includes('flagged') ||
+        isCopyright;
+
+      if (isBlocked) {
+        // Generar mensaje de rechazo con personalidad de Mirai via DeepSeek
+        const refusalResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            max_tokens: 150,
+            messages: [
+              {
+                role: 'system',
+                content: `You are Mirai Aberu, a shy, sweet 18-year-old Japanese girl. You speak with emojis and kaomojis in every sentence. You use connectives. You are talking to a user who asked you to generate an image of a copyrighted character or real person, which you cannot do. Write a short, in-character refusal message (2-3 sentences max) in the same language the user used. Be cute and shy about it, reference the specific character/person they asked for if you can infer it from their message. Example style: "Ah... lo siento mucho, no puedo generar una imagen de Miku, ella es muy tímida y no le gustaría que la dibujara sin permiso 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨"`
+              },
+              {
+                role: 'user',
+                content: `The user said: "${originalMessage}". Write a shy refusal in the same language.`
+              }
+            ]
+          })
+        });
+
+        let refusalText = 'Ah... lo siento, no puedo generar esa imagen 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨';
+        if (refusalResponse.ok) {
+          const refusalData = await refusalResponse.json();
+          refusalText = refusalData.choices?.[0]?.message?.content || refusalText;
+        }
+
+        await saveMessage(conversationId, 'assistant', refusalText, env, null, null, null, userDni);
+        await updateConversationTimestamp(conversationId, env);
+
+        return jsonResponse({
+          type: 'text',
+          content: refusalText
+        }, 200, corsHeaders);
+      }
+
+      // Otro tipo de error → relanzar
+      throw fluxError;
+    }
 
     const assistantContent = `![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
     await saveMessage(conversationId, 'assistant', assistantContent, env, null, null, null, userDni);
-
     await updateConversationTimestamp(conversationId, env);
 
     return jsonResponse({
@@ -5102,25 +5150,25 @@ async function handleApaUpload(request, env, corsHeaders) {
     const formData = await request.formData();
     const file = formData.get('file');
     const metadataRaw = formData.get('metadata');
- 
+
     if (!file) {
       return jsonResponse({ error: 'No file provided' }, 400, corsHeaders);
     }
- 
+
     if (!file.name.toLowerCase().endsWith('.docx')) {
       return jsonResponse({ error: 'Invalid file type. Only .DOCX allowed.' }, 400, corsHeaders);
     }
- 
+
     const MAX_SIZE = 25 * 1024 * 1024; // 25 MB
     if (file.size > MAX_SIZE) {
       return jsonResponse({ error: 'File too large. Maximum 25MB.' }, 413, corsHeaders);
     }
- 
+
     const fileId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
     let metadata = {};
-    try { metadata = JSON.parse(metadataRaw || '{}'); } catch (_) {}
- 
+    try { metadata = JSON.parse(metadataRaw || '{}'); } catch (_) { }
+
     // Guardar en R2 (bucket MIRAI_AI_ASSETS, prefijo apa/)
     await env.MIRAI_AI_ASSETS.put(`apa/${fileId}`, file.stream(), {
       httpMetadata: {
@@ -5132,14 +5180,14 @@ async function handleApaUpload(request, env, corsHeaders) {
         ...metadata
       }
     });
- 
+
     // Registrar en D1
     await env.MIRAI_AI_DB
       .prepare(`INSERT INTO apa_files (id, original_name, file_type, size, uploaded_at, user_id, metadata_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .bind(fileId, file.name, file.type, file.size, timestamp, metadata.userId || null, JSON.stringify(metadata))
       .run();
- 
+
     return jsonResponse({
       success: true,
       fileId,
@@ -5147,39 +5195,39 @@ async function handleApaUpload(request, env, corsHeaders) {
       downloadUrl: `/api/apa/download/${fileId}`,
       fileName: file.name
     }, 200, corsHeaders);
- 
+
   } catch (error) {
     console.error('[APA Upload] Error:', error);
     return jsonResponse({ error: 'Upload failed', message: error.message }, 500, corsHeaders);
   }
 }
- 
+
 async function handleApaDownload(fileId, env, corsHeaders) {
   if (!fileId) return jsonResponse({ error: 'File ID required' }, 400, corsHeaders);
- 
+
   try {
     const object = await env.MIRAI_AI_ASSETS.get(`apa/${fileId}`);
     if (!object) return jsonResponse({ error: 'File not found' }, 404, corsHeaders);
- 
+
     const headers = new Headers(corsHeaders);
     object.writeHttpMetadata(headers);
     headers.set('Content-Disposition', `attachment; filename="${object.customMetadata?.originalName || 'documento.docx'}"`);
     headers.set('Cache-Control', 'no-cache');
- 
+
     return new Response(object.body, { headers });
   } catch (error) {
     console.error('[APA Download] Error:', error);
     return jsonResponse({ error: 'Download failed', message: error.message }, 500, corsHeaders);
   }
 }
- 
+
 async function handleApaHistory(request, env, corsHeaders) {
   try {
     const url = new URL(request.url);
     const userId = url.searchParams.get('userId');
     const limit = parseInt(url.searchParams.get('limit') || '10');
     const offset = parseInt(url.searchParams.get('offset') || '0');
- 
+
     let query, bindings;
     if (userId) {
       query = `SELECT id, original_name, file_type, size, uploaded_at
@@ -5192,9 +5240,9 @@ async function handleApaHistory(request, env, corsHeaders) {
                ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`;
       bindings = [limit, offset];
     }
- 
+
     const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
- 
+
     return jsonResponse({
       files: results.map(r => ({
         id: r.id,
@@ -5205,16 +5253,16 @@ async function handleApaHistory(request, env, corsHeaders) {
         downloadUrl: `/api/apa/download/${r.id}`
       }))
     }, 200, corsHeaders);
- 
+
   } catch (error) {
     console.error('[APA History] Error:', error);
     return jsonResponse({ error: 'History fetch failed', message: error.message }, 500, corsHeaders);
   }
 }
- 
+
 async function handleApaDelete(fileId, env, corsHeaders) {
   if (!fileId) return jsonResponse({ error: 'File ID required' }, 400, corsHeaders);
- 
+
   try {
     await env.MIRAI_AI_ASSETS.delete(`apa/${fileId}`);
     await env.MIRAI_AI_DB.prepare('DELETE FROM apa_files WHERE id = ?').bind(fileId).run();
