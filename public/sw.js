@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v29'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v30'; // 👈 Cambia esto en cada deploy
 
 const urlsToCache = [
   '/',
@@ -39,9 +39,13 @@ self.addEventListener('activate', event => {
 
 // Fetch: Network First para HTML, Cache First para assets estáticos
 self.addEventListener('fetch', event => {
+
+  if (!event.request) return;
+  if (event.request.method !== 'GET') return;
+
   const { request } = event;
   const url = new URL(request.url);
-
+  
   // Solo manejar requests del mismo origen
   if (url.origin !== location.origin) {
     return;

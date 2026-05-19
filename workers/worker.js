@@ -3095,8 +3095,9 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
         await updateConversationTimestamp(conversationId, env);
 
         return jsonResponse({
-          type: 'text',
-          content: refusalText
+          response: refusalText,
+          audio_url: null,
+          suggestions: []
         }, 200, corsHeaders);
       }
 
