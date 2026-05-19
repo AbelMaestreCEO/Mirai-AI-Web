@@ -4,287 +4,287 @@
    ============================================ */
 
 const MiraiApp = (() => {
-    'use strict';
+  'use strict';
 
-    // ---- ESTADO INTERNO ----
-    let sidebarCollapsed = false;
+  // ---- ESTADO INTERNO ----
+  let sidebarCollapsed = false;
 
-    // ---- SIDEBAR: DESPLEGABLES ----
+  // ---- SIDEBAR: DESPLEGABLES ----
 
-    /**
-     * Inicializa todos los desplegables (collapsible sections).
-     * Soporta desplegables principales y anidados.
-     */
-    function initCollapsibles() {
-        const headers = document.querySelectorAll('.collapsible-header');
+  /**
+   * Inicializa todos los desplegables (collapsible sections).
+   * Soporta desplegables principales y anidados.
+   */
+  function initCollapsibles() {
+    const headers = document.querySelectorAll('.collapsible-header');
 
-        headers.forEach(header => {
-            if (header.dataset.collapsibleInit === 'true') return;
-            header.dataset.collapsibleInit = 'true';
+    headers.forEach(header => {
+      if (header.dataset.collapsibleInit === 'true') return;
+      header.dataset.collapsibleInit = 'true';
 
-            header.addEventListener('click', function (e) {
-                e.stopPropagation();
+      header.addEventListener('click', function (e) {
+        e.stopPropagation();
 
-                const section = this.closest('.collapsible-section') || this.closest('.nested-collapsible');
-                if (!section) return;
+        const section = this.closest('.collapsible-section') || this.closest('.nested-collapsible');
+        if (!section) return;
 
-                section.classList.toggle('active');
-            });
-        });
+        section.classList.toggle('active');
+      });
+    });
+  }
+
+  /**
+   * Cierra todos los desplegables al iniciar, eliminando estilos inline
+   * que puedan interferir con la lógica CSS/JS.
+   */
+  function initCollapsiblesState() {
+    document.querySelectorAll('.collapsible-section, .nested-collapsible').forEach(section => {
+      section.classList.remove('active');
+      // Limpiar cualquier estilo inline residual
+      const contents = section.querySelectorAll('.collapsible-content');
+      contents.forEach(c => {
+        c.style.removeProperty('max-height');
+        c.style.removeProperty('opacity');
+        c.style.removeProperty('overflow');
+        c.style.removeProperty('margin-top');
+      });
+    });
+  }
+
+  /**
+   * Recalcula la altura del contenedor padre
+   * cuando un submenú anidado cambia de tamaño.
+   */
+  function recalcParentHeight(child) {
+    const parentContent = child.closest('.collapsible-content');
+    if (parentContent && parentContent.style.maxHeight) {
+      parentContent.style.maxHeight = parentContent.scrollHeight + 'px';
     }
+  }
 
-    /**
-     * Cierra todos los desplegables al iniciar, eliminando estilos inline
-     * que puedan interferir con la lógica CSS/JS.
-     */
-    function initCollapsiblesState() {
-        document.querySelectorAll('.collapsible-section, .nested-collapsible').forEach(section => {
-            section.classList.remove('active');
-            // Limpiar cualquier estilo inline residual
-            const contents = section.querySelectorAll('.collapsible-content');
-            contents.forEach(c => {
-                c.style.removeProperty('max-height');
-                c.style.removeProperty('opacity');
-                c.style.removeProperty('overflow');
-                c.style.removeProperty('margin-top');
-            });
-        });
-    }
+  // ---- SIDEBAR: GRID DE NAVEGACIÓN ----
 
-    /**
-     * Recalcula la altura del contenedor padre
-     * cuando un submenú anidado cambia de tamaño.
-     */
-    function recalcParentHeight(child) {
-        const parentContent = child.closest('.collapsible-content');
-        if (parentContent && parentContent.style.maxHeight) {
-            parentContent.style.maxHeight = parentContent.scrollHeight + 'px';
-        }
-    }
+  /**
+   * Inicializa el grid de navegación (resaltado de ítem activo).
+   */
+  function initNavGrid() {
+    const items = document.querySelectorAll('.nav-grid-item');
 
-    // ---- SIDEBAR: GRID DE NAVEGACIÓN ----
+    items.forEach(item => {
+      if (item.dataset.navInit === 'true') return;
+      item.dataset.navInit = 'true';
 
-    /**
-     * Inicializa el grid de navegación (resaltado de ítem activo).
-     */
-    function initNavGrid() {
-        const items = document.querySelectorAll('.nav-grid-item');
+      item.addEventListener('click', function () {
+        items.forEach(i => i.classList.remove('active-link'));
+        this.classList.add('active-link');
+      });
+    });
+  }
 
-        items.forEach(item => {
-            if (item.dataset.navInit === 'true') return;
-            item.dataset.navInit = 'true';
+  // ---- SIDEBAR: TOGGLE MÓVIL ----
 
-            item.addEventListener('click', function () {
-                items.forEach(i => i.classList.remove('active-link'));
-                this.classList.add('active-link');
-            });
-        });
-    }
-
-    // ---- SIDEBAR: TOGGLE MÓVIL ----
-
-    /**
-     * Inicializa el botón hamburguesa y overlay para móvil.
-     */
-    function initMobileSidebar() {
-        const toggle = document.querySelector('.mobile-menu-toggle');
+  /**
+   * Inicializa el botón hamburguesa y overlay para móvil.
+   */
+  function initMobileSidebar() {
+    const toggle = document.querySelector('.mobile-menu-toggle');
     const sidebar = document.querySelector('.mobile-sidebar');
     const overlay = document.querySelector('.mobile-overlay');
     const closeBtn = document.querySelector('.close-menu');
 
-        console.log('[MiraiApp] Debug Mobile Sidebar:');
-        console.log('- Toggle encontrado:', !!toggle);
-        console.log('- Sidebar encontrado:', !!sidebar);
-        console.log('- Overlay encontrado:', !!overlay);
+    console.log('[MiraiApp] Debug Mobile Sidebar:');
+    console.log('- Toggle encontrado:', !!toggle);
+    console.log('- Sidebar encontrado:', !!sidebar);
+    console.log('- Overlay encontrado:', !!overlay);
 
-        if (!toggle || !sidebar) {
-        // Reintento si el DOM no estaba listo
-        if (document.readyState !== 'complete') {
-            window.addEventListener('load', initMobileSidebar, { once: true });
-        }
-        console.error('[MiraiApp] Elementos no encontrados, reintentando en load...');
-        return;
+    if (!toggle || !sidebar) {
+      // Reintento si el DOM no estaba listo
+      if (document.readyState !== 'complete') {
+        window.addEventListener('load', initMobileSidebar, { once: true });
+      }
+      console.error('[MiraiApp] Elementos no encontrados, reintentando en load...');
+      return;
     }
 
-        // Guard: evitar registrar listeners duplicados
-        if (toggle.dataset.mobileInit === 'true') return;
-        toggle.dataset.mobileInit = 'true';
+    // Guard: evitar registrar listeners duplicados
+    if (toggle.dataset.mobileInit === 'true') return;
+    toggle.dataset.mobileInit = 'true';
 
-        const toggleMenu = (forceClose = false) => {
-            const isActive = sidebar.classList.contains('active');
+    const toggleMenu = (forceClose = false) => {
+      const isActive = sidebar.classList.contains('active');
 
-            if (forceClose || isActive) {
-                // CERRAR
-                sidebar.classList.remove('active');
-                overlay?.classList.remove('active');
-                toggle.classList.remove('active');
-                document.body.style.overflow = '';
-                console.log('[MiraiApp] Menú CERRADO');
-            } else {
-                // ABRIR
-                sidebar.classList.add('active');
-                overlay?.classList.add('active');
-                toggle.classList.add('active');
-                document.body.style.overflow = 'hidden';
-                console.log('[MiraiApp] Menú ABIERTO');
-            }
-        };
-
-        // Event Listeners
-        toggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleMenu();
-        });
-
-        if (overlay) {
-            overlay.addEventListener('click', () => toggleMenu(true));
-        }
-
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => toggleMenu(true));
-        }
-        
-        // Cerrar al hacer click en un enlace
-        const navLinks = sidebar.querySelectorAll('.nav-grid-item, .sidebar-links a');
-        navLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    toggleMenu(true);
-                }
-            });
-        });
-    }
-
-    // ---- SIDEBAR: COLAPSO DOCK (PC) ----
-
-    /**
-     * Inicializa el botón de colapsar/expandir el sidebar en escritorio.
-     */
-    function initSidebarCollapse() {
-        const btn = document.getElementById('sidebar-collapse-btn');
-        const sidebar = document.querySelector('.mobile-sidebar');
-
-        if (!btn || !sidebar) return;
-
-        btn.addEventListener('click', () => {
-            sidebarCollapsed = !sidebarCollapsed;
-            sidebar.classList.toggle('collapsed', sidebarCollapsed);
-
-            // Rotar ícono del botón
-            const svg = btn.querySelector('svg');
-            if (svg) {
-                svg.style.transform = sidebarCollapsed
-                    ? 'rotate(180deg)'
-                    : 'rotate(0deg)';
-            }
-        });
-    }
-
-    // ---- TEMA CLARO/OSCURO ----
-
-    /**
-     * Inicializa el toggle de tema claro/oscuro.
-     * Persiste la preferencia en localStorage.
-     */
-    function initThemeToggle() {
-        const btn = document.querySelector('.theme-toggle');
-        const saved = localStorage.getItem('mirai-ai-theme');
- 
-        // Aplicar tema guardado
-        if (saved === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        }
- 
-        // Si mirai-boot.js ya registró el listener, NO duplicar
-        // (evita el bug de "tema se revierte solo al hacer click")
-        if (btn && btn.dataset.bootInit === 'true') return;
- 
-        if (btn) {
-            btn.addEventListener('click', () => {
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                const newTheme = isDark ? 'light' : 'dark';
- 
-                document.documentElement.setAttribute('data-theme', newTheme);
-                localStorage.setItem('mirai-ai-theme', newTheme);
-            });
-        }
-    }
-
-    // ---- UTILIDADES PÚBLICAS ----
-
-    /**
-     * Abre un desplegable específico por selector.
-     * Útil desde otras páginas para forzar apertura.
-     */
-    function openCollapsible(selector) {
-        const section = document.querySelector(selector);
-        if (!section) return;
-        section.classList.add('active');
-    }
-
-    function closeCollapsible(selector) {
-        const section = document.querySelector(selector);
-        if (!section) return;
-        section.classList.remove('active');
-    }
-
-    /**
-     * Marca como activo el enlace de navegación
-     * correspondiente a la URL actual.
-     */
-    function setActiveNavByURL() {
-        const currentPath = window.location.pathname;
-        const navItems = document.querySelectorAll('.nav-grid-item');
-
-        navItems.forEach(item => {
-            const href = item.getAttribute('href');
-            if (href && currentPath.includes(href.replace('https://ai.aberumirai.com', ''))) {
-                navItems.forEach(i => i.classList.remove('active-link'));
-                item.classList.add('active-link');
-            }
-        });
-    }
-
-    /**
-     * Inicialización completa del sidebar y componentes comunes.
-     * Llamar desde DOMContentLoaded en cada página.
-     */
-    function init() {
-        initCollapsiblesState();
-        initCollapsibles();
-        initNavGrid();
-        initMobileSidebar();
-        initSidebarCollapse();
-        initThemeToggle();
-        setActiveNavByURL();
-    }
-
-    // ---- AUTO-INICIO ----
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-
-    // ---- API PÚBLICA ----
-    return {
-        init,
-        initCollapsibles,
-        initCollapsiblesState,
-        initNavGrid,
-        initMobileSidebar,
-        initSidebarCollapse,
-        initThemeToggle,
-        openCollapsible,
-        closeCollapsible,
-        setActiveNavByURL,
-        recalcParentHeight,
-
-        // Getters de estado
-        isSidebarCollapsed: () => sidebarCollapsed,
-        getTheme: () => document.documentElement.getAttribute('data-theme') || 'light',
+      if (forceClose || isActive) {
+        // CERRAR
+        sidebar.classList.remove('active');
+        overlay?.classList.remove('active');
+        toggle.classList.remove('active');
+        document.body.style.overflow = '';
+        console.log('[MiraiApp] Menú CERRADO');
+      } else {
+        // ABRIR
+        sidebar.classList.add('active');
+        overlay?.classList.add('active');
+        toggle.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        console.log('[MiraiApp] Menú ABIERTO');
+      }
     };
+
+    // Event Listeners
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    if (overlay) {
+      overlay.addEventListener('click', () => toggleMenu(true));
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => toggleMenu(true));
+    }
+
+    // Cerrar al hacer click en un enlace
+    const navLinks = sidebar.querySelectorAll('.nav-grid-item, .sidebar-links a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          toggleMenu(true);
+        }
+      });
+    });
+  }
+
+  // ---- SIDEBAR: COLAPSO DOCK (PC) ----
+
+  /**
+   * Inicializa el botón de colapsar/expandir el sidebar en escritorio.
+   */
+  function initSidebarCollapse() {
+    const btn = document.getElementById('sidebar-collapse-btn');
+    const sidebar = document.querySelector('.mobile-sidebar');
+
+    if (!btn || !sidebar) return;
+
+    btn.addEventListener('click', () => {
+      sidebarCollapsed = !sidebarCollapsed;
+      sidebar.classList.toggle('collapsed', sidebarCollapsed);
+
+      // Rotar ícono del botón
+      const svg = btn.querySelector('svg');
+      if (svg) {
+        svg.style.transform = sidebarCollapsed
+          ? 'rotate(180deg)'
+          : 'rotate(0deg)';
+      }
+    });
+  }
+
+  // ---- TEMA CLARO/OSCURO ----
+
+  /**
+   * Inicializa el toggle de tema claro/oscuro.
+   * Persiste la preferencia en localStorage.
+   */
+  function initThemeToggle() {
+    const btn = document.querySelector('.theme-toggle');
+    const saved = localStorage.getItem('mirai-ai-theme');
+
+    // Aplicar tema guardado
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    // Si mirai-boot.js ya registró el listener, NO duplicar
+    // (evita el bug de "tema se revierte solo al hacer click")
+    if (btn && btn.dataset.bootInit === 'true') return;
+
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const newTheme = isDark ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('mirai-ai-theme', newTheme);
+      });
+    }
+  }
+
+  // ---- UTILIDADES PÚBLICAS ----
+
+  /**
+   * Abre un desplegable específico por selector.
+   * Útil desde otras páginas para forzar apertura.
+   */
+  function openCollapsible(selector) {
+    const section = document.querySelector(selector);
+    if (!section) return;
+    section.classList.add('active');
+  }
+
+  function closeCollapsible(selector) {
+    const section = document.querySelector(selector);
+    if (!section) return;
+    section.classList.remove('active');
+  }
+
+  /**
+   * Marca como activo el enlace de navegación
+   * correspondiente a la URL actual.
+   */
+  function setActiveNavByURL() {
+    const currentPath = window.location.pathname;
+    const navItems = document.querySelectorAll('.nav-grid-item');
+
+    navItems.forEach(item => {
+      const href = item.getAttribute('href');
+      if (href && currentPath.includes(href.replace('https://ai.aberumirai.com', ''))) {
+        navItems.forEach(i => i.classList.remove('active-link'));
+        item.classList.add('active-link');
+      }
+    });
+  }
+
+  /**
+   * Inicialización completa del sidebar y componentes comunes.
+   * Llamar desde DOMContentLoaded en cada página.
+   */
+  function init() {
+    initCollapsiblesState();
+    initCollapsibles();
+    initNavGrid();
+    initMobileSidebar();
+    initSidebarCollapse();
+    initThemeToggle();
+    setActiveNavByURL();
+  }
+
+  // ---- AUTO-INICIO ----
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // ---- API PÚBLICA ----
+  return {
+    init,
+    initCollapsibles,
+    initCollapsiblesState,
+    initNavGrid,
+    initMobileSidebar,
+    initSidebarCollapse,
+    initThemeToggle,
+    openCollapsible,
+    closeCollapsible,
+    setActiveNavByURL,
+    recalcParentHeight,
+
+    // Getters de estado
+    isSidebarCollapsed: () => sidebarCollapsed,
+    getTheme: () => document.documentElement.getAttribute('data-theme') || 'light',
+  };
 })();
 
 // --- CONSTANTES Y CONFIGURACIÓN ---
@@ -905,8 +905,28 @@ async function handleSendMessage() {
 
     // ✨ MANEJAR SEGÚN TIPO DE RESPUESTA
     if (responseData.type === 'image' && responseData.image_url) {
-      const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${userInput}_`;
+      const imageMarkdown = `![Imagen generada](${responseData.image_url})`;
       appendMessage('assistant', imageMarkdown, true, null);
+      setTimeout(async () => {
+        try {
+          const commentRes = await fetch(CONFIG.API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: `[SYSTEM_IMAGE_COMMENT] El usuario pidió esta imagen: "${text}". Reacciona y admírala brevemente con tu personalidad, en el mismo idioma del usuario. Máximo 2 frases. No describas la imagen técnicamente, sé espontánea y emotiva.`,
+              conversation_id: state.currentConversationId,
+              audio_mode: 'never',
+              force_type: 1
+            })
+          });
+          if (commentRes.ok) {
+            const commentData = await commentRes.json();
+            if (commentData.response) {
+              appendMessage('assistant', commentData.response, true, null);
+            }
+          }
+        } catch (e) { console.warn('No se pudo generar comentario de imagen:', e); }
+      }, 800);
     } else if (responseData.type === 'music' && responseData.audio_url) {
       // Usamos appendMessage con el audio_url
       // El contenido puede ser un placeholder o el prompt
@@ -1446,10 +1466,10 @@ async function loadConversationHistory(conversationId) {
     if (error.status === 403 || error.status === 500) {
       console.warn('⚠️ Sesión inválida detectada. Limpiando...');
       // Llamar al servidor para invalidar la sesión y borrar la cookie
-await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-localStorage.removeItem('mirai_user_dni');
-localStorage.removeItem('mirai_user_name');
-window.location.href = 'login.html';
+      await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+      localStorage.removeItem('mirai_user_dni');
+      localStorage.removeItem('mirai_user_name');
+      window.location.href = 'login.html';
     }
     console.error('Error cargando historial:', error);
   }
@@ -2252,7 +2272,6 @@ function formatMessageContent(content) {
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
             </svg>
-            <span class="download-label">Descargar</span>
           </button>
         </div>
         <img src="${displayUrl}" alt="${alt}" class="md-image lightbox-trigger" data-lightbox-id="${imageId}">
@@ -2395,10 +2414,10 @@ async function loadConversations() {
     if (error.status === 403 || error.status === 500) {
       console.warn('⚠️ Sesión inválida detectada. Limpiando...');
       // Llamar al servidor para invalidar la sesión y borrar la cookie
-await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-localStorage.removeItem('mirai_user_dni');
-localStorage.removeItem('mirai_user_name');
-window.location.href = 'login.html';
+      await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+      localStorage.removeItem('mirai_user_dni');
+      localStorage.removeItem('mirai_user_name');
+      window.location.href = 'login.html';
     }
     console.error('Error cargando conversaciones:', error);
   }
