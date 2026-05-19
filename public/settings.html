@@ -172,6 +172,56 @@
         .model-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; background:var(--accent-gradient); color:white; width:fit-content; position:relative; }
         .model-badge.alt { background:linear-gradient(135deg,#FF6B35,#FF9F0A); }
 
+        /* ============================================
+           TEMA OSCURO — overrides para elementos
+           que no heredaban correctamente
+           ============================================ */
+
+        /* Hero banner */
+        [data-theme="dark"] .settings-hero {
+            background: var(--secondary-container);
+        }
+
+        /* Secciones y cards de fuente */
+        [data-theme="dark"] .settings-section {
+            background: var(--glass-bg);
+        }
+        [data-theme="dark"] .font-card {
+            background: var(--glass-bg);
+        }
+        [data-theme="dark"] .font-card.active {
+            background: var(--secondary-container);
+        }
+
+        /* Inputs */
+        [data-theme="dark"] .settings-input {
+            background: var(--secondary-container);
+            color: var(--text-primary);
+            border-color: var(--glass-border);
+        }
+        [data-theme="dark"] .settings-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        /* Model cards */
+        [data-theme="dark"] .model-card {
+            background: var(--glass-bg);
+        }
+        [data-theme="dark"] .model-option input:checked + .model-card {
+            background: var(--secondary-container);
+        }
+
+        /* Valor del slider de tamaño */
+        [data-theme="dark"] .font-size-value {
+            background: var(--secondary-container);
+            color: var(--accent-color);
+        }
+
+        /* Preview de fuente */
+        [data-theme="dark"] .settings-preview {
+            background: var(--message-ai-bg);
+        }
+
         /* RESPONSIVE */
         @media (max-width:768px) {
             .settings-hero { flex-direction:column; text-align:center; padding:24px 20px; }
