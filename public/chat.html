@@ -15,28 +15,34 @@
         svg { display: block; }
         .message-content { counter-reset: list-item; }
 
-        /* ── Mensajes con fondo blanco/negro y borde de acento ── */
+        /* ── Mensajes: usuario = acento, IA = blanco/negro ── */
         @keyframes msgSlideIn {
             from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* Ambos mensajes — fondo blanco, borde color del tema */
-        .message.user .message-content,
+        /* Usuario — color de acento, texto blanco */
+        .message.user .message-content {
+            background: var(--accent-glow, rgba(103, 80, 164, 0.18)) !important;
+            color: #ffffff !important;
+            border-radius: 18px !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
+            border: none !important;
+        }
+
+        /* IA — blanco puro, texto oscuro */
         .message.ai .message-content {
             background: #ffffff !important;
             color: #1a1a1a !important;
             border-radius: 18px !important;
-            border: 1px solid var(--accent-color, #6750A4) !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10) !important;
+            border: none !important;
         }
 
-        /* Modo oscuro — fondo negro, borde color del tema */
-        html[data-theme="dark"] .message.user .message-content,
+        /* Modo oscuro — IA en negro, usuario mantiene acento */
         html[data-theme="dark"] .message.ai .message-content {
             background: #1c1c1e !important;
             color: #f0f0f0 !important;
-            border: 1px solid var(--accent-color, #9A82DB) !important;
         }
 
         /* Margen en móvil para que no se pegue al borde */
