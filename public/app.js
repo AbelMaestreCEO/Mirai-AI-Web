@@ -1962,7 +1962,8 @@ async function modifyResponse(messageDiv, originalContent, action) {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
-      <div class="image-indicator hidden">
+    </div>
+    <div class="image-indicator hidden">
       <div class="image-loader">
         <svg class="brush-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 17c3-3 6-5 9-3s5 1 7-2"/>
@@ -1971,7 +1972,6 @@ async function modifyResponse(messageDiv, originalContent, action) {
         </svg>
         <div class="image-spinner"></div>
       </div>
-    </div>
     </div>
   `;
   messageDiv.style.opacity = '0.7';
@@ -2052,7 +2052,8 @@ async function regenerateResponse(messageDiv, originalContent) {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
-      <div class="image-indicator hidden">
+    </div>
+    <div class="image-indicator hidden">
       <div class="image-loader">
         <svg class="brush-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 17c3-3 6-5 9-3s5 1 7-2"/>
@@ -2061,7 +2062,6 @@ async function regenerateResponse(messageDiv, originalContent) {
         </svg>
         <div class="image-spinner"></div>
       </div>
-    </div>
     </div>
   `;
   messageDiv.style.opacity = '0.7';
