@@ -15,12 +15,12 @@
         svg { display: block; }
         .message-content { counter-reset: list-item; }
 
-        /* ── Mensajes estilo card (inspirado en course-card) ── */
+        /* ── Mensajes estilo WhatsApp ── */
         .message {
             display: flex;
             align-items: flex-start;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             animation: msgSlideIn 0.22s ease;
         }
         @keyframes msgSlideIn {
@@ -30,62 +30,36 @@
 
         /* Burbuja compartida */
         .message-content {
-            position: relative;
-            padding: 14px 18px;
-            border-radius: 16px;
+            padding: 10px 14px;
+            border-radius: 18px;
             max-width: 78%;
             line-height: 1.6;
             font-size: 0.95rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05);
-            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         }
 
-        /* Barra superior tipo card-accent */
-        .message-content::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            border-radius: 16px 16px 0 0;
-        }
-
-        /* ── Mensaje de la IA (Mirai) ── */
+        /* ── Mensaje de la IA — blanco en light, gris oscuro en dark ── */
         .message.ai .message-content {
-            background: var(--surface, #ffffff);
-            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            color: var(--text-primary, #1a1a2e);
-            border-radius: 4px 16px 16px 16px;
-        }
-        .message.ai .message-content::before {
-            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
+            background: #ffffff;
+            color: #1a1a1a;
+            border-radius: 4px 18px 18px 18px;
         }
 
-        /* ── Mensaje del usuario ── */
+        /* ── Mensaje del usuario — color del tema ── */
         .message.user {
             flex-direction: row-reverse;
         }
         .message.user .message-content {
-            background: var(--surface, #ffffff);
-            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            color: var(--text-primary, #1a1a2e);
-            border-radius: 16px 4px 16px 16px;
-        }
-        .message.user .message-content::before {
-            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
-            opacity: 0.6;
+            background: var(--accent-color, #6750A4);
+            color: #ffffff;
+            border-radius: 18px 4px 18px 18px;
         }
 
-        /* Modo oscuro */
-        [data-theme="dark"] .message-content,
-        .dark .message-content {
-            background: rgba(255,255,255,0.05);
-            border-color: var(--glass-border, rgba(207,188,255,0.10));
-            color: var(--text-primary, #e6e1e5);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15);
+        /* Modo oscuro: burbuja IA en gris oscuro */
+        [data-theme="dark"] .message.ai .message-content,
+        html.dark .message.ai .message-content {
+            background: #2a2a2a;
+            color: #e8e8e8;
         }
     </style>
 
@@ -408,6 +382,7 @@
         </button>
 
         <div class="header-title"></div>
+
     </header>
 
     <!-- Contenedor Principal -->
