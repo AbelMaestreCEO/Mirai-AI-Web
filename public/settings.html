@@ -781,8 +781,12 @@
                     document.documentElement.classList.add('reduce-motion');
                 }
 
-                // Dark mode
-                updateDarkBtn(document.documentElement.getAttribute('data-theme')==='dark');
+                // Dark mode — restaurar tema guardado y aplicar fondo correcto
+                const savedTheme = localStorage.getItem('mirai-ai-theme') ||
+                    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                applyAccentColor(sc); // re-aplicar colores con el tema ya establecido
+                updateDarkBtn(savedTheme === 'dark');
 
                 // Perfil y modelo
                 loadProfile();
@@ -819,9 +823,13 @@
 
             document.getElementById('dark-mode-toggle').addEventListener('click', () => {
                 const isDark=document.documentElement.getAttribute('data-theme')==='dark';
-                document.documentElement.setAttribute('data-theme',isDark?'light':'dark');
-                localStorage.setItem('mirai-ai-theme',isDark?'light':'dark');
+                const newTheme = isDark ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('mirai-ai-theme', newTheme);
                 updateDarkBtn(!isDark);
+                // Re-aplicar colores de acento con el nuevo tema para actualizar fondo y variables CSS
+                const activeColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
+                applyAccentColor(activeColor);
             });
 
             document.getElementById('reduced-motion').addEventListener('change', function() {
