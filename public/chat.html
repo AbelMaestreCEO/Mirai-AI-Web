@@ -23,8 +23,8 @@
 
         /* Usuario — color de acento, texto blanco */
         .message.user .message-content {
-            background: var(--accent-glow, rgba(103, 80, 164, 0.18)) !important;
-            color: #ffffff !important;
+            background: var(--accent-gradient, rgba(103, 80, 164, 0.18)) !important;
+            color: #1a1a1a !important;
             border-radius: 18px !important;
             box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
             border: none !important;
@@ -42,6 +42,11 @@
         /* Modo oscuro — IA en negro, usuario mantiene acento */
         html[data-theme="dark"] .message.ai .message-content {
             background: #1c1c1e !important;
+            color: #f0f0f0 !important;
+        }
+
+        /* Modo oscuro — IA en negro, usuario mantiene acento */
+        html[data-theme="dark"] .message.user .message-content {
             color: #f0f0f0 !important;
         }
 
