@@ -15,35 +15,28 @@
         svg { display: block; }
         .message-content { counter-reset: list-item; }
 
-        /* ── Mensajes estilo WhatsApp ── */
+        /* ── Mensajes con fondo blanco/negro y borde de acento ── */
         @keyframes msgSlideIn {
             from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* ── Mensaje del usuario — versión suavizada del color de acento ── */
-        .message.user .message-content {
-            background: color-mix(in srgb, var(--accent-color, #6750A4) 75%, white) !important;
-            color: #ffffff !important;
-            border-radius: 18px !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
-        }
-
-        /* ── Mensaje de la IA — blanco puro en light ── */
+        /* Ambos mensajes — fondo blanco, borde color del tema */
+        .message.user .message-content,
         .message.ai .message-content {
             background: #ffffff !important;
             color: #1a1a1a !important;
             border-radius: 18px !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.10) !important;
+            border: 2px solid var(--accent-color, #6750A4) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
         }
 
-        /* Modo oscuro: burbuja IA en gris oscuro, usuario más suave */
+        /* Modo oscuro — fondo negro, borde color del tema */
+        html[data-theme="dark"] .message.user .message-content,
         html[data-theme="dark"] .message.ai .message-content {
-            background: #2c2c2e !important;
+            background: #1c1c1e !important;
             color: #f0f0f0 !important;
-        }
-        html[data-theme="dark"] .message.user .message-content {
-            background: color-mix(in srgb, var(--accent-color, #6750A4) 70%, #1a1a1a) !important;
+            border: 2px solid var(--accent-color, #9A82DB) !important;
         }
 
         /* Margen en móvil para que no se pegue al borde */
