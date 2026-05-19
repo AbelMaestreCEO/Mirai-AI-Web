@@ -913,7 +913,7 @@ async function handleSendMessage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              message: `[SYSTEM_IMAGE_COMMENT] El usuario pidió esta imagen: "${text}". Reacciona y admírala brevemente con tu personalidad, en el mismo idioma del usuario. Máximo 2 frases. No describas la imagen técnicamente, sé espontánea y emotiva.`,
+              message: `[SYSTEM_IMAGE_COMMENT] El usuario pidió esta imagen: "${userInput}". Reacciona y admírala brevemente con tu personalidad, en el mismo idioma del usuario. Máximo 2 frases. No describas la imagen técnicamente, sé espontánea y emotiva.`,
               conversation_id: state.currentConversationId,
               audio_mode: 'never',
               force_type: 1

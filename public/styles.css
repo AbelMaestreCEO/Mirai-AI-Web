@@ -2571,6 +2571,7 @@ footer.footer {
 
 /* Botón de descarga flotante */
 .image-download-btn {
+  color: var(--text-primary, #ffffff);
   position: relative;
   display: flex;
   align-items: center;
@@ -2583,7 +2584,6 @@ footer.footer {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  color: var(--accent-color);
   font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
