@@ -3208,7 +3208,17 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       throw new Error('xai/grok-imagine-image no devolvió una imagen Base64 válida');
     }
 
-    // 3. Decodificar Base64 a ArrayBuffer
+    // 3. Limpiar el string base64
+    // Grok puede devolver un data URL ("data:image/png;base64,XXXX") o base64 puro
+    if (imageBase64.includes(',')) {
+      imageBase64 = imageBase64.split(',')[1];
+      console.log('🧹 Prefijo data URL eliminado');
+    }
+    // Eliminar saltos de linea o espacios que invalidan atob
+    imageBase64 = imageBase64.replace(/\s/g, '');
+    console.log('📐 Longitud base64 limpio:', imageBase64.length);
+
+    // 4. Decodificar Base64 a ArrayBuffer
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
