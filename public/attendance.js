@@ -159,7 +159,7 @@ function tick() {
 
     if (video.readyState < 2) { state.rafId = requestAnimationFrame(tick); return; }
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
