@@ -69,6 +69,17 @@
 })();
 </script>
 <link rel="stylesheet" href="styles.css">
+<style>
+  /* Grid de tarjetas: 2 columnas en móvil, 4 en PC */
+  .welcome-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  @media (min-width: 768px) {
+    .welcome-cards-grid {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
+  }
+</style>
 </head>
 
 <body>
