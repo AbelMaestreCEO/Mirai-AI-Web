@@ -429,6 +429,7 @@ async function handleVerify(request, env, corsHeaders) {
       dni: dni.toUpperCase(),
       first_name: user.first_name,
       last_name: user.last_name,
+      avatar_url: user.avatar_r2_key ? `/api/user/avatar/${dni.toUpperCase()}` : null,
       message: '¡Verificación exitosa! Redirigiendo...'
     }), {
       status: 200,
@@ -2173,6 +2174,23 @@ NO agregues texto adicional fuera del JSON.`;
       return await handleServeVideo(path, env);
     }
 
+    // Perfil de usuario
+    if (path === '/api/user/profile' && request.method === 'GET')
+      return await handleGetProfile(request, env, corsHeaders);
+
+    if (path === '/api/user/profile' && request.method === 'PUT')
+      return await handleUpdateProfile(request, env, corsHeaders);
+
+    if (path === '/api/user/avatar' && request.method === 'POST')
+      return await handleUploadAvatar(request, env, corsHeaders);
+
+    if (path === '/api/user/avatar' && request.method === 'DELETE')
+      return await handleDeleteAvatar(request, env, corsHeaders);
+
+    // Servir avatar desde R2 (URL pública sin auth, para usar en <img>)
+    if (path.startsWith('/api/user/avatar/') && request.method === 'GET')
+      return await handleServeAvatar(request, env, corsHeaders);
+
     if (path === '/api/vapid-key' && request.method === 'GET') {
       return jsonResponse({ publicKey: env.VAPID_PUBLIC_KEY || '' }, 200, corsHeaders);
     }
@@ -2834,6 +2852,203 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
   } catch (error) {
     console.error('❌ Error en handleTextChatInternal:', error.message);
     return jsonResponse({ error: 'Error procesando mensaje', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// ── BLOQUE 2: handleGetProfile ────────────────────────────────
+async function handleGetProfile(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT dni, first_name, last_name, email, avatar_r2_key FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+
+    if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
+
+    // Construir URL del avatar si existe
+    const avatarUrl = user.avatar_r2_key
+      ? `/api/user/avatar/${userDni}`
+      : null;
+
+    return jsonResponse({
+      success: true,
+      profile: {
+        dni: user.dni,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        email: user.email || '',
+        avatarUrl: avatarUrl,
+        hasAvatar: !!user.avatar_r2_key
+      }
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error getProfile:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// ── BLOQUE 3: handleUpdateProfile ─────────────────────────────
+async function handleUpdateProfile(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const { firstName, lastName } = await request.json();
+
+    if (!firstName || !firstName.trim()) {
+      return jsonResponse({ error: 'El nombre es obligatorio' }, 400, corsHeaders);
+    }
+
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET first_name = ?, last_name = ? WHERE dni = ?"
+    ).bind(
+      firstName.trim().substring(0, 60),
+      (lastName || '').trim().substring(0, 60),
+      userDni
+    ).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Perfil actualizado correctamente',
+      profile: { firstName: firstName.trim(), lastName: (lastName || '').trim() }
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error updateProfile:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// ── BLOQUE 4: handleUploadAvatar ──────────────────────────────
+async function handleUploadAvatar(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const formData = await request.formData();
+    const file = formData.get('avatar');
+
+    if (!file) return jsonResponse({ error: 'No se recibió ninguna imagen' }, 400, corsHeaders);
+
+    // Validar tipo
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      return jsonResponse({ error: 'Formato no soportado. Usa JPG, PNG o WEBP' }, 400, corsHeaders);
+    }
+
+    // Validar tamaño (2 MB máximo — ya viene comprimido desde el frontend)
+    if (file.size > 2 * 1024 * 1024) {
+      return jsonResponse({ error: 'La imagen supera los 2 MB' }, 400, corsHeaders);
+    }
+
+    // Eliminar avatar anterior si existe
+    const existing = await env.MIRAI_AI_DB.prepare(
+      "SELECT avatar_r2_key FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+
+    if (existing?.avatar_r2_key) {
+      await env.MIRAI_PHOTOS.delete(existing.avatar_r2_key).catch(() => null);
+    }
+
+    // Guardar en R2: avatars/{dni}.jpg (sobreescribe siempre)
+    const r2Key = `avatars/${userDni.toLowerCase()}.jpg`;
+    const imageBuffer = await file.arrayBuffer();
+
+    await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
+      httpMetadata: {
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=86400'
+      },
+      customMetadata: {
+        userDni: userDni,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+    // Guardar clave R2 en la tabla users
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET avatar_r2_key = ? WHERE dni = ?"
+    ).bind(r2Key, userDni).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Avatar actualizado correctamente',
+      avatarUrl: `/api/user/avatar/${userDni}`
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error uploadAvatar:', error);
+    return jsonResponse({ error: 'Error al subir el avatar', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// ── BLOQUE 5: handleDeleteAvatar ──────────────────────────────
+async function handleDeleteAvatar(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT avatar_r2_key FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+
+    if (user?.avatar_r2_key) {
+      await env.MIRAI_PHOTOS.delete(user.avatar_r2_key).catch(() => null);
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE users SET avatar_r2_key = NULL WHERE dni = ?"
+      ).bind(userDni).run();
+    }
+
+    return jsonResponse({ success: true, message: 'Avatar eliminado' }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('Error deleteAvatar:', error);
+    return jsonResponse({ error: 'Error al eliminar avatar' }, 500, corsHeaders);
+  }
+}
+
+// ── BLOQUE 6: handleServeAvatar (sirve la imagen desde R2) ────
+async function handleServeAvatar(request, env, corsHeaders) {
+  try {
+    // Extraer DNI de la URL: /api/user/avatar/{dni}
+    const url = new URL(request.url);
+    const parts = url.pathname.split('/');
+    const dni = parts[parts.length - 1]?.toUpperCase();
+
+    if (!dni) return new Response('Not found', { status: 404 });
+
+    const user = await env.MIRAI_AI_DB.prepare(
+      "SELECT avatar_r2_key FROM users WHERE dni = ?"
+    ).bind(dni).first();
+
+    if (!user?.avatar_r2_key) {
+      return new Response('No avatar', { status: 404 });
+    }
+
+    const object = await env.MIRAI_PHOTOS.get(user.avatar_r2_key);
+    if (!object) return new Response('Not found', { status: 404 });
+
+    const headers = new Headers({
+      ...corsHeaders,
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=86400',  // cache 24h en navegador
+      'ETag': object.httpEtag || '"avatar"'
+    });
+
+    // Soporte para 304 Not Modified
+    const ifNoneMatch = request.headers.get('If-None-Match');
+    if (ifNoneMatch && ifNoneMatch === object.httpEtag) {
+      return new Response(null, { status: 304, headers });
+    }
+
+    return new Response(object.body, { status: 200, headers });
+
+  } catch (error) {
+    console.error('Error serveAvatar:', error);
+    return new Response('Error', { status: 500 });
   }
 }
 
