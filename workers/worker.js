@@ -3173,81 +3173,101 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     console.log('🖼️ Iniciando generación con xai/grok-imagine-image');
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Llamada a Cloudflare AI con xai/grok-imagine-image
-    // La API devuelve { image: "<b64_json>" } según la documentación
+    // 1. Llamada a Cloudflare AI
     const aiResponse = await env.AI.run(
       'xai/grok-imagine-image',
-      {
-        prompt: prompt,
-        aspect_ratio: '1:1',
-        quality: 'high',
-        response_format: 'b64_json',
-      },
-      {
-        gateway: { id: 'default' },
+      { 
+        prompt: prompt, 
+        aspect_ratio: '1:1' 
       }
     );
 
-    console.log('✅ Respuesta recibida de xai/grok-imagine-image');
-    console.log('🔍 Estructura:', Object.keys(aiResponse || {}));
-
-    // 2. Extraer la imagen Base64
-    // La API devuelve { image: "<b64_json>" }
-    let imageBase64 = null;
-
-    if (aiResponse?.image && typeof aiResponse.image === 'string') {
-      imageBase64 = aiResponse.image;
-      console.log('✅ Imagen encontrada en aiResponse.image (Base64 directo)');
-    } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
-      imageBase64 = aiResponse.result.image;
-      console.log('✅ Imagen encontrada en aiResponse.result.image (Base64 anidado)');
+    if (!aiResponse) {
+      throw new Error('No se recibió respuesta del modelo de IA');
     }
 
-    if (!imageBase64) {
-      console.error('❌ Respuesta inesperada:', JSON.stringify(aiResponse).substring(0, 500));
-      throw new Error('xai/grok-imagine-image no devolvió una imagen Base64 válida');
+    let imageBuffer;
+
+    // 2. CORRECCIÓN: Validar cómo viene la estructura de Grok
+    // Si la respuesta viene como un string Base64 dentro de una propiedad image
+    if (aiResponse.image && typeof aiResponse.image === 'string') {
+      // Limpiar data URI si el modelo lo incluyera por accidente
+      const cleanBase64 = aiResponse.image.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+      
+      // Comprobar si realmente es un string base64 largo o un JSON anidado
+      if (cleanBase64.startsWith('{') || cleanBase64.length < 1000) {
+        // Si es muy corto o parece JSON, es un texto de respuesta/error o metadatos
+        throw new Error(`Respuesta inválida de Grok (posible bloqueo o formato erróneo): ${cleanBase64.substring(0, 100)}`);
+      }
+
+      // Convertir Base64 a Uint8Array de manera segura en Cloudflare Workers
+      const binaryString = atob(cleanBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      imageBuffer = bytes.buffer;
+
+    } else if (aiResponse instanceof ArrayBuffer) {
+      // Algunos modelos de Cloudflare devuelven directamente el binario (ArrayBuffer)
+      imageBuffer = aiResponse;
+
+    } else if (aiResponse.body && aiResponse.body instanceof ReadableStream) {
+      // Si viene como Stream (común en algunas respuestas directas fetch)
+      const response = new Response(aiResponse.body);
+      imageBuffer = await response.arrayBuffer();
+
+    } else if (aiResponse.result && aiResponse.result.image) {
+      // Si viene envuelto en un objeto .result (como indica tu log de estructura)
+      const resImage = aiResponse.result.image;
+      
+      if (typeof resImage === 'string') {
+        const cleanBase64 = resImage.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+        
+        // El fix crucial para tu log de 450 de longitud:
+        if (cleanBase64.length < 1000) {
+          throw new Error(`El resultado devuelto no es una imagen base64 válida: ${cleanBase64}`);
+        }
+
+        const binaryString = atob(cleanBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        imageBuffer = bytes.buffer;
+      } else {
+        throw new Error('Estructura aiResponse.result.image desconocida');
+      }
+    } else {
+      // Si no coincide con ninguno, intentamos parsear o lanzar error
+      throw new Error(`Estructura de respuesta no soportada por el script actual: ${JSON.stringify(Object.keys(aiResponse))}`);
     }
 
-    // 3. Limpiar el string base64
-    // Grok puede devolver un data URL ("data:image/png;base64,XXXX") o base64 puro
-    if (imageBase64.includes(',')) {
-      imageBase64 = imageBase64.split(',')[1];
-      console.log('🧹 Prefijo data URL eliminado');
-    }
-    // Eliminar saltos de linea o espacios que invalidan atob
-    imageBase64 = imageBase64.replace(/\s/g, '');
-    console.log('📐 Longitud base64 limpio:', imageBase64.length);
-
-    // 4. Decodificar Base64 a ArrayBuffer
-    const uniqueId = crypto.randomUUID();
-    const filename = `images/${uniqueId}.png`;
-
-    const binaryString = atob(imageBase64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    if (!imageBuffer || imageBuffer.byteLength === 0) {
+      throw new Error('El buffer de la imagen generado está vacío');
     }
 
-    console.log('📦 Tamaño de imagen:', bytes.byteLength, 'bytes');
+    // 3. Subir el binario resultante a R2 de manera limpia
+    const imageId = crypto.randomUUID();
+    const r2Key = `generated-images/${conversationId}/${imageId}.png`;
 
-    // 4. Guardar en R2
-    await env.MIRAI_AI_ASSETS.put(filename, bytes, {
+    await env.MIRAI_AI_ASSETS.put(r2Key, imageBuffer, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
-        prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
-        generated_at: new Date().toISOString(),
-        model: 'grok-imagine-image'
+        prompt: prompt,
+        generated_at: new Date().toISOString()
       }
     });
 
-    console.log(`✅ Imagen generada con xai/grok-imagine-image y guardada en R2: ${filename}`);
-    return `/api/image/${filename}`;
+    // 4. Guardar en la base de datos D1
+    const imageUrl = `/api/image/${r2Key}`;
+    await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
+
+    return imageUrl;
 
   } catch (error) {
     console.error('❌ Error en generateAndStoreImage (xai/grok-imagine-image):', error.message);
-    console.error('Stack:', error.stack);
     throw error;
   }
 }
