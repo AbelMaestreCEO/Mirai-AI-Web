@@ -3167,68 +3167,48 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON FLUX.2 KLEIN 9B (MULTIPART) ---
+// --- GENERAR IMAGEN CON GROK IMAGINE IMAGE (xAI) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
-    console.log('🖼️ Iniciando generación con Flux.2 Klein 9B');
+    console.log('🖼️ Iniciando generación con xai/grok-imagine-image');
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Preparar el prompt
-    const enhancedPrompt = `${prompt}, high quality, photorealistic, 8k resolution`;
-
-    // 2. Construir FormData (Requisito obligatorio para Flux.2)
-    const form = new FormData();
-    form.append('prompt', enhancedPrompt);
-
-    // Parámetros opcionales (Flux suele aceptar width/height)
-    // Puedes ajustar esto si quieres forzar un ratio específico
-    form.append('width', '1024');
-    form.append('height', '1024');
-    // form.append('seed', Math.floor(Math.random() * 1000000)); // Opcional
-
-    // 3. Serializar FormData para obtener el stream y el content-type correcto
-    // Esto es CRÍTICO: FormData no expone su cuerpo serializado directamente.
-    // Creamos un Response temporal para extraer el stream y el header.
-    const tempResponse = new Response(form);
-    const formStream = tempResponse.body;
-    const formContentType = tempResponse.headers.get('content-type');
-
-    if (!formStream || !formContentType) {
-      throw new Error('Error al serializar FormData para Flux.2');
-    }
-
-    console.log('📦 Enviando FormData a Flux.2 Klein 9B...');
-
-    // 4. Ejecutar llamada a Cloudflare AI con el formato multipart
-    const aiResponse = await env.AI.run('@cf/black-forest-labs/flux-2-klein-9b', {
-      multipart: {
-        body: formStream,
-        contentType: formContentType
+    // 1. Llamada a Cloudflare AI con xai/grok-imagine-image
+    // La API devuelve { image: "<b64_json>" } según la documentación
+    const aiResponse = await env.AI.run(
+      'xai/grok-imagine-image',
+      {
+        prompt: prompt,
+        aspect_ratio: '1:1',
+        quality: 'high',
+        response_format: 'b64_json',
+      },
+      {
+        gateway: { id: 'default' },
       }
-    });
+    );
 
-    console.log('✅ Respuesta recibida de Flux.2 Klein 9B');
+    console.log('✅ Respuesta recibida de xai/grok-imagine-image');
     console.log('🔍 Estructura:', Object.keys(aiResponse || {}));
 
-    // 5. Extraer la imagen Base64
-    // Según la documentación, viene en aiResponse.image
+    // 2. Extraer la imagen Base64
+    // La API devuelve { image: "<b64_json>" }
     let imageBase64 = null;
 
     if (aiResponse?.image && typeof aiResponse.image === 'string') {
       imageBase64 = aiResponse.image;
       console.log('✅ Imagen encontrada en aiResponse.image (Base64 directo)');
     } else if (aiResponse?.result?.image && typeof aiResponse.result.image === 'string') {
-      // Por si acaso la estructura cambia a result.image
       imageBase64 = aiResponse.result.image;
       console.log('✅ Imagen encontrada en aiResponse.result.image (Base64 anidado)');
     }
 
     if (!imageBase64) {
       console.error('❌ Respuesta inesperada:', JSON.stringify(aiResponse).substring(0, 500));
-      throw new Error('Flux.2 Klein 9B no devolvió una imagen Base64 válida');
+      throw new Error('xai/grok-imagine-image no devolvió una imagen Base64 válida');
     }
 
-    // 6. Decodificar Base64 a ArrayBuffer
+    // 3. Decodificar Base64 a ArrayBuffer
     const uniqueId = crypto.randomUUID();
     const filename = `images/${uniqueId}.png`;
 
@@ -3241,22 +3221,22 @@ async function generateAndStoreImage(prompt, conversationId, env) {
 
     console.log('📦 Tamaño de imagen:', bytes.byteLength, 'bytes');
 
-    // 7. Guardar en R2
+    // 4. Guardar en R2
     await env.MIRAI_AI_ASSETS.put(filename, bytes, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
         prompt: prompt.substring(0, 100),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: 'flux-2-klein-9b'
+        model: 'grok-imagine-image'
       }
     });
 
-    console.log(`✅ Imagen generada con Flux.2 Klein 9B y guardada en R2: ${filename}`);
+    console.log(`✅ Imagen generada con xai/grok-imagine-image y guardada en R2: ${filename}`);
     return `/api/image/${filename}`;
 
   } catch (error) {
-    console.error('❌ Error en generateAndStoreImage (Flux.2 Klein 9B):', error.message);
+    console.error('❌ Error en generateAndStoreImage (xai/grok-imagine-image):', error.message);
     console.error('Stack:', error.stack);
     throw error;
   }
@@ -3270,10 +3250,10 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
     let imageUrl;
     try {
       imageUrl = await generateAndStoreImage(prompt, conversationId, env);
-    } catch (fluxError) {
-      // Flux rechazó el prompt (copyright, contenido bloqueado, etc.)
-      const isBlocked = fluxError.message.includes('3030') ||
-        fluxError.message.includes('flagged') ||
+    } catch (grokError) {
+      // Grok rechazó el prompt (copyright, contenido bloqueado, etc.)
+      const isBlocked = grokError.message.includes('3030') ||
+        grokError.message.includes('flagged') ||
         isCopyright;
 
       if (isBlocked) {
@@ -3317,7 +3297,7 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
       }
 
       // Otro tipo de error → relanzar
-      throw fluxError;
+      throw grokError;
     }
 
     const assistantContent = `![Imagen generada](${imageUrl})`;
