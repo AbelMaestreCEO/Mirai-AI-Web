@@ -1149,7 +1149,7 @@ async function sendTextToAI(text) {
 
     // Manejar respuesta según tipo
     if (responseData.type === 'image' && responseData.image_url) {
-      const imageMarkdown = `![Imagen generada](${responseData.image_url})\n\n_${text}_`;
+      const imageMarkdown = `![Imagen generada](${responseData.image_url})`;
       appendMessage('assistant', imageMarkdown, true, null);
     } else if (responseData.type === 'music' && responseData.audio_url) {
       // Usamos appendMessage con el audio_url

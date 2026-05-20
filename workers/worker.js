@@ -3320,7 +3320,7 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
       throw fluxError;
     }
 
-    const assistantContent = `![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
+    const assistantContent = `![Imagen generada](${imageUrl})`;
     await saveMessage(conversationId, 'assistant', assistantContent, env, null, null, null, userDni);
     await updateConversationTimestamp(conversationId, env);
 
@@ -3454,7 +3454,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     const videoUrl = `/api/video/${videoFilename}`;
     const thumbnailUrl = `/api/image/${imageR2Key}`;
 
-    const assistantContent = `🎬 Aquí tienes el video que pediste:\n\n_Prompt: ${prompt}_`;
+    const assistantContent = `🎬 Aquí tienes el video que pediste:`;
     await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, thumbnailUrl, userDni);
 
     return jsonResponse({
@@ -4545,7 +4545,7 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
     const audioUrl = `/api/audio/${filename}`;
 
     // 7. Guardar respuesta en D1
-    const assistantContent = `🎵 Aquí tienes la canción que pediste:\n\n_Prompt: ${prompt}_`;
+    const assistantContent = `🎵 Aquí tienes la canción que pediste:`;
     await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl, null, null, userDni);
     await updateConversationTimestamp(conversationId, env);
 
@@ -4656,7 +4656,7 @@ async function handleMusicGenerationFallback(prompt, conversationId, env, corsHe
 
     const audioUrl = `/api/audio/${filename}`;
 
-    const assistantContent = `🎵 Aquí tienes la canción que pediste:\n\n_Prompt: ${prompt}_`;
+    const assistantContent = `🎵 Aquí tienes la canción que pediste:`;
     await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl);
     await updateConversationTimestamp(conversationId, env);
 
