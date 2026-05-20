@@ -9,13 +9,12 @@ const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 
-// ✨ NUEVO: Configuración Video
+// ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
 const VIDEO_CONFIG = {
-  MODEL: 'minimax/hailuo-2.3-fast',
-  DEFAULT_DURATION: 6,
-  DEFAULT_RESOLUTION: '768P',
-  PROMPT_OPTIMIZER: true,
-  FAST_PRETREATMENT: false,
+  MODEL: 'xai/grok-imagine-video',
+  DEFAULT_DURATION: 5,        // Ajustado al inicio rápido (soporta hasta 15s)
+  DEFAULT_RESOLUTION: '720p',  // Cambiado a minúsculas conforme a la documentación ("480p" | "720p")
+  ASPECT_RATIO: '16:9',        // Parámetro nativo de Grok
   MAX_PROMPT_LENGTH: 2000,
 };
 
@@ -3376,10 +3375,10 @@ async function sendRecoveryEmail(email, token, env) {
 
 async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders) {
   try {
-    console.log('🎬 Iniciando generación de video con Hailuo 2.3 Fast');
-    console.log('🎬 Prompt:', prompt);
+    console.log('🎬 Iniciando generación de video con Grok Imagine Video');
+    console.log('🎬 Prompt original:', prompt);
 
-    // PASAR userDni
+    // Guardar traza en la base de datos
     await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
@@ -3392,45 +3391,45 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
       throw new Error('No se pudo generar la imagen base para el video');
     }
 
-    // 3. Construir URL pública de la imagen para Hailuo
+    // 3. Construir URL pública de la imagen para enviarla a Grok
     const imageUrl = `https://aiassets.aberumirai.com/${imageR2Key}`;
     console.log('🖼️ Primer frame URL:', imageUrl);
 
-    // 4. Simplificar prompt para video
+    // 4. Simplificar prompt si excede los límites
     const videoPrompt = simplifyVideoPrompt(prompt);
-    console.log('🎬 Video prompt:', videoPrompt);
+    console.log('🎬 Video prompt final:', videoPrompt);
 
-    // 5. Llamar a Hailuo 2.3 Fast
-    const videoResult = await env.AI.run(VIDEO_CONFIG.MODEL, {
-      first_frame_image: imageUrl,
-      prompt: videoPrompt,
-      prompt_optimizer: VIDEO_CONFIG.PROMPT_OPTIMIZER,
-      fast_pretreatment: VIDEO_CONFIG.FAST_PRETREATMENT,
-      duration: VIDEO_CONFIG.DEFAULT_DURATION,
-      resolution: VIDEO_CONFIG.DEFAULT_RESOLUTION,
-    }, {
-      gateway: { id: 'default' },
-    });
+    // 5. Llamar a Grok Imagine Video usando Cloudflare Workers AI
+    console.log('🚀 Invocando env.AI.run con xai/grok-imagine-video...');
+    const videoResult = await env.AI.run(
+      VIDEO_CONFIG.MODEL,
+      {
+        prompt: videoPrompt,
+        duration: VIDEO_CONFIG.DEFAULT_DURATION,
+        aspect_ratio: VIDEO_CONFIG.ASPECT_RATIO,
+        resolution: VIDEO_CONFIG.DEFAULT_RESOLUTION,
+        // Mandamos la imagen base generada por Flux como contexto de Image-to-Video
+        image: {
+          url: imageUrl
+        }
+      },
+      {
+        gateway: { id: 'default' },
+      }
+    );
 
-    // 6. Extraer video de la respuesta
+    // 6. Extraer y procesar el Buffer de salida
     let videoBuffer = null;
 
+    // Si devuelve formato ArrayBuffer / Uint8Array directo
     if (videoResult instanceof ArrayBuffer && videoResult.byteLength > 0) {
       videoBuffer = videoResult;
     } else if (videoResult instanceof Uint8Array && videoResult.byteLength > 0) {
       videoBuffer = videoResult.buffer;
-    } else if (videoResult?.result?.video) {
-      const videoData = videoResult.result.video;
-      if (typeof videoData === 'string' && videoData.startsWith('data:video/')) {
-        const base64 = videoData.split(',')[1];
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-        videoBuffer = bytes.buffer;
-      } else if (typeof videoData === 'string' && videoData.startsWith('http')) {
-        const res = await fetch(videoData);
-        if (res.ok) videoBuffer = await res.arrayBuffer();
-      } else if (typeof videoData === 'string') {
+    } else if (videoResult?.video) { 
+      // Si el modelo retorna el esquema { video: "base64..." } de acuerdo a la documentación de salida
+      const videoData = videoResult.video;
+      if (typeof videoData === 'string') {
         const binaryString = atob(videoData);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
@@ -3441,18 +3440,18 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     } else if (videoResult?.error) {
       const errorMsg = videoResult.error?.message || 'Error desconocido';
       if (errorMsg.includes('unavailable')) {
-        const fallbackMsg = "🎬 Servicio de video no disponible temporalmente.";
+        const fallbackMsg = "🎬 Servicio de video de xAI no disponible temporalmente.";
         await saveMessage(conversationId, 'assistant', fallbackMsg, env);
         return jsonResponse({ type: 'video', response: fallbackMsg, status: 'service_unavailable' }, 200, corsHeaders);
       }
-      throw new Error(`Hailuo error: ${errorMsg}`);
+      throw new Error(`Grok Video error: ${errorMsg}`);
     }
 
     if (!videoBuffer || videoBuffer.byteLength === 0) {
-      throw new Error('No se recibió video válido');
+      throw new Error('No se recibió un video válido desde el modelo xAI');
     }
 
-    // 7. Guardar video en R2
+    // 7. Guardar el archivo final .mp4 en R2
     const uniqueId = crypto.randomUUID();
     const videoFilename = `videos/${uniqueId}.mp4`;
 
@@ -3469,8 +3468,9 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
 
     const videoUrl = `/api/video/${videoFilename}`;
     const thumbnailUrl = `/api/image/${imageR2Key}`;
-
     const assistantContent = `🎬 Aquí tienes el video que pediste:`;
+
+    // Guardar en base de datos para el historial del chat
     await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, thumbnailUrl, userDni);
 
     return jsonResponse({
@@ -3482,7 +3482,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
 
   } catch (error) {
     console.error('❌ handleVideoGeneration error:', error.message);
-    return jsonResponse({ error: 'Error generando video', details: error.message }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error generando video con Grok', details: error.message }, 500, corsHeaders);
   }
 }
 
