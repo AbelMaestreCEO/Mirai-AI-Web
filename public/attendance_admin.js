@@ -26,6 +26,7 @@ function esc(s) {
 }
 
 function todayISO() { return new Date().toISOString().split('T')[0]; }
+function el(id) { return document.getElementById(id); }
 
 // ── Estado global ─────────────────────────────────────────────
 const state = {
