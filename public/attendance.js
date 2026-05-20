@@ -53,28 +53,34 @@ async function loadProfile() {
     if (el('att-user-name')) el('att-user-name').textContent = dni || 'Usuario';
     if (el('att-avatar'))    el('att-avatar').textContent    = initials(dni);
 
+    // AGREGAR en su lugar (usa /api/user-info que ya existe o construye el nombre desde localStorage):
     try {
+        // Intentar obtener nombre real desde att_staff (si está registrado como personal)
         const res = await fetch(API.staff, { credentials: 'same-origin', headers: authHeaders() });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (el('att-user-name')) el('att-user-name').textContent = escHtml(data.name || dni);
-        if (el('att-user-meta')) el('att-user-meta').textContent = [data.department, data.position].filter(Boolean).join(' · ') || 'Personal';
-        if (el('att-avatar'))    el('att-avatar').textContent    = initials(data.name || dni);
-    } catch (_) { /* offline – mostramos DNI */ }
+        if (res.ok) {
+            const data = await res.json();
+            if (el('att-user-name')) el('att-user-name').textContent = escHtml(data.name || dni);
+            if (el('att-user-meta')) el('att-user-meta').textContent = [data.department, data.position].filter(Boolean).join(' · ') || 'Personal';
+            if (el('att-avatar'))    el('att-avatar').textContent    = initials(data.name || dni);
+        }
+        // Si no está en att_staff (404), simplemente muestra el DNI — no rompe nada
+    } catch (_) { /* offline */ }
 
     // Mostrar acceso al admin si el usuario tiene rol de profesor/administrador
     checkAdminAccess();
 }
 
+// AGREGAR:
 async function checkAdminAccess() {
     try {
         const res  = await fetch('/api/check-professor-role', { credentials: 'same-origin', headers: authHeaders() });
+        if (!res.ok) return;
         const data = await res.json();
-        if (res.ok && data.is_professor) {
+        if (data.is_professor) {
             const card = el('admin-access-card');
             if (card) card.style.display = 'block';
         }
-    } catch (_) { /* sin conexión o sin rol — no mostrar el botón */ }
+    } catch (_) { /* offline o sin rol — no mostrar */ }
 }
 
 // ── Historial personal ────────────────────────────────────────
@@ -198,8 +204,16 @@ async function handleQrData(raw) {
             const tipo = data.type === 'entrada' ? '⬆️ Entrada' : '⬇️ Salida';
             showResult(data.type === 'entrada' ? '✅' : '✔️', `${tipo} registrada`, `${data.time || ''} · ${data.date || ''}`);
             loadHistory();
+        // AGREGAR:
         } else {
-            showResult('❌', 'Error al registrar', escHtml(data.error || 'Token inválido o expirado'));
+            const isNotStaff = data.error && data.error.includes('no estás registrado');
+            showResult(
+                isNotStaff ? '⚠️' : '❌',
+                isNotStaff ? 'No registrado como personal' : 'Error al registrar',
+                isNotStaff
+                    ? 'Tu usuario existe pero no has sido dado de alta en el sistema de asistencia. Contacta al administrador.'
+                    : escHtml(data.error || 'Token inválido o expirado')
+            );
         }
     } catch (_) {
         showResult('⚠️', 'Sin conexión', 'Verifica tu red e inténtalo de nuevo.');

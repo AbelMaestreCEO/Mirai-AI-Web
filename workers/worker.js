@@ -1351,6 +1351,8 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return handleAttStaffCreate(request, env, corsHeaders);
     if (path === '/api/attendance/admin/staff' && request.method === 'PUT')
       return handleAttStaffUpdate(request, env, corsHeaders);
+    if (path === '/api/attendance/admin/lookup-user' && request.method === 'GET')
+    return handleAttLookupUser(request, env, corsHeaders);
 
     // Ruta: /api/inventory/list
     if (path === '/api/inventory/list' && request.method === 'GET') {
@@ -2525,20 +2527,26 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 // por lo que NO se puede usar el patrón `if (!userDni) return`.
 // Este wrapper devuelve { dni, errorResponse } para un manejo limpio.
 // ════════════════════════════════════════════════════════════
+// AGREGAR esto en su lugar:
 async function attRequireAdmin(request, env, corsHeaders) {
-    // requireAuth devuelve null si no hay sesión válida — siempre es un string o null
     const userDni = await requireAuth(request, env);
     if (!userDni || typeof userDni !== 'string') {
         return { dni: null, errorResponse: jsonResponse({ error: 'No autorizado' }, 401, corsHeaders) };
     }
-    // Verificar que sea profesor/admin en la tabla professors
-    const isProfessor = await isAuthorizedProfessor(userDni, env);
-    if (!isProfessor) {
-        return { dni: null, errorResponse: jsonResponse({ error: 'Acceso restringido a administradores' }, 403, corsHeaders) };
+    // Verificar rol directamente en la tabla professors (igual que isAuthorizedProfessor en worker.js)
+    try {
+        const professor = await env.MIRAI_AI_DB.prepare(
+            'SELECT dni FROM professors WHERE dni = ? AND is_active = 1'
+        ).bind(userDni.toUpperCase()).first();
+        if (!professor) {
+            return { dni: null, errorResponse: jsonResponse({ error: 'Acceso restringido a administradores' }, 403, corsHeaders) };
+        }
+    } catch (e) {
+        return { dni: null, errorResponse: jsonResponse({ error: 'Error verificando permisos' }, 500, corsHeaders) };
     }
     return { dni: userDni.toUpperCase(), errorResponse: null };
 }
- 
+
 // ════════════════════════════════════════════════════════════
 // HANDLERS — Empleado
 // ════════════════════════════════════════════════════════════
@@ -2755,23 +2763,69 @@ async function handleAttStaffList(request, env, corsHeaders) {
     }
 }
  
+// AGREGAR:
+// GET /api/attendance/admin/lookup-user?dni=XXX
+// Busca en users y devuelve nombre censurado para confirmar antes de registrar
+async function handleAttLookupUser(request, env, corsHeaders) {
+    const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+
+    const url = new URL(request.url);
+    const dni = (url.searchParams.get('dni') || '').toUpperCase().trim();
+    if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
+
+    try {
+        const user = await env.MIRAI_AI_DB.prepare(
+            'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
+        ).bind(dni).first();
+
+        if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
+
+        // Censurar email: a****m@g***.com
+        function censorEmail(email) {
+            const [local, domain] = email.split('@');
+            const cLocal  = local[0] + '****' + local[local.length - 1];
+            const [dName, dExt] = domain.split('.');
+            const cDomain = dName[0] + '***';
+            return `${cLocal}@${cDomain}.${dExt}`;
+        }
+
+        return jsonResponse({
+            found:      true,
+            full_name:  `${user.first_name} ${user.last_name}`,
+            email_hint: censorEmail(user.email),
+        }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+
 async function handleAttStaffCreate(request, env, corsHeaders) {
     const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
     if (errorResponse) return errorResponse;
- 
+
     let body;
     try { body = await request.json(); } catch (_) { body = {}; }
-    const { name, dni, department, position, email } = body;
-    if (!name || !dni) return jsonResponse({ error: 'Nombre y DNI requeridos' }, 400, corsHeaders);
- 
+    const { dni, department, position } = body;
+    if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
+
     try {
+        // Obtener nombre y email reales desde users
+        const user = await env.MIRAI_AI_DB.prepare(
+            'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
+        ).bind(dni.toUpperCase()).first();
+        if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
+
+        const name = `${user.first_name} ${user.last_name}`;
+
         await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_staff (id, name, dni, department, position, email)
             VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department || null, position || null, email || null).run();
-        return jsonResponse({ success: true }, 200, corsHeaders);
+        `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department || null, position || null, user.email).run();
+
+        return jsonResponse({ success: true, name }, 200, corsHeaders);
     } catch (e) {
-        const msg = e.message.includes('UNIQUE') ? 'Ya existe un empleado con ese DNI' : e.message;
+        const msg = e.message.includes('UNIQUE') ? 'Este empleado ya está registrado' : e.message;
         return jsonResponse({ error: msg }, 400, corsHeaders);
     }
 }
