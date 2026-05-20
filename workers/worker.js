@@ -13,7 +13,7 @@ const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 const VIDEO_CONFIG = {
   MODEL: 'xai/grok-imagine-video',
   DEFAULT_DURATION: 5,
-  DEFAULT_RESOLUTION: '480p', 
+  DEFAULT_RESOLUTION: '480p',
   ASPECT_RATIO: '16:9',
   MAX_PROMPT_LENGTH: 2000,
 };
@@ -1330,6 +1330,38 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return handleSetSystemPrompt(request, env, corsHeaders);
     }
 
+    // ── ASISTENCIA: Empleado ──────────────────────────────────
+    if (path === '/api/attendance/my-profile' && request.method === 'GET')
+      return handleAttMyProfile(request, env, corsHeaders);
+
+    if (path === '/api/attendance/my-history' && request.method === 'GET')
+      return handleAttMyHistory(request, env, corsHeaders);
+
+    if (path === '/api/attendance/record' && request.method === 'POST')
+      return handleAttRecord(request, env, corsHeaders);
+
+    // ── ASISTENCIA: Admin ──────────────────────────────────────
+    if (path === '/api/attendance/admin/active-qr' && request.method === 'GET')
+      return handleAttActiveQr(request, env, corsHeaders);
+
+    if (path === '/api/attendance/admin/generate-qr' && request.method === 'POST')
+      return handleAttGenerateQr(request, env, corsHeaders);
+
+    if (path === '/api/attendance/admin/records' && request.method === 'GET')
+      return handleAttAdminRecords(request, env, corsHeaders);
+
+    if (path === '/api/attendance/admin/stats' && request.method === 'GET')
+      return handleAttAdminStats(request, env, corsHeaders);
+
+    if (path === '/api/attendance/admin/staff' && request.method === 'GET')
+      return handleAttStaffList(request, env, corsHeaders);
+
+    if (path === '/api/attendance/admin/staff' && request.method === 'POST')
+      return handleAttStaffCreate(request, env, corsHeaders);
+
+    if (path === '/api/attendance/admin/staff' && request.method === 'PUT')
+      return handleAttStaffUpdate(request, env, corsHeaders);
+
     // Ruta: /api/inventory/list
     if (path === '/api/inventory/list' && request.method === 'GET') {
       return await handleInventoryList(request, env, corsHeaders);
@@ -2497,6 +2529,228 @@ async function processInventoryAI(productId, r2Key, specs, env) {
   }
 }
 
+// ════════════════════════════════════════════════════════════
+// HANDLERS — Empleado
+// ════════════════════════════════════════════════════════════
+ 
+async function handleAttMyProfile(request, env, corsHeaders) {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    try {
+        const staff = await env.MIRAI_AI_DB.prepare(
+            'SELECT name, dni, department, position, email FROM att_staff WHERE dni = ? AND is_active = 1'
+        ).bind(userDni.toUpperCase()).first();
+        if (!staff) return jsonResponse({ error: 'Personal no registrado' }, 404, corsHeaders);
+        return jsonResponse(staff, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttMyHistory(request, env, corsHeaders) {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    try {
+        const staff = await env.MIRAI_AI_DB.prepare(
+            'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
+        ).bind(userDni.toUpperCase()).first();
+        if (!staff) return jsonResponse({ records: [] }, 200, corsHeaders);
+ 
+        const { results } = await env.MIRAI_AI_DB.prepare(`
+            SELECT type, date, time FROM att_records
+            WHERE staff_id = ?
+            ORDER BY date DESC, time DESC
+            LIMIT 20
+        `).bind(staff.id).all();
+        return jsonResponse({ records: results }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttRecord(request, env, corsHeaders) {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+ 
+    const { qr_token } = await request.json();
+    if (!qr_token) return jsonResponse({ error: 'Token QR requerido' }, 400, corsHeaders);
+ 
+    try {
+        // 1. Validar sesión QR
+        const now     = new Date();
+        const session = await env.MIRAI_AI_DB.prepare(`
+            SELECT id, date, expires_at FROM att_qr_sessions
+            WHERE token = ? AND expires_at > datetime('now')
+        `).bind(qr_token).first();
+        if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
+ 
+        // 2. Obtener perfil del empleado
+        const staff = await env.MIRAI_AI_DB.prepare(
+            'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
+        ).bind(userDni.toUpperCase()).first();
+        if (!staff) return jsonResponse({ error: 'No estás registrado como personal' }, 403, corsHeaders);
+ 
+        // 3. Determinar tipo: si ya hay entrada hoy sin salida → salida, si no → entrada
+        const lastRecord = await env.MIRAI_AI_DB.prepare(`
+            SELECT type FROM att_records
+            WHERE staff_id = ? AND date = ?
+            ORDER BY time DESC LIMIT 1
+        `).bind(staff.id, session.date).first();
+        const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
+ 
+        const time = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+ 
+        // 4. Insertar registro
+        await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO att_records (id, session_id, staff_id, type, date, time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(crypto.randomUUID(), session.id, staff.id, type, session.date, time).run();
+ 
+        // 5. Incrementar scan_count del QR
+        await env.MIRAI_AI_DB.prepare(
+            'UPDATE att_qr_sessions SET scan_count = scan_count + 1 WHERE id = ?'
+        ).bind(session.id).run();
+ 
+        return jsonResponse({ success: true, type, date: session.date, time }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+// ════════════════════════════════════════════════════════════
+// HANDLERS — Admin
+// ════════════════════════════════════════════════════════════
+ 
+async function handleAttActiveQr(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    const url  = new URL(request.url);
+    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+    try {
+        const session = await env.MIRAI_AI_DB.prepare(
+            'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ?'
+        ).bind(date).first();
+        if (!session) return jsonResponse({ error: 'Sin QR activo para esta fecha' }, 404, corsHeaders);
+        return jsonResponse(session, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttGenerateQr(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    const { date } = await request.json().catch(() => ({}));
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const token      = crypto.randomUUID();
+    const expiresAt  = `${targetDate} 23:59:59`;
+    try {
+        // Eliminar sesión previa del mismo día si existe
+        await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ?').bind(targetDate).run();
+        await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by)
+            VALUES (?, ?, ?, ?, 0, ?)
+        `).bind(crypto.randomUUID(), token, targetDate, expiresAt, userDni.toUpperCase()).run();
+        return jsonResponse({ success: true, token, date: targetDate, expires_at: expiresAt, scan_count: 0 }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttAdminRecords(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    const url    = new URL(request.url);
+    const date   = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const type   = url.searchParams.get('type');
+    try {
+        let query = `
+            SELECT r.id, r.type, r.date, r.time, r.session_id,
+                   s.name AS staff_name, s.dni AS staff_dni, s.department, s.position
+            FROM att_records r
+            JOIN att_staff s ON r.staff_id = s.id
+            WHERE r.date = ?`;
+        const bindings = [date];
+        if (type && type !== 'todos') { query += ' AND r.type = ?'; bindings.push(type); }
+        query += ' ORDER BY r.time DESC';
+        const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
+        return jsonResponse({ records: results }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttAdminStats(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    const url  = new URL(request.url);
+    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+    try {
+        const [totalStaff, records] = await Promise.all([
+            env.MIRAI_AI_DB.prepare('SELECT COUNT(*) AS c FROM att_staff WHERE is_active = 1').first(),
+            env.MIRAI_AI_DB.prepare(`
+                SELECT type, COUNT(*) AS c FROM att_records WHERE date = ? GROUP BY type
+            `).bind(date).all(),
+        ]);
+        const entries = records.results.find(r => r.type === 'entrada')?.c ?? 0;
+        const exits   = records.results.find(r => r.type === 'salida')?.c  ?? 0;
+        return jsonResponse({
+            total_staff:   totalStaff?.c ?? 0,
+            total_today:   entries + exits,
+            total_entries: entries,
+            total_exits:   exits,
+        }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttStaffList(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    try {
+        const { results } = await env.MIRAI_AI_DB.prepare(
+            'SELECT id, name, dni, department, position, email, is_active FROM att_staff ORDER BY name'
+        ).all();
+        return jsonResponse({ staff: results }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+ 
+async function handleAttStaffCreate(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    const { name, dni, department, position, email } = await request.json();
+    if (!name || !dni) return jsonResponse({ error: 'Nombre y DNI requeridos' }, 400, corsHeaders);
+    try {
+        await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO att_staff (id, name, dni, department, position, email)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department||null, position||null, email||null).run();
+        return jsonResponse({ success: true }, 200, corsHeaders);
+    } catch (e) {
+        const msg = e.message.includes('UNIQUE') ? 'Ya existe un empleado con ese DNI' : e.message;
+        return jsonResponse({ error: msg }, 400, corsHeaders);
+    }
+}
+ 
+async function handleAttStaffUpdate(request, env, corsHeaders) {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni) return;
+    const { id, name, dni, department, position, email } = await request.json();
+    if (!id || !name || !dni) return jsonResponse({ error: 'Datos incompletos' }, 400, corsHeaders);
+    try {
+        await env.MIRAI_AI_DB.prepare(`
+            UPDATE att_staff SET name=?, dni=?, department=?, position=?, email=?, updated_at=datetime('now')
+            WHERE id=?
+        `).bind(name, dni.toUpperCase(), department||null, position||null, email||null, id).run();
+        return jsonResponse({ success: true }, 200, corsHeaders);
+    } catch (e) {
+        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    }
+}
+
 // ============================================
 // ACTUALIZAR PRODUCTO (EDITAR)
 // ============================================
@@ -3175,9 +3429,9 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     // 1. Llamada a Cloudflare AI
     const aiResponse = await env.AI.run(
       'xai/grok-imagine-image',
-      { 
-        prompt: prompt, 
-        aspect_ratio: '1:1' 
+      {
+        prompt: prompt,
+        aspect_ratio: '1:1'
       }
     );
 
@@ -3215,22 +3469,22 @@ async function generateAndStoreImage(prompt, conversationId, env) {
 
         console.log(`🔗 Se detectó una URL externa de Grok: ${targetUrl}`);
         console.log('📥 Descargando imagen binaria desde los servidores de x.ai...');
-        
+
         const imageFetch = await fetch(targetUrl, {
           headers: { 'User-Agent': 'Cloudflare-Worker' }
         });
-        
+
         if (!imageFetch.ok) {
           throw new Error(`Error al descargar la imagen remota de x.ai: Status ${imageFetch.status}`);
         }
-        
+
         imageBuffer = await imageFetch.arrayBuffer();
         console.log(`✅ Imagen descargada con éxito. Tamaño: ${imageBuffer.byteLength} bytes`);
-        
+
       } else {
         // No es una URL, procesamos como un String Base64 tradicional
         const cleanBase64 = rawString.replace(/^data:image\/[a-z]+;base64,/, '').trim();
-        
+
         // Si no cumple el tamaño mínimo y no era una URL, es un error del upstream
         if (cleanBase64.length < 1000) {
           throw new Error(`El texto devuelto no es una URL ni un Base64 válido: ${cleanBase64}`);
@@ -3413,7 +3667,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     } else if (videoResult) {
       // Si viene encapsulado en propiedades de objeto comunes en Cloudflare AI
       const rawField = videoResult.video || videoResult.result?.video || videoResult.response;
-      
+
       if (typeof rawField === 'string') {
         const cleanField = rawField.trim();
         // Verificar si Grok nos entregó una URL temporal de descarga rápida
