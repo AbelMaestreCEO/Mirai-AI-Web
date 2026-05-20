@@ -77,7 +77,28 @@
   @media (min-width: 768px) {
     .welcome-cards-grid {
       grid-template-columns: repeat(4, 1fr) !important;
+      max-width: 100% !important;
+      padding-left: 16px !important;
+      padding-right: 16px !important;
     }
+    .welcome-main {
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+      max-width: 100% !important;
+    }
+  }
+
+  /* Tarjeta en columna: icono arriba, luego título y descripción */
+  .welcome-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  .welcome-card-icon {
+    margin-bottom: 8px !important;
+    align-self: flex-start !important;
+  }
+  .welcome-card-body {
+    width: 100% !important;
   }
 </style>
 </head>
