@@ -12,9 +12,9 @@ const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 // ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
 const VIDEO_CONFIG = {
   MODEL: 'xai/grok-imagine-video',
-  DEFAULT_DURATION: 5,        // Ajustado al inicio rápido (soporta hasta 15s)
-  DEFAULT_RESOLUTION: '720p',  // Cambiado a minúsculas conforme a la documentación ("480p" | "720p")
-  ASPECT_RATIO: '16:9',        // Parámetro nativo de Grok
+  DEFAULT_DURATION: 5,
+  DEFAULT_RESOLUTION: '480p', 
+  ASPECT_RATIO: '16:9',
   MAX_PROMPT_LENGTH: 2000,
 };
 
@@ -3378,62 +3378,76 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     console.log('🎬 Iniciando generación de video con Grok Imagine Video (Solo Texto)');
     console.log('🎬 Prompt original:', prompt);
 
-    // 1. Guardar traza inicial de la petición del usuario en la base de datos
+    // 1. Guardar traza inicial en la base de datos
     await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
-    // 2. Simplificar o validar el prompt de texto si excede los límites del modelo
     const videoPrompt = simplifyVideoPrompt(prompt);
     console.log('🎬 Video prompt final:', videoPrompt);
 
-    // 3. Llamar a Grok Imagine Video usando únicamente el Prompt de texto
+    // 2. Invocación al modelo optimizando resolución para evitar el Timeout de Cloudflare (50s)
     console.log('🚀 Invocando env.AI.run con xai/grok-imagine-video (Text-to-Video)...');
     const videoResult = await env.AI.run(
       VIDEO_CONFIG.MODEL,
       {
         prompt: videoPrompt,
-        duration: VIDEO_CONFIG.DEFAULT_DURATION,
-        aspect_ratio: VIDEO_CONFIG.ASPECT_RATIO,
-        resolution: VIDEO_CONFIG.DEFAULT_RESOLUTION,
-        // ❌ Se eliminó por completo el objeto 'image' de referencia
+        duration: 5,               // Mantener duración corta para velocidad
+        aspect_ratio: '16:9',
+        resolution: '480p',        // Reducido temporalmente de 720p a 480p para ganancia de velocidad
       },
       {
         gateway: { id: 'default' },
       }
     );
 
-    // 4. Extraer y procesar el Buffer de salida del Video
-    let videoBuffer = null;
+    console.log('📦 Respuesta cruda recibida de Grok Video:', JSON.stringify(videoResult).substring(0, 500));
 
+    let videoBuffer = null;
+    let videoUrlTarget = null;
+
+    // 3. Extracción adaptativa (Buffer, Base64 o URL remota de x.ai)
     if (videoResult instanceof ArrayBuffer && videoResult.byteLength > 0) {
       videoBuffer = videoResult;
     } else if (videoResult instanceof Uint8Array && videoResult.byteLength > 0) {
       videoBuffer = videoResult.buffer;
-    } else if (videoResult?.video) { 
-      const videoData = videoResult.video;
-      if (typeof videoData === 'string') {
-        const binaryString = atob(videoData);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-        videoBuffer = bytes.buffer;
-      } else if (videoData instanceof ArrayBuffer) {
-        videoBuffer = videoData;
+    } else if (videoResult) {
+      // Si viene encapsulado en propiedades de objeto comunes en Cloudflare AI
+      const rawField = videoResult.video || videoResult.result?.video || videoResult.response;
+      
+      if (typeof rawField === 'string') {
+        const cleanField = rawField.trim();
+        // Verificar si Grok nos entregó una URL temporal de descarga rápida
+        if (cleanField.startsWith('http://') || cleanField.startsWith('https://') || cleanField.includes('x.ai')) {
+          videoUrlTarget = cleanField;
+        } else {
+          // Si es un string largo es codificación Base64
+          const binaryString = atob(cleanField.replace(/^data:video\/[a-z0-9]+;base64,/, ''));
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+          videoBuffer = bytes.buffer;
+        }
       }
-    } else if (videoResult?.error) {
-      const errorMsg = videoResult.error?.message || 'Error desconocido';
-      if (errorMsg.includes('unavailable')) {
-        const fallbackMsg = "🎬 Servicio de video de xAI no disponible temporalmente.";
-        await saveMessage(conversationId, 'assistant', fallbackMsg, env);
-        return jsonResponse({ type: 'video', response: fallbackMsg, status: 'service_unavailable' }, 200, corsHeaders);
-      }
-      throw new Error(`Grok Video error: ${errorMsg}`);
     }
 
+    // 4. Si se interceptó una URL remota de xAI, la descargamos de inmediato
+    if (videoUrlTarget) {
+      console.log(`🔗 Descargando archivo de video remoto detectado: ${videoUrlTarget}`);
+      const videoFetch = await fetch(videoUrlTarget, {
+        headers: { 'User-Agent': 'Cloudflare-Worker' }
+      });
+      if (!videoFetch.ok) {
+        throw new Error(`Fallo en la descarga del video desde x.ai externo: Status ${videoFetch.status}`);
+      }
+      videoBuffer = await videoFetch.arrayBuffer();
+      console.log(`✅ Video descargado con éxito: ${videoBuffer.byteLength} bytes`);
+    }
+
+    // 5. Validar si obtuvimos datos binarios correctos
     if (!videoBuffer || videoBuffer.byteLength === 0) {
-      throw new Error('No se recibió un video válido desde el modelo xAI');
+      throw new Error(`No se recibió un video válido desde el modelo xAI. Respuesta: ${JSON.stringify(videoResult)}`);
     }
 
-    // 5. Guardar el archivo final .mp4 en tu bucket R2
+    // 6. Guardar el archivo final .mp4 en R2
     const uniqueId = crypto.randomUUID();
     const videoFilename = `videos/${uniqueId}.mp4`;
 
@@ -3450,14 +3464,12 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     const videoUrl = `/api/video/${videoFilename}`;
     const assistantContent = `🎬 Aquí tienes el video generado a partir de tu prompt:`;
 
-    // 6. Registrar en la base de datos D1. 
-    // Como ya no hay imagen base, pasamos null en el parámetro de la miniatura (thumbnailUrl)
     await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
 
     return jsonResponse({
       type: 'video',
       video_url: videoUrl,
-      thumbnail_url: null, // Sin miniatura de frame inicial estático
+      thumbnail_url: null,
       prompt: prompt,
     }, 200, corsHeaders);
 
