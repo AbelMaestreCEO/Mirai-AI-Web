@@ -3375,32 +3375,19 @@ async function sendRecoveryEmail(email, token, env) {
 
 async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders) {
   try {
-    console.log('🎬 Iniciando generación de video con Grok Imagine Video');
+    console.log('🎬 Iniciando generación de video con Grok Imagine Video (Solo Texto)');
     console.log('🎬 Prompt original:', prompt);
 
-    // Guardar traza en la base de datos
+    // 1. Guardar traza inicial de la petición del usuario en la base de datos
     await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
-    // 2. Generar imagen base (primer frame) con Flux.2
-    console.log('🖼️ Generando primer frame con Flux.2...');
-    const imagePrompt = buildVideoFirstFramePrompt(prompt);
-    const imageR2Key = await generateFirstFrameImage(imagePrompt, conversationId, userDni, env);
-
-    if (!imageR2Key) {
-      throw new Error('No se pudo generar la imagen base para el video');
-    }
-
-    // 3. Construir URL pública de la imagen para enviarla a Grok
-    const imageUrl = `https://aiassets.aberumirai.com/${imageR2Key}`;
-    console.log('🖼️ Primer frame URL:', imageUrl);
-
-    // 4. Simplificar prompt si excede los límites
+    // 2. Simplificar o validar el prompt de texto si excede los límites del modelo
     const videoPrompt = simplifyVideoPrompt(prompt);
     console.log('🎬 Video prompt final:', videoPrompt);
 
-    // 5. Llamar a Grok Imagine Video usando Cloudflare Workers AI
-    console.log('🚀 Invocando env.AI.run con xai/grok-imagine-video...');
+    // 3. Llamar a Grok Imagine Video usando únicamente el Prompt de texto
+    console.log('🚀 Invocando env.AI.run con xai/grok-imagine-video (Text-to-Video)...');
     const videoResult = await env.AI.run(
       VIDEO_CONFIG.MODEL,
       {
@@ -3408,26 +3395,21 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
         duration: VIDEO_CONFIG.DEFAULT_DURATION,
         aspect_ratio: VIDEO_CONFIG.ASPECT_RATIO,
         resolution: VIDEO_CONFIG.DEFAULT_RESOLUTION,
-        // Mandamos la imagen base generada por Flux como contexto de Image-to-Video
-        image: {
-          url: imageUrl
-        }
+        // ❌ Se eliminó por completo el objeto 'image' de referencia
       },
       {
         gateway: { id: 'default' },
       }
     );
 
-    // 6. Extraer y procesar el Buffer de salida
+    // 4. Extraer y procesar el Buffer de salida del Video
     let videoBuffer = null;
 
-    // Si devuelve formato ArrayBuffer / Uint8Array directo
     if (videoResult instanceof ArrayBuffer && videoResult.byteLength > 0) {
       videoBuffer = videoResult;
     } else if (videoResult instanceof Uint8Array && videoResult.byteLength > 0) {
       videoBuffer = videoResult.buffer;
     } else if (videoResult?.video) { 
-      // Si el modelo retorna el esquema { video: "base64..." } de acuerdo a la documentación de salida
       const videoData = videoResult.video;
       if (typeof videoData === 'string') {
         const binaryString = atob(videoData);
@@ -3451,7 +3433,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
       throw new Error('No se recibió un video válido desde el modelo xAI');
     }
 
-    // 7. Guardar el archivo final .mp4 en R2
+    // 5. Guardar el archivo final .mp4 en tu bucket R2
     const uniqueId = crypto.randomUUID();
     const videoFilename = `videos/${uniqueId}.mp4`;
 
@@ -3461,22 +3443,21 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
         prompt: prompt.substring(0, 200),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: VIDEO_CONFIG.MODEL,
-        first_frame_r2_key: imageR2Key,
+        model: VIDEO_CONFIG.MODEL
       }
     });
 
     const videoUrl = `/api/video/${videoFilename}`;
-    const thumbnailUrl = `/api/image/${imageR2Key}`;
-    const assistantContent = `🎬 Aquí tienes el video que pediste:`;
+    const assistantContent = `🎬 Aquí tienes el video generado a partir de tu prompt:`;
 
-    // Guardar en base de datos para el historial del chat
-    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, thumbnailUrl, userDni);
+    // 6. Registrar en la base de datos D1. 
+    // Como ya no hay imagen base, pasamos null en el parámetro de la miniatura (thumbnailUrl)
+    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
 
     return jsonResponse({
       type: 'video',
       video_url: videoUrl,
-      thumbnail_url: thumbnailUrl,
+      thumbnail_url: null, // Sin miniatura de frame inicial estático
       prompt: prompt,
     }, 200, corsHeaders);
 
