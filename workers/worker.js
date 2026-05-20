@@ -1333,32 +1333,22 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // ── ASISTENCIA: Empleado ──────────────────────────────────
     if (path === '/api/attendance/my-profile' && request.method === 'GET')
       return handleAttMyProfile(request, env, corsHeaders);
-
     if (path === '/api/attendance/my-history' && request.method === 'GET')
       return handleAttMyHistory(request, env, corsHeaders);
-
     if (path === '/api/attendance/record' && request.method === 'POST')
       return handleAttRecord(request, env, corsHeaders);
-
-    // ── ASISTENCIA: Admin ──────────────────────────────────────
     if (path === '/api/attendance/admin/active-qr' && request.method === 'GET')
       return handleAttActiveQr(request, env, corsHeaders);
-
     if (path === '/api/attendance/admin/generate-qr' && request.method === 'POST')
       return handleAttGenerateQr(request, env, corsHeaders);
-
     if (path === '/api/attendance/admin/records' && request.method === 'GET')
       return handleAttAdminRecords(request, env, corsHeaders);
-
     if (path === '/api/attendance/admin/stats' && request.method === 'GET')
       return handleAttAdminStats(request, env, corsHeaders);
-
     if (path === '/api/attendance/admin/staff' && request.method === 'GET')
       return handleAttStaffList(request, env, corsHeaders);
-
     if (path === '/api/attendance/admin/staff' && request.method === 'POST')
       return handleAttStaffCreate(request, env, corsHeaders);
-
     if (path === '/api/attendance/admin/staff' && request.method === 'PUT')
       return handleAttStaffUpdate(request, env, corsHeaders);
 
@@ -2530,12 +2520,34 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 }
 
 // ════════════════════════════════════════════════════════════
+// HELPER: autenticación normalizada para rutas admin
+// requireProfessorAuth() retorna la Response directamente cuando falla,
+// por lo que NO se puede usar el patrón `if (!userDni) return`.
+// Este wrapper devuelve { dni, errorResponse } para un manejo limpio.
+// ════════════════════════════════════════════════════════════
+async function attRequireAdmin(request, env, corsHeaders) {
+    // requireAuth devuelve null si no hay sesión válida — siempre es un string o null
+    const userDni = await requireAuth(request, env);
+    if (!userDni || typeof userDni !== 'string') {
+        return { dni: null, errorResponse: jsonResponse({ error: 'No autorizado' }, 401, corsHeaders) };
+    }
+    // Verificar que sea profesor/admin en la tabla professors
+    const isProfessor = await isAuthorizedProfessor(userDni, env);
+    if (!isProfessor) {
+        return { dni: null, errorResponse: jsonResponse({ error: 'Acceso restringido a administradores' }, 403, corsHeaders) };
+    }
+    return { dni: userDni.toUpperCase(), errorResponse: null };
+}
+ 
+// ════════════════════════════════════════════════════════════
 // HANDLERS — Empleado
 // ════════════════════════════════════════════════════════════
  
 async function handleAttMyProfile(request, env, corsHeaders) {
     const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    if (!userDni || typeof userDni !== 'string') {
+        return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
     try {
         const staff = await env.MIRAI_AI_DB.prepare(
             'SELECT name, dni, department, position, email FROM att_staff WHERE dni = ? AND is_active = 1'
@@ -2549,7 +2561,9 @@ async function handleAttMyProfile(request, env, corsHeaders) {
  
 async function handleAttMyHistory(request, env, corsHeaders) {
     const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    if (!userDni || typeof userDni !== 'string') {
+        return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
     try {
         const staff = await env.MIRAI_AI_DB.prepare(
             'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
@@ -2570,27 +2584,30 @@ async function handleAttMyHistory(request, env, corsHeaders) {
  
 async function handleAttRecord(request, env, corsHeaders) {
     const userDni = await requireAuth(request, env);
-    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    if (!userDni || typeof userDni !== 'string') {
+        return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+    }
  
-    const { qr_token } = await request.json();
+    let body;
+    try { body = await request.json(); } catch (_) { body = {}; }
+    const { qr_token } = body;
     if (!qr_token) return jsonResponse({ error: 'Token QR requerido' }, 400, corsHeaders);
  
     try {
-        // 1. Validar sesión QR
-        const now     = new Date();
+        // 1. Validar sesión QR (no expirada)
         const session = await env.MIRAI_AI_DB.prepare(`
-            SELECT id, date, expires_at FROM att_qr_sessions
+            SELECT id, date FROM att_qr_sessions
             WHERE token = ? AND expires_at > datetime('now')
         `).bind(qr_token).first();
         if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
  
-        // 2. Obtener perfil del empleado
+        // 2. Buscar al empleado
         const staff = await env.MIRAI_AI_DB.prepare(
             'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
         ).bind(userDni.toUpperCase()).first();
-        if (!staff) return jsonResponse({ error: 'No estás registrado como personal' }, 403, corsHeaders);
+        if (!staff) return jsonResponse({ error: 'No estás registrado como personal activo' }, 403, corsHeaders);
  
-        // 3. Determinar tipo: si ya hay entrada hoy sin salida → salida, si no → entrada
+        // 3. Determinar si es entrada o salida
         const lastRecord = await env.MIRAI_AI_DB.prepare(`
             SELECT type FROM att_records
             WHERE staff_id = ? AND date = ?
@@ -2598,6 +2615,7 @@ async function handleAttRecord(request, env, corsHeaders) {
         `).bind(staff.id, session.date).first();
         const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
  
+        const now  = new Date();
         const time = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
  
         // 4. Insertar registro
@@ -2606,7 +2624,7 @@ async function handleAttRecord(request, env, corsHeaders) {
             VALUES (?, ?, ?, ?, ?, ?)
         `).bind(crypto.randomUUID(), session.id, staff.id, type, session.date, time).run();
  
-        // 5. Incrementar scan_count del QR
+        // 5. Incrementar scan_count
         await env.MIRAI_AI_DB.prepare(
             'UPDATE att_qr_sessions SET scan_count = scan_count + 1 WHERE id = ?'
         ).bind(session.id).run();
@@ -2622,8 +2640,9 @@ async function handleAttRecord(request, env, corsHeaders) {
 // ════════════════════════════════════════════════════════════
  
 async function handleAttActiveQr(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
+    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+ 
     const url  = new URL(request.url);
     const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
     try {
@@ -2638,41 +2657,55 @@ async function handleAttActiveQr(request, env, corsHeaders) {
 }
  
 async function handleAttGenerateQr(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
-    const { date } = await request.json().catch(() => ({}));
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+ 
+    let body;
+    try { body = await request.json(); } catch (_) { body = {}; }
+    const targetDate = body.date || new Date().toISOString().split('T')[0];
     const token      = crypto.randomUUID();
     const expiresAt  = `${targetDate} 23:59:59`;
+ 
     try {
-        // Eliminar sesión previa del mismo día si existe
+        // Reemplazar sesión previa del mismo día
         await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ?').bind(targetDate).run();
         await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by)
             VALUES (?, ?, ?, ?, 0, ?)
-        `).bind(crypto.randomUUID(), token, targetDate, expiresAt, userDni.toUpperCase()).run();
-        return jsonResponse({ success: true, token, date: targetDate, expires_at: expiresAt, scan_count: 0 }, 200, corsHeaders);
+        `).bind(crypto.randomUUID(), token, targetDate, expiresAt, dni).run();
+ 
+        return jsonResponse({
+            success:    true,
+            token,
+            date:       targetDate,
+            expires_at: expiresAt,
+            scan_count: 0,
+        }, 200, corsHeaders);
     } catch (e) {
         return jsonResponse({ error: e.message }, 500, corsHeaders);
     }
 }
  
 async function handleAttAdminRecords(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
-    const url    = new URL(request.url);
-    const date   = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
-    const type   = url.searchParams.get('type');
+    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+ 
+    const url  = new URL(request.url);
+    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const type = url.searchParams.get('type');
+ 
     try {
         let query = `
             SELECT r.id, r.type, r.date, r.time, r.session_id,
-                   s.name AS staff_name, s.dni AS staff_dni, s.department, s.position
+                   s.name AS staff_name, s.dni AS staff_dni,
+                   s.department, s.position
             FROM att_records r
             JOIN att_staff s ON r.staff_id = s.id
             WHERE r.date = ?`;
         const bindings = [date];
         if (type && type !== 'todos') { query += ' AND r.type = ?'; bindings.push(type); }
         query += ' ORDER BY r.time DESC';
+ 
         const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
         return jsonResponse({ records: results }, 200, corsHeaders);
     } catch (e) {
@@ -2681,19 +2714,23 @@ async function handleAttAdminRecords(request, env, corsHeaders) {
 }
  
 async function handleAttAdminStats(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
+    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+ 
     const url  = new URL(request.url);
     const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+ 
     try {
-        const [totalStaff, records] = await Promise.all([
-            env.MIRAI_AI_DB.prepare('SELECT COUNT(*) AS c FROM att_staff WHERE is_active = 1').first(),
-            env.MIRAI_AI_DB.prepare(`
-                SELECT type, COUNT(*) AS c FROM att_records WHERE date = ? GROUP BY type
-            `).bind(date).all(),
-        ]);
-        const entries = records.results.find(r => r.type === 'entrada')?.c ?? 0;
-        const exits   = records.results.find(r => r.type === 'salida')?.c  ?? 0;
+        const totalStaff = await env.MIRAI_AI_DB.prepare(
+            'SELECT COUNT(*) AS c FROM att_staff WHERE is_active = 1'
+        ).first();
+        const { results } = await env.MIRAI_AI_DB.prepare(
+            'SELECT type, COUNT(*) AS c FROM att_records WHERE date = ? GROUP BY type'
+        ).bind(date).all();
+ 
+        const entries = results.find(r => r.type === 'entrada')?.c ?? 0;
+        const exits   = results.find(r => r.type === 'salida')?.c  ?? 0;
+ 
         return jsonResponse({
             total_staff:   totalStaff?.c ?? 0,
             total_today:   entries + exits,
@@ -2706,8 +2743,8 @@ async function handleAttAdminStats(request, env, corsHeaders) {
 }
  
 async function handleAttStaffList(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
+    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
     try {
         const { results } = await env.MIRAI_AI_DB.prepare(
             'SELECT id, name, dni, department, position, email, is_active FROM att_staff ORDER BY name'
@@ -2719,15 +2756,19 @@ async function handleAttStaffList(request, env, corsHeaders) {
 }
  
 async function handleAttStaffCreate(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
-    const { name, dni, department, position, email } = await request.json();
+    const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+ 
+    let body;
+    try { body = await request.json(); } catch (_) { body = {}; }
+    const { name, dni, department, position, email } = body;
     if (!name || !dni) return jsonResponse({ error: 'Nombre y DNI requeridos' }, 400, corsHeaders);
+ 
     try {
         await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_staff (id, name, dni, department, position, email)
             VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department||null, position||null, email||null).run();
+        `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department || null, position || null, email || null).run();
         return jsonResponse({ success: true }, 200, corsHeaders);
     } catch (e) {
         const msg = e.message.includes('UNIQUE') ? 'Ya existe un empleado con ese DNI' : e.message;
@@ -2736,15 +2777,20 @@ async function handleAttStaffCreate(request, env, corsHeaders) {
 }
  
 async function handleAttStaffUpdate(request, env, corsHeaders) {
-    const userDni = await requireProfessorAuth(request, env, corsHeaders);
-    if (!userDni) return;
-    const { id, name, dni, department, position, email } = await request.json();
+    const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+    if (errorResponse) return errorResponse;
+ 
+    let body;
+    try { body = await request.json(); } catch (_) { body = {}; }
+    const { id, name, dni, department, position, email } = body;
     if (!id || !name || !dni) return jsonResponse({ error: 'Datos incompletos' }, 400, corsHeaders);
+ 
     try {
         await env.MIRAI_AI_DB.prepare(`
-            UPDATE att_staff SET name=?, dni=?, department=?, position=?, email=?, updated_at=datetime('now')
+            UPDATE att_staff
+            SET name=?, dni=?, department=?, position=?, email=?, updated_at=datetime('now')
             WHERE id=?
-        `).bind(name, dni.toUpperCase(), department||null, position||null, email||null, id).run();
+        `).bind(name, dni.toUpperCase(), department || null, position || null, email || null, id).run();
         return jsonResponse({ success: true }, 200, corsHeaders);
     } catch (e) {
         return jsonResponse({ error: e.message }, 500, corsHeaders);
