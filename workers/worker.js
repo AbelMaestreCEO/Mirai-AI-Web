@@ -3186,42 +3186,55 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       throw new Error('No se recibió respuesta del modelo de IA');
     }
 
-    let imageBuffer;
+    let imageBuffer = null;
     let rawString = null;
 
-    // 2. Extraer el contenido de texto (si aplica) según la estructura de respuesta
-    if (aiResponse.image && typeof aiResponse.image === 'string') {
+    // 2. Extraer el contenido de texto o binario según la estructura que devuelva Cloudflare
+    if (aiResponse instanceof ArrayBuffer) {
+      imageBuffer = aiResponse;
+    } else if (aiResponse.body && aiResponse.body instanceof ReadableStream) {
+      const response = new Response(aiResponse.body);
+      imageBuffer = await response.arrayBuffer();
+    } else if (aiResponse.image && typeof aiResponse.image === 'string') {
       rawString = aiResponse.image.trim();
     } else if (aiResponse.result && typeof aiResponse.result.image === 'string') {
       rawString = aiResponse.result.image.trim();
     } else if (typeof aiResponse === 'string') {
       rawString = aiResponse.trim();
-    } else if (aiResponse instanceof ArrayBuffer) {
-      imageBuffer = aiResponse;
-    } else if (aiResponse.body && aiResponse.body instanceof ReadableStream) {
-      const response = new Response(aiResponse.body);
-      imageBuffer = await response.arrayBuffer();
+    } else if (aiResponse.result && aiResponse.result.response) {
+      // Caso alternativo si viene estructurado como un response object
+      rawString = String(aiResponse.result.response).trim();
     }
 
-    // 3. Si es un String, evaluar si es una URL o Base64
+    // 3. Evaluar la cadena obtenida (si es una URL de x.ai o una cadena Base64)
     if (rawString) {
-      if (rawString.startsWith('http://') || rawString.startsWith('https://')) {
-        console.log(`🔗 Se detectó una URL externa de Grok: ${rawString}`);
-        console.log('📥 Descargando imagen binaria desde la URL de x.ai...');
+      // Verificación prioritaria: ¿Es una URL HTTP/HTTPS?
+      if (rawString.startsWith('http://') || rawString.startsWith('https://') || rawString.includes('imgen.x.ai')) {
+        // En caso de que venga con comillas o texto extra por error, limpiamos la URL
+        const urlMatch = rawString.match(/https?:\/\/[^\s"']+/);
+        const targetUrl = urlMatch ? urlMatch[0] : rawString;
+
+        console.log(`🔗 Se detectó una URL externa de Grok: ${targetUrl}`);
+        console.log('📥 Descargando imagen binaria desde los servidores de x.ai...');
         
-        const imageFetch = await fetch(rawString);
+        const imageFetch = await fetch(targetUrl, {
+          headers: { 'User-Agent': 'Cloudflare-Worker' }
+        });
+        
         if (!imageFetch.ok) {
           throw new Error(`Error al descargar la imagen remota de x.ai: Status ${imageFetch.status}`);
         }
+        
         imageBuffer = await imageFetch.arrayBuffer();
         console.log(`✅ Imagen descargada con éxito. Tamaño: ${imageBuffer.byteLength} bytes`);
         
       } else {
-        // Es un Base64 tradicional
+        // No es una URL, procesamos como un String Base64 tradicional
         const cleanBase64 = rawString.replace(/^data:image\/[a-z]+;base64,/, '').trim();
         
+        // Si no cumple el tamaño mínimo y no era una URL, es un error del upstream
         if (cleanBase64.length < 1000) {
-          throw new Error(`El string no es Base64 ni una URL válida: ${cleanBase64}`);
+          throw new Error(`El texto devuelto no es una URL ni un Base64 válido: ${cleanBase64}`);
         }
 
         const binaryString = atob(cleanBase64);
@@ -3233,15 +3246,16 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       }
     }
 
+    // 4. Validar que tengamos los datos binarios listos antes de ir a R2
     if (!imageBuffer || imageBuffer.byteLength === 0) {
       throw new Error('El buffer binario de la imagen está vacío o no se pudo procesar');
     }
 
-    // 4. Subir el binario resultante a R2 de manera limpia
+    // 5. Almacenar el archivo binario en tu R2 Bucket
     const imageId = crypto.randomUUID();
     const r2Key = `generated-images/${conversationId}/${imageId}.png`;
 
-    console.log(`📤 Guardando en R2: ${r2Key}`);
+    console.log(`📤 Subiendo archivo binario a R2: ${r2Key}`);
     await env.MIRAI_AI_ASSETS.put(r2Key, imageBuffer, {
       httpMetadata: { contentType: 'image/png' },
       customMetadata: {
@@ -3251,15 +3265,15 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       }
     });
 
-    // 5. Registrar el mensaje de la imagen en tu base de datos D1
+    // 6. Registrar la respuesta de tipo "image" en tu base de datos D1
     const imageUrl = `/api/image/${r2Key}`;
     await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
 
-    console.log(`✨ Proceso completado exitosamente para la imagen: ${imageUrl}`);
+    console.log(`✨ Proceso completado exitosamente. URL interna: ${imageUrl}`);
     return imageUrl;
 
   } catch (error) {
-    console.error('❌ Error en generateAndStoreImage (xai/grok-imagine-image):', error.message);
+    console.error('❌ Error crítico en generateAndStoreImage:', error.message);
     throw error;
   }
 }
