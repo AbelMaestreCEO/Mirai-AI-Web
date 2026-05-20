@@ -2950,14 +2950,14 @@ async function handleUploadAvatar(request, env, corsHeaders) {
     ).bind(userDni).first();
 
     if (existing?.avatar_r2_key) {
-      await env.MIRAI_PHOTOS.delete(existing.avatar_r2_key).catch(() => null);
+      await env.MIRAI_AI_ASSETS.delete(existing.avatar_r2_key).catch(() => null);
     }
 
     // Guardar en R2: avatars/{dni}.jpg (sobreescribe siempre)
     const r2Key = `avatars/${userDni.toLowerCase()}.jpg`;
     const imageBuffer = await file.arrayBuffer();
 
-    await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
+    await env.MIRAI_AI_ASSETS.put(r2Key, imageBuffer, {
       httpMetadata: {
         contentType: 'image/jpeg',
         cacheControl: 'public, max-age=86400'
@@ -2996,7 +2996,7 @@ async function handleDeleteAvatar(request, env, corsHeaders) {
     ).bind(userDni).first();
 
     if (user?.avatar_r2_key) {
-      await env.MIRAI_PHOTOS.delete(user.avatar_r2_key).catch(() => null);
+      await env.MIRAI_AI_ASSETS.delete(user.avatar_r2_key).catch(() => null);
       await env.MIRAI_AI_DB.prepare(
         "UPDATE users SET avatar_r2_key = NULL WHERE dni = ?"
       ).bind(userDni).run();
@@ -3028,7 +3028,7 @@ async function handleServeAvatar(request, env, corsHeaders) {
       return new Response('No avatar', { status: 404 });
     }
 
-    const object = await env.MIRAI_PHOTOS.get(user.avatar_r2_key);
+    const object = await env.MIRAI_AI_ASSETS.get(user.avatar_r2_key);
     if (!object) return new Response('Not found', { status: 404 });
 
     const headers = new Headers({
