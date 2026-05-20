@@ -1321,6 +1321,8 @@ function toggleVoiceRecognition() {
 
 // --- INICIALIZACIÓN DE CHAT ---
 function initializeChat() {
+  initAvatarSyncListener()
+  syncAvatarFromAPI();
   if (elements.chatMessages) {
     elements.chatMessages.scrollTop = 0;
   }
@@ -1584,13 +1586,32 @@ async function handleClearConversation() {
 }
 
 function getUserAvatarHTML() {
-  const avatarBase64 = localStorage.getItem('mirai-user-avatar');
-  if (avatarBase64) {
-    return `<img src="${avatarBase64}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+  // La URL se guarda en localStorage como caché cuando el usuario
+  // sube/elimina foto desde settings.html
+  const avatarUrl = localStorage.getItem('mirai-user-avatar-url');
+  if (avatarUrl) {
+    return `<img src="${avatarUrl}" alt="Avatar"
+              style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"
+              onerror="this.remove();this.parentElement.textContent=localStorage.getItem('mirai-user-nombre')?.[0]?.toUpperCase()||'U'">`;
   }
   const nombre = localStorage.getItem('mirai-user-nombre') || '';
-  const initial = nombre.trim() ? nombre.trim().charAt(0).toUpperCase() : 'U';
-  return initial;
+  return nombre.trim() ? nombre.trim()[0].toUpperCase() : 'U';
+}
+function initAvatarSyncListener() {
+  window.addEventListener('mirai-avatar-changed', (e) => {
+    const url = e.detail?.url ?? null;
+    if (url) {
+      localStorage.setItem('mirai-user-avatar-url', url);
+    } else {
+      localStorage.removeItem('mirai-user-avatar-url');
+    }
+    // Re-renderizar avatares ya en pantalla
+    document.querySelectorAll('.message.user .message-avatar').forEach(el => {
+      el.style.padding   = '';
+      el.style.overflow  = 'hidden';
+      el.innerHTML = getUserAvatarHTML();
+    });
+  });
 }
 
 // --- APENDAR MENSAJE CON SOPORTE DE AUDIO ---
@@ -1705,7 +1726,7 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
   }
 
   messageDiv.innerHTML = `
-    ${role !== 'system' ? `<div class="message-avatar" style="${role === 'user' && localStorage.getItem('mirai-user-avatar') ? 'padding:0;overflow:hidden;' : ''}">${avatar}</div>` : ''}
+    ${role !== 'system' ? `<div class="message-avatar" style="${role === 'user' ? 'padding:0;overflow:hidden;' : ''}">${avatar}</div>` : ''}
     <div class="message-content">
       ${contentDisplay}
       ${metaRow}
@@ -1723,6 +1744,25 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
   addCopyButtons();
   addActionButtonsListeners(messageDiv, content);
   setupAudioPlayer(messageDiv.querySelector('audio'));
+}
+
+async function syncAvatarFromAPI() {
+  try {
+    const res = await fetch('/api/user/profile');
+    if (!res.ok) return;
+    const { profile } = await res.json();
+ 
+    if (profile.firstName) localStorage.setItem('mirai-user-nombre',   profile.firstName);
+    if (profile.lastName)  localStorage.setItem('mirai-user-apellido', profile.lastName);
+ 
+    if (profile.hasAvatar && profile.avatarUrl) {
+      localStorage.setItem('mirai-user-avatar-url', profile.avatarUrl);
+    } else {
+      localStorage.removeItem('mirai-user-avatar-url');
+    }
+  } catch (e) {
+    // Silencioso — no bloquear el chat si falla
+  }
 }
 
 // ============================================
