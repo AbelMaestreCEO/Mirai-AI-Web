@@ -15,171 +15,177 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Mirai AI">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<script>
-// Restaura el color de acento completo (incluye fondo de página)
-// — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
-(function () {
-    var COLORS = {
-        purple:  { c:'#6750A4', cD:'#D0BCFF', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD:'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', glowD:'rgba(208,188,255,0.15)', sc:'#E8DEF8', scD:'#2A2438', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,27,36,0.96)', bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
-        blue:    { c:'#1565C0', cD:'#90CAF9', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD:'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', glowD:'rgba(144,202,249,0.15)', sc:'#E3F2FD', scD:'#0D1E35', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,21,32,0.96)', bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
-        teal:    { c:'#00695C', cD:'#80CBC4', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD:'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', glowD:'rgba(128,203,196,0.15)', sc:'#E0F2F1', scD:'#0A1F1D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,26,25,0.96)', bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
-        green:   { c:'#2E7D32', cD:'#A5D6A7', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD:'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', glowD:'rgba(165,214,167,0.15)', sc:'#E8F5E9', scD:'#0D1F0E', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,24,18,0.96)', bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
-        orange:  { c:'#E65100', cD:'#FFB74D', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD:'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow:'rgba(230,81,0,0.18)', glowD:'rgba(255,183,77,0.15)', sc:'#FFF3E0', scD:'#271A08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,22,16,0.96)', bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
-        pink:    { c:'#AD1457', cD:'#F48FB1', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD:'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow:'rgba(173,20,87,0.18)', glowD:'rgba(244,143,177,0.15)', sc:'#FCE4EC', scD:'#250C18', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,24,0.96)', bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
-        red:     { c:'#B71C1C', cD:'#EF9A9A', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD:'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', glowD:'rgba(239,154,154,0.15)', sc:'#FFEBEE', scD:'#250D0D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,18,0.96)', bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
-        indigo:  { c:'#283593', cD:'#9FA8DA', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD:'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow:'rgba(40,53,147,0.18)', glowD:'rgba(159,168,218,0.15)', sc:'#E8EAF6', scD:'#0E1020', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(19,19,24,0.96)', bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
-        yellow:  { c:'#F57F17', cD:'#FFF176', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD:'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow:'rgba(245,127,23,0.18)', glowD:'rgba(255,238,88,0.15)', sc:'#FFFDE7', scD:'#1F1C08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(29,28,16,0.96)', bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
-        slate:   { c:'#37474F', cD:'#B0BEC5', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD:'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow:'rgba(55,71,79,0.18)', glowD:'rgba(176,190,197,0.15)', sc:'#ECEFF1', scD:'#131618', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(25,28,30,0.96)', bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
-    };
+    <script>
+        // Restaura el color de acento completo (incluye fondo de página)
+        // — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
+        (function () {
+            var COLORS = {
+                purple: { c: '#6750A4', cD: '#D0BCFF', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD: 'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', glowD: 'rgba(208,188,255,0.15)', sc: '#E8DEF8', scD: '#2A2438', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,27,36,0.96)', bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)' },
+                blue: { c: '#1565C0', cD: '#90CAF9', g: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD: 'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow: 'rgba(21,101,192,0.18)', glowD: 'rgba(144,202,249,0.15)', sc: '#E3F2FD', scD: '#0D1E35', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,21,32,0.96)', bg: '#F3F6FB', bgG: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD: '#121520', bgGD: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb: 'rgba(21,101,192,0.12)', gbD: 'rgba(144,202,249,0.10)' },
+                teal: { c: '#00695C', cD: '#80CBC4', g: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD: 'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow: 'rgba(0,105,92,0.18)', glowD: 'rgba(128,203,196,0.15)', sc: '#E0F2F1', scD: '#0A1F1D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,26,25,0.96)', bg: '#F2F9F8', bgG: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD: '#121A19', bgGD: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb: 'rgba(0,105,92,0.12)', gbD: 'rgba(128,203,196,0.10)' },
+                green: { c: '#2E7D32', cD: '#A5D6A7', g: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD: 'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow: 'rgba(46,125,50,0.18)', glowD: 'rgba(165,214,167,0.15)', sc: '#E8F5E9', scD: '#0D1F0E', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,24,18,0.96)', bg: '#F3F9F3', bgG: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD: '#121812', bgGD: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb: 'rgba(46,125,50,0.12)', gbD: 'rgba(165,214,167,0.10)' },
+                orange: { c: '#E65100', cD: '#FFB74D', g: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD: 'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow: 'rgba(230,81,0,0.18)', glowD: 'rgba(255,183,77,0.15)', sc: '#FFF3E0', scD: '#271A08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,22,16,0.96)', bg: '#FBF6F0', bgG: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD: '#1E1610', bgGD: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb: 'rgba(230,81,0,0.12)', gbD: 'rgba(255,183,77,0.10)' },
+                pink: { c: '#AD1457', cD: '#F48FB1', g: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD: 'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow: 'rgba(173,20,87,0.18)', glowD: 'rgba(244,143,177,0.15)', sc: '#FCE4EC', scD: '#250C18', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,24,0.96)', bg: '#FAF2F6', bgG: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD: '#1C1218', bgGD: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb: 'rgba(173,20,87,0.12)', gbD: 'rgba(240,98,146,0.10)' },
+                red: { c: '#B71C1C', cD: '#EF9A9A', g: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD: 'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow: 'rgba(183,28,28,0.18)', glowD: 'rgba(239,154,154,0.15)', sc: '#FFEBEE', scD: '#250D0D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,18,0.96)', bg: '#FAF2F2', bgG: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD: '#1C1212', bgGD: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb: 'rgba(183,28,28,0.12)', gbD: 'rgba(239,83,80,0.10)' },
+                indigo: { c: '#283593', cD: '#9FA8DA', g: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD: 'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow: 'rgba(40,53,147,0.18)', glowD: 'rgba(159,168,218,0.15)', sc: '#E8EAF6', scD: '#0E1020', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(19,19,24,0.96)', bg: '#F3F3FA', bgG: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD: '#131318', bgGD: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb: 'rgba(40,53,147,0.12)', gbD: 'rgba(121,134,203,0.10)' },
+                yellow: { c: '#F57F17', cD: '#FFF176', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD: 'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow: 'rgba(245,127,23,0.18)', glowD: 'rgba(255,238,88,0.15)', sc: '#FFFDE7', scD: '#1F1C08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(29,28,16,0.96)', bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)' },
+                slate: { c: '#37474F', cD: '#B0BEC5', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD: 'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow: 'rgba(55,71,79,0.18)', glowD: 'rgba(176,190,197,0.15)', sc: '#ECEFF1', scD: '#131618', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(25,28,30,0.96)', bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)' }
+            };
 
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
-    var theme = localStorage.getItem('mirai-ai-theme') ||
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
+            var theme = localStorage.getItem('mirai-ai-theme') ||
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    var isDark = theme === 'dark';
+            var isDark = theme === 'dark';
 
-    // Aplicar data-theme inmediatamente para que CSS [data-theme="dark"] funcione
-    document.documentElement.setAttribute('data-theme', theme);
+            // Aplicar data-theme inmediatamente para que CSS [data-theme="dark"] funcione
+            document.documentElement.setAttribute('data-theme', theme);
 
-    if (s.accentColor && COLORS[s.accentColor]) {
-        var c = COLORS[s.accentColor];
-        var r = document.documentElement;
-        r.style.setProperty('--accent-color',        isDark ? c.cD   : c.c);
-        r.style.setProperty('--accent-gradient',     isDark ? c.gD   : c.g);
-        r.style.setProperty('--accent-glow',         isDark ? c.glowD : c.glow);
-        r.style.setProperty('--secondary-container', isDark ? c.scD  : c.sc);
-        r.style.setProperty('--glass-bg',            isDark ? c.gbgD : c.gbg);
-        r.style.setProperty('--glass-border',        isDark ? c.gbD  : c.gb);
-        r.style.setProperty('--message-user-bg',     isDark ? c.glowD.replace('0.15','0.10') : c.glow.replace('0.18','0.08'));
-        r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
-        r.style.setProperty('--bg-primary',          isDark ? c.bgD  : c.bg);
-        r.style.setProperty('--bg-gradient',         isDark ? c.bgGD : c.bgG);
-        r.style.background      = isDark ? c.bgD  : c.bg;
-        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
-    }
-    if (s.fontFamily) {
-        document.documentElement.style.setProperty('--font-family', s.fontFamily);
-    }
-    if (s.fontSize) {
-        document.documentElement.style.fontSize = s.fontSize + 'px';
-    }
-    if (s.reducedMotion) {
-        document.documentElement.classList.add('reduce-motion');
-    }
-})();
-</script>
-<link rel="stylesheet" href="styles.css">
-<style>
-  /* Grid de tarjetas: 2 columnas en móvil, 4 en PC */
-  .welcome-cards-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  @media (min-width: 768px) {
-    .welcome-cards-grid {
-      grid-template-columns: repeat(4, 1fr) !important;
-      max-width: 65% !important;
-      padding-left: 16px !important;
-      padding-right: 16px !important;
-    }
-    .welcome-main {
-      padding-left: 16px !important;
-      padding-right: 16px !important;
-      max-width: 100% !important;
-    }
-  }
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor];
+                var r = document.documentElement;
+                r.style.setProperty('--accent-color', isDark ? c.cD : c.c);
+                r.style.setProperty('--accent-gradient', isDark ? c.gD : c.g);
+                r.style.setProperty('--accent-glow', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--secondary-container', isDark ? c.scD : c.sc);
+                r.style.setProperty('--glass-bg', isDark ? c.gbgD : c.gbg);
+                r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                r.style.setProperty('--message-user-bg', isDark ? c.glowD.replace('0.15', '0.10') : c.glow.replace('0.18', '0.08'));
+                r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) {
+                document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            }
+            if (s.fontSize) {
+                document.documentElement.style.fontSize = s.fontSize + 'px';
+            }
+            if (s.reducedMotion) {
+                document.documentElement.classList.add('reduce-motion');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Grid de tarjetas: 2 columnas en móvil, 4 en PC */
+        .welcome-cards-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+        }
 
-  /* Tarjeta en columna: icono arriba, luego título y descripción */
-  .welcome-card {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-  }
-  .welcome-card-icon {
-    margin-bottom: 8px !important;
-    align-self: flex-start !important;
-  }
-  .welcome-card-body {
-    width: 100% !important;
-  }
+        @media (min-width: 768px) {
+            .welcome-cards-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+                max-width: 900px;
+                /* O el ancho máximo que prefieras para mantenerlo estético */
+                margin: 0 auto !important;
+                /* Esto centra las tarjetas perfectamente */
+            }
+        }
 
-  /* ===== TABS ===== */
-  .welcome-tabs-container {
-    width: 100%;
-    margin: 0 auto;
-    padding: 0 16px;
-  }
+        /* Tarjeta en columna: icono arriba, luego título y descripción */
+        .welcome-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+        }
 
-  .welcome-tabs-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 20px;
-  }
+        .welcome-card-icon {
+            margin-bottom: 8px !important;
+            align-self: flex-start !important;
+        }
 
-  .welcome-tab-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border: 1.5px solid var(--glass-border, rgba(103,80,164,0.12));
-    border-radius: 20px;
-    background: var(--glass-bg, rgba(255,255,255,0.94));
-    color: var(--text-secondary, #49454F);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.22s ease;
-    white-space: nowrap;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
+        .welcome-card-body {
+            width: 100% !important;
+        }
 
-  .welcome-tab-btn:hover {
-    border-color: var(--accent-color, #6750A4);
-    color: var(--accent-color, #6750A4);
-    background: var(--secondary-container, #E8DEF8);
-    transform: translateY(-1px);
-  }
+        /* ===== TABS ===== */
+        .welcome-tabs-container {
+            width: 100%;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
 
-  .welcome-tab-btn.active {
-    background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB));
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 4px 14px var(--accent-glow, rgba(103,80,164,0.25));
-  }
+        .welcome-tabs-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
 
-  .welcome-tab-panel {
-    display: none;
-    animation: tabFadeIn 0.28s ease;
-  }
+        .welcome-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 1.5px solid var(--glass-border, rgba(103, 80, 164, 0.12));
+            border-radius: 20px;
+            background: var(--glass-bg, rgba(255, 255, 255, 0.94));
+            color: var(--text-secondary, #49454F);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.22s ease;
+            white-space: nowrap;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
 
-  .welcome-tab-panel.active {
-    display: block;
-    justify-content: center;
-    margin: auto auto;
-  }
+        .welcome-tab-btn:hover {
+            border-color: var(--accent-color, #6750A4);
+            color: var(--accent-color, #6750A4);
+            background: var(--secondary-container, #E8DEF8);
+            transform: translateY(-1px);
+        }
 
-  @keyframes tabFadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+        .welcome-tab-btn.active {
+            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #7F67BE 50%, #9A82DB));
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 4px 14px var(--accent-glow, rgba(103, 80, 164, 0.25));
+        }
 
-  @media (max-width: 480px) {
-    .welcome-tabs-container {
-    width: 100%;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0 16px;
-  }
-    .welcome-tab-btn {
-      padding: 7px 12px;
-      font-size: 0.78rem;
-    }
-    .welcome-tabs-nav {
-      gap: 6px;
-    }
-  }
-</style>
+        .welcome-tab-panel {
+            display: none;
+            animation: tabFadeIn 0.28s ease;
+        }
+
+        .welcome-tab-panel.active {
+            display: block;
+        }
+
+        @keyframes tabFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .welcome-tabs-container {
+                width: 100%;
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 0 16px;
+            }
+
+            .welcome-tab-btn {
+                padding: 7px 12px;
+                font-size: 0.78rem;
+            }
+
+            .welcome-tabs-nav {
+                gap: 6px;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -237,52 +243,199 @@
             <!-- Panel: Todo -->
             <div class="welcome-tab-panel active" data-panel="all">
                 <div class="welcome-cards-grid">
-                    <a href="chat.html" class="welcome-card"><div class="welcome-card-icon">💬</div><div class="welcome-card-body"><h3 class="welcome-card-title">Chat IA</h3><p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza documentos y más.</p></div></a>
-                    <a href="course_category.html" class="welcome-card"><div class="welcome-card-icon">📚</div><div class="welcome-card-body"><h3 class="welcome-card-title">Cursos</h3><p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas guiadas por IA.</p></div></a>
-                    <a href="classroom.html" class="welcome-card"><div class="welcome-card-icon">🏫</div><div class="welcome-card-body"><h3 class="welcome-card-title">Aula Virtual</h3><p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en tiempo real.</p></div></a>
-                    <a href="inventory.html" class="welcome-card"><div class="welcome-card-icon">📦</div><div class="welcome-card-body"><h3 class="welcome-card-title">Inventario</h3><p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma inteligente.</p></div></a>
-                    <a href="mirror.html" class="welcome-card"><div class="welcome-card-icon">🖼️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Organizador de Fotos</h3><p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p></div></a>
-                    <a href="format.html" class="welcome-card"><div class="welcome-card-icon">📝</div><div class="welcome-card-body"><h3 class="welcome-card-title">Estilos DOCX</h3><p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p></div></a>
-                    <a href="apa.html" class="welcome-card"><div class="welcome-card-icon">📄</div><div class="welcome-card-body"><h3 class="welcome-card-title">Formato APA 7 (BETA)</h3><p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p></div></a>
-                    <a href="attendance.html" class="welcome-card"><div class="welcome-card-icon">✅</div><div class="welcome-card-body"><h3 class="welcome-card-title">Control de Asistencia</h3><p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p></div></a>
-                    <a href="investigation.html" class="welcome-card"><div class="welcome-card-icon">🔭</div><div class="welcome-card-body"><h3 class="welcome-card-title">Investigación</h3><p class="welcome-card-desc">Explora y analiza información con herramientas de investigación impulsadas por IA.</p></div></a>
-                    <a href="settings.html" class="welcome-card"><div class="welcome-card-icon">⚙️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Configuración</h3><p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia en Mirai AI.</p></div></a>
+                    <a href="chat.html" class="welcome-card">
+                        <div class="welcome-card-icon">💬</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Chat IA</h3>
+                            <p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza
+                                documentos y más.</p>
+                        </div>
+                    </a>
+                    <a href="course_category.html" class="welcome-card">
+                        <div class="welcome-card-icon">📚</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Cursos</h3>
+                            <p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas
+                                guiadas por IA.</p>
+                        </div>
+                    </a>
+                    <a href="classroom.html" class="welcome-card">
+                        <div class="welcome-card-icon">🏫</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Aula Virtual</h3>
+                            <p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en
+                                tiempo real.</p>
+                        </div>
+                    </a>
+                    <a href="inventory.html" class="welcome-card">
+                        <div class="welcome-card-icon">📦</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Inventario</h3>
+                            <p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma
+                                inteligente.</p>
+                        </div>
+                    </a>
+                    <a href="mirror.html" class="welcome-card">
+                        <div class="welcome-card-icon">🖼️</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Organizador de Fotos</h3>
+                            <p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.
+                            </p>
+                        </div>
+                    </a>
+                    <a href="format.html" class="welcome-card">
+                        <div class="welcome-card-icon">📝</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Estilos DOCX</h3>
+                            <p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p>
+                        </div>
+                    </a>
+                    <a href="apa.html" class="welcome-card">
+                        <div class="welcome-card-icon">📄</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Formato APA 7 (BETA)</h3>
+                            <p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p>
+                        </div>
+                    </a>
+                    <a href="attendance.html" class="welcome-card">
+                        <div class="welcome-card-icon">✅</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Control de Asistencia</h3>
+                            <p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p>
+                        </div>
+                    </a>
+                    <a href="investigation.html" class="welcome-card">
+                        <div class="welcome-card-icon">🔭</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Investigación</h3>
+                            <p class="welcome-card-desc">Explora y analiza información con herramientas de investigación
+                                impulsadas por IA.</p>
+                        </div>
+                    </a>
+                    <a href="settings.html" class="welcome-card">
+                        <div class="welcome-card-icon">⚙️</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Configuración</h3>
+                            <p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia
+                                en Mirai AI.</p>
+                        </div>
+                    </a>
                 </div>
             </div>
 
             <!-- Panel: IA -->
             <div class="welcome-tab-panel" data-panel="ia">
                 <div class="welcome-cards-grid">
-                    <a href="chat.html" class="welcome-card"><div class="welcome-card-icon">💬</div><div class="welcome-card-body"><h3 class="welcome-card-title">Chat IA</h3><p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza documentos y más.</p></div></a>
-                    <a href="investigation.html" class="welcome-card"><div class="welcome-card-icon">🔭</div><div class="welcome-card-body"><h3 class="welcome-card-title">Investigación</h3><p class="welcome-card-desc">Explora y analiza información con herramientas de investigación impulsadas por IA.</p></div></a>
-                    <a href="mirror.html" class="welcome-card"><div class="welcome-card-icon">🖼️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Organizador de Fotos</h3><p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p></div></a>
+                    <a href="chat.html" class="welcome-card">
+                        <div class="welcome-card-icon">💬</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Chat IA</h3>
+                            <p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza
+                                documentos y más.</p>
+                        </div>
+                    </a>
+                    <a href="investigation.html" class="welcome-card">
+                        <div class="welcome-card-icon">🔭</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Investigación</h3>
+                            <p class="welcome-card-desc">Explora y analiza información con herramientas de investigación
+                                impulsadas por IA.</p>
+                        </div>
+                    </a>
+                    <a href="mirror.html" class="welcome-card">
+                        <div class="welcome-card-icon">🖼️</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Organizador de Fotos</h3>
+                            <p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.
+                            </p>
+                        </div>
+                    </a>
                 </div>
             </div>
 
             <!-- Panel: Educación -->
             <div class="welcome-tab-panel" data-panel="educacion">
                 <div class="welcome-cards-grid">
-                    <a href="course_category.html" class="welcome-card"><div class="welcome-card-icon">📚</div><div class="welcome-card-body"><h3 class="welcome-card-title">Cursos</h3><p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas guiadas por IA.</p></div></a>
-                    <a href="classroom.html" class="welcome-card"><div class="welcome-card-icon">🏫</div><div class="welcome-card-body"><h3 class="welcome-card-title">Aula Virtual</h3><p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en tiempo real.</p></div></a>
-                    <a href="attendance.html" class="welcome-card"><div class="welcome-card-icon">✅</div><div class="welcome-card-body"><h3 class="welcome-card-title">Control de Asistencia</h3><p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p></div></a>
+                    <a href="course_category.html" class="welcome-card">
+                        <div class="welcome-card-icon">📚</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Cursos</h3>
+                            <p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas
+                                guiadas por IA.</p>
+                        </div>
+                    </a>
+                    <a href="classroom.html" class="welcome-card">
+                        <div class="welcome-card-icon">🏫</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Aula Virtual</h3>
+                            <p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en
+                                tiempo real.</p>
+                        </div>
+                    </a>
+                    <a href="attendance.html" class="welcome-card">
+                        <div class="welcome-card-icon">✅</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Control de Asistencia</h3>
+                            <p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p>
+                        </div>
+                    </a>
                 </div>
             </div>
 
             <!-- Panel: Herramientas -->
             <div class="welcome-tab-panel" data-panel="herramientas">
                 <div class="welcome-cards-grid">
-                    <a href="format.html" class="welcome-card"><div class="welcome-card-icon">📝</div><div class="welcome-card-body"><h3 class="welcome-card-title">Estilos DOCX</h3><p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p></div></a>
-                    <a href="apa.html" class="welcome-card"><div class="welcome-card-icon">📄</div><div class="welcome-card-body"><h3 class="welcome-card-title">Formato APA 7 (BETA)</h3><p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p></div></a>
-                    <a href="mirror.html" class="welcome-card"><div class="welcome-card-icon">🖼️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Organizador de Fotos</h3><p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p></div></a>
+                    <a href="format.html" class="welcome-card">
+                        <div class="welcome-card-icon">📝</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Estilos DOCX</h3>
+                            <p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p>
+                        </div>
+                    </a>
+                    <a href="apa.html" class="welcome-card">
+                        <div class="welcome-card-icon">📄</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Formato APA 7 (BETA)</h3>
+                            <p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p>
+                        </div>
+                    </a>
+                    <a href="mirror.html" class="welcome-card">
+                        <div class="welcome-card-icon">🖼️</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Organizador de Fotos</h3>
+                            <p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.
+                            </p>
+                        </div>
+                    </a>
                 </div>
             </div>
 
             <!-- Panel: Gestión -->
             <div class="welcome-tab-panel" data-panel="gestion">
                 <div class="welcome-cards-grid">
-                    <a href="inventory.html" class="welcome-card"><div class="welcome-card-icon">📦</div><div class="welcome-card-body"><h3 class="welcome-card-title">Inventario</h3><p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma inteligente.</p></div></a>
-                    <a href="attendance.html" class="welcome-card"><div class="welcome-card-icon">✅</div><div class="welcome-card-body"><h3 class="welcome-card-title">Control de Asistencia</h3><p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p></div></a>
-                    <a href="settings.html" class="welcome-card"><div class="welcome-card-icon">⚙️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Configuración</h3><p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia en Mirai AI.</p></div></a>
+                    <a href="inventory.html" class="welcome-card">
+                        <div class="welcome-card-icon">📦</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Inventario</h3>
+                            <p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma
+                                inteligente.</p>
+                        </div>
+                    </a>
+                    <a href="attendance.html" class="welcome-card">
+                        <div class="welcome-card-icon">✅</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Control de Asistencia</h3>
+                            <p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p>
+                        </div>
+                    </a>
+                    <a href="settings.html" class="welcome-card">
+                        <div class="welcome-card-icon">⚙️</div>
+                        <div class="welcome-card-body">
+                            <h3 class="welcome-card-title">Configuración</h3>
+                            <p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia
+                                en Mirai AI.</p>
+                        </div>
+                    </a>
                 </div>
             </div>
 
@@ -301,7 +454,8 @@
                         class="footer-brand-img">
                     <span class="footer-brand-text">Aberu & Mirai Company</span>
                 </a>
-                <p class="footer-brand-desc">Tu asistente inteligente potenciado por IA. Aprende, gestiona y crea con Mirai.</p>
+                <p class="footer-brand-desc">Tu asistente inteligente potenciado por IA. Aprende, gestiona y crea con
+                    Mirai.</p>
                 <div class="footer-social">
                     <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
                         <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
@@ -580,7 +734,7 @@
     <script>
         // Lógica de Tabs
         (function () {
-            const btns   = document.querySelectorAll('.welcome-tab-btn');
+            const btns = document.querySelectorAll('.welcome-tab-btn');
             const panels = document.querySelectorAll('.welcome-tab-panel');
 
             btns.forEach(function (btn) {
