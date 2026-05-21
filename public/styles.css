@@ -7094,3 +7094,11 @@ body::before {
 .image-download-btn svg {
   flex-shrink: 0;
 }
+
+#btn-open-add-modal {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 999; /* Asegura que flote por encima del contenido */
+    box-shadow: 0 4px 16px var(--accent-glow) !important;
+}
