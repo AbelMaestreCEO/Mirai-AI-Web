@@ -100,6 +100,78 @@
   .welcome-card-body {
     width: 100% !important;
   }
+
+  /* ===== TABS ===== */
+  .welcome-tabs-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  .welcome-tabs-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .welcome-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1.5px solid var(--glass-border, rgba(103,80,164,0.12));
+    border-radius: 20px;
+    background: var(--glass-bg, rgba(255,255,255,0.94));
+    color: var(--text-secondary, #49454F);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .welcome-tab-btn:hover {
+    border-color: var(--accent-color, #6750A4);
+    color: var(--accent-color, #6750A4);
+    background: var(--secondary-container, #E8DEF8);
+    transform: translateY(-1px);
+  }
+
+  .welcome-tab-btn.active {
+    background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 14px var(--accent-glow, rgba(103,80,164,0.25));
+  }
+
+  .welcome-tab-panel {
+    display: none;
+    animation: tabFadeIn 0.28s ease;
+  }
+
+  .welcome-tab-panel.active {
+    display: block;
+  }
+
+  @keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 480px) {
+    .welcome-tab-btn {
+      padding: 7px 12px;
+      font-size: 0.78rem;
+    }
+    .welcome-tabs-nav {
+      gap: 6px;
+    }
+  }
 </style>
 </head>
 
@@ -133,92 +205,79 @@
             </button>
         </div>
 
-        <!-- Tarjetas de acceso rápido -->
-        <div class="welcome-cards-grid">
+        <!-- Tabs de acceso rápido -->
+        <div class="welcome-tabs-container">
 
-            <a href="chat.html" class="welcome-card">
-                <div class="welcome-card-icon">💬</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Chat IA</h3>
-                    <p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza
-                        documentos y más.</p>
-                </div>
-            </a>
+            <!-- Botones de tabs -->
+            <div class="welcome-tabs-nav" role="tablist">
+                <button class="welcome-tab-btn active" role="tab" aria-selected="true" data-tab="all">
+                    🌐 Todo
+                </button>
+                <button class="welcome-tab-btn" role="tab" aria-selected="false" data-tab="ia">
+                    🤖 IA
+                </button>
+                <button class="welcome-tab-btn" role="tab" aria-selected="false" data-tab="educacion">
+                    📚 Educación
+                </button>
+                <button class="welcome-tab-btn" role="tab" aria-selected="false" data-tab="herramientas">
+                    🛠️ Herramientas
+                </button>
+                <button class="welcome-tab-btn" role="tab" aria-selected="false" data-tab="gestion">
+                    📋 Gestión
+                </button>
+            </div>
 
-            <a href="course_category.html" class="welcome-card">
-                <div class="welcome-card-icon">📚</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Cursos</h3>
-                    <p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas guiadas
-                        por IA.</p>
+            <!-- Panel: Todo -->
+            <div class="welcome-tab-panel active" data-panel="all">
+                <div class="welcome-cards-grid">
+                    <a href="chat.html" class="welcome-card"><div class="welcome-card-icon">💬</div><div class="welcome-card-body"><h3 class="welcome-card-title">Chat IA</h3><p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza documentos y más.</p></div></a>
+                    <a href="course_category.html" class="welcome-card"><div class="welcome-card-icon">📚</div><div class="welcome-card-body"><h3 class="welcome-card-title">Cursos</h3><p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas guiadas por IA.</p></div></a>
+                    <a href="classroom.html" class="welcome-card"><div class="welcome-card-icon">🏫</div><div class="welcome-card-body"><h3 class="welcome-card-title">Aula Virtual</h3><p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en tiempo real.</p></div></a>
+                    <a href="inventory.html" class="welcome-card"><div class="welcome-card-icon">📦</div><div class="welcome-card-body"><h3 class="welcome-card-title">Inventario</h3><p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma inteligente.</p></div></a>
+                    <a href="mirror.html" class="welcome-card"><div class="welcome-card-icon">🖼️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Organizador de Fotos</h3><p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p></div></a>
+                    <a href="format.html" class="welcome-card"><div class="welcome-card-icon">📝</div><div class="welcome-card-body"><h3 class="welcome-card-title">Estilos DOCX</h3><p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p></div></a>
+                    <a href="apa.html" class="welcome-card"><div class="welcome-card-icon">📄</div><div class="welcome-card-body"><h3 class="welcome-card-title">Formato APA 7 (BETA)</h3><p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p></div></a>
+                    <a href="attendance.html" class="welcome-card"><div class="welcome-card-icon">✅</div><div class="welcome-card-body"><h3 class="welcome-card-title">Control de Asistencia</h3><p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p></div></a>
+                    <a href="investigation.html" class="welcome-card"><div class="welcome-card-icon">🔭</div><div class="welcome-card-body"><h3 class="welcome-card-title">Investigación</h3><p class="welcome-card-desc">Explora y analiza información con herramientas de investigación impulsadas por IA.</p></div></a>
+                    <a href="settings.html" class="welcome-card"><div class="welcome-card-icon">⚙️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Configuración</h3><p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia en Mirai AI.</p></div></a>
                 </div>
-            </a>
+            </div>
 
-            <a href="classroom.html" class="welcome-card">
-                <div class="welcome-card-icon">🏫</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Aula Virtual</h3>
-                    <p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en tiempo real.
-                    </p>
+            <!-- Panel: IA -->
+            <div class="welcome-tab-panel" data-panel="ia">
+                <div class="welcome-cards-grid">
+                    <a href="chat.html" class="welcome-card"><div class="welcome-card-icon">💬</div><div class="welcome-card-body"><h3 class="welcome-card-title">Chat IA</h3><p class="welcome-card-desc">Conversa con tu asistente inteligente, haz preguntas, analiza documentos y más.</p></div></a>
+                    <a href="investigation.html" class="welcome-card"><div class="welcome-card-icon">🔭</div><div class="welcome-card-body"><h3 class="welcome-card-title">Investigación</h3><p class="welcome-card-desc">Explora y analiza información con herramientas de investigación impulsadas por IA.</p></div></a>
+                    <a href="mirror.html" class="welcome-card"><div class="welcome-card-icon">🖼️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Organizador de Fotos</h3><p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p></div></a>
                 </div>
-            </a>
+            </div>
 
-            <a href="inventory.html" class="welcome-card">
-                <div class="welcome-card-icon">📦</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Inventario</h3>
-                    <p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma inteligente.
-                    </p>
+            <!-- Panel: Educación -->
+            <div class="welcome-tab-panel" data-panel="educacion">
+                <div class="welcome-cards-grid">
+                    <a href="course_category.html" class="welcome-card"><div class="welcome-card-icon">📚</div><div class="welcome-card-body"><h3 class="welcome-card-title">Cursos</h3><p class="welcome-card-desc">Explora categorías de aprendizaje con lecciones interactivas guiadas por IA.</p></div></a>
+                    <a href="classroom.html" class="welcome-card"><div class="welcome-card-icon">🏫</div><div class="welcome-card-body"><h3 class="welcome-card-title">Aula Virtual</h3><p class="welcome-card-desc">Accede a tus tareas, evaluaciones y progreso académico en tiempo real.</p></div></a>
+                    <a href="attendance.html" class="welcome-card"><div class="welcome-card-icon">✅</div><div class="welcome-card-body"><h3 class="welcome-card-title">Control de Asistencia</h3><p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p></div></a>
                 </div>
-            </a>
+            </div>
 
-            <a href="mirror.html" class="welcome-card">
-                <div class="welcome-card-icon">🖼️</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Organizador de Fotos</h3>
-                    <p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p>
+            <!-- Panel: Herramientas -->
+            <div class="welcome-tab-panel" data-panel="herramientas">
+                <div class="welcome-cards-grid">
+                    <a href="format.html" class="welcome-card"><div class="welcome-card-icon">📝</div><div class="welcome-card-body"><h3 class="welcome-card-title">Estilos DOCX</h3><p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p></div></a>
+                    <a href="apa.html" class="welcome-card"><div class="welcome-card-icon">📄</div><div class="welcome-card-body"><h3 class="welcome-card-title">Formato APA 7 (BETA)</h3><p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p></div></a>
+                    <a href="mirror.html" class="welcome-card"><div class="welcome-card-icon">🖼️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Organizador de Fotos</h3><p class="welcome-card-desc">Organiza y visualiza tus fotos e imágenes con ayuda de la IA.</p></div></a>
                 </div>
-            </a>
+            </div>
 
-            <a href="format.html" class="welcome-card">
-                <div class="welcome-card-icon">📝</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Estilos DOCX</h3>
-                    <p class="welcome-card-desc">Cambia el estilo a tus documento DOCX con ayuda de la IA.</p>
+            <!-- Panel: Gestión -->
+            <div class="welcome-tab-panel" data-panel="gestion">
+                <div class="welcome-cards-grid">
+                    <a href="inventory.html" class="welcome-card"><div class="welcome-card-icon">📦</div><div class="welcome-card-body"><h3 class="welcome-card-title">Inventario</h3><p class="welcome-card-desc">Gestiona y organiza tu inventario de productos de forma inteligente.</p></div></a>
+                    <a href="attendance.html" class="welcome-card"><div class="welcome-card-icon">✅</div><div class="welcome-card-body"><h3 class="welcome-card-title">Control de Asistencia</h3><p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p></div></a>
+                    <a href="settings.html" class="welcome-card"><div class="welcome-card-icon">⚙️</div><div class="welcome-card-body"><h3 class="welcome-card-title">Configuración</h3><p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia en Mirai AI.</p></div></a>
                 </div>
-            </a>
-
-            <a href="apa.html" class="welcome-card">
-                <div class="welcome-card-icon">📄</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Formato APA 7 (BETA)</h3>
-                    <p class="welcome-card-desc">Aplica el formato APA 7 a tus documentos DOCX.</p>
-                </div>
-            </a>
-
-            <a href="attendance.html" class="welcome-card">
-                <div class="welcome-card-icon">✅</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Control de Asistencia</h3>
-                    <p class="welcome-card-desc">Gestiona y registra la asistencia de personas.</p>
-                </div>
-            </a>
-
-            <a href="investigation.html" class="welcome-card">
-                <div class="welcome-card-icon">🔭</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Investigación</h3>
-                    <p class="welcome-card-desc">Explora y analiza información con herramientas de investigación impulsadas por IA.</p>
-                </div>
-            </a>
-
-            <a href="settings.html" class="welcome-card">
-                <div class="welcome-card-icon">⚙️</div>
-                <div class="welcome-card-body">
-                    <h3 class="welcome-card-title">Configuración</h3>
-                    <p class="welcome-card-desc">Gestiona las preferencias y configuraciones de tu experiencia en Mirai AI.</p>
-                </div>
-            </a>
+            </div>
 
         </div>
 
@@ -509,6 +568,36 @@
             } else {
                 iniciarTituloDinamico();
             }
+        })();
+    </script>
+    <script>
+        // Lógica de Tabs
+        (function () {
+            const btns   = document.querySelectorAll('.welcome-tab-btn');
+            const panels = document.querySelectorAll('.welcome-tab-panel');
+
+            btns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const target = btn.getAttribute('data-tab');
+
+                    // Actualizar botones
+                    btns.forEach(function (b) {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-selected', 'false');
+                    });
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-selected', 'true');
+
+                    // Actualizar paneles
+                    panels.forEach(function (p) {
+                        if (p.getAttribute('data-panel') === target) {
+                            p.classList.add('active');
+                        } else {
+                            p.classList.remove('active');
+                        }
+                    });
+                });
+            });
         })();
     </script>
     <script src="mirai-boot.js"></script>
