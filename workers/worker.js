@@ -1352,7 +1352,11 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/attendance/admin/staff' && request.method === 'PUT')
       return handleAttStaffUpdate(request, env, corsHeaders);
     if (path === '/api/attendance/admin/lookup-user' && request.method === 'GET')
-    return handleAttLookupUser(request, env, corsHeaders);
+      return handleAttLookupUser(request, env, corsHeaders);
+
+    if (path === '/api/investigation/search' && request.method === 'POST') {
+      return await handleInvestigationSearch(request, env, corsHeaders);
+    }
 
     // Ruta: /api/inventory/list
     if (path === '/api/inventory/list' && request.method === 'GET') {
@@ -2529,326 +2533,670 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 // ════════════════════════════════════════════════════════════
 // AGREGAR esto en su lugar:
 async function attRequireAdmin(request, env, corsHeaders) {
-    const userDni = await requireAuth(request, env);
-    if (!userDni || typeof userDni !== 'string') {
-        return { dni: null, errorResponse: jsonResponse({ error: 'No autorizado' }, 401, corsHeaders) };
+  const userDni = await requireAuth(request, env);
+  if (!userDni || typeof userDni !== 'string') {
+    return { dni: null, errorResponse: jsonResponse({ error: 'No autorizado' }, 401, corsHeaders) };
+  }
+  // Verificar rol directamente en la tabla professors (igual que isAuthorizedProfessor en worker.js)
+  try {
+    const professor = await env.MIRAI_AI_DB.prepare(
+      'SELECT dni FROM professors WHERE dni = ? AND is_active = 1'
+    ).bind(userDni.toUpperCase()).first();
+    if (!professor) {
+      return { dni: null, errorResponse: jsonResponse({ error: 'Acceso restringido a administradores' }, 403, corsHeaders) };
     }
-    // Verificar rol directamente en la tabla professors (igual que isAuthorizedProfessor en worker.js)
-    try {
-        const professor = await env.MIRAI_AI_DB.prepare(
-            'SELECT dni FROM professors WHERE dni = ? AND is_active = 1'
-        ).bind(userDni.toUpperCase()).first();
-        if (!professor) {
-            return { dni: null, errorResponse: jsonResponse({ error: 'Acceso restringido a administradores' }, 403, corsHeaders) };
-        }
-    } catch (e) {
-        return { dni: null, errorResponse: jsonResponse({ error: 'Error verificando permisos' }, 500, corsHeaders) };
-    }
-    return { dni: userDni.toUpperCase(), errorResponse: null };
+  } catch (e) {
+    return { dni: null, errorResponse: jsonResponse({ error: 'Error verificando permisos' }, 500, corsHeaders) };
+  }
+  return { dni: userDni.toUpperCase(), errorResponse: null };
 }
 
 // ════════════════════════════════════════════════════════════
 // HANDLERS — Empleado
 // ════════════════════════════════════════════════════════════
- 
+
 async function handleAttMyProfile(request, env, corsHeaders) {
-    const userDni = await requireAuth(request, env);
-    if (!userDni || typeof userDni !== 'string') {
-        return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-    }
-    try {
-        const staff = await env.MIRAI_AI_DB.prepare(
-            'SELECT name, dni, department, position, email FROM att_staff WHERE dni = ? AND is_active = 1'
-        ).bind(userDni.toUpperCase()).first();
-        if (!staff) return jsonResponse({ error: 'Personal no registrado' }, 404, corsHeaders);
-        return jsonResponse(staff, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+  const userDni = await requireAuth(request, env);
+  if (!userDni || typeof userDni !== 'string') {
+    return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+  }
+  try {
+    const staff = await env.MIRAI_AI_DB.prepare(
+      'SELECT name, dni, department, position, email FROM att_staff WHERE dni = ? AND is_active = 1'
+    ).bind(userDni.toUpperCase()).first();
+    if (!staff) return jsonResponse({ error: 'Personal no registrado' }, 404, corsHeaders);
+    return jsonResponse(staff, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 async function handleAttMyHistory(request, env, corsHeaders) {
-    const userDni = await requireAuth(request, env);
-    if (!userDni || typeof userDni !== 'string') {
-        return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-    }
-    try {
-        const staff = await env.MIRAI_AI_DB.prepare(
-            'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
-        ).bind(userDni.toUpperCase()).first();
-        if (!staff) return jsonResponse({ records: [] }, 200, corsHeaders);
- 
-        const { results } = await env.MIRAI_AI_DB.prepare(`
+  const userDni = await requireAuth(request, env);
+  if (!userDni || typeof userDni !== 'string') {
+    return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+  }
+  try {
+    const staff = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
+    ).bind(userDni.toUpperCase()).first();
+    if (!staff) return jsonResponse({ records: [] }, 200, corsHeaders);
+
+    const { results } = await env.MIRAI_AI_DB.prepare(`
             SELECT type, date, time FROM att_records
             WHERE staff_id = ?
             ORDER BY date DESC, time DESC
             LIMIT 20
         `).bind(staff.id).all();
-        return jsonResponse({ records: results }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+    return jsonResponse({ records: results }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 async function handleAttRecord(request, env, corsHeaders) {
-    const userDni = await requireAuth(request, env);
-    if (!userDni || typeof userDni !== 'string') {
-        return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
-    }
- 
-    let body;
-    try { body = await request.json(); } catch (_) { body = {}; }
-    const { qr_token } = body;
-    if (!qr_token) return jsonResponse({ error: 'Token QR requerido' }, 400, corsHeaders);
- 
-    try {
-        // 1. Validar sesión QR (no expirada)
-        const session = await env.MIRAI_AI_DB.prepare(`
+  const userDni = await requireAuth(request, env);
+  if (!userDni || typeof userDni !== 'string') {
+    return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+  }
+
+  let body;
+  try { body = await request.json(); } catch (_) { body = {}; }
+  const { qr_token } = body;
+  if (!qr_token) return jsonResponse({ error: 'Token QR requerido' }, 400, corsHeaders);
+
+  try {
+    // 1. Validar sesión QR (no expirada)
+    const session = await env.MIRAI_AI_DB.prepare(`
             SELECT id, date FROM att_qr_sessions
             WHERE token = ? AND expires_at > datetime('now')
         `).bind(qr_token).first();
-        if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
- 
-        // 2. Buscar al empleado
-        const staff = await env.MIRAI_AI_DB.prepare(
-            'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
-        ).bind(userDni.toUpperCase()).first();
-        if (!staff) return jsonResponse({ error: 'No estás registrado como personal activo' }, 403, corsHeaders);
- 
-        // 3. Determinar si es entrada o salida
-        const lastRecord = await env.MIRAI_AI_DB.prepare(`
+    if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
+
+    // 2. Buscar al empleado
+    const staff = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
+    ).bind(userDni.toUpperCase()).first();
+    if (!staff) return jsonResponse({ error: 'No estás registrado como personal activo' }, 403, corsHeaders);
+
+    // 3. Determinar si es entrada o salida
+    const lastRecord = await env.MIRAI_AI_DB.prepare(`
             SELECT type FROM att_records
             WHERE staff_id = ? AND date = ?
             ORDER BY time DESC LIMIT 1
         `).bind(staff.id, session.date).first();
-        const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
- 
-        const now  = new Date();
-        const time = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
- 
-        // 4. Insertar registro
-        await env.MIRAI_AI_DB.prepare(`
+    const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
+
+    const now = new Date();
+    const time = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+
+    // 4. Insertar registro
+    await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_records (id, session_id, staff_id, type, date, time)
             VALUES (?, ?, ?, ?, ?, ?)
         `).bind(crypto.randomUUID(), session.id, staff.id, type, session.date, time).run();
- 
-        // 5. Incrementar scan_count
-        await env.MIRAI_AI_DB.prepare(
-            'UPDATE att_qr_sessions SET scan_count = scan_count + 1 WHERE id = ?'
-        ).bind(session.id).run();
- 
-        return jsonResponse({ success: true, type, date: session.date, time }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+
+    // 5. Incrementar scan_count
+    await env.MIRAI_AI_DB.prepare(
+      'UPDATE att_qr_sessions SET scan_count = scan_count + 1 WHERE id = ?'
+    ).bind(session.id).run();
+
+    return jsonResponse({ success: true, type, date: session.date, time }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 // ════════════════════════════════════════════════════════════
 // HANDLERS — Admin
 // ════════════════════════════════════════════════════════════
- 
+
 async function handleAttActiveQr(request, env, corsHeaders) {
-    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
- 
-    const url  = new URL(request.url);
-    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
-    try {
-        const session = await env.MIRAI_AI_DB.prepare(
-            'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ?'
-        ).bind(date).first();
-        if (!session) return jsonResponse({ error: 'Sin QR activo para esta fecha' }, 404, corsHeaders);
-        return jsonResponse(session, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+
+  const url = new URL(request.url);
+  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  try {
+    const session = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ?'
+    ).bind(date).first();
+    if (!session) return jsonResponse({ error: 'Sin QR activo para esta fecha' }, 404, corsHeaders);
+    return jsonResponse(session, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 async function handleAttGenerateQr(request, env, corsHeaders) {
-    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
- 
-    let body;
-    try { body = await request.json(); } catch (_) { body = {}; }
-    const targetDate = body.date || new Date().toISOString().split('T')[0];
-    const token      = crypto.randomUUID();
-    const expiresAt  = `${targetDate} 23:59:59`;
- 
-    try {
-        // Reemplazar sesión previa del mismo día
-        await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ?').bind(targetDate).run();
-        await env.MIRAI_AI_DB.prepare(`
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+
+  let body;
+  try { body = await request.json(); } catch (_) { body = {}; }
+  const targetDate = body.date || new Date().toISOString().split('T')[0];
+  const token = crypto.randomUUID();
+  const expiresAt = `${targetDate} 23:59:59`;
+
+  try {
+    // Reemplazar sesión previa del mismo día
+    await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ?').bind(targetDate).run();
+    await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by)
             VALUES (?, ?, ?, ?, 0, ?)
         `).bind(crypto.randomUUID(), token, targetDate, expiresAt, dni).run();
- 
-        return jsonResponse({
-            success:    true,
-            token,
-            date:       targetDate,
-            expires_at: expiresAt,
-            scan_count: 0,
-        }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+
+    return jsonResponse({
+      success: true,
+      token,
+      date: targetDate,
+      expires_at: expiresAt,
+      scan_count: 0,
+    }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 async function handleAttAdminRecords(request, env, corsHeaders) {
-    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
- 
-    const url  = new URL(request.url);
-    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
-    const type = url.searchParams.get('type');
- 
-    try {
-        let query = `
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+
+  const url = new URL(request.url);
+  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const type = url.searchParams.get('type');
+
+  try {
+    let query = `
             SELECT r.id, r.type, r.date, r.time, r.session_id,
                    s.name AS staff_name, s.dni AS staff_dni,
                    s.department, s.position
             FROM att_records r
             JOIN att_staff s ON r.staff_id = s.id
             WHERE r.date = ?`;
-        const bindings = [date];
-        if (type && type !== 'todos') { query += ' AND r.type = ?'; bindings.push(type); }
-        query += ' ORDER BY r.time DESC';
- 
-        const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
-        return jsonResponse({ records: results }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+    const bindings = [date];
+    if (type && type !== 'todos') { query += ' AND r.type = ?'; bindings.push(type); }
+    query += ' ORDER BY r.time DESC';
+
+    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
+    return jsonResponse({ records: results }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 async function handleAttAdminStats(request, env, corsHeaders) {
-    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
- 
-    const url  = new URL(request.url);
-    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
- 
-    try {
-        const totalStaff = await env.MIRAI_AI_DB.prepare(
-            'SELECT COUNT(*) AS c FROM att_staff WHERE is_active = 1'
-        ).first();
-        const { results } = await env.MIRAI_AI_DB.prepare(
-            'SELECT type, COUNT(*) AS c FROM att_records WHERE date = ? GROUP BY type'
-        ).bind(date).all();
- 
-        const entries = results.find(r => r.type === 'entrada')?.c ?? 0;
-        const exits   = results.find(r => r.type === 'salida')?.c  ?? 0;
- 
-        return jsonResponse({
-            total_staff:   totalStaff?.c ?? 0,
-            total_today:   entries + exits,
-            total_entries: entries,
-            total_exits:   exits,
-        }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+
+  const url = new URL(request.url);
+  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+  try {
+    const totalStaff = await env.MIRAI_AI_DB.prepare(
+      'SELECT COUNT(*) AS c FROM att_staff WHERE is_active = 1'
+    ).first();
+    const { results } = await env.MIRAI_AI_DB.prepare(
+      'SELECT type, COUNT(*) AS c FROM att_records WHERE date = ? GROUP BY type'
+    ).bind(date).all();
+
+    const entries = results.find(r => r.type === 'entrada')?.c ?? 0;
+    const exits = results.find(r => r.type === 'salida')?.c ?? 0;
+
+    return jsonResponse({
+      total_staff: totalStaff?.c ?? 0,
+      total_today: entries + exits,
+      total_entries: entries,
+      total_exits: exits,
+    }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 async function handleAttStaffList(request, env, corsHeaders) {
-    const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
-    try {
-        const { results } = await env.MIRAI_AI_DB.prepare(
-            'SELECT id, name, dni, department, position, email, is_active FROM att_staff ORDER BY name'
-        ).all();
-        return jsonResponse({ staff: results }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
-    }
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, name, dni, department, position, email, is_active FROM att_staff ORDER BY name'
+    ).all();
+    return jsonResponse({ staff: results }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
- 
+
 // AGREGAR:
 // GET /api/attendance/admin/lookup-user?dni=XXX
 // Busca en users y devuelve nombre censurado para confirmar antes de registrar
 async function handleAttLookupUser(request, env, corsHeaders) {
-    const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
+  const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
 
-    const url = new URL(request.url);
-    const dni = (url.searchParams.get('dni') || '').toUpperCase().trim();
-    if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
+  const url = new URL(request.url);
+  const dni = (url.searchParams.get('dni') || '').toUpperCase().trim();
+  if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
 
-    try {
-        const user = await env.MIRAI_AI_DB.prepare(
-            'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
-        ).bind(dni).first();
+  try {
+    const user = await env.MIRAI_AI_DB.prepare(
+      'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
+    ).bind(dni).first();
 
-        if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
+    if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
 
-        // Censurar email: a****m@g***.com
-        function censorEmail(email) {
-            const [local, domain] = email.split('@');
-            const cLocal  = local[0] + '****' + local[local.length - 1];
-            const [dName, dExt] = domain.split('.');
-            const cDomain = dName[0] + '***';
-            return `${cLocal}@${cDomain}.${dExt}`;
-        }
-
-        return jsonResponse({
-            found:      true,
-            full_name:  `${user.first_name} ${user.last_name}`,
-            email_hint: censorEmail(user.email),
-        }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    // Censurar email: a****m@g***.com
+    function censorEmail(email) {
+      const [local, domain] = email.split('@');
+      const cLocal = local[0] + '****' + local[local.length - 1];
+      const [dName, dExt] = domain.split('.');
+      const cDomain = dName[0] + '***';
+      return `${cLocal}@${cDomain}.${dExt}`;
     }
+
+    return jsonResponse({
+      found: true,
+      full_name: `${user.first_name} ${user.last_name}`,
+      email_hint: censorEmail(user.email),
+    }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
 
 async function handleAttStaffCreate(request, env, corsHeaders) {
-    const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
+  const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
 
-    let body;
-    try { body = await request.json(); } catch (_) { body = {}; }
-    const { dni, department, position } = body;
-    if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
+  let body;
+  try { body = await request.json(); } catch (_) { body = {}; }
+  const { dni, department, position } = body;
+  if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
 
-    try {
-        // Obtener nombre y email reales desde users
-        const user = await env.MIRAI_AI_DB.prepare(
-            'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
-        ).bind(dni.toUpperCase()).first();
-        if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
+  try {
+    // Obtener nombre y email reales desde users
+    const user = await env.MIRAI_AI_DB.prepare(
+      'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
+    ).bind(dni.toUpperCase()).first();
+    if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
 
-        const name = `${user.first_name} ${user.last_name}`;
+    const name = `${user.first_name} ${user.last_name}`;
 
-        await env.MIRAI_AI_DB.prepare(`
+    await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_staff (id, name, dni, department, position, email)
             VALUES (?, ?, ?, ?, ?, ?)
         `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department || null, position || null, user.email).run();
 
-        return jsonResponse({ success: true, name }, 200, corsHeaders);
-    } catch (e) {
-        const msg = e.message.includes('UNIQUE') ? 'Este empleado ya está registrado' : e.message;
-        return jsonResponse({ error: msg }, 400, corsHeaders);
-    }
+    return jsonResponse({ success: true, name }, 200, corsHeaders);
+  } catch (e) {
+    const msg = e.message.includes('UNIQUE') ? 'Este empleado ya está registrado' : e.message;
+    return jsonResponse({ error: msg }, 400, corsHeaders);
+  }
 }
- 
+
 async function handleAttStaffUpdate(request, env, corsHeaders) {
-    const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
-    if (errorResponse) return errorResponse;
- 
-    let body;
-    try { body = await request.json(); } catch (_) { body = {}; }
-    const { id, name, dni, department, position, email } = body;
-    if (!id || !name || !dni) return jsonResponse({ error: 'Datos incompletos' }, 400, corsHeaders);
- 
-    try {
-        await env.MIRAI_AI_DB.prepare(`
+  const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+
+  let body;
+  try { body = await request.json(); } catch (_) { body = {}; }
+  const { id, name, dni, department, position, email } = body;
+  if (!id || !name || !dni) return jsonResponse({ error: 'Datos incompletos' }, 400, corsHeaders);
+
+  try {
+    await env.MIRAI_AI_DB.prepare(`
             UPDATE att_staff
             SET name=?, dni=?, department=?, position=?, email=?, updated_at=datetime('now')
             WHERE id=?
         `).bind(name, dni.toUpperCase(), department || null, position || null, email || null, id).run();
-        return jsonResponse({ success: true }, 200, corsHeaders);
-    } catch (e) {
-        return jsonResponse({ error: e.message }, 500, corsHeaders);
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// INVESTIGADOR WEB — handler principal
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * POST /api/investigation/search
+ * Body: { question: string }
+ *
+ * Flujo:
+ *  1. Autenticar usuario (cookie HttpOnly)
+ *  2. 3 búsquedas en paralelo con Exa (web, news, research paper)
+ *  3. Scrapeo en paralelo de hasta 12 URLs con Firecrawl
+ *  4. DeepSeek genera el resumen parafraseado en tercera persona
+ *  5. Devuelve { summary, sources[] }
+ */
+async function handleInvestigationSearch(request, env, corsHeaders) {
+    // ── 1. Autenticación ──
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+        return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
     }
+ 
+    // ── 2. Leer cuerpo ──
+    let question;
+    try {
+        const body = await request.json();
+        question = (body.question || '').trim();
+    } catch (_) {
+        return jsonResponse({ error: 'Cuerpo de la solicitud inválido.' }, 400, corsHeaders);
+    }
+ 
+    if (!question) {
+        return jsonResponse({ error: 'El campo "question" es requerido.' }, 400, corsHeaders);
+    }
+ 
+    if (question.length > 500) {
+        return jsonResponse({ error: 'La pregunta es demasiado larga (máximo 500 caracteres).' }, 400, corsHeaders);
+    }
+ 
+    console.log(`🔭 [Investigation] Usuario: ${userDni} | Pregunta: ${question.substring(0, 80)}`);
+ 
+    // ── 3. Búsquedas paralelas con Exa ──
+    let exaResults = [];
+    try {
+        exaResults = await searchWithExa(question, env);
+        console.log(`✅ [Investigation] Exa devolvió ${exaResults.length} URLs`);
+    } catch (err) {
+        console.error('❌ [Investigation] Error en Exa:', err.message);
+        return jsonResponse({ error: 'No se pudo realizar la búsqueda. Intenta de nuevo.' }, 502, corsHeaders);
+    }
+ 
+    if (exaResults.length === 0) {
+        return jsonResponse({ error: 'No se encontraron resultados para esa pregunta.' }, 404, corsHeaders);
+    }
+ 
+    // ── 4. Scrapeo en paralelo con Firecrawl ──
+    let scrapedContents = [];
+    try {
+        scrapedContents = await scrapeAllUrls(exaResults, env);
+        console.log(`✅ [Investigation] Firecrawl obtuvo contenido de ${scrapedContents.length} páginas`);
+    } catch (err) {
+        console.error('❌ [Investigation] Error en Firecrawl:', err.message);
+        // No es fatal: si falla el scraping usamos los highlights de Exa como fallback
+    }
+ 
+    // ── 5. Construir el contexto para DeepSeek ──
+    const contextBlocks = buildContextBlocks(exaResults, scrapedContents);
+ 
+    if (contextBlocks.trim().length < 100) {
+        return jsonResponse({ error: 'No se pudo extraer suficiente contenido de las fuentes encontradas.' }, 422, corsHeaders);
+    }
+ 
+    // ── 6. Generar resumen con DeepSeek ──
+    let summary;
+    try {
+        summary = await generateResearchSummary(question, contextBlocks, env);
+        console.log(`✅ [Investigation] Resumen generado (${summary.length} caracteres)`);
+    } catch (err) {
+        console.error('❌ [Investigation] Error en DeepSeek:', err.message);
+        return jsonResponse({ error: 'No se pudo generar el resumen. Intenta de nuevo.' }, 502, corsHeaders);
+    }
+ 
+    // ── 7. Construir lista de fuentes para el frontend ──
+    const sources = exaResults.map(r => ({
+        title: r.title || r.url,
+        url:   r.url,
+        type:  r.type,        // 'web' | 'news' | 'academic'
+    }));
+ 
+    return jsonResponse({ summary, sources }, 200, corsHeaders);
+}
+ 
+// ════════════════════════════════════════════════════════════
+// EXA — 3 búsquedas en paralelo
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * Lanza 3 búsquedas en paralelo en Exa:
+ *   - Resultados generales (web)
+ *   - Noticias recientes (news)
+ *   - Artículos académicos (research paper)
+ *
+ * Devuelve un array plano de hasta 12 resultados con su tipo.
+ */
+async function searchWithExa(question, env) {
+    const EXA_API_KEY = env.EXA_API_KEY;
+    if (!EXA_API_KEY) throw new Error('EXA_API_KEY no configurada en Cloudflare.');
+ 
+    const EXA_URL = 'https://api.exa.ai/search';
+    const NUM_RESULTS = 4;
+ 
+    const searches = [
+        { category: undefined,        type: 'web'      },
+        { category: 'news',           type: 'news'     },
+        { category: 'research paper', type: 'academic' },
+    ];
+ 
+    const fetchExa = async ({ category, type }) => {
+        const body = {
+            query:      question,
+            numResults: NUM_RESULTS,
+            type:       'auto',
+            contents: {
+                highlights: true,   // fragmentos relevantes — token-efficient
+            },
+        };
+        if (category) body.category = category;
+ 
+        const res = await fetch(EXA_URL, {
+            method:  'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key':    EXA_API_KEY,
+            },
+            body: JSON.stringify(body),
+        });
+ 
+        if (!res.ok) {
+            const err = await res.text().catch(() => res.status);
+            throw new Error(`Exa [${category || 'general'}] ${res.status}: ${err}`);
+        }
+ 
+        const data = await res.json();
+        return (data.results || []).map(r => ({
+            url:        r.url,
+            title:      r.title || '',
+            highlights: r.highlights || [],
+            type,
+        }));
+    };
+ 
+    // Ejecutar en paralelo; si una falla no rompe todo
+    const settled = await Promise.allSettled(searches.map(fetchExa));
+    const results = [];
+    settled.forEach(s => {
+        if (s.status === 'fulfilled') results.push(...s.value);
+        else console.warn('⚠️ [Exa] Búsqueda parcial fallida:', s.reason?.message);
+    });
+ 
+    // Deduplicar por URL
+    const seen = new Set();
+    return results.filter(r => {
+        if (!r.url || seen.has(r.url)) return false;
+        seen.add(r.url);
+        return true;
+    });
+}
+ 
+// ════════════════════════════════════════════════════════════
+// FIRECRAWL — scraping en paralelo
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * Scrapea todas las URLs en paralelo con Firecrawl /scrape.
+ * Usa concurrencia limitada (4 a la vez) para no exceder rate limits.
+ *
+ * @param {Array}  exaResults — resultados de Exa con .url
+ * @param {object} env
+ * @returns {Map<url, markdown>}
+ */
+async function scrapeAllUrls(exaResults, env) {
+    const FIRECRAWL_KEY = env.FIRECRAWL_API_KEY;
+    if (!FIRECRAWL_KEY) {
+        console.warn('⚠️ FIRECRAWL_API_KEY no configurada — se usarán solo los highlights de Exa.');
+        return new Map();
+    }
+ 
+    const CONCURRENCY = 4;   // peticiones simultáneas a Firecrawl
+    const TIMEOUT_MS  = 12000;
+ 
+    const scrapeOne = async (url) => {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+ 
+            const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                method:  'POST',
+                headers: {
+                    'Content-Type':  'application/json',
+                    'Authorization': `Bearer ${FIRECRAWL_KEY}`,
+                },
+                body: JSON.stringify({
+                    url,
+                    formats:         ['markdown'],
+                    onlyMainContent: true,          // descarta nav, footer, ads
+                    excludeTags:     ['nav', 'footer', 'aside', 'script', 'style', 'form'],
+                    maxLength:       4000,          // cap por página para no saturar el contexto
+                }),
+                signal: controller.signal,
+            });
+ 
+            clearTimeout(timer);
+ 
+            if (!res.ok) return { url, markdown: null };
+ 
+            const data = await res.json();
+            return { url, markdown: data?.data?.markdown || null };
+        } catch (err) {
+            console.warn(`⚠️ Firecrawl error [${url}]:`, err.message);
+            return { url, markdown: null };
+        }
+    };
+ 
+    // Procesar en lotes de CONCURRENCY
+    const urls    = exaResults.map(r => r.url);
+    const results = new Map();
+ 
+    for (let i = 0; i < urls.length; i += CONCURRENCY) {
+        const batch   = urls.slice(i, i + CONCURRENCY);
+        const settled = await Promise.all(batch.map(scrapeOne));
+        settled.forEach(({ url, markdown }) => {
+            if (markdown) results.set(url, markdown);
+        });
+    }
+ 
+    return results;
+}
+ 
+// ════════════════════════════════════════════════════════════
+// BUILDER — construye el bloque de contexto para DeepSeek
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * Combina el contenido scrapeado (Firecrawl) con los highlights (Exa).
+ * Prioriza el markdown de Firecrawl; cae en los highlights si no hay scraping.
+ *
+ * @param {Array}  exaResults       — resultados de Exa
+ * @param {Map}    scrapedContents  — Map<url, markdown> de Firecrawl
+ * @returns {string}                — bloque de texto listo para el prompt
+ */
+function buildContextBlocks(exaResults, scrapedContents) {
+    const MAX_CHARS_PER_SOURCE = 3500;
+    const blocks = [];
+ 
+    exaResults.forEach((r, idx) => {
+        const scraped    = scrapedContents instanceof Map ? scrapedContents.get(r.url) : null;
+        const highlights = (r.highlights || []).join(' ').trim();
+ 
+        // Prioridad: markdown scrapeado → highlights de Exa → nada
+        let content = scraped
+            ? scraped.substring(0, MAX_CHARS_PER_SOURCE)
+            : highlights.substring(0, MAX_CHARS_PER_SOURCE);
+ 
+        if (!content) return; // fuente sin contenido útil
+ 
+        const label = r.type === 'academic' ? 'Fuente académica'
+                    : r.type === 'news'     ? 'Noticia'
+                    :                         'Página web';
+ 
+        blocks.push(
+            `--- [${idx + 1}] ${label}: ${r.title || r.url} ---\n` +
+            `URL: ${r.url}\n\n` +
+            content
+        );
+    });
+ 
+    return blocks.join('\n\n');
+}
+ 
+// ════════════════════════════════════════════════════════════
+// DEEPSEEK — generación del resumen
+// ════════════════════════════════════════════════════════════
+ 
+/**
+ * Llama a DeepSeek para generar un resumen académico
+ * parafraseado en tercera persona.
+ */
+async function generateResearchSummary(question, contextBlocks, env) {
+    const DEEPSEEK_API_KEY = env.DEEPSEEK_API_KEY;
+    if (!DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY no configurada.');
+ 
+    const systemPrompt = `Eres un asistente de investigación académica experto.
+Tu tarea es leer múltiples fuentes web y generar un resumen de investigación riguroso y útil.
+ 
+REGLAS OBLIGATORIAS:
+1. Escribe SIEMPRE en tercera persona. Nunca uses "yo", "nosotros" ni te dirijas al lector con "tú".
+2. Parafrasea completamente todo el contenido. NUNCA copies frases textuales de las fuentes.
+3. Descarta: publicidad, menús de navegación, pies de página, cookies, suscripciones y contenido sin relevancia a la pregunta.
+4. Cita las fuentes al final de las ideas usando [1], [2], etc., según el número de fuente en el contexto.
+5. Si una fuente no tiene información relevante para la pregunta, ignórala por completo.
+6. El resumen debe tener entre 300 y 600 palabras.
+7. Estructura obligatoria:
+   - Introducción (1 párrafo): presenta el tema y su importancia.
+   - Desarrollo (2-3 párrafos): explica los hallazgos principales con citas.
+   - Conclusión (1 párrafo): sintetiza y da una perspectiva final.
+8. Usa un lenguaje claro, preciso y académico, pero comprensible.
+9. NO incluyas listas de fuentes al final; las citas van integradas en el texto.
+10. NO inventes información que no esté en las fuentes proporcionadas.`;
+ 
+    const userPrompt =
+        `Pregunta de investigación: "${question}"\n\n` +
+        `A continuación están las fuentes que debes analizar:\n\n` +
+        contextBlocks;
+ 
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method:  'POST',
+        headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        },
+        body: JSON.stringify({
+            model:       'deepseek-chat',
+            temperature: 0.4,       // baja para más precisión académica
+            max_tokens:  1200,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user',   content: userPrompt   },
+            ],
+        }),
+    });
+ 
+    if (!response.ok) {
+        const errText = await response.text().catch(() => response.status);
+        throw new Error(`DeepSeek ${response.status}: ${errText}`);
+    }
+ 
+    const data    = await response.json();
+    const summary = data.choices?.[0]?.message?.content || '';
+ 
+    if (!summary) throw new Error('DeepSeek devolvió una respuesta vacía.');
+ 
+    return summary.trim();
 }
 
 // ============================================
