@@ -2914,7 +2914,7 @@ async function handleInvestigationSearch(request, env, corsHeaders) {
     let scrapedContents = [];
     try {
         scrapedContents = await scrapeAllUrls(exaResults, env);
-        console.log(`✅ [Investigation] Firecrawl obtuvo contenido de ${scrapedContents.length} páginas`);
+        console.log(`✅ [Investigation] Firecrawl obtuvo contenido de ${scrapedContents.size} páginas`);
     } catch (err) {
         console.error('❌ [Investigation] Error en Firecrawl:', err.message);
         // No es fatal: si falla el scraping usamos los highlights de Exa como fallback

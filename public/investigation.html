@@ -109,16 +109,93 @@ body.sidebar-collapsed .inv-page-content {
     max-width: 480px;
 }
 
-/* Barra de búsqueda estilo Google */
+/* ── Barra de búsqueda estilo Google ── */
 .inv-search-wrapper {
     display: flex;
-    align-items: flex-end;
-    gap: 10px;
+    align-items: center;
+    gap: 12px;
     width: 100%;
     max-width: 680px;
+    background: var(--inv-input-bg, #ffffff);
+    border: 2px solid var(--glass-border, rgba(103,80,164,0.2));
+    border-radius: 999px;
+    padding: 10px 10px 10px 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06), 0 0 0 0 var(--accent-color, #6750A4);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
 }
+/* Fondo blanco en light, oscuro en dark */
+:root .inv-search-wrapper                            { --inv-input-bg: #ffffff; }
+[data-theme="dark"] .inv-search-wrapper              { --inv-input-bg: #1e1b26; }
+
+/* Hover: borde de acento suave */
+.inv-search-wrapper:hover {
+    border-color: var(--accent-color, #6750A4);
+}
+
+/* Focus-within: borde de acento sólido + glow */
+.inv-search-wrapper:focus-within {
+    border-color: var(--accent-color, #6750A4);
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08),
+                0 0 0 3px var(--accent-glow, rgba(103,80,164,0.18));
+}
+
+/* Ícono de lupa a la izquierda */
+.inv-search-wrapper::before {
+    content: '';
+    display: block;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    background-color: var(--accent-color, #6750A4);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E");
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    opacity: 0.55;
+    transition: opacity 0.2s;
+}
+.inv-search-wrapper:focus-within::before {
+    opacity: 1;
+}
+
+/* Textarea sin borde propio — el wrapper es el "input" */
 .inv-search-wrapper .welcome-textarea {
     flex: 1;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    outline: none !important;
+    resize: none;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary, #333);
+    min-height: 24px;
+    max-height: 120px;
+}
+.inv-search-wrapper .welcome-textarea::placeholder {
+    color: var(--text-secondary, #aaa);
+}
+.inv-search-wrapper .welcome-textarea:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Botón enviar dentro del wrapper — pill compacto */
+.inv-search-wrapper .send-button {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .inv-disclaimer {
     font-size: 0.76rem;
@@ -386,10 +463,10 @@ body.sidebar-collapsed .inv-page-content {
     <nav class="mobile-sidebar">
         <div class="sidebar-header">
             <h3>Mirai AI</h3>
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display: flex; gap: 8px; align-items: center;">
                 <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
                     <svg viewBox="0 0 24 24" width="18" height="18">
-                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                     </svg>
                 </button>
                 <button class="close-menu" aria-label="Cerrar menú">&times;</button>
@@ -397,42 +474,51 @@ body.sidebar-collapsed .inv-page-content {
         </div>
 
         <div class="sidebar-content">
-            <!-- Navegación -->
+            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
             <section class="sidebar-section collapsible-section active">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Navegación</h4>
                     <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                     </svg>
                 </div>
-                <div class="collapsible-content" style="max-height:500px;opacity:1;margin-top:0.5rem;">
+                <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
                     <div class="nav-grid">
                         <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
-                            <span class="nav-icon">🏠</span><span class="nav-label">Hogar</span>
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
                         </a>
                         <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
-                            <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
                         </a>
                         <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
-                            <span class="nav-icon">📚</span><span class="nav-label">Cursos</span>
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
                         </a>
                         <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
-                            <span class="nav-icon">🏫</span><span class="nav-label">Aula</span>
+                            <span class="nav-icon">🏫</span>
+                            <span class="nav-label">Aula</span>
                         </a>
                         <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
-                            <span class="nav-icon">📦</span><span class="nav-label">Inventario</span>
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">Inventario</span>
                         </a>
                         <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
-                            <span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span>
+                            <span class="nav-icon">🖼️</span>
+                            <span class="nav-label">Fotos</span>
                         </a>
                         <a href="format.html" class="nav-grid-item" data-tooltip="Formato">
-                            <span class="nav-icon">📝</span><span class="nav-label">Formato</span>
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-label">Formato</span>
                         </a>
-                        <a href="apa.html" class="nav-grid-item" data-tooltip="APA 7">
-                            <span class="nav-icon">📄</span><span class="nav-label">APA 7</span>
+                        <a href="apa.html" class="nav-grid-item" data-tooltip="Formato">
+                            <span class="nav-icon">📄</span>
+                            <span class="nav-label">APA 7</span>
                         </a>
                         <a href="attendance.html" class="nav-grid-item" data-tooltip="Asistencia">
-                            <span class="nav-icon">✅</span><span class="nav-label">Asistencia</span>
+                            <span class="nav-icon">✅</span>
+                            <span class="nav-label">Asistencia</span>
                         </a>
                         <a href="investigation.html" class="nav-grid-item active-link" data-tooltip="Investigador">
                             <span class="nav-icon">🔭</span><span class="nav-label">Investigar</span>
@@ -441,33 +527,37 @@ body.sidebar-collapsed .inv-page-content {
                 </div>
             </section>
 
-            <!-- Conversaciones -->
-            <section class="sidebar-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
+            <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                 <div class="conversations-header">
                     <h4>Conversaciones</h4>
                     <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
                         <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                         </svg>
                     </button>
                 </div>
-                <ul id="conversations-list" class="conversations-list"></ul>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
             </section>
 
-            <!-- Explorar -->
+            <!-- Sección 3: Explorar (Desplegable Maestro) -->
             <section class="sidebar-section collapsible-section">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Explorar</h4>
                     <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                     </svg>
                 </div>
                 <div class="collapsible-content">
+
+                    <!-- Submenú: Servicios -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Servicios</h5>
                             <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                             </svg>
                         </div>
                         <div class="collapsible-content nested-content">
@@ -480,11 +570,13 @@ body.sidebar-collapsed .inv-page-content {
                             </ul>
                         </div>
                     </div>
+
+                    <!-- Submenú: Empresa -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Empresa</h5>
                             <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                             </svg>
                         </div>
                         <div class="collapsible-content nested-content">
@@ -497,11 +589,13 @@ body.sidebar-collapsed .inv-page-content {
                             </ul>
                         </div>
                     </div>
+
+                    <!-- Submenú: Enlaces Externos -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Enlaces Externos</h5>
                             <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
-                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
                             </svg>
                         </div>
                         <div class="collapsible-content nested-content">
@@ -513,10 +607,11 @@ body.sidebar-collapsed .inv-page-content {
                             </ul>
                         </div>
                     </div>
+
                 </div>
             </section>
 
-            <!-- Redes Sociales -->
+            <!-- Sección 4: Redes Sociales -->
             <section class="sidebar-section">
                 <h4>Síguenos</h4>
                 <div class="sidebar-social">
@@ -537,30 +632,43 @@ body.sidebar-collapsed .inv-page-content {
                     </a>
                 </div>
             </section>
-
             <a href="settings.html" class="settings-sidebar-btn" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94zM12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
+        c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96
+        c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84
+        c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33
+        c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58
+        C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61
+        l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54
+        c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
+        c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
+        c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
+        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
                 </svg>
                 <span>Configuración</span>
             </a>
-
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:block;">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
 
             <div class="sidebar-logo">
                 <a href="https://aberumirai.com">
-                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai" style="max-width:80px;max-height:80px;">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                        style="max-width: 80px; max-height: 80px;">
                 </a>
             </div>
         </div>
 
+        <!-- Footer del sidebar -->
         <div class="sidebar-footer">
-            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
         </div>
     </nav>
     <div class="mobile-overlay"></div>
