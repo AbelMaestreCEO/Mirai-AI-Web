@@ -1770,6 +1770,33 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path.startsWith('/api/audio/') && request.method === 'GET') {
       return await handleServeAudio(path, env);
     }
+
+    // ── REPORTES (profesor) ───────────────────────────────────
+    if (path === '/api/reports' && request.method === 'GET')
+      return handleReportList(request, env, corsHeaders);
+    if (path === '/api/reports' && request.method === 'POST')
+      return handleReportCreate(request, env, corsHeaders);
+    if (path.match(/^\/api\/reports\/[^/]+$/) && request.method === 'PUT')
+      return handleReportUpdate(request, env, corsHeaders, path.split('/')[3]);
+    if (path.match(/^\/api\/reports\/[^/]+$/) && request.method === 'DELETE')
+      return handleReportDelete(request, env, corsHeaders, path.split('/')[3]);
+    if (path.match(/^\/api\/reports\/[^/]+\/submissions$/) && request.method === 'GET')
+      return handleReportSubmissions(request, env, corsHeaders, path.split('/')[3]);
+    // ── ESTUDIANTES ───────────────────────────────────────────
+    if (path === '/api/students' && request.method === 'GET')
+      return handleStudentList(request, env, corsHeaders);
+
+    // ── REPORTES (estudiante) ─────────────────────────────────
+    if (path === '/api/my-reports' && request.method === 'GET')
+      return handleMyReports(request, env, corsHeaders);
+    if (path.match(/^\/api\/my-reports\/[^/]+\/submission$/) && request.method === 'GET')
+      return handleMySubmission(request, env, corsHeaders, path.split('/')[3]);
+    if (path.match(/^\/api\/my-reports\/[^/]+\/submit$/) && request.method === 'POST')
+      return handleReportSubmit(request, env, corsHeaders, path.split('/')[3]);
+
+    // ── IMÁGENES (sirve desde R2) ─────────────────────────────
+    if (path.startsWith('/api/report-images/') && request.method === 'GET')
+      return handleReportImageServe(request, env, corsHeaders, path.replace('/api/report-images/', ''));
     // Ruta: GET /api/conversations
     if (path === '/api/conversations' && request.method === 'GET') {
       return await handleListConversations(request, env, corsHeaders);
@@ -2646,6 +2673,740 @@ async function handleAttRecord(request, env, corsHeaders) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
+
+// ════════════════════════════════════════════════════════════
+// HELPERS INTERNOS
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Parsea JSON de forma segura; devuelve fallback si falla.
+ * @template T
+ * @param {string|null} raw
+ * @param {T} fallback
+ * @returns {T}
+ */
+function safeJson(raw, fallback) {
+  try { return JSON.parse(raw) ?? fallback; }
+  catch { return fallback; }
+}
+
+/**
+ * Genera un UUID v4 usando la API nativa de Workers.
+ * @returns {string}
+ */
+function newId() {
+  return crypto.randomUUID();
+}
+
+/**
+ * Valida que una string tenga entre min y max caracteres (sin contar espacios extremos).
+ * @param {string} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {boolean}
+ */
+function strLen(value, min, max) {
+  const s = (value || '').trim();
+  return s.length >= min && s.length <= max;
+}
+
+/**
+ * Sube una imagen en base64 a R2 y devuelve la URL pública.
+ * @param {string} base64DataUrl  - "data:image/jpeg;base64,..."
+ * @param {string} reportId
+ * @param {string} studentDni
+ * @param {Object} env
+ * @returns {Promise<string|null>}  URL pública o null si falla
+ */
+async function uploadReportImage(base64DataUrl, reportId, studentDni, env) {
+  try {
+    // Extraer mime type y datos
+    const match = base64DataUrl.match(/^data:([a-zA-Z0-9+/]+\/[a-zA-Z0-9+/]+);base64,(.+)$/);
+    if (!match) return null;
+
+    const mimeType = match[1]; // e.g. "image/jpeg"
+    const ext = mimeType.split('/')[1].replace('jpeg', 'jpg'); // jpg | png | webp | gif
+    const raw = match[2];
+
+    // Decodificar base64 → Uint8Array
+    const binary = atob(raw);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    // Límite de tamaño: 5 MB
+    if (bytes.length > 5 * 1024 * 1024) {
+      console.warn(`[Reports] Imagen descartada: ${bytes.length} bytes > 5 MB`);
+      return null;
+    }
+
+    const imageId = newId();
+    const r2Key = `report-images/${reportId}/${studentDni}/${imageId}.${ext}`;
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, bytes, {
+      httpMetadata: { contentType: mimeType },
+      customMetadata: { reportId, studentDni, uploadedAt: new Date().toISOString() },
+    });
+
+    // URL pública — ajusta el dominio a tu worker/R2 custom domain
+    return `/api/report-images/${r2Key}`;
+
+  } catch (err) {
+    console.error('[Reports] uploadReportImage error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Verifica que el usuario autenticado sea el profesor dueño del reporte.
+ * @param {string} reportId
+ * @param {string} teacherDni
+ * @param {Object} env
+ * @returns {Promise<Object|null>}  Row del reporte o null
+ */
+async function getOwnedReport(reportId, teacherDni, env) {
+  return env.MIRAI_AI_DB
+    .prepare('SELECT * FROM reports WHERE id = ? AND teacher_dni = ?')
+    .bind(reportId, teacherDni)
+    .first();
+}
+
+
+// ════════════════════════════════════════════════════════════
+// ENDPOINTS — PROFESOR
+// ════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/reports
+ * Lista todos los reportes creados por el profesor autenticado.
+ * Respuesta: Report[]
+ */
+async function handleReportList(request, env, corsHeaders) {
+  // Solo profesores
+  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
+  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+
+  try {
+    const { results } = await env.MIRAI_AI_DB
+      .prepare(`
+        SELECT
+          id, title, description, icon, deadline,
+          active, questions_json, access_json,
+          created_at, updated_at
+        FROM reports
+        WHERE teacher_dni = ?
+        ORDER BY created_at DESC
+      `)
+      .bind(teacherDni)
+      .all();
+
+    // Deserializar campos JSON
+    const reports = results.map(r => ({
+      id: r.id,
+      title: r.title,
+      description: r.description || '',
+      icon: r.icon || '📋',
+      deadline: r.deadline,
+      active: r.active === 1,
+      questions: safeJson(r.questions_json, []),
+      access: safeJson(r.access_json, []),
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
+
+    return jsonResponse(reports, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleReportList error:', err.message);
+    return jsonResponse({ error: 'Error al obtener reportes.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * POST /api/reports
+ * Crea un nuevo reporte.
+ * Body: { title, description?, icon?, deadline?, active?, questions[], access[] }
+ * Respuesta: { id, ...reporte }
+ */
+async function handleReportCreate(request, env, corsHeaders) {
+  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
+  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ error: 'JSON inválido.' }, 400, corsHeaders); }
+
+  const { title, description, icon, deadline, active, questions, access } = body;
+
+  // Validaciones
+  if (!strLen(title, 1, 120)) {
+    return jsonResponse({ error: 'El título es obligatorio (máx. 120 caracteres).' }, 400, corsHeaders);
+  }
+
+  const parsedQuestions = Array.isArray(questions) ? questions : [];
+  if (parsedQuestions.length === 0) {
+    return jsonResponse({ error: 'El reporte debe tener al menos una pregunta.' }, 400, corsHeaders);
+  }
+
+  // Validar cada pregunta
+  const validTypes = ['text', 'select', 'time', 'date', 'image'];
+  for (const q of parsedQuestions) {
+    if (!validTypes.includes(q.type)) {
+      return jsonResponse({ error: `Tipo de pregunta inválido: "${q.type}".` }, 400, corsHeaders);
+    }
+    if (!strLen(q.label, 1, 300)) {
+      return jsonResponse({ error: 'Cada pregunta debe tener un texto (máx. 300 chars).' }, 400, corsHeaders);
+    }
+    if (q.type === 'select' && (!Array.isArray(q.options) || q.options.filter(Boolean).length < 2)) {
+      return jsonResponse({ error: `La pregunta "${q.label}" requiere al menos 2 opciones.` }, 400, corsHeaders);
+    }
+  }
+
+  const parsedAccess = Array.isArray(access) ? access : [];
+  const id = newId();
+  const now = new Date().toISOString();
+  const activeValue = active === false ? 0 : 1;
+
+  try {
+    await env.MIRAI_AI_DB
+      .prepare(`
+        INSERT INTO reports
+          (id, teacher_dni, title, description, icon, deadline, active,
+           questions_json, access_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .bind(
+        id,
+        teacherDni,
+        title.trim(),
+        (description || '').trim(),
+        icon || '📋',
+        deadline || null,
+        activeValue,
+        JSON.stringify(parsedQuestions),
+        JSON.stringify(parsedAccess),
+        now,
+        now,
+      )
+      .run();
+
+    return jsonResponse({
+      id,
+      title: title.trim(),
+      description: (description || '').trim(),
+      icon: icon || '📋',
+      deadline: deadline || null,
+      active: activeValue === 1,
+      questions: parsedQuestions,
+      access: parsedAccess,
+      createdAt: now,
+      updatedAt: now,
+    }, 201, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleReportCreate error:', err.message);
+    return jsonResponse({ error: 'Error al crear el reporte.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * PUT /api/reports/:id
+ * Actualiza un reporte existente (cualquier campo es opcional).
+ * Body: Partial<{ title, description, icon, deadline, active, questions[], access[] }>
+ * Respuesta: { ok: true }
+ */
+async function handleReportUpdate(request, env, corsHeaders, reportId) {
+  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
+  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+
+  if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
+
+  // Verificar propiedad
+  const existing = await getOwnedReport(reportId, teacherDni, env);
+  if (!existing) return jsonResponse({ error: 'Reporte no encontrado o acceso denegado.' }, 404, corsHeaders);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ error: 'JSON inválido.' }, 400, corsHeaders); }
+
+  // Construir SET dinámico con solo los campos enviados
+  const fields = [];
+  const values = [];
+
+  if (body.title !== undefined) {
+    if (!strLen(body.title, 1, 120)) {
+      return jsonResponse({ error: 'El título es obligatorio (máx. 120 caracteres).' }, 400, corsHeaders);
+    }
+    fields.push('title = ?');
+    values.push(body.title.trim());
+  }
+
+  if (body.description !== undefined) {
+    fields.push('description = ?');
+    values.push((body.description || '').trim());
+  }
+
+  if (body.icon !== undefined) {
+    fields.push('icon = ?');
+    values.push(body.icon || '📋');
+  }
+
+  if (body.deadline !== undefined) {
+    fields.push('deadline = ?');
+    values.push(body.deadline || null);
+  }
+
+  if (body.active !== undefined) {
+    fields.push('active = ?');
+    values.push(body.active ? 1 : 0);
+  }
+
+  if (body.questions !== undefined) {
+    const qs = Array.isArray(body.questions) ? body.questions : [];
+    if (qs.length === 0) {
+      return jsonResponse({ error: 'El reporte debe tener al menos una pregunta.' }, 400, corsHeaders);
+    }
+    fields.push('questions_json = ?');
+    values.push(JSON.stringify(qs));
+  }
+
+  if (body.access !== undefined) {
+    fields.push('access_json = ?');
+    values.push(JSON.stringify(Array.isArray(body.access) ? body.access : []));
+  }
+
+  if (fields.length === 0) {
+    return jsonResponse({ error: 'No se enviaron campos para actualizar.' }, 400, corsHeaders);
+  }
+
+  fields.push('updated_at = ?');
+  values.push(new Date().toISOString());
+  values.push(reportId);
+  values.push(teacherDni);
+
+  try {
+    await env.MIRAI_AI_DB
+      .prepare(`UPDATE reports SET ${fields.join(', ')} WHERE id = ? AND teacher_dni = ?`)
+      .bind(...values)
+      .run();
+
+    return jsonResponse({ ok: true }, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleReportUpdate error:', err.message);
+    return jsonResponse({ error: 'Error al actualizar el reporte.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * DELETE /api/reports/:id
+ * Elimina un reporte y todas sus respuestas (ON DELETE CASCADE en D1).
+ * Respuesta: { ok: true }
+ */
+async function handleReportDelete(request, env, corsHeaders, reportId) {
+  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
+  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+
+  if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
+
+  const existing = await getOwnedReport(reportId, teacherDni, env);
+  if (!existing) return jsonResponse({ error: 'Reporte no encontrado o acceso denegado.' }, 404, corsHeaders);
+
+  try {
+    // Las submissions se eliminan en cascada por FK (ON DELETE CASCADE)
+    // Si D1 no lo soporta en tu versión, descomenta la línea de abajo:
+    // await env.MIRAI_AI_DB.prepare('DELETE FROM report_submissions WHERE report_id = ?').bind(reportId).run();
+
+    await env.MIRAI_AI_DB
+      .prepare('DELETE FROM reports WHERE id = ? AND teacher_dni = ?')
+      .bind(reportId, teacherDni)
+      .run();
+
+    // Limpiar imágenes en R2 (best-effort, no bloquea la respuesta)
+    try {
+      const listed = await env.MIRAI_AI_ASSETS.list({ prefix: `report-images/${reportId}/` });
+      for (const obj of listed.objects) {
+        await env.MIRAI_AI_ASSETS.delete(obj.key);
+      }
+    } catch (r2Err) {
+      console.warn('[Reports] R2 cleanup parcial:', r2Err.message);
+    }
+
+    return jsonResponse({ ok: true }, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleReportDelete error:', err.message);
+    return jsonResponse({ error: 'Error al eliminar el reporte.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/reports/:id/submissions
+ * Devuelve todas las respuestas enviadas para un reporte,
+ * incluyendo nombre del estudiante.
+ * Respuesta: Submission[]
+ */
+async function handleReportSubmissions(request, env, corsHeaders, reportId) {
+  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
+  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+
+  if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
+
+  const existing = await getOwnedReport(reportId, teacherDni, env);
+  if (!existing) return jsonResponse({ error: 'Reporte no encontrado o acceso denegado.' }, 404, corsHeaders);
+
+  try {
+    const { results } = await env.MIRAI_AI_DB
+      .prepare(`
+        SELECT
+          rs.id,
+          rs.report_id  AS reportId,
+          rs.student_dni AS studentId,
+          u.first_name || ' ' || u.last_name AS studentName,
+          rs.answers_json,
+          rs.submitted_at AS submittedAt
+        FROM report_submissions rs
+        JOIN users u ON rs.student_dni = u.dni
+        WHERE rs.report_id = ?
+        ORDER BY rs.submitted_at DESC
+      `)
+      .bind(reportId)
+      .all();
+
+    const submissions = results.map(s => ({
+      id: s.id,
+      reportId: s.reportId,
+      studentId: s.studentId,
+      studentName: s.studentName,
+      answers: safeJson(s.answers_json, {}),
+      submittedAt: s.submittedAt,
+    }));
+
+    return jsonResponse(submissions, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleReportSubmissions error:', err.message);
+    return jsonResponse({ error: 'Error al obtener respuestas.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/report-images/:key*
+ * Sirve una imagen almacenada en R2 bajo el prefijo report-images/.
+ * Añadir también en handleApiRequest():
+ *   if (path.startsWith('/api/report-images/') && request.method === 'GET')
+ *     return handleReportImageServe(request, env, corsHeaders, path.replace('/api/report-images/', ''));
+ */
+async function handleReportImageServe(request, env, corsHeaders, r2Key) {
+  if (!r2Key) return jsonResponse({ error: 'Clave de imagen requerida.' }, 400, corsHeaders);
+
+  try {
+    const obj = await env.MIRAI_AI_ASSETS.get(r2Key);
+    if (!obj) return jsonResponse({ error: 'Imagen no encontrada.' }, 404, corsHeaders);
+
+    const headers = new Headers();
+    obj.writeHttpMetadata(headers);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    // Propagar CORS solo Content-Type; las imágenes no necesitan JSON headers
+    headers.set('Access-Control-Allow-Origin', '*');
+
+    return new Response(obj.body, { headers });
+
+  } catch (err) {
+    console.error('[Reports] handleReportImageServe error:', err.message);
+    return jsonResponse({ error: 'Error al servir la imagen.' }, 500, corsHeaders);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// ENDPOINT — LISTA DE ESTUDIANTES (para el panel de acceso)
+// ════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/students
+ * Devuelve todos los usuarios con role 'student' (o sin rol de profesor).
+ * Solo accesible para profesores.
+ * Respuesta: { id, name, email }[]
+ *
+ * NOTA: La consulta usa la tabla `users` y excluye a los que están
+ * en `professors`. Ajusta si tu esquema tiene un campo `role` directo.
+ */
+async function handleStudentList(request, env, corsHeaders) {
+  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
+  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+
+  try {
+    const { results } = await env.MIRAI_AI_DB
+      .prepare(`
+        SELECT
+          u.dni        AS id,
+          u.first_name || ' ' || u.last_name AS name,
+          u.email
+        FROM users u
+        WHERE u.is_verified = 1
+          AND u.dni NOT IN (SELECT dni FROM professors WHERE is_active = 1)
+        ORDER BY u.last_name, u.first_name
+      `)
+      .all();
+
+    return jsonResponse(results, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleStudentList error:', err.message);
+    return jsonResponse({ error: 'Error al obtener estudiantes.' }, 500, corsHeaders);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// ENDPOINTS — ESTUDIANTE
+// ════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/my-reports
+ * Devuelve los reportes activos a los que el estudiante autenticado tiene acceso,
+ * junto con el estado de envío.
+ * Respuesta: (Report & { submitted: boolean, submittedAt?: string })[]
+ */
+async function handleMyReports(request, env, corsHeaders) {
+  const studentDni = await requireAuth(request, env);
+  if (!studentDni) return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
+
+  try {
+    // Obtener todos los reportes activos
+    const { results } = await env.MIRAI_AI_DB
+      .prepare(`
+        SELECT
+          r.id, r.title, r.description, r.icon,
+          r.deadline, r.questions_json, r.access_json
+        FROM reports r
+        WHERE r.active = 1
+        ORDER BY r.created_at DESC
+      `)
+      .all();
+
+    // Filtrar solo aquellos donde el estudiante está en access_json
+    const accessible = results.filter(r => {
+      const access = safeJson(r.access_json, []);
+      return access.includes(studentDni);
+    });
+
+    if (accessible.length === 0) {
+      return jsonResponse([], 200, corsHeaders);
+    }
+
+    // Obtener envíos del estudiante en batch
+    const reportIds = accessible.map(r => `'${r.id.replace(/'/g, "''")}'`).join(',');
+    const { results: subs } = await env.MIRAI_AI_DB
+      .prepare(`
+        SELECT report_id, submitted_at
+        FROM report_submissions
+        WHERE student_dni = ?
+          AND report_id IN (${reportIds})
+      `)
+      .bind(studentDni)
+      .all();
+
+    const submissionMap = new Map(subs.map(s => [s.report_id, s.submitted_at]));
+
+    const myReports = accessible.map(r => ({
+      id: r.id,
+      title: r.title,
+      description: r.description || '',
+      icon: r.icon || '📋',
+      deadline: r.deadline,
+      questions: safeJson(r.questions_json, []),
+      submitted: submissionMap.has(r.id),
+      submittedAt: submissionMap.get(r.id) || null,
+    }));
+
+    return jsonResponse(myReports, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleMyReports error:', err.message);
+    return jsonResponse({ error: 'Error al obtener tus reportes.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/my-reports/:id/submission
+ * Devuelve la respuesta previa del estudiante para un reporte (borrador o enviado).
+ * Útil para pre-rellenar el formulario.
+ * Respuesta: { answers: { [qId]: any } } | 404
+ */
+async function handleMySubmission(request, env, corsHeaders, reportId) {
+  const studentDni = await requireAuth(request, env);
+  if (!studentDni) return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
+
+  if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
+
+  try {
+    // Verificar que el estudiante tiene acceso al reporte
+    const report = await env.MIRAI_AI_DB
+      .prepare('SELECT access_json FROM reports WHERE id = ? AND active = 1')
+      .bind(reportId)
+      .first();
+
+    if (!report) return jsonResponse({ error: 'Reporte no encontrado.' }, 404, corsHeaders);
+
+    const access = safeJson(report.access_json, []);
+    if (!access.includes(studentDni)) {
+      return jsonResponse({ error: 'No tienes acceso a este reporte.' }, 403, corsHeaders);
+    }
+
+    // Buscar respuesta previa
+    const submission = await env.MIRAI_AI_DB
+      .prepare(`
+        SELECT answers_json, submitted_at
+        FROM report_submissions
+        WHERE report_id = ? AND student_dni = ?
+      `)
+      .bind(reportId, studentDni)
+      .first();
+
+    if (!submission) return jsonResponse({ error: 'Sin respuesta previa.' }, 404, corsHeaders);
+
+    return jsonResponse({
+      answers: safeJson(submission.answers_json, {}),
+      submittedAt: submission.submitted_at,
+    }, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleMySubmission error:', err.message);
+    return jsonResponse({ error: 'Error al obtener tu respuesta.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * POST /api/my-reports/:id/submit
+ * Envía las respuestas de un estudiante para un reporte.
+ * Body: { answers: { [questionId]: string | string[] } }
+ *
+ * Las imágenes deben viajar como array de base64 data URLs:
+ *   answers["q5"] = ["data:image/jpeg;base64,...", "data:image/png;base64,..."]
+ * El worker las sube a R2 y reemplaza los valores por URLs públicas.
+ *
+ * Respuesta: { ok: true, submittedAt: string }
+ */
+async function handleReportSubmit(request, env, corsHeaders, reportId) {
+  const studentDni = await requireAuth(request, env);
+  if (!studentDni) return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
+
+  if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
+
+  let body;
+  try { body = await request.json(); }
+  catch { return jsonResponse({ error: 'JSON inválido.' }, 400, corsHeaders); }
+
+  const { answers } = body;
+  if (!answers || typeof answers !== 'object') {
+    return jsonResponse({ error: 'El campo "answers" es requerido.' }, 400, corsHeaders);
+  }
+
+  try {
+    // ── 1. Verificar que el reporte existe, está activo y el alumno tiene acceso ──
+    const report = await env.MIRAI_AI_DB
+      .prepare('SELECT id, questions_json, access_json FROM reports WHERE id = ? AND active = 1')
+      .bind(reportId)
+      .first();
+
+    if (!report) {
+      return jsonResponse({ error: 'Reporte no encontrado o inactivo.' }, 404, corsHeaders);
+    }
+
+    const access = safeJson(report.access_json, []);
+    if (!access.includes(studentDni)) {
+      return jsonResponse({ error: 'No tienes acceso a este reporte.' }, 403, corsHeaders);
+    }
+
+    // ── 2. Verificar que no lo haya enviado ya ─────────────────────────────────
+    const existing = await env.MIRAI_AI_DB
+      .prepare('SELECT id FROM report_submissions WHERE report_id = ? AND student_dni = ?')
+      .bind(reportId, studentDni)
+      .first();
+
+    if (existing) {
+      return jsonResponse({ error: 'Ya enviaste este reporte.' }, 409, corsHeaders);
+    }
+
+    // ── 3. Validar que todas las preguntas estén respondidas ───────────────────
+    const questions = safeJson(report.questions_json, []);
+    const missingLabels = [];
+
+    for (const q of questions) {
+      const val = answers[q.id];
+      const isEmpty = val === undefined
+        || val === null
+        || val === ''
+        || (Array.isArray(val) && val.length === 0);
+
+      if (isEmpty) missingLabels.push(q.label || q.id);
+    }
+
+    if (missingLabels.length > 0) {
+      return jsonResponse({
+        error: `Faltan respuestas para: ${missingLabels.join(', ')}`,
+      }, 422, corsHeaders);
+    }
+
+    // ── 4. Procesar imágenes: subir a R2 y reemplazar base64 por URLs ──────────
+    const processedAnswers = { ...answers };
+
+    for (const q of questions) {
+      if (q.type !== 'image') continue;
+
+      const raw = answers[q.id];
+      const dataUrls = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+
+      if (dataUrls.length === 0) continue;
+
+      const urls = [];
+      for (const dataUrl of dataUrls) {
+        if (typeof dataUrl !== 'string') continue;
+
+        // Si ya es una URL (no base64), pasarla tal cual
+        if (!dataUrl.startsWith('data:')) {
+          urls.push(dataUrl);
+          continue;
+        }
+
+        const publicUrl = await uploadReportImage(dataUrl, reportId, studentDni, env);
+        if (publicUrl) urls.push(publicUrl);
+      }
+
+      processedAnswers[q.id] = urls;
+    }
+
+    // ── 5. Guardar en D1 ───────────────────────────────────────────────────────
+    const submissionId = newId();
+    const submittedAt = new Date().toISOString();
+
+    await env.MIRAI_AI_DB
+      .prepare(`
+        INSERT INTO report_submissions (id, report_id, student_dni, answers_json, submitted_at)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+      .bind(
+        submissionId,
+        reportId,
+        studentDni,
+        JSON.stringify(processedAnswers),
+        submittedAt,
+      )
+      .run();
+
+    return jsonResponse({ ok: true, submittedAt }, 201, corsHeaders);
+
+  } catch (err) {
+    // Manejo de UNIQUE constraint si ya existe una fila (race condition)
+    if (err.message?.includes('UNIQUE constraint failed')) {
+      return jsonResponse({ error: 'Ya enviaste este reporte.' }, 409, corsHeaders);
+    }
+    console.error('[Reports] handleReportSubmit error:', err.message);
+    return jsonResponse({ error: 'Error al enviar el reporte.' }, 500, corsHeaders);
+  }
+}
+
 
 // ════════════════════════════════════════════════════════════
 // HANDLERS — Admin
