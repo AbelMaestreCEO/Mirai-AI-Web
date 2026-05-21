@@ -1588,7 +1588,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       const dni = url.searchParams.get('dni');
       if (!dni) return Response.json({ error: 'dni requerido' }, { status: 400 });
 
-      const user = await db
+      const user = await env.MIRAI_AI_DB
         .prepare('SELECT dni, first_name, last_name, email FROM users WHERE dni = ?')
         .bind(dni)
         .first();
