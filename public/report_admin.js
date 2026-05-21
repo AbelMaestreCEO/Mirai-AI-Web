@@ -286,15 +286,11 @@ function getDemoSubmissions(reportId) {
 async function loadData() {
     setLoading(true);
     try {
-        [reports, students] = await Promise.all([
-            api('/api/reports'),
-            api('/api/students'),
-        ]);
+        reports = await api('/api/reports');
     } catch (err) {
         console.warn('[ReportAdmin] API no disponible, usando demo:', err.message);
         if (DEMO_MODE_FALLBACK) {
-            reports  = getDemoReports();
-            students = getDemoStudents();
+            reports = getDemoReports();
             showToast('ℹ️ Modo demo — conecta tu API para persistir datos.');
         }
     } finally {
@@ -457,49 +453,206 @@ function openModal(reportId = null) {
 function closeModal() {
     toggleModal('modal-report', false);
     editingId = null;
+    window._accessMap = {};
 }
 
-// ── Constructor de lista de acceso de estudiantes ─────────────────────────────
+// ── Búsqueda y gestión de acceso de usuarios ─────────────────────────────────
 
 /**
- * Renderiza la lista de estudiantes con toggles de acceso dentro del modal.
+ * Enmascara un email: a***r@g**.com
+ * @param {string} email
+ * @returns {string}
+ */
+function maskEmail(email) {
+    if (!email || !email.includes('@')) return email;
+    const [local, domain] = email.split('@');
+    const [domName, ...domExt] = domain.split('.');
+
+    const maskPart = str => str.length <= 2
+        ? str[0] + '*'.repeat(str.length - 1)
+        : str[0] + '*'.repeat(str.length - 2) + str[str.length - 1];
+
+    return maskPart(local) + '@' + maskPart(domName) + '.' + domExt.join('.');
+}
+
+/**
+ * Inicializa la sección de acceso: buscador por cédula + lista de agregados.
  * @param {string|null} reportId
  */
 function renderStudentAccessList(reportId) {
     const container = $('#student-list');
     if (!container) return;
-    container.innerHTML = '';
 
-    if (students.length === 0) {
-        container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-secondary,#888);">No hay estudiantes registrados.</p>';
-        return;
-    }
-
+    // Cargar accesos previos si se está editando
     const currentAccess = reportId
         ? (reports.find(r => r.id === reportId)?.access || [])
         : [];
 
-    students.forEach(s => {
-        const hasAccess = currentAccess.includes(s.id);
-        const initials  = s.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    // accessMap: { dni: { dni, firstName, lastName, email } }
+    // Se puebla con los usuarios ya agregados al abrir el modal
+    if (!window._accessMap) window._accessMap = {};
+    window._accessMap = {};
+
+    container.innerHTML = `
+        <div style="display:flex; gap:8px; margin-bottom:0.7rem;">
+            <input
+                class="form-input"
+                type="text"
+                id="access-search-dni"
+                placeholder="Buscar por cédula…"
+                maxlength="20"
+                style="flex:1;"
+                aria-label="Buscar usuario por cédula">
+            <button class="btn-save" type="button" id="access-search-btn"
+                style="padding:9px 16px; white-space:nowrap;">
+                Buscar
+            </button>
+        </div>
+        <div id="access-search-result" style="margin-bottom:0.7rem; min-height:36px;"></div>
+        <div id="access-added-list" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;"></div>
+        <input type="hidden" id="access-dns-hidden">
+    `;
+
+    // Pre-cargar usuarios ya en la lista de acceso (solo en edición)
+    if (currentAccess.length > 0) {
+        currentAccess.forEach(dni => {
+            // Intentar recuperar datos del array global students si existe
+            const found = (typeof students !== 'undefined' ? students : []).find(s => String(s.id) === String(dni) || String(s.dni) === String(dni));
+            if (found) {
+                const u = {
+                    dni:       String(found.id || found.dni),
+                    firstName: found.name?.split(' ')[0] || found.first_name || '',
+                    lastName:  found.name?.split(' ').slice(1).join(' ') || found.last_name || '',
+                    email:     found.email || '',
+                };
+                window._accessMap[u.dni] = u;
+            } else {
+                // Sin datos locales, agregar solo con DNI
+                window._accessMap[String(dni)] = { dni: String(dni), firstName: '—', lastName: '', email: '' };
+            }
+        });
+        renderAccessAddedList();
+    }
+
+    // Evento buscar
+    $('#access-search-btn').addEventListener('click', searchUserByDni);
+    $('#access-search-dni').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); searchUserByDni(); }
+    });
+}
+
+/**
+ * Llama a la API buscando un usuario por su cédula.
+ */
+async function searchUserByDni() {
+    const input   = $('#access-search-dni');
+    const resultEl = $('#access-search-result');
+    const dni     = input?.value.trim();
+
+    if (!dni) { showToast('Escribe una cédula para buscar.'); return; }
+
+    resultEl.innerHTML = `<span style="font-size:0.82rem;color:var(--text-secondary,#888);">Buscando…</span>`;
+
+    try {
+        const user = await api(`/api/users/search?dni=${encodeURIComponent(dni)}`);
+        // Respuesta esperada: { dni, first_name, last_name, email }
+        renderSearchResult(user, resultEl);
+    } catch (err) {
+        if (DEMO_MODE_FALLBACK) {
+            // Demo: simular resultado
+            renderSearchResult({
+                dni,
+                first_name: 'Usuario',
+                last_name:  'Demo',
+                email:      'usuario@demo.com',
+            }, resultEl);
+        } else {
+            resultEl.innerHTML = `<span style="font-size:0.82rem;color:#e53935;">Usuario no encontrado.</span>`;
+        }
+    }
+}
+
+/**
+ * Muestra el resultado de búsqueda con botón para agregar.
+ * @param {Object} user  { dni, first_name, last_name, email }
+ * @param {HTMLElement} container
+ */
+function renderSearchResult(user, container) {
+    const dni       = String(user.dni);
+    const already   = !!window._accessMap[dni];
+    const initials  = ((user.first_name?.[0] || '') + (user.last_name?.[0] || '')).toUpperCase() || '?';
+    const maskedEmail = maskEmail(user.email || '');
+
+    container.innerHTML = `
+        <div class="student-row" style="background:var(--secondary-container,#E8DEF8);">
+            <div class="student-avatar">${escapeHtml(initials)}</div>
+            <div style="flex:1; min-width:0;">
+                <div class="student-name">${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</div>
+                <div class="student-email">${escapeHtml(maskedEmail)}</div>
+            </div>
+            <button class="btn-save" type="button" id="access-add-btn"
+                style="padding:7px 14px; font-size:0.82rem; ${already ? 'opacity:.5;cursor:not-allowed;' : ''}">
+                ${already ? 'Agregado' : '+ Agregar'}
+            </button>
+        </div>
+    `;
+
+    if (!already) {
+        $('#access-add-btn').addEventListener('click', () => {
+            window._accessMap[dni] = {
+                dni,
+                firstName: user.first_name || '',
+                lastName:  user.last_name  || '',
+                email:     user.email      || '',
+            };
+            renderAccessAddedList();
+            container.innerHTML = '';
+            $('#access-search-dni').value = '';
+            showToast('✅ Usuario agregado al reporte.');
+        });
+    }
+}
+
+/**
+ * Re-renderiza la lista de usuarios ya agregados al acceso del reporte.
+ */
+function renderAccessAddedList() {
+    const list = $('#access-added-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const entries = Object.values(window._accessMap);
+
+    if (entries.length === 0) {
+        list.innerHTML = '<p style="font-size:0.8rem;color:var(--text-secondary,#aaa);text-align:center;padding:0.5rem 0;">Sin usuarios agregados aún.</p>';
+        return;
+    }
+
+    entries.forEach(u => {
+        const initials    = ((u.firstName?.[0] || '') + (u.lastName?.[0] || '')).toUpperCase() || '?';
+        const maskedEmail = maskEmail(u.email || '');
 
         const row = document.createElement('div');
         row.className = 'student-row';
         row.innerHTML = `
             <div class="student-avatar">${escapeHtml(initials)}</div>
             <div style="flex:1; min-width:0;">
-                <div class="student-name">${escapeHtml(s.name)}</div>
-                <div class="student-email">${escapeHtml(s.email)}</div>
+                <div class="student-name">${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</div>
+                <div class="student-email">${escapeHtml(maskedEmail)}</div>
             </div>
-            <label class="status-toggle" title="${hasAccess ? 'Revocar acceso' : 'Conceder acceso'}">
-                <div class="toggle-switch">
-                    <input type="checkbox" class="student-access-toggle"
-                        data-student-id="${s.id}" ${hasAccess ? 'checked' : ''}>
-                    <span class="toggle-slider"></span>
-                </div>
-            </label>
+            <button class="btn-icon danger btn-remove-access" data-dni="${escapeHtml(u.dni)}" title="Quitar acceso">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+            </button>
         `;
-        container.appendChild(row);
+
+        row.querySelector('.btn-remove-access').addEventListener('click', () => {
+            delete window._accessMap[u.dni];
+            renderAccessAddedList();
+        });
+
+        list.appendChild(row);
     });
 }
 
@@ -664,10 +817,8 @@ async function saveReport() {
         }
     }
 
-    // Recolectar acceso de estudiantes
-    const access = $$('.student-access-toggle')
-        .filter(el => el.checked)
-        .map(el => el.dataset.studentId);
+    // Recolectar acceso de usuarios desde el mapa de búsqueda
+    const access = Object.keys(window._accessMap || {});
 
     const payload = {
         title,

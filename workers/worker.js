@@ -429,7 +429,7 @@ async function handleVerify(request, env, corsHeaders) {
       first_name: user.first_name,
       last_name: user.last_name,
       avatar_url: user.avatar_r2_key ? `/api/user/avatar/${dni.toUpperCase()}` : null,
-      role: user.role,  
+      role: user.role,
       message: '¡Verificación exitosa! Redirigiendo...'
     }), {
       status: 200,
@@ -1581,6 +1581,21 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         console.error('Error listando tareas:', error);
         return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
       }
+    }
+
+    // GET /api/users/search?dni=30840119
+    if (url.pathname === '/api/users/search' && request.method === 'GET') {
+      const dni = url.searchParams.get('dni');
+      if (!dni) return Response.json({ error: 'dni requerido' }, { status: 400 });
+
+      const user = await db
+        .prepare('SELECT dni, first_name, last_name, email FROM users WHERE dni = ?')
+        .bind(dni)
+        .first();
+
+      if (!user) return Response.json({ error: 'Usuario no encontrado' }, { status: 404 });
+
+      return Response.json(user);
     }
 
     if (path === '/api/login' && request.method === 'POST') {
