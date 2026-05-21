@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Solo guardamos datos NO sensibles para mostrar en la UI
             if (data.dni) localStorage.setItem('mirai_user_dni', data.dni);
             if (data.first_name) localStorage.setItem('mirai_user_name', data.first_name);
+            if (data.role) localStorage.setItem('mirai_user_role', data.role);
             window.location.href = 'index.html';
 
         } catch (err) {

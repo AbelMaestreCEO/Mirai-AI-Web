@@ -429,6 +429,7 @@ async function handleVerify(request, env, corsHeaders) {
       first_name: user.first_name,
       last_name: user.last_name,
       avatar_url: user.avatar_r2_key ? `/api/user/avatar/${dni.toUpperCase()}` : null,
+      role: user.role,  
       message: '¡Verificación exitosa! Redirigiendo...'
     }), {
       status: 200,
