@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Administración de Reportes">
+    <title>Mirai AI - Admin Reportes</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script>
+    (function () {
+        var COLORS = {
+            purple:  { c:'#6750A4', cD:'#D0BCFF', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD:'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', glowD:'rgba(208,188,255,0.15)', sc:'#E8DEF8', scD:'#2A2438', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,27,36,0.96)', bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
+            blue:    { c:'#1565C0', cD:'#90CAF9', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD:'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', glowD:'rgba(144,202,249,0.15)', sc:'#E3F2FD', scD:'#0D1E35', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,21,32,0.96)', bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
+            teal:    { c:'#00695C', cD:'#80CBC4', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD:'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', glowD:'rgba(128,203,196,0.15)', sc:'#E0F2F1', scD:'#0A1F1D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,26,25,0.96)', bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
+            green:   { c:'#2E7D32', cD:'#A5D6A7', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD:'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', glowD:'rgba(165,214,167,0.15)', sc:'#E8F5E9', scD:'#0D1F0E', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,24,18,0.96)', bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
+            orange:  { c:'#E65100', cD:'#FFB74D', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD:'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow:'rgba(230,81,0,0.18)', glowD:'rgba(255,183,77,0.15)', sc:'#FFF3E0', scD:'#271A08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,22,16,0.96)', bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
+            pink:    { c:'#AD1457', cD:'#F48FB1', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD:'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow:'rgba(173,20,87,0.18)', glowD:'rgba(244,143,177,0.15)', sc:'#FCE4EC', scD:'#250C18', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,24,0.96)', bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
+            red:     { c:'#B71C1C', cD:'#EF9A9A', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD:'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', glowD:'rgba(239,154,154,0.15)', sc:'#FFEBEE', scD:'#250D0D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,18,0.96)', bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
+            indigo:  { c:'#283593', cD:'#9FA8DA', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD:'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow:'rgba(40,53,147,0.18)', glowD:'rgba(159,168,218,0.15)', sc:'#E8EAF6', scD:'#0E1020', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(19,19,24,0.96)', bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
+            yellow:  { c:'#F57F17', cD:'#FFF176', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD:'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow:'rgba(245,127,23,0.18)', glowD:'rgba(255,238,88,0.15)', sc:'#FFFDE7', scD:'#1F1C08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(29,28,16,0.96)', bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
+            slate:   { c:'#37474F', cD:'#B0BEC5', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD:'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow:'rgba(55,71,79,0.18)', glowD:'rgba(176,190,197,0.15)', sc:'#ECEFF1', scD:'#131618', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(25,28,30,0.96)', bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
+        };
+        var s = {};
+        try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
+        var theme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        var isDark = theme === 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        if (s.accentColor && COLORS[s.accentColor]) {
+            var c = COLORS[s.accentColor];
+            var r = document.documentElement;
+            r.style.setProperty('--accent-color',        isDark ? c.cD   : c.c);
+            r.style.setProperty('--accent-gradient',     isDark ? c.gD   : c.g);
+            r.style.setProperty('--accent-glow',         isDark ? c.glowD : c.glow);
+            r.style.setProperty('--secondary-container', isDark ? c.scD  : c.sc);
+            r.style.setProperty('--glass-bg',            isDark ? c.gbgD : c.gbg);
+            r.style.setProperty('--glass-border',        isDark ? c.gbD  : c.gb);
+            r.style.setProperty('--bg-primary',          isDark ? c.bgD  : c.bg);
+            r.style.setProperty('--bg-gradient',         isDark ? c.bgGD : c.bgG);
+            r.style.background      = isDark ? c.bgD  : c.bg;
+            r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+        }
+        if (s.fontFamily) document.documentElement.style.setProperty('--font-family', s.fontFamily);
+        if (s.fontSize) document.documentElement.style.fontSize = s.fontSize + 'px';
+        if (s.reducedMotion) document.documentElement.classList.add('reduce-motion');
+    })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* ===== REPORT ADMIN STYLES ===== */
+        .reports-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 4rem;
+        }
+
+        .reports-hero {
+            text-align: center;
+            padding: 2rem 1rem 1.5rem;
+        }
+
+        .reports-hero h1 {
+            font-size: clamp(1.6rem, 4vw, 2.2rem);
+            font-weight: 700;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.4rem;
+        }
+
+        .reports-hero p {
+            color: var(--text-secondary, #666);
+            font-size: 0.95rem;
+        }
+
+        /* Teacher badge */
+        .teacher-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 99px;
+            margin-bottom: 1rem;
+            letter-spacing: 0.04em;
+        }
+
+        /* Access denied */
+        .access-denied {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .access-denied .denied-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .access-denied h2 { color: var(--text-primary, #222); margin-bottom: 0.5rem; }
+        .access-denied p  { color: var(--text-secondary, #666); font-size: 0.9rem; }
+
+        /* Toolbar */
+        .reports-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-create {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .15s;
+            box-shadow: 0 2px 12px var(--accent-glow, rgba(103,80,164,0.25));
+        }
+
+        .btn-create:hover { opacity: .88; transform: translateY(-1px); }
+
+        /* Reports list */
+        .reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .report-card {
+            background: var(--glass-bg, rgba(255,255,255,0.94));
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+            border-radius: 16px;
+            padding: 1.2rem 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: box-shadow .2s, transform .2s;
+            cursor: pointer;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 6px 24px var(--accent-glow, rgba(103,80,164,0.15));
+            transform: translateY(-2px);
+        }
+
+        .report-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--secondary-container, #E8DEF8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .report-card-info { flex: 1; min-width: 0; }
+
+        .report-card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary, #1a1a1a);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .report-card-meta {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .report-meta-chip {
+            font-size: 0.75rem;
+            color: var(--text-secondary, #666);
+            background: var(--secondary-container, #E8DEF8);
+            padding: 2px 8px;
+            border-radius: 99px;
+        }
+
+        .report-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-icon {
+            background: none;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 10px;
+            padding: 7px;
+            cursor: pointer;
+            color: var(--accent-color, #6750A4);
+            transition: background .15s, transform .15s;
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-icon:hover { background: var(--secondary-container, #E8DEF8); transform: scale(1.1); }
+        .btn-icon.danger { color: #e53935; border-color: rgba(229,57,53,0.2); }
+        .btn-icon.danger:hover { background: #fff0f0; }
+
+        /* Status toggle */
+        .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            border-radius: 99px;
+            background: #ccc;
+            transition: background .3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            top: 3px;
+            left: 3px;
+            transition: transform .3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent-color, #6750A4); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary, #999);
+        }
+
+        .empty-state-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+        .empty-state h3 { font-size: 1.1rem; margin-bottom: 0.3rem; color: var(--text-primary,#333); }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal-box {
+            background: var(--glass-bg, #fff);
+            border-radius: 20px;
+            padding: 1.8rem;
+            width: 100%;
+            max-width: 680px;
+            margin: auto;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+            animation: modalIn .25s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(20px) scale(.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.4rem;
+        }
+
+        .modal-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary, #1a1a1a);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: var(--text-secondary, #666);
+            line-height: 1;
+            padding: 4px;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 1.1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.83rem;
+            font-weight: 600;
+            color: var(--text-secondary, #555);
+            margin-bottom: 5px;
+            letter-spacing: 0.02em;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 10px;
+            background: var(--bg-primary, #F5F3F8);
+            color: var(--text-primary, #1a1a1a);
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color .2s, box-shadow .2s;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--accent-color, #6750A4);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.18));
+        }
+
+        .form-textarea { min-height: 80px; resize: vertical; }
+
+        /* Questions builder */
+        .questions-area {
+            margin-top: 1.2rem;
+        }
+
+        .questions-area-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary, #222);
+            margin-bottom: 0.8rem;
+        }
+
+        .question-type-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .btn-add-q {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 14px;
+            border-radius: 10px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            background: var(--glass-bg, #fff);
+            color: var(--accent-color, #6750A4);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, border-color .15s, transform .1s;
+        }
+
+        .btn-add-q:hover {
+            background: var(--secondary-container, #E8DEF8);
+            border-color: var(--accent-color, #6750A4);
+            transform: translateY(-1px);
+        }
+
+        /* Question items */
+        .questions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .question-item {
+            background: var(--secondary-container, #E8DEF8);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            position: relative;
+            animation: slideDown .2s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .question-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0.6rem;
+        }
+
+        .question-type-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 99px;
+            background: var(--accent-color, #6750A4);
+            color: #fff;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .question-item .remove-q {
+            margin-left: auto;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #e53935;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 2px;
+        }
+
+        /* Options builder for select type */
+        .options-list { margin-top: 0.5rem; }
+
+        .option-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 5px;
+            align-items: center;
+        }
+
+        .option-row .form-input { flex: 1; padding: 6px 10px; }
+
+        .btn-remove-opt {
+            background: none;
+            border: none;
+            color: #e53935;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .btn-add-opt {
+            background: none;
+            border: 1px dashed var(--accent-color, #6750A4);
+            color: var(--accent-color, #6750A4);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* Access control */
+        .access-section {
+            margin-top: 1.4rem;
+            padding-top: 1.2rem;
+            border-top: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+        }
+
+        .access-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary, #222);
+            margin-bottom: 0.7rem;
+        }
+
+        .student-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .student-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--glass-bg, #fff);
+            border-radius: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.1));
+        }
+
+        .student-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .student-name { flex: 1; font-size: 0.87rem; color: var(--text-primary, #222); }
+        .student-email { font-size: 0.75rem; color: var(--text-secondary, #888); }
+
+        /* Modal footer */
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 1.4rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--glass-border, rgba(103,80,164,0.1));
+        }
+
+        .btn-cancel {
+            padding: 10px 20px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 10px;
+            background: none;
+            color: var(--text-secondary, #666);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .btn-cancel:hover { background: var(--secondary-container, #E8DEF8); }
+
+        .btn-save {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 10px;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .15s;
+            box-shadow: 0 2px 10px var(--accent-glow, rgba(103,80,164,0.25));
+        }
+
+        .btn-save:hover { opacity: .88; transform: translateY(-1px); }
+
+        /* Submissions viewer modal */
+        .submissions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .submissions-table th {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 2px solid var(--glass-border, rgba(103,80,164,0.15));
+            color: var(--text-secondary, #666);
+            font-weight: 600;
+            font-size: 0.78rem;
+            letter-spacing: 0.03em;
+        }
+
+        .submissions-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--glass-border, rgba(103,80,164,0.08));
+            color: var(--text-primary, #222);
+        }
+
+        .submissions-table tr:last-child td { border-bottom: none; }
+        .submissions-table tr:hover td { background: var(--secondary-container, #E8DEF8); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: #323232;
+            color: #fff;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .3s, transform .3s;
+            z-index: 9999;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Spinner */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-overlay.show { display: flex; }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid var(--secondary-container, #E8DEF8);
+            border-top-color: var(--accent-color, #6750A4);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Search */
+        .search-bar {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-bar svg {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            fill: var(--text-secondary, #999);
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 12px;
+            background: var(--glass-bg, #fff);
+            color: var(--text-primary, #222);
+            font-size: 0.9rem;
+            transition: border-color .2s, box-shadow .2s;
+            box-sizing: border-box;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: var(--accent-color, #6750A4);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.15));
+        }
+
+        @media (max-width: 600px) {
+            .report-card { flex-wrap: wrap; }
+            .report-card-actions { width: 100%; justify-content: flex-end; }
+            .modal-box { padding: 1.2rem; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ===== SIDEBAR (idéntico al de courses.html) ===== -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
+                        </a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
+                        </a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
+                        </a>
+                        <a href="classroom.html" class="nav-grid-item" data-tooltip="Aula">
+                            <span class="nav-icon">🏫</span>
+                            <span class="nav-label">Aula</span>
+                        </a>
+                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">Inventario</span>
+                        </a>
+                        <a href="mirror.html" class="nav-grid-item" data-tooltip="Organizador">
+                            <span class="nav-icon">🖼️</span>
+                            <span class="nav-label">Fotos</span>
+                        </a>
+                        <a href="format.html" class="nav-grid-item" data-tooltip="Formato">
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-label">Formato</span>
+                        </a>
+                        <a href="apa.html" class="nav-grid-item" data-tooltip="Formato">
+                            <span class="nav-icon">📄</span>
+                            <span class="nav-label">APA 7</span>
+                        </a>
+                        <a href="attendance.html" class="nav-grid-item" data-tooltip="Asistencia">
+                            <span class="nav-icon">✅</span>
+                            <span class="nav-label">Asistencia</span>
+                        </a>
+                        <a href="investigation.html" class="nav-grid-item active-link" data-tooltip="Investigador">
+                            <span class="nav-icon">🔭</span><span class="nav-label">Investigar</span>
+                        </a>
+                        <a href="report.html" class="nav-grid-item active-link" data-tooltip="Reportes">
+                            <span class="nav-icon">📋</span><span class="nav-label">Reportes</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
+            <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
+            </section>
+
+            <!-- Sección 3: Explorar (Desplegable Maestro) -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Explorar</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+
+                    <!-- Submenú: Servicios -->
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Servicios</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                                <li><a href="https://aberumirai.com#education">Educación</a></li>
+                                <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                                <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                                <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Submenú: Empresa -->
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Empresa</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                                <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                                <li><a href="#">Quiénes somos</a></li>
+                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Submenú: Enlaces Externos -->
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Enlaces Externos</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                                <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                                <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                                <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Sección 4: Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+            <a href="settings.html" class="settings-sidebar-btn" title="Configuración">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
+        c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96
+        c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84
+        c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33
+        c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58
+        C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61
+        l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54
+        c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
+        c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
+        c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
+        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+                </svg>
+                <span>Configuración</span>
+            </a>
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                        style="max-width: 80px; max-height: 80px;">
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer del sidebar -->
+        <div class="sidebar-footer">
+            <p>&copy;
+                <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
+            </p>
+        </div>
+    </nav>
+
+    <div class="mobile-overlay"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+        <div class="header-title">Admin Reportes</div>
+    </header>
+
+    <!-- Access Denied Screen -->
+    <div class="access-denied" id="access-denied">
+        <div class="denied-icon">🔒</div>
+        <h2>Acceso Restringido</h2>
+        <p>Esta sección es exclusiva para profesores.<br>Si crees que esto es un error, contacta al administrador.</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="reports-container" id="main-content" style="display:none;">
+
+        <div class="reports-hero">
+            <div class="teacher-badge">👩‍🏫 Panel de Profesor</div>
+            <h1>Gestión de Reportes</h1>
+            <p>Crea, configura y gestiona los reportes que tus estudiantes deben completar.</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="reports-toolbar">
+            <div class="search-bar">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <input type="text" id="search-input" placeholder="Buscar reportes..." autocomplete="off">
+            </div>
+            <button class="btn-create" id="btn-new-report">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Nuevo Reporte
+            </button>
+        </div>
+
+        <!-- Reports list -->
+        <div class="reports-list" id="reports-list">
+            <!-- Populated by JS -->
+        </div>
+
+        <div class="empty-state" id="empty-state" style="display:none;">
+            <div class="empty-state-icon">📋</div>
+            <h3>Sin reportes aún</h3>
+            <p>Crea tu primer reporte pulsando "Nuevo Reporte".</p>
+        </div>
+
+    </div>
+
+    <!-- ===== MODAL: CREAR / EDITAR REPORTE ===== -->
+    <div class="modal-overlay" id="modal-report" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Crear Reporte</span>
+                <button class="modal-close" id="modal-close-btn" aria-label="Cerrar">✕</button>
+            </div>
+
+            <!-- Datos básicos -->
+            <div class="form-group">
+                <label class="form-label" for="report-title-input">Título del reporte *</label>
+                <input class="form-input" type="text" id="report-title-input" placeholder="Ej: Reporte de práctica semanal" maxlength="120">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="report-desc-input">Descripción / instrucciones</label>
+                <textarea class="form-textarea" id="report-desc-input" placeholder="Explica a los estudiantes qué deben reportar..."></textarea>
+            </div>
+            <div class="form-group" style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:140px;">
+                    <label class="form-label" for="report-deadline">Fecha límite</label>
+                    <input class="form-input" type="date" id="report-deadline">
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <label class="form-label" for="report-icon">Ícono</label>
+                    <select class="form-select" id="report-icon">
+                        <option value="📋">📋 General</option>
+                        <option value="📝">📝 Tarea</option>
+                        <option value="🔬">🔬 Investigación</option>
+                        <option value="📊">📊 Datos</option>
+                        <option value="🏃">🏃 Actividad física</option>
+                        <option value="💡">💡 Proyecto</option>
+                        <option value="📸">📸 Fotográfico</option>
+                        <option value="🧪">🧪 Laboratorio</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Constructor de preguntas -->
+            <div class="questions-area">
+                <div class="questions-area-label">Preguntas del reporte</div>
+                <div class="question-type-btns">
+                    <button class="btn-add-q" data-type="text">✏️ Texto</button>
+                    <button class="btn-add-q" data-type="select">☑️ Selección</button>
+                    <button class="btn-add-q" data-type="time">🕐 Hora</button>
+                    <button class="btn-add-q" data-type="date">📅 Fecha</button>
+                    <button class="btn-add-q" data-type="image">🖼️ Imagen</button>
+                </div>
+                <div class="questions-list" id="questions-list">
+                    <!-- Preguntas se agregan dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Control de acceso por estudiante -->
+            <div class="access-section">
+                <div class="access-title">👥 Acceso de estudiantes</div>
+                <p style="font-size:0.82rem; color:var(--text-secondary,#666); margin-bottom:0.7rem;">
+                    Activa el acceso para cada estudiante que debe completar este reporte.
+                </p>
+                <div class="student-list" id="student-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" id="modal-cancel-btn">Cancelar</button>
+                <button class="btn-save" id="modal-save-btn">Guardar reporte</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: VER RESPUESTAS ===== -->
+    <div class="modal-overlay" id="modal-submissions" role="dialog" aria-modal="true">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title" id="submissions-title">Respuestas</span>
+                <button class="modal-close" id="submissions-close-btn" aria-label="Cerrar">✕</button>
+            </div>
+            <div id="submissions-content">
+                <div class="empty-state" style="padding:2rem;">
+                    <div class="empty-state-icon">📭</div>
+                    <h3>Sin respuestas aún</h3>
+                    <p>Los estudiantes aún no han completado este reporte.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Loading -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Scripts del proyecto -->
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+
+    <!-- ===== MÓDULO REPORT ADMIN ===== -->
+    <script type="module">
+    /**
+     * report_admin.js (inline)
+     * Integra con Cloudflare D1 / Workers a través de la API REST del proyecto.
+     * Endpoints esperados (ajusta BASE_URL a tu worker):
+     *
+     *   GET    /api/reports                        → lista de reportes del profesor
+     *   POST   /api/reports                        → crear reporte
+     *   PUT    /api/reports/:id                    → actualizar reporte
+     *   DELETE /api/reports/:id                    → eliminar reporte
+     *   GET    /api/reports/:id/submissions        → respuestas de un reporte
+     *   GET    /api/students                       → lista de estudiantes
+     *   GET    /api/reports/:id/access             → alumnos con acceso
+     *   POST   /api/reports/:id/access             → conceder/revocar acceso { userId, granted }
+     *
+     * La autenticación se toma del token guardado por auth-guard.js:
+     *   localStorage.getItem('mirai-token')  ← Bearer token
+     *   localStorage.getItem('mirai-user')   ← JSON {id, name, role, email}
+     */
+
+    const BASE_URL = ''; // e.g. 'https://api.aberumirai.com'
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    const $ = (sel, ctx = document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+
+    function getToken() { return localStorage.getItem('mirai-token') || ''; }
+    function getUser()  {
+        try { return JSON.parse(localStorage.getItem('mirai-user')) || {}; }
+        catch { return {}; }
+    }
+
+    async function api(path, opts = {}) {
+        const res = await fetch(BASE_URL + path, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}`,
+                ...(opts.headers || {})
+            },
+            ...opts
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    }
+
+    function showToast(msg, duration = 2800) {
+        const t = $('#toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), duration);
+    }
+
+    function setLoading(on) {
+        $('#loading-overlay').classList.toggle('show', on);
+    }
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let reports   = [];     // [{id, title, description, icon, deadline, active, questions:[…], access:[userId,…]}]
+    let students  = [];     // [{id, name, email}]
+    let editingId = null;   // null = crear, string = editar
+    let qCounter  = 0;      // id único para preguntas en el DOM
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+    async function init() {
+        const user = getUser();
+
+        // Verificar que sea profesor
+        if (!user || user.role !== 'teacher') {
+            $('#access-denied').style.display = 'flex';
+            return;
+        }
+
+        $('#main-content').style.display = 'block';
+        await loadData();
+        bindEvents();
+    }
+
+    async function loadData() {
+        setLoading(true);
+        try {
+            [reports, students] = await Promise.all([
+                api('/api/reports'),
+                api('/api/students')
+            ]);
+        } catch (e) {
+            // Datos demo si la API no está disponible
+            reports  = getDemoReports();
+            students = getDemoStudents();
+        } finally {
+            setLoading(false);
+            renderReports();
+        }
+    }
+
+    // ── Demo data ─────────────────────────────────────────────────────────────
+    function getDemoReports() {
+        return [
+            {
+                id: 'r1',
+                title: 'Reporte de práctica semanal',
+                description: 'Documenta las actividades realizadas durante la semana.',
+                icon: '📋',
+                deadline: '2025-12-31',
+                active: true,
+                questions: [
+                    { id:'q1', type:'text',   label:'¿Qué actividades realizaste?' },
+                    { id:'q2', type:'select',  label:'Nivel de dificultad', options:['Fácil','Medio','Difícil'] },
+                    { id:'q3', type:'time',    label:'Hora de inicio' },
+                    { id:'q4', type:'date',    label:'Fecha de realización' },
+                    { id:'q5', type:'image',   label:'Foto evidencia' }
+                ],
+                access: ['s1', 's2']
+            }
+        ];
+    }
+
+    function getDemoStudents() {
+        return [
+            { id:'s1', name:'Ana García',    email:'ana@email.com' },
+            { id:'s2', name:'Luis Pérez',    email:'luis@email.com' },
+            { id:'s3', name:'María López',   email:'maria@email.com' },
+            { id:'s4', name:'Carlos Ruiz',   email:'carlos@email.com' }
+        ];
+    }
+
+    // ── Render reports list ────────────────────────────────────────────────────
+    function renderReports(filter = '') {
+        const list = $('#reports-list');
+        const empty = $('#empty-state');
+        const query = filter.toLowerCase();
+
+        const filtered = reports.filter(r =>
+            r.title.toLowerCase().includes(query) ||
+            (r.description || '').toLowerCase().includes(query)
+        );
+
+        list.innerHTML = '';
+
+        if (filtered.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+
+        empty.style.display = 'none';
+
+        filtered.forEach(r => {
+            const card = document.createElement('div');
+            card.className = 'report-card';
+            card.dataset.id = r.id;
+
+            const accessCount = (r.access || []).length;
+            const qCount = (r.questions || []).length;
+
+            card.innerHTML = `
+                <div class="report-card-icon">${r.icon || '📋'}</div>
+                <div class="report-card-info">
+                    <div class="report-card-title">${escapeHtml(r.title)}</div>
+                    <div class="report-card-meta">
+                        <span class="report-meta-chip">❓ ${qCount} pregunta${qCount !== 1 ? 's' : ''}</span>
+                        <span class="report-meta-chip">👥 ${accessCount} estudiante${accessCount !== 1 ? 's' : ''}</span>
+                        ${r.deadline ? `<span class="report-meta-chip">📅 ${r.deadline}</span>` : ''}
+                    </div>
+                </div>
+                <label class="status-toggle" title="${r.active ? 'Desactivar' : 'Activar'} reporte">
+                    <div class="toggle-switch">
+                        <input type="checkbox" class="toggle-active" ${r.active ? 'checked' : ''} data-id="${r.id}">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span style="font-size:0.78rem; color:var(--text-secondary,#888);">${r.active ? 'Activo' : 'Inactivo'}</span>
+                </label>
+                <div class="report-card-actions">
+                    <button class="btn-icon btn-submissions" data-id="${r.id}" title="Ver respuestas">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon btn-edit" data-id="${r.id}" title="Editar">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon danger btn-delete" data-id="${r.id}" title="Eliminar">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            list.appendChild(card);
+        });
+    }
+
+    // ── Modal helpers ──────────────────────────────────────────────────────────
+    function openModal(reportId = null) {
+        editingId = reportId;
+        qCounter  = 0;
+
+        const modal = $('#modal-report');
+        const title = $('#modal-title');
+        const qList = $('#questions-list');
+
+        qList.innerHTML = '';
+        $('#report-title-input').value   = '';
+        $('#report-desc-input').value    = '';
+        $('#report-deadline').value      = '';
+        $('#report-icon').value          = '📋';
+
+        if (reportId) {
+            title.textContent = 'Editar Reporte';
+            const r = reports.find(x => x.id === reportId);
+            if (r) {
+                $('#report-title-input').value = r.title;
+                $('#report-desc-input').value  = r.description || '';
+                $('#report-deadline').value    = r.deadline || '';
+                $('#report-icon').value        = r.icon || '📋';
+                (r.questions || []).forEach(q => addQuestionToDOM(q.type, q));
+            }
+        } else {
+            title.textContent = 'Crear Reporte';
+        }
+
+        renderStudentAccess(reportId);
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        $('#modal-report').classList.remove('open');
+        document.body.style.overflow = '';
+        editingId = null;
+    }
+
+    // ── Student access list inside modal ──────────────────────────────────────
+    function renderStudentAccess(reportId) {
+        const container = $('#student-list');
+        container.innerHTML = '';
+
+        const currentAccess = reportId
+            ? (reports.find(r => r.id === reportId)?.access || [])
+            : [];
+
+        if (students.length === 0) {
+            container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-secondary,#888);">No hay estudiantes registrados.</p>';
+            return;
+        }
+
+        students.forEach(s => {
+            const hasAccess = currentAccess.includes(s.id);
+            const initials  = s.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+
+            const row = document.createElement('div');
+            row.className = 'student-row';
+            row.innerHTML = `
+                <div class="student-avatar">${initials}</div>
+                <div style="flex:1;">
+                    <div class="student-name">${escapeHtml(s.name)}</div>
+                    <div class="student-email">${escapeHtml(s.email)}</div>
+                </div>
+                <label class="status-toggle">
+                    <div class="toggle-switch">
+                        <input type="checkbox" class="student-access-toggle" data-student-id="${s.id}" ${hasAccess ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    // ── Question builder ───────────────────────────────────────────────────────
+    const TYPE_LABELS = {
+        text: 'Texto', select: 'Selección', time: 'Hora', date: 'Fecha', image: 'Imagen'
+    };
+
+    function addQuestionToDOM(type, existing = null) {
+        const id  = `q${++qCounter}`;
+        const item = document.createElement('div');
+        item.className = 'question-item';
+        item.dataset.qid  = id;
+        item.dataset.type = type;
+
+        let extraHtml = '';
+
+        if (type === 'select') {
+            const opts = existing?.options || ['', ''];
+            const optsHtml = opts.map((o, i) => `
+                <div class="option-row">
+                    <input class="form-input" type="text" placeholder="Opción ${i+1}" value="${escapeHtml(o)}" data-opt-index="${i}">
+                    <button class="btn-remove-opt" type="button" title="Quitar opción">✕</button>
+                </div>
+            `).join('');
+            extraHtml = `
+                <div class="options-list">${optsHtml}</div>
+                <button class="btn-add-opt" type="button">+ Añadir opción</button>
+            `;
+        }
+
+        if (type === 'image') {
+            extraHtml = `<p style="font-size:0.78rem;color:var(--text-secondary,#777);margin-top:4px;">El estudiante podrá subir una o más imágenes.</p>`;
+        }
+
+        item.innerHTML = `
+            <div class="question-item-header">
+                <span class="question-type-badge">${TYPE_LABELS[type]}</span>
+                <button class="remove-q" type="button" title="Eliminar pregunta">✕</button>
+            </div>
+            <div class="form-group" style="margin-bottom:0.4rem;">
+                <input class="form-input q-label" type="text" placeholder="Escribe la pregunta…" value="${escapeHtml(existing?.label || '')}">
+            </div>
+            ${extraHtml}
+        `;
+
+        // Remove question
+        item.querySelector('.remove-q').addEventListener('click', () => item.remove());
+
+        // Select: remove option
+        item.querySelectorAll('.btn-remove-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const row = btn.closest('.option-row');
+                const optList = item.querySelector('.options-list');
+                if (optList.children.length > 2) row.remove();
+                else showToast('Mínimo 2 opciones.');
+            });
+        });
+
+        // Select: add option
+        const addOptBtn = item.querySelector('.btn-add-opt');
+        if (addOptBtn) {
+            addOptBtn.addEventListener('click', () => {
+                const optList = item.querySelector('.options-list');
+                const idx = optList.children.length;
+                const row = document.createElement('div');
+                row.className = 'option-row';
+                row.innerHTML = `
+                    <input class="form-input" type="text" placeholder="Opción ${idx+1}">
+                    <button class="btn-remove-opt" type="button">✕</button>
+                `;
+                row.querySelector('.btn-remove-opt').addEventListener('click', () => {
+                    if (optList.children.length > 2) row.remove();
+                    else showToast('Mínimo 2 opciones.');
+                });
+                optList.appendChild(row);
+            });
+        }
+
+        $('#questions-list').appendChild(item);
+    }
+
+    // ── Save report ────────────────────────────────────────────────────────────
+    async function saveReport() {
+        const title = $('#report-title-input').value.trim();
+        if (!title) { showToast('El título es obligatorio.'); return; }
+
+        // Build questions
+        const questions = $$('.question-item').map(item => {
+            const q = {
+                id:    item.dataset.qid,
+                type:  item.dataset.type,
+                label: item.querySelector('.q-label')?.value.trim() || ''
+            };
+            if (q.type === 'select') {
+                q.options = [...item.querySelectorAll('.options-list .form-input')]
+                    .map(i => i.value.trim())
+                    .filter(Boolean);
+            }
+            return q;
+        });
+
+        // Build access list
+        const access = $$('.student-access-toggle')
+            .filter(el => el.checked)
+            .map(el => el.dataset.studentId);
+
+        const payload = {
+            title,
+            description: $('#report-desc-input').value.trim(),
+            icon:        $('#report-icon').value,
+            deadline:    $('#report-deadline').value || null,
+            questions,
+            access,
+            active:      true
+        };
+
+        setLoading(true);
+        try {
+            if (editingId) {
+                await api(`/api/reports/${editingId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                });
+                const idx = reports.findIndex(r => r.id === editingId);
+                if (idx !== -1) reports[idx] = { ...reports[idx], ...payload };
+                showToast('✅ Reporte actualizado.');
+            } else {
+                const created = await api('/api/reports', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                reports.unshift({ id: created.id || Date.now().toString(), ...payload });
+                showToast('✅ Reporte creado.');
+            }
+        } catch (e) {
+            // Demo mode: update local array
+            if (editingId) {
+                const idx = reports.findIndex(r => r.id === editingId);
+                if (idx !== -1) reports[idx] = { id: editingId, ...payload };
+            } else {
+                reports.unshift({ id: 'r' + Date.now(), ...payload });
+            }
+            showToast('✅ Reporte guardado (demo).');
+        } finally {
+            setLoading(false);
+            closeModal();
+            renderReports($('#search-input').value);
+        }
+    }
+
+    // ── Toggle active ──────────────────────────────────────────────────────────
+    async function toggleActive(reportId, active) {
+        const r = reports.find(x => x.id === reportId);
+        if (r) r.active = active;
+        try {
+            await api(`/api/reports/${reportId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ active })
+            });
+        } catch { /* silencioso en demo */ }
+        showToast(active ? '✅ Reporte activado.' : '⏸ Reporte desactivado.');
+    }
+
+    // ── Delete report ──────────────────────────────────────────────────────────
+    async function deleteReport(reportId) {
+        if (!confirm('¿Eliminar este reporte? Esta acción no se puede deshacer.')) return;
+        setLoading(true);
+        try {
+            await api(`/api/reports/${reportId}`, { method: 'DELETE' });
+        } catch { /* demo */ } finally {
+            reports = reports.filter(r => r.id !== reportId);
+            setLoading(false);
+            renderReports($('#search-input').value);
+            showToast('🗑 Reporte eliminado.');
+        }
+    }
+
+    // ── View submissions ───────────────────────────────────────────────────────
+    async function viewSubmissions(reportId) {
+        const r = reports.find(x => x.id === reportId);
+        $('#submissions-title').textContent = `Respuestas: ${r?.title || ''}`;
+        const content = $('#submissions-content');
+        content.innerHTML = '<div style="text-align:center;padding:2rem;"><div class="spinner" style="margin:auto;"></div></div>';
+        $('#modal-submissions').classList.add('open');
+        document.body.style.overflow = 'hidden';
+
+        try {
+            const subs = await api(`/api/reports/${reportId}/submissions`);
+            renderSubmissions(subs, r);
+        } catch {
+            renderSubmissions([], r);
+        }
+    }
+
+    function renderSubmissions(subs, report) {
+        const content = $('#submissions-content');
+        if (!subs || subs.length === 0) {
+            content.innerHTML = `
+                <div class="empty-state" style="padding:2rem;">
+                    <div class="empty-state-icon">📭</div>
+                    <h3>Sin respuestas aún</h3>
+                    <p>Los estudiantes aún no han completado este reporte.</p>
+                </div>`;
+            return;
+        }
+
+        const qs = report?.questions || [];
+        const headers = ['Estudiante', 'Enviado', ...qs.map(q => q.label || q.type)];
+
+        const thead = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+        const tbody = subs.map(s => {
+            const cells = [
+                escapeHtml(s.studentName || s.student_id),
+                escapeHtml(s.submittedAt ? new Date(s.submittedAt).toLocaleString('es') : '–'),
+                ...qs.map(q => {
+                    const ans = s.answers?.[q.id];
+                    if (q.type === 'image' && ans) return `<a href="${ans}" target="_blank">Ver imagen</a>`;
+                    return escapeHtml(ans || '–');
+                })
+            ];
+            return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+        }).join('');
+
+        content.innerHTML = `
+            <div style="overflow-x:auto;">
+                <table class="submissions-table">
+                    <thead><tr>${thead}</tr></thead>
+                    <tbody>${tbody}</tbody>
+                </table>
+            </div>`;
+    }
+
+    // ── Bind events ────────────────────────────────────────────────────────────
+    function bindEvents() {
+        // New report
+        $('#btn-new-report').addEventListener('click', () => openModal(null));
+
+        // Modal close
+        $('#modal-close-btn').addEventListener('click', closeModal);
+        $('#modal-cancel-btn').addEventListener('click', closeModal);
+
+        // Save
+        $('#modal-save-btn').addEventListener('click', saveReport);
+
+        // Submissions close
+        $('#submissions-close-btn').addEventListener('click', () => {
+            $('#modal-submissions').classList.remove('open');
+            document.body.style.overflow = '';
+        });
+
+        // Close on overlay click
+        $$('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('open');
+                    document.body.style.overflow = '';
+                    editingId = null;
+                }
+            });
+        });
+
+        // Add question type buttons
+        $$('.btn-add-q').forEach(btn => {
+            btn.addEventListener('click', () => addQuestionToDOM(btn.dataset.type));
+        });
+
+        // Delegated: edit, delete, toggle, submissions
+        $('#reports-list').addEventListener('click', e => {
+            const editBtn = e.target.closest('.btn-edit');
+            const delBtn  = e.target.closest('.btn-delete');
+            const subBtn  = e.target.closest('.btn-submissions');
+            const toggle  = e.target.closest('.toggle-active');
+
+            if (editBtn)  openModal(editBtn.dataset.id);
+            if (delBtn)   deleteReport(delBtn.dataset.id);
+            if (subBtn)   viewSubmissions(subBtn.dataset.id);
+            if (toggle)   toggleActive(toggle.dataset.id, toggle.checked);
+        });
+
+        // Search
+        $('#search-input').addEventListener('input', e => {
+            renderReports(e.target.value);
+        });
+
+        // Logout
+        const logoutBtn = $('#logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                localStorage.removeItem('mirai-token');
+                localStorage.removeItem('mirai-user');
+                window.location.href = 'login.html';
+            });
+        }
+    }
+
+    // ── Utility ────────────────────────────────────────────────────────────────
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── Start ──────────────────────────────────────────────────────────────────
+    init();
+    </script>
+
+</body>
+</html>
