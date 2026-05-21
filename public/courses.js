@@ -676,6 +676,7 @@
                 } catch (e) {}
                 localStorage.removeItem('mirai_user_dni');
                 localStorage.removeItem('mirai_user_name');
+                localStorage.getItem('mirai_user_role');
                 localStorage.removeItem('mirai-ai-conversation-id');
                 localStorage.removeItem('mirai-ai-course-id');
                 localStorage.removeItem('mirai-ai-lesson-id');

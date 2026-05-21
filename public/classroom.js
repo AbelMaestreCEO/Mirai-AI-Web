@@ -235,7 +235,7 @@
             try {
                 await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
             } catch (_) {}
-            ['mirai_user_dni', 'mirai_user_name', 'mirai-ai-conversation-id',
+            ['mirai_user_dni', 'mirai_user_name', 'mirai_user_role', 'mirai-ai-conversation-id',
              'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
             window.location.href = 'login.html';
         });

@@ -1472,6 +1472,7 @@ async function loadConversationHistory(conversationId) {
       await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
       localStorage.removeItem('mirai_user_dni');
       localStorage.removeItem('mirai_user_name');
+      localStorage.removeItem('mirai_user_role');
       window.location.href = 'login.html';
     }
     console.error('Error cargando historial:', error);
@@ -2494,6 +2495,7 @@ async function loadConversations() {
       await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
       localStorage.removeItem('mirai_user_dni');
       localStorage.removeItem('mirai_user_name');
+      localStorage.removeItem('mirai_user_role');
       window.location.href = 'login.html';
     }
     console.error('Error cargando conversaciones:', error);
@@ -3166,6 +3168,7 @@ if (_logoutBtn) {
       }
       localStorage.removeItem('mirai_user_dni');
       localStorage.removeItem('mirai_user_name');
+      localStorage.removeItem('mirai_user_role');
       localStorage.removeItem('mirai-ai-conversation-id');
       localStorage.removeItem('mirai-ai-course-id');
       localStorage.removeItem('mirai-ai-lesson-id');
