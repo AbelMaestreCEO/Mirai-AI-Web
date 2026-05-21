@@ -8,8 +8,6 @@
 
 // ── Guardia de página: solo corre en investigation.html ──
 if (!document.getElementById('inv-input')) {
-    // Si no existe el input del investigador, este script no hace nada.
-    // app.js ya se encargó de la sidebar y las conversaciones.
     throw new Error('[investigation.js] No estoy en la página de investigación. Saliendo.');
 }
 
@@ -19,8 +17,8 @@ if (!document.getElementById('inv-input')) {
 
 const INV_CONFIG = {
     API_ENDPOINT:   '/api/investigation/search',
-    STEP_INTERVAL:  2200,     // ms entre mensajes de carga
-    MAX_COPY_RESET: 2500,     // ms hasta restaurar el botón copiar
+    STEP_INTERVAL:  2200,
+    MAX_COPY_RESET: 2500,
 };
 
 // ════════════════════════════════════════════════════════════
@@ -52,10 +50,11 @@ const CHIP_IDS = ['chip-search', 'chip-read', 'chip-filter', 'chip-write'];
 // ════════════════════════════════════════════════════════════
 
 const invState = {
-    isBusy:        false,
-    loadingTimer:  null,
-    stepIndex:     0,
-    lastQuestion:  '',
+    isBusy:       false,
+    loadingTimer: null,
+    stepIndex:    0,
+    lastQuestion: '',
+    sources:      [],   // guardamos las fuentes para el botón APA
 };
 
 // ════════════════════════════════════════════════════════════
@@ -73,16 +72,14 @@ const invEl = {
     sourcesCount: document.getElementById('inv-sources-count'),
     sourcesGrid:  document.getElementById('inv-sources-grid'),
     copyBtn:      document.getElementById('inv-copy-btn'),
+    copyApaBtn:   document.getElementById('inv-copy-apa-btn'),
+    apaBox:       document.getElementById('inv-apa-box'),
 };
 
 // ════════════════════════════════════════════════════════════
 // ANIMACIÓN DE CARGA
 // ════════════════════════════════════════════════════════════
 
-/**
- * Actualiza el estado visual de los chips de etapa.
- * Los chips anteriores al activo se marcan como "done".
- */
 function setChipState(activeChipId) {
     const activePos = CHIP_IDS.indexOf(activeChipId);
     CHIP_IDS.forEach((id, i) => {
@@ -94,33 +91,22 @@ function setChipState(activeChipId) {
     });
 }
 
-/**
- * Inicia la rotación de mensajes y chips mientras se espera la respuesta.
- */
 function startLoadingAnimation() {
     invState.stepIndex = 0;
-
     const tick = () => {
         const step = LOADING_STEPS[invState.stepIndex % LOADING_STEPS.length];
-
-        // Fade out → cambio de texto → fade in
         invEl.stepText.style.opacity = '0';
         setTimeout(() => {
             invEl.stepText.textContent = step.text;
             invEl.stepText.style.opacity = '1';
             setChipState(step.chip);
         }, 200);
-
         invState.stepIndex++;
     };
-
-    tick(); // ejecutar inmediatamente
+    tick();
     invState.loadingTimer = setInterval(tick, INV_CONFIG.STEP_INTERVAL);
 }
 
-/**
- * Detiene la rotación y marca todos los chips como completados.
- */
 function stopLoadingAnimation() {
     if (invState.loadingTimer) {
         clearInterval(invState.loadingTimer);
@@ -134,9 +120,6 @@ function stopLoadingAnimation() {
     });
 }
 
-/**
- * Resetea los chips a su estado inicial (sin clase).
- */
 function resetChips() {
     CHIP_IDS.forEach(id => {
         const el = document.getElementById(id);
@@ -149,46 +132,27 @@ function resetChips() {
 // UI HELPERS
 // ════════════════════════════════════════════════════════════
 
-/**
- * Muestra u oculta el estado de carga en la UI.
- */
 function setLoadingVisible(visible) {
-    if (visible) {
-        invEl.loading.classList.add('visible');
-    } else {
-        invEl.loading.classList.remove('visible');
-    }
+    invEl.loading.classList.toggle('visible', visible);
 }
 
-/**
- * Bloquea o desbloquea los controles de entrada mientras se procesa.
- */
 function setControlsDisabled(disabled) {
-    invEl.sendBtn.disabled = disabled;
-    invEl.input.disabled   = disabled;
+    invEl.sendBtn.disabled     = disabled;
+    invEl.input.disabled       = disabled;
     invEl.sendBtn.style.opacity = disabled ? '0.5' : '1';
 }
 
-/**
- * Muestra un mensaje de error en la UI.
- */
 function showError(message) {
     invEl.error.textContent = '⚠️ ' + message;
     invEl.error.classList.add('visible');
     invEl.error.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-/**
- * Oculta el bloque de error.
- */
 function hideError() {
     invEl.error.classList.remove('visible');
     invEl.error.textContent = '';
 }
 
-/**
- * Escapa texto para insertarlo en HTML sin riesgos de XSS.
- */
 function escHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -197,16 +161,124 @@ function escHtml(text) {
 }
 
 // ════════════════════════════════════════════════════════════
+// APA 7 — GENERACIÓN DE REFERENCIAS
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Genera una referencia bibliográfica en formato APA 7 a partir
+ * de los metadatos de una fuente.
+ *
+ * Formato APA 7 para páginas web:
+ * Apellido, N. (Año, Día de Mes). Título del artículo. Nombre del sitio. URL
+ *
+ * Si no hay autor: Título del artículo. (Año). Nombre del sitio. URL
+ */
+function buildApaReference(src, index) {
+    const url   = src.url   || '';
+    const title = src.title || url || `Fuente ${index + 1}`;
+
+    // ── Autor ──
+    // Exa devuelve author como string libre (ej: "John Doe" o "John Doe, Jane Smith")
+    let authorPart = '';
+    if (src.author) {
+        // Intentar convertir "Nombre Apellido" → "Apellido, N."
+        // Si ya viene con coma (apellido, nombre) lo dejamos
+        const names = src.author.split(',').map(s => s.trim());
+        if (names.length >= 2) {
+            // Ya viene "Apellido, Nombre" o "A, B, C"
+            authorPart = names.map(n => {
+                const parts = n.split(' ').filter(Boolean);
+                if (parts.length < 2) return n;
+                const last  = parts[parts.length - 1];
+                const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
+                return `${last}, ${initials}`;
+            }).join(', & ');
+        } else {
+            // Un solo nombre: "Juan Pérez" → "Pérez, J."
+            const parts = src.author.trim().split(' ').filter(Boolean);
+            if (parts.length >= 2) {
+                const last     = parts[parts.length - 1];
+                const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
+                authorPart = `${last}, ${initials}`;
+            } else {
+                authorPart = src.author.trim();
+            }
+        }
+    }
+
+    // ── Fecha ──
+    // publishedDate de Exa viene en formato ISO: "2024-06-15T00:00:00.000Z" o "2024-06-15"
+    let yearPart = 's.f.';  // sin fecha
+    let fullDatePart = '';
+    if (src.publishedDate) {
+        try {
+            const d = new Date(src.publishedDate);
+            if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const months = ['enero','febrero','marzo','abril','mayo','junio',
+                                'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+                const month = months[d.getMonth()];
+                const day   = d.getDate();
+                yearPart     = String(year);
+                fullDatePart = `${year}, ${day} de ${month}`;
+            }
+        } catch (_) { /* dejar s.f. */ }
+    }
+
+    // ── Nombre del sitio ──
+    // Extraemos el hostname de la URL como nombre del sitio
+    let siteName = '';
+    try {
+        siteName = new URL(url).hostname.replace('www.', '');
+    } catch (_) { siteName = ''; }
+
+    // ── Construir la referencia ──
+    // APA 7 página web con autor:
+    //   Apellido, N. (Año, D de Mes). Título. Nombre del sitio. URL
+    // Sin autor:
+    //   Título. (Año, D de Mes). Nombre del sitio. URL
+
+    let ref = '';
+
+    if (authorPart) {
+        ref += `${authorPart}. `;
+        ref += fullDatePart ? `(${fullDatePart}). ` : `(${yearPart}). `;
+        ref += `${title}. `;
+        if (siteName) ref += `${siteName}. `;
+        ref += url;
+    } else {
+        ref += `${title}. `;
+        ref += fullDatePart ? `(${fullDatePart}). ` : `(${yearPart}). `;
+        if (siteName) ref += `${siteName}. `;
+        ref += url;
+    }
+
+    return ref;
+}
+
+/**
+ * Genera el bloque completo de referencias APA 7 de todas las fuentes.
+ */
+function buildApaBlock(sources) {
+    if (!sources || sources.length === 0) return '';
+    const refs = sources.map((src, i) => buildApaReference(src, i));
+    return 'Referencias\n\n' + refs.map((r, i) => `[${i + 1}] ${r}`).join('\n\n');
+}
+
+// ════════════════════════════════════════════════════════════
 // RENDERIZADO DE RESULTADO
 // ════════════════════════════════════════════════════════════
 
 /**
- * Renderiza el resumen y las tarjetas de fuentes.
- * @param {object} data — { summary: string, sources: Array<{title,url,type}> }
+ * Renderiza el resumen, las tarjetas de fuentes y el bloque APA.
+ * @param {object} data — { summary, sources: [{title, url, type, author, publishedDate}] }
  */
 function renderResult(data) {
     const summary = (data.summary || '').trim();
     const sources = Array.isArray(data.sources) ? data.sources : [];
+
+    // Guardar fuentes en el estado para el botón APA
+    invState.sources = sources;
 
     // ── Resumen ──
     invEl.summaryBox.textContent = summary;
@@ -219,7 +291,7 @@ function renderResult(data) {
 
     // ── Tarjetas de fuentes ──
     invEl.sourcesGrid.innerHTML = '';
-    sources.forEach(src => {
+    sources.forEach((src, i) => {
         const typeKey   = src.type || 'web';
         const typeLabel = typeKey === 'academic' ? 'Académico'
                         : typeKey === 'news'     ? 'Noticia'
@@ -238,6 +310,12 @@ function renderResult(data) {
         invEl.sourcesGrid.appendChild(card);
     });
 
+    // ── Bloque APA ──
+    const apaText = buildApaBlock(sources);
+    if (invEl.apaBox) {
+        invEl.apaBox.textContent = apaText;
+    }
+
     // ── Mostrar sección con animación ──
     invEl.result.classList.add('visible');
     invEl.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -247,35 +325,23 @@ function renderResult(data) {
 // LÓGICA PRINCIPAL — INVESTIGAR
 // ════════════════════════════════════════════════════════════
 
-/**
- * Orquesta todo el flujo:
- * 1. Valida la pregunta
- * 2. Resetea la UI
- * 3. Muestra la animación de carga
- * 4. Llama a /api/investigation/search
- * 5. Renderiza el resultado o muestra el error
- */
 async function startInvestigation() {
     const question = invEl.input.value.trim();
-
-    if (!question) {
-        invEl.input.focus();
-        return;
-    }
-
+    if (!question) { invEl.input.focus(); return; }
     if (invState.isBusy) return;
 
-    // ── Guardar pregunta por si el usuario quiere volver a lanzarla ──
     invState.lastQuestion = question;
 
-    // ── Reset completo de la UI ──
+    // Reset UI
     hideError();
     invEl.result.classList.remove('visible');
     invEl.summaryBox.textContent = '';
     invEl.sourcesGrid.innerHTML  = '';
+    if (invEl.apaBox) invEl.apaBox.textContent = '';
+    invState.sources = [];
     resetChips();
 
-    // ── Activar estado de carga ──
+    // Activar carga
     invState.isBusy = true;
     setControlsDisabled(true);
     setLoadingVisible(true);
@@ -284,7 +350,7 @@ async function startInvestigation() {
     try {
         const response = await fetch(INV_CONFIG.API_ENDPOINT, {
             method:      'POST',
-            credentials: 'same-origin',   // envía la cookie HttpOnly de sesión
+            credentials: 'same-origin',
             headers:     { 'Content-Type': 'application/json' },
             body:        JSON.stringify({ question }),
         });
@@ -292,18 +358,15 @@ async function startInvestigation() {
         stopLoadingAnimation();
 
         if (!response.ok) {
-            // Intentar parsear el error del servidor
             let serverError = `Error del servidor (${response.status})`;
             try {
                 const errBody = await response.json();
                 if (errBody.error) serverError = errBody.error;
-            } catch (_) { /* ignorar si el body no es JSON */ }
+            } catch (_) {}
             throw new Error(serverError);
         }
 
         const data = await response.json();
-
-        // Validación mínima de la respuesta
         if (!data || typeof data.summary !== 'string') {
             throw new Error('La respuesta del servidor no tiene el formato esperado.');
         }
@@ -312,14 +375,11 @@ async function startInvestigation() {
 
     } catch (err) {
         stopLoadingAnimation();
-
-        // Mensajes de error más amigables para casos comunes
         const msg = err.message.includes('Failed to fetch')
             ? 'No se pudo conectar con el servidor. Verifica tu conexión a internet.'
             : err.message;
-
         showError(msg);
-        console.error('[investigation.js] Error en búsqueda:', err);
+        console.error('[investigation.js] Error:', err);
 
     } finally {
         setLoadingVisible(false);
@@ -330,40 +390,16 @@ async function startInvestigation() {
 }
 
 // ════════════════════════════════════════════════════════════
-// BOTÓN COPIAR
+// BOTÓN COPIAR — RESUMEN
 // ════════════════════════════════════════════════════════════
 
-/**
- * Copia el texto del resumen al portapapeles.
- * Muestra feedback visual de éxito o error.
- */
 async function handleCopy() {
     const text = invEl.summaryBox.textContent || '';
     if (!text) return;
 
     const originalHTML = invEl.copyBtn.innerHTML;
 
-    try {
-        // API moderna de Clipboard
-        await navigator.clipboard.writeText(text);
-        showCopySuccess();
-    } catch (_) {
-        // Fallback para navegadores sin clipboard API (Safari antiguo, etc.)
-        try {
-            const range = document.createRange();
-            range.selectNode(invEl.summaryBox);
-            window.getSelection().removeAllRanges();
-            window.getSelection().addRange(range);
-            document.execCommand('copy');
-            window.getSelection().removeAllRanges();
-            showCopySuccess();
-        } catch (fallbackErr) {
-            showCopyError(originalHTML);
-            console.error('[investigation.js] Error al copiar:', fallbackErr);
-        }
-    }
-
-    function showCopySuccess() {
+    const onSuccess = () => {
         invEl.copyBtn.classList.add('copied');
         invEl.copyBtn.innerHTML = `
             <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
@@ -375,18 +411,66 @@ async function handleCopy() {
             invEl.copyBtn.classList.remove('copied');
             invEl.copyBtn.innerHTML = originalHTML;
         }, INV_CONFIG.MAX_COPY_RESET);
-    }
+    };
 
-    function showCopyError(original) {
-        invEl.copyBtn.innerHTML = `
+    try {
+        await navigator.clipboard.writeText(text);
+        onSuccess();
+    } catch (_) {
+        try {
+            const range = document.createRange();
+            range.selectNode(invEl.summaryBox);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            onSuccess();
+        } catch (fallbackErr) {
+            console.error('[investigation.js] Error al copiar:', fallbackErr);
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════
+// BOTÓN COPIAR — BIBLIOGRAFÍA APA 7
+// ════════════════════════════════════════════════════════════
+
+async function handleCopyApa() {
+    const text = invEl.apaBox ? invEl.apaBox.textContent : buildApaBlock(invState.sources);
+    if (!text) return;
+
+    const btn          = invEl.copyApaBtn;
+    const originalHTML = btn.innerHTML;
+
+    const onSuccess = () => {
+        btn.classList.add('copied');
+        btn.innerHTML = `
             <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
             </svg>
-            Error al copiar
+            ¡Bibliografía copiada!
         `;
         setTimeout(() => {
-            invEl.copyBtn.innerHTML = original;
-        }, 2000);
+            btn.classList.remove('copied');
+            btn.innerHTML = originalHTML;
+        }, INV_CONFIG.MAX_COPY_RESET);
+    };
+
+    try {
+        await navigator.clipboard.writeText(text);
+        onSuccess();
+    } catch (_) {
+        try {
+            const range = document.createRange();
+            range.selectNode(invEl.apaBox);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            onSuccess();
+        } catch (fallbackErr) {
+            console.error('[investigation.js] Error al copiar APA:', fallbackErr);
+        }
     }
 }
 
@@ -404,20 +488,15 @@ function autoResizeTextarea() {
 // ════════════════════════════════════════════════════════════
 
 function setupEventListeners() {
-    // Textarea: resize automático + Enter para enviar
-    invEl.input.addEventListener('input', autoResizeTextarea);
+    invEl.input.addEventListener('input',   autoResizeTextarea);
     invEl.input.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            startInvestigation();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startInvestigation(); }
     });
-
-    // Botón enviar
-    invEl.sendBtn.addEventListener('click', startInvestigation);
-
-    // Botón copiar
-    invEl.copyBtn.addEventListener('click', handleCopy);
+    invEl.sendBtn.addEventListener('click',    startInvestigation);
+    invEl.copyBtn.addEventListener('click',    handleCopy);
+    if (invEl.copyApaBtn) {
+        invEl.copyApaBtn.addEventListener('click', handleCopyApa);
+    }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -426,16 +505,10 @@ function setupEventListeners() {
 
 function init() {
     setupEventListeners();
-
-    // Hacer foco en el input al cargar la página
     invEl.input.focus();
-
     console.log('✅ [investigation.js] Investigador Web inicializado.');
 }
 
-// Ejecutar cuando el DOM esté listo.
-// app.js ya usa DOMContentLoaded para el sidebar, así que esperamos
-// al mismo evento para no crear condiciones de carrera.
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {

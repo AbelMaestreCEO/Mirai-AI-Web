@@ -450,9 +450,55 @@ body.sidebar-collapsed .inv-page-content {
 .inv-error-box.visible { display: block; }
 
 @media (max-width: 480px) {
-    .inv-summary-box  { padding: 18px; }
+    .inv-summary-box   { padding: 18px; }
     .inv-result-header { flex-direction: column; align-items: flex-start; }
-    .inv-hero-zone { padding: 40px 16px 24px; }
+    .inv-hero-zone     { padding: 40px 16px 24px; }
+    .inv-apa-box       { padding: 16px; font-size: 0.82rem; }
+    .inv-apa-header    { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── Sección bibliografía APA 7 ── */
+.inv-apa-section {
+    margin-top: 28px;
+    border-top: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+    padding-top: 20px;
+}
+.inv-apa-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.inv-apa-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary, #333);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.inv-apa-badge {
+    font-size: 0.71rem;
+    padding: 3px 11px;
+    border-radius: 999px;
+    background: var(--secondary-container, #E8DEF8);
+    color: var(--accent-color, #6750A4);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+.inv-apa-box {
+    background: var(--glass-bg, rgba(255,255,255,0.94));
+    border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+    border-radius: 14px;
+    padding: 22px 24px;
+    font-size: 0.875rem;
+    line-height: 1.9;
+    color: var(--text-primary, #333);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'Georgia', 'Times New Roman', serif;
 }
 </style>
 </head>
@@ -754,6 +800,23 @@ body.sidebar-collapsed .inv-page-content {
 
                 <p class="inv-sources-label">Fuentes consultadas</p>
                 <div class="inv-sources-grid" id="inv-sources-grid"></div>
+
+                <!-- ── Bibliografía APA 7 ── -->
+                <div class="inv-apa-section">
+                    <div class="inv-apa-header">
+                        <div class="inv-apa-title">
+                            📚 Bibliografía
+                            <span class="inv-apa-badge">APA 7</span>
+                        </div>
+                        <button class="inv-copy-btn" id="inv-copy-apa-btn">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                            </svg>
+                            Copiar bibliografía
+                        </button>
+                    </div>
+                    <div class="inv-apa-box" id="inv-apa-box"></div>
+                </div>
             </div>
 
         </div><!-- /inv-results-zone -->
