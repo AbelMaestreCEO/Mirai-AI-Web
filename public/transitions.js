@@ -8,36 +8,33 @@
 
   // ─── CONFIGURACIÓN ────────────────────────────────────────
   const CONFIG = {
-    minLoaderMs:    350,   // Tiempo mínimo que se muestra el overlay (ms)
-    exitDurationMs: 220,   // Debe coincidir con transition de .page-exit en CSS
-    reducedMotion:  window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    minLoaderMs:    300,   // Mínimo visual del overlay (evita parpadeo)
+    exitDurationMs: 190,   // Debe coincidir con transition de .page-exit en CSS
+    reducedMotion:  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                    || document.documentElement.classList.contains('reduce-motion'),
   };
 
-  // ─── CREAR OVERLAY EN EL DOM ──────────────────────────────
-  // Se inyecta una sola vez, antes de cualquier navegación
+  // ─── CREAR OVERLAY ────────────────────────────────────────
   function createOverlay() {
     if (document.getElementById('transition-overlay')) return;
-
     const overlay = document.createElement('div');
     overlay.id = 'transition-overlay';
     overlay.setAttribute('aria-hidden', 'true');
-    overlay.innerHTML = '<div class="spinner"></div>';
+    overlay.innerHTML = '<div class="t-spinner"></div>';
     document.body.appendChild(overlay);
   }
 
-  // ─── MOSTRAR / OCULTAR OVERLAY ────────────────────────────
   function showOverlay() {
-    const overlay = document.getElementById('transition-overlay');
-    if (overlay) overlay.classList.add('overlay-visible');
+    document.getElementById('transition-overlay')?.classList.add('overlay-visible');
   }
 
   function hideOverlay() {
-    const overlay = document.getElementById('transition-overlay');
-    if (overlay) overlay.classList.remove('overlay-visible');
+    document.getElementById('transition-overlay')?.classList.remove('overlay-visible');
   }
 
-  // ─── ANIMACIÓN DE ENTRADA (página destino) ────────────────
-  // Se ejecuta cuando esta página termina de cargar
+  // ─── ENTRADA ──────────────────────────────────────────────
+  // FIX: usa Date.now() (comparable entre páginas) en lugar de
+  // performance.now() (que se reinicia en cada documento)
   function pageEnter() {
     if (CONFIG.reducedMotion) {
       document.documentElement.classList.add('page-ready');
@@ -45,115 +42,104 @@
       return;
     }
 
-    // Tiempo que tardó en cargar desde que se hizo clic
-    const elapsed = performance.now() - (window.__transitionStart || performance.now());
-    const remaining = Math.max(0, CONFIG.minLoaderMs - elapsed);
+    // Recuperar cuándo se hizo el clic (timestamp absoluto)
+    let clickedAt = 0;
+    try {
+      const stored = sessionStorage.getItem('__t_click');
+      if (stored) {
+        clickedAt = parseInt(stored, 10);
+        sessionStorage.removeItem('__t_click');
+      }
+    } catch (_) {}
 
-    // Si cargó muy rápido (caché), respeta el mínimo visual para
-    // que la transición no se sienta como un parpadeo
+    // Tiempo que ya pasó desde el clic hasta ahora
+    const elapsed  = clickedAt ? (Date.now() - clickedAt) : CONFIG.minLoaderMs;
+    // Cuánto falta para cumplir el mínimo visual (puede ser 0)
+    const waitMore = Math.max(0, CONFIG.minLoaderMs - elapsed);
+
     setTimeout(() => {
       hideOverlay();
-      // Pequeño frame para que el browser pinte antes del fade-in
+      // Doble rAF: asegura que el browser pinte antes de hacer fade-in
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           document.documentElement.classList.add('page-ready');
         });
       });
-    }, remaining);
+    }, waitMore);
   }
 
-  // ─── ANIMACIÓN DE SALIDA (página actual) ──────────────────
-  // Se ejecuta cuando el usuario hace clic en un link
-  function pageExit(callback) {
+  // ─── SALIDA ───────────────────────────────────────────────
+  function pageExit(href) {
     if (CONFIG.reducedMotion) {
-      callback();
+      location.href = href;
       return;
     }
+
+    // Guardar el momento del clic con Date.now() (absoluto, comparable entre páginas)
+    try { sessionStorage.setItem('__t_click', String(Date.now())); } catch (_) {}
 
     showOverlay();
     document.documentElement.classList.add('page-exit');
 
-    setTimeout(callback, CONFIG.exitDurationMs);
+    setTimeout(() => { location.href = href; }, CONFIG.exitDurationMs);
   }
 
-  // ─── INTERCEPTAR CLICKS EN LINKS ─────────────────────────
+  // ─── INTERCEPTAR LINKS ────────────────────────────────────
   function interceptLinks() {
-    document.addEventListener('click', event => {
+    document.addEventListener('click', e => {
 
-      // Busca el <a> más cercano al elemento clickeado
-      const anchor = event.target.closest('a');
+      const anchor = e.target.closest('a');
       if (!anchor) return;
 
       const href = anchor.getAttribute('href');
       if (!href) return;
 
-      // ── Ignorar estos casos ──────────────────────────────
-      // Links externos
-      if (anchor.hostname && anchor.hostname !== location.hostname) return;
-      // Links que abren en otra pestaña
-      if (anchor.target === '_blank') return;
-      // Anclas en la misma página (#seccion)
-      if (href.startsWith('#')) return;
-      // Links con modificadores de teclado (Ctrl+clic, Cmd+clic)
-      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-      // Links mailto: y tel:
+      // Ignorar casos que no deben animarse
+      if (anchor.target === '_blank')                          return;
+      if (href.startsWith('#'))                                return;
       if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
-      // Links javascript:
-      if (href.startsWith('javascript:')) return;
-      // Ya estamos en esa página
-      if (anchor.href === location.href) return;
+      if (href.startsWith('javascript:'))                      return;
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)   return;
+      if (anchor.hostname && anchor.hostname !== location.hostname) return;
+      if (anchor.href === location.href)                       return;
 
-      // ── Navegar con transición ───────────────────────────
-      event.preventDefault();
-
-      // Guardar timestamp para calcular el tiempo de carga en destino
-      window.__transitionStart = performance.now();
-      // Pasar el timestamp a la siguiente página via sessionStorage
-      try {
-        sessionStorage.setItem('__transitionStart', String(performance.now()));
-      } catch (_) {}
-
-      pageExit(() => {
-        location.href = anchor.href;
-      });
+      e.preventDefault();
+      pageExit(anchor.href);
     });
   }
 
-  // ─── RECUPERAR TIMESTAMP ENTRE PÁGINAS ───────────────────
-  // Cuando la página destino carga, recupera cuándo se hizo clic
-  function restoreTransitionStart() {
-    try {
-      const stored = sessionStorage.getItem('__transitionStart');
-      if (stored) {
-        window.__transitionStart = parseFloat(stored);
-        sessionStorage.removeItem('__transitionStart');
-      }
-    } catch (_) {}
-  }
-
-  // ─── MANEJAR BOTÓN ATRÁS / ADELANTE ──────────────────────
-  // El browser restaura páginas desde bfcache — necesitamos
-  // mostrarlas correctamente sin el overlay
-  window.addEventListener('pageshow', event => {
-    if (event.persisted) {
-      // Página restaurada desde back-forward cache
+  // ─── BOTÓN ATRÁS / ADELANTE (bfcache) ────────────────────
+  // Cuando el browser restaura una página desde bfcache,
+  // el DOMContentLoaded no se dispara — manejarlo aquí
+  window.addEventListener('pageshow', e => {
+    if (e.persisted) {
       document.documentElement.classList.remove('page-exit');
       hideOverlay();
+      // Sin animación — la página ya estaba lista
       document.documentElement.classList.add('page-ready');
     }
   });
 
-  // ─── INICIALIZACIÓN ───────────────────────────────────────
+  // ─── SAFETY NET ───────────────────────────────────────────
+  // Si algo falla (JS bloqueado, error, timeout), mostrar la página
+  // después de 2s para que nunca se quede en blanco
+  const safetyTimer = setTimeout(() => {
+    document.documentElement.classList.add('page-ready');
+    hideOverlay();
+  }, 2000);
+
+  // ─── INIT ─────────────────────────────────────────────────
   function init() {
-    restoreTransitionStart();
     createOverlay();
     interceptLinks();
 
-    // Disparar entrada cuando el DOM esté listo
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', pageEnter);
+      document.addEventListener('DOMContentLoaded', () => {
+        clearTimeout(safetyTimer);
+        pageEnter();
+      });
     } else {
-      // DOMContentLoaded ya ocurrió (script cargado con defer o al final del body)
+      clearTimeout(safetyTimer);
       pageEnter();
     }
   }

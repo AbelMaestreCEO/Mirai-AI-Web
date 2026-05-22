@@ -1,133 +1,124 @@
 /* ============================================================
    transitions.css — Mirai AI PWA Native Feel
-   Incluir en el <head> de TODAS las páginas
+   Incluir en el <head> de TODAS las páginas, DESPUÉS de styles.css
    ============================================================ */
 
-/* ─── 1. ESTADO INICIAL: página invisible al cargar ─────────
-   Evita el flash de contenido antes de la animación de entrada */
+/* ─── 1. PÁGINA INVISIBLE AL ARRANCAR ───────────────────────
+   El script del <head> ya aplicó colores y tema.
+   Ocultamos el contenido hasta que JS confirme que está listo. */
 html {
   opacity: 0;
 }
 
-/* ─── 2. ESTADO VISIBLE: clase agregada por transitions.js ──*/
+/* ─── 2. PÁGINA VISIBLE — agregada por transitions.js ───────*/
 html.page-ready {
   opacity: 1;
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.3s var(--ease-smooth, cubic-bezier(0.05, 0.7, 0.1, 1));
 }
 
-/* ─── 3. ANIMACIÓN DE SALIDA ─────────────────────────────────
-   Se aplica al body cuando el usuario hace clic en un link */
+/* ─── 3. SALIDA — clic en link ───────────────────────────────*/
 html.page-exit {
   opacity: 0;
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 1, 1);
-  pointer-events: none; /* Evita doble clic durante salida */
+  transition: opacity 0.18s var(--ease-elastic, cubic-bezier(0.2, 0, 0, 1));
+  pointer-events: none;
 }
 
-/* ─── 4. OVERLAY DE CARGA ────────────────────────────────────
-   Capa que cubre la pantalla durante la navegación */
+/* ─── 4. OVERLAY ─────────────────────────────────────────────
+   Usa --bg-primary y --accent-color de tu sistema de colores.
+   El script del <head> ya los aplicó antes de que esto cargue,
+   así que el overlay siempre tiene el color correcto del usuario. */
 #transition-overlay {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  background: var(--overlay-bg, #0a0a0a);
+
+  /* Usa el fondo del sistema — nunca un color hardcodeado */
+  background-color: var(--bg-primary);
+  background-image: var(--bg-gradient);
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.18s var(--ease-smooth, cubic-bezier(0.05, 0.7, 0.1, 1));
   will-change: opacity;
 }
 
-/* Overlay visible */
 #transition-overlay.overlay-visible {
   opacity: 1;
   pointer-events: all;
 }
 
-/* ─── 5. SPINNER ─────────────────────────────────────────────*/
-#transition-overlay .spinner {
-  width: 36px;
-  height: 36px;
+/* ─── 5. SPINNER ─────────────────────────────────────────────
+   Toma --accent-color directamente — cambia con el tema del usuario */
+#transition-overlay .t-spinner {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 2.5px solid transparent;
-  border-top-color: var(--spinner-color, #ffffff);
-  border-right-color: var(--spinner-color, #ffffff);
-  animation: spin 0.7s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+
+  /* Track translúcido del acento */
+  border: 2.5px solid var(--accent-glow, rgba(103, 80, 164, 0.2));
+  /* Arco activo en el acento completo */
+  border-top-color: var(--accent-color, #6750A4);
+  border-right-color: var(--accent-color, #6750A4);
+
+  animation: t-spin 0.65s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
   will-change: transform;
 }
 
-/* Versión con logo en lugar de spinner — descomenta si prefieres */
-/*
-#transition-overlay .spinner-logo {
-  width: 48px;
-  height: 48px;
-  background: url('/icon.png') center/contain no-repeat;
-  animation: pulse-logo 1s ease-in-out infinite;
-}
-*/
-
-@keyframes spin {
+@keyframes t-spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes pulse-logo {
-  0%, 100% { opacity: 0.6; transform: scale(0.95); }
-  50%       { opacity: 1;   transform: scale(1.05); }
-}
-
-/* ─── 6. SKELETON SCREEN (opcional) ─────────────────────────
-   Para páginas con estructura conocida, más elegante que spinner.
-   Agrega class="skeleton-line" o "skeleton-card" a tus placeholders */
+/* ─── 6. SKELETON ────────────────────────────────────────────
+   Usa colores del sistema para el efecto shimmer */
 .skeleton-line,
 .skeleton-card {
   background: linear-gradient(
     90deg,
-    var(--skeleton-base, #1e1e1e) 25%,
-    var(--skeleton-shine, #2e2e2e) 50%,
-    var(--skeleton-base, #1e1e1e) 75%
+    var(--glass-border, rgba(103,80,164,0.08)) 25%,
+    var(--secondary-container, #E8DEF8)         50%,
+    var(--glass-border, rgba(103,80,164,0.08)) 75%
   );
   background-size: 200% 100%;
-  border-radius: 6px;
-  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: var(--border-radius-sm, 12px);
+  animation: t-shimmer 1.4s ease infinite;
 }
 
-.skeleton-line  { height: 14px; margin-bottom: 10px; }
-.skeleton-card  { height: 120px; border-radius: 12px; }
+.skeleton-line { height: 14px; margin-bottom: 10px; }
+.skeleton-card { height: 120px; border-radius: var(--border-radius-md, 16px); }
 
-@keyframes skeleton-shimmer {
-  0%   { background-position: 200% 0; }
+@keyframes t-shimmer {
+  0%   { background-position:  200% 0; }
   100% { background-position: -200% 0; }
 }
 
-/* ─── 7. RESPETA PREFERENCIAS DE MOVIMIENTO ─────────────────
-   Accesibilidad: usuarios con vestigo/epilepsia */
+/* ─── 7. REDUCED MOTION ──────────────────────────────────────
+   Dos bloques separados: uno para la media query del sistema,
+   otro para la clase .reduce-motion que añade tu settings.js */
+
 @media (prefers-reduced-motion: reduce) {
   html,
   html.page-ready,
   html.page-exit,
-  #transition-overlay {
+  #transition-overlay,
+  .skeleton-line,
+  .skeleton-card {
     transition: none !important;
     animation: none !important;
   }
-
-  #transition-overlay .spinner {
-    animation: none !important;
-    border-top-color: var(--spinner-color, #ffffff);
-    border-right-color: transparent;
-    border-bottom-color: transparent;
-    border-left-color: transparent;
-  }
 }
 
-/* ─── 8. VARIABLES PARA PERSONALIZAR ────────────────────────
-   Sobreescribe en tu styles.css principal si quieres
-   cambiar los colores del overlay y spinner:
-
-   :root {
-     --overlay-bg:     #0a0a0a;   <- color del fondo del overlay
-     --spinner-color:  #ffffff;   <- color del spinner
-     --skeleton-base:  #1e1e1e;   <- base del skeleton
-     --skeleton-shine: #2e2e2e;   <- brillo del skeleton
-   }
-*/
+/* Clase aplicada por tu sistema cuando el usuario lo activa en Settings */
+.reduce-motion,
+.reduce-motion html,
+.reduce-motion html.page-ready,
+.reduce-motion html.page-exit,
+.reduce-motion #transition-overlay,
+.reduce-motion .skeleton-line,
+.reduce-motion .skeleton-card {
+  transition: none !important;
+  animation: none !important;
+}
