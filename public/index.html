@@ -69,28 +69,37 @@
         })();
     </script>
     <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="transitions.css">
+    <link rel="stylesheet" href="transitions.css">
     <style>
         /* Grid de tarjetas: 2 columnas en móvil, 4 en PC */
         .welcome-cards-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            /* MÁS ESPACIO */
+            width: 100%;
         }
 
         @media (min-width: 768px) {
             .welcome-cards-grid {
-                grid-template-columns: repeat(5, 1fr) !important;
-                max-width: 900px;
-                /* O el ancho máximo que prefieras para mantenerlo estético */
+                grid-template-columns: repeat(3, 1fr);
+                max-width: 1400px;
                 margin: 0 auto !important;
-                /* Esto centra las tarjetas perfectamente */
+                gap: 28px;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .welcome-cards-grid {
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 
         /* Tarjeta en columna: icono arriba, luego título y descripción */
         .welcome-card {
-            flex-direction: column !important;
-            align-items: flex-start !important;
+            min-height: 220px;
+            padding: 24px !important;
+            border-radius: 24px;
         }
 
         .welcome-card-icon {
@@ -818,7 +827,7 @@
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
-<script src="transitions.js"></script>
+    <script src="transitions.js"></script>
 </body>
 
 </html>
