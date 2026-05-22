@@ -99,7 +99,8 @@
             background: var(--glass-bg, rgba(255, 255, 255, 0.9));
             border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.08));
             border-radius: 12px;
-            padding: 0.55rem 1rem;
+            padding: 0.85rem 1rem;
+            min-height: 52px;
             flex: 1;
             min-width: 220px;
             transition: border-color 0.2s, box-shadow 0.2s;
@@ -122,7 +123,7 @@
             outline: none;
             background: transparent;
             color: var(--text-primary, #1a1a1a);
-            font-size: 0.95rem;
+            font-size: 1rem;
             width: 100%;
         }
 
@@ -651,8 +652,9 @@
                         <path
                             d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                     </svg>
-                    <input type="text" id="user-search" placeholder="Buscar por nombre, apellido o DNI..."
-                        autocomplete="off">
+                    <textarea id="user-search" placeholder="Buscar por nombre, apellido o DNI..." rows="1"
+                        autocomplete="off" spellcheck="false"
+                        style="resize:none; overflow:hidden; line-height:1.5;"></textarea>
                 </div>
             </div>
 
