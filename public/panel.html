@@ -10,351 +10,388 @@
     <title>Mirai AI - Panel Admin</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-<script>
-(function () {
-    var COLORS = {
-        purple:  { c:'#6750A4', cD:'#D0BCFF', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD:'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', glowD:'rgba(208,188,255,0.15)', sc:'#E8DEF8', scD:'#2A2438', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,27,36,0.96)', bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
-        blue:    { c:'#1565C0', cD:'#90CAF9', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD:'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', glowD:'rgba(144,202,249,0.15)', sc:'#E3F2FD', scD:'#0D1E35', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,21,32,0.96)', bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
-        teal:    { c:'#00695C', cD:'#80CBC4', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD:'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', glowD:'rgba(128,203,196,0.15)', sc:'#E0F2F1', scD:'#0A1F1D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,26,25,0.96)', bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
-        green:   { c:'#2E7D32', cD:'#A5D6A7', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD:'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', glowD:'rgba(165,214,167,0.15)', sc:'#E8F5E9', scD:'#0D1F0E', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,24,18,0.96)', bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
-        orange:  { c:'#E65100', cD:'#FFB74D', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD:'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow:'rgba(230,81,0,0.18)', glowD:'rgba(255,183,77,0.15)', sc:'#FFF3E0', scD:'#271A08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,22,16,0.96)', bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
-        pink:    { c:'#AD1457', cD:'#F48FB1', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD:'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow:'rgba(173,20,87,0.18)', glowD:'rgba(244,143,177,0.15)', sc:'#FCE4EC', scD:'#250C18', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,24,0.96)', bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
-        red:     { c:'#B71C1C', cD:'#EF9A9A', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD:'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', glowD:'rgba(239,154,154,0.15)', sc:'#FFEBEE', scD:'#250D0D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,18,0.96)', bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
-        indigo:  { c:'#283593', cD:'#9FA8DA', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD:'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow:'rgba(40,53,147,0.18)', glowD:'rgba(159,168,218,0.15)', sc:'#E8EAF6', scD:'#0E1020', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(19,19,24,0.96)', bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
-        yellow:  { c:'#F57F17', cD:'#FFF176', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD:'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow:'rgba(245,127,23,0.18)', glowD:'rgba(255,238,88,0.15)', sc:'#FFFDE7', scD:'#1F1C08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(29,28,16,0.96)', bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
-        slate:   { c:'#37474F', cD:'#B0BEC5', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD:'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow:'rgba(55,71,79,0.18)', glowD:'rgba(176,190,197,0.15)', sc:'#ECEFF1', scD:'#131618', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(25,28,30,0.96)', bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
-    };
+    <script>
+        (function () {
+            var COLORS = {
+                purple: { c: '#6750A4', cD: '#D0BCFF', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD: 'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', glowD: 'rgba(208,188,255,0.15)', sc: '#E8DEF8', scD: '#2A2438', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,27,36,0.96)', bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)' },
+                blue: { c: '#1565C0', cD: '#90CAF9', g: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD: 'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow: 'rgba(21,101,192,0.18)', glowD: 'rgba(144,202,249,0.15)', sc: '#E3F2FD', scD: '#0D1E35', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,21,32,0.96)', bg: '#F3F6FB', bgG: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD: '#121520', bgGD: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb: 'rgba(21,101,192,0.12)', gbD: 'rgba(144,202,249,0.10)' },
+                teal: { c: '#00695C', cD: '#80CBC4', g: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD: 'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow: 'rgba(0,105,92,0.18)', glowD: 'rgba(128,203,196,0.15)', sc: '#E0F2F1', scD: '#0A1F1D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,26,25,0.96)', bg: '#F2F9F8', bgG: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD: '#121A19', bgGD: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb: 'rgba(0,105,92,0.12)', gbD: 'rgba(128,203,196,0.10)' },
+                green: { c: '#2E7D32', cD: '#A5D6A7', g: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD: 'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow: 'rgba(46,125,50,0.18)', glowD: 'rgba(165,214,167,0.15)', sc: '#E8F5E9', scD: '#0D1F0E', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,24,18,0.96)', bg: '#F3F9F3', bgG: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD: '#121812', bgGD: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb: 'rgba(46,125,50,0.12)', gbD: 'rgba(165,214,167,0.10)' },
+                orange: { c: '#E65100', cD: '#FFB74D', g: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD: 'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow: 'rgba(230,81,0,0.18)', glowD: 'rgba(255,183,77,0.15)', sc: '#FFF3E0', scD: '#271A08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,22,16,0.96)', bg: '#FBF6F0', bgG: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD: '#1E1610', bgGD: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb: 'rgba(230,81,0,0.12)', gbD: 'rgba(255,183,77,0.10)' },
+                pink: { c: '#AD1457', cD: '#F48FB1', g: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD: 'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow: 'rgba(173,20,87,0.18)', glowD: 'rgba(244,143,177,0.15)', sc: '#FCE4EC', scD: '#250C18', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,24,0.96)', bg: '#FAF2F6', bgG: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD: '#1C1218', bgGD: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb: 'rgba(173,20,87,0.12)', gbD: 'rgba(240,98,146,0.10)' },
+                red: { c: '#B71C1C', cD: '#EF9A9A', g: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD: 'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow: 'rgba(183,28,28,0.18)', glowD: 'rgba(239,154,154,0.15)', sc: '#FFEBEE', scD: '#250D0D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,18,0.96)', bg: '#FAF2F2', bgG: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD: '#1C1212', bgGD: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb: 'rgba(183,28,28,0.12)', gbD: 'rgba(239,83,80,0.10)' },
+                indigo: { c: '#283593', cD: '#9FA8DA', g: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD: 'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow: 'rgba(40,53,147,0.18)', glowD: 'rgba(159,168,218,0.15)', sc: '#E8EAF6', scD: '#0E1020', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(19,19,24,0.96)', bg: '#F3F3FA', bgG: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD: '#131318', bgGD: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb: 'rgba(40,53,147,0.12)', gbD: 'rgba(121,134,203,0.10)' },
+                yellow: { c: '#F57F17', cD: '#FFF176', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD: 'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow: 'rgba(245,127,23,0.18)', glowD: 'rgba(255,238,88,0.15)', sc: '#FFFDE7', scD: '#1F1C08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(29,28,16,0.96)', bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)' },
+                slate: { c: '#37474F', cD: '#B0BEC5', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD: 'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow: 'rgba(55,71,79,0.18)', glowD: 'rgba(176,190,197,0.15)', sc: '#ECEFF1', scD: '#131618', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(25,28,30,0.96)', bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)' }
+            };
 
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
-    var theme = localStorage.getItem('mirai-ai-theme') ||
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
+            var theme = localStorage.getItem('mirai-ai-theme') ||
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    var isDark = theme === 'dark';
+            var isDark = theme === 'dark';
 
-    document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.setAttribute('data-theme', theme);
 
-    if (s.accentColor && COLORS[s.accentColor]) {
-        var c = COLORS[s.accentColor];
-        var r = document.documentElement;
-        r.style.setProperty('--accent-color',        isDark ? c.cD   : c.c);
-        r.style.setProperty('--accent-gradient',     isDark ? c.gD   : c.g);
-        r.style.setProperty('--accent-glow',         isDark ? c.glowD : c.glow);
-        r.style.setProperty('--secondary-container', isDark ? c.scD  : c.sc);
-        r.style.setProperty('--glass-bg',            isDark ? c.gbgD : c.gbg);
-        r.style.setProperty('--glass-border',        isDark ? c.gbD  : c.gb);
-        r.style.setProperty('--message-user-bg',     isDark ? c.glowD.replace('0.15','0.10') : c.glow.replace('0.18','0.08'));
-        r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
-        r.style.setProperty('--bg-primary',          isDark ? c.bgD  : c.bg);
-        r.style.setProperty('--bg-gradient',         isDark ? c.bgGD : c.bgG);
-        r.style.background      = isDark ? c.bgD  : c.bg;
-        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
-    }
-    if (s.fontFamily) {
-        document.documentElement.style.setProperty('--font-family', s.fontFamily);
-    }
-    if (s.fontSize) {
-        document.documentElement.style.fontSize = s.fontSize + 'px';
-    }
-    if (s.reducedMotion) {
-        document.documentElement.classList.add('reduce-motion');
-    }
-})();
-</script>
-<link rel="stylesheet" href="styles.css">
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor];
+                var r = document.documentElement;
+                r.style.setProperty('--accent-color', isDark ? c.cD : c.c);
+                r.style.setProperty('--accent-gradient', isDark ? c.gD : c.g);
+                r.style.setProperty('--accent-glow', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--secondary-container', isDark ? c.scD : c.sc);
+                r.style.setProperty('--glass-bg', isDark ? c.gbgD : c.gbg);
+                r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                r.style.setProperty('--message-user-bg', isDark ? c.glowD.replace('0.15', '0.10') : c.glow.replace('0.18', '0.08'));
+                r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) {
+                document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            }
+            if (s.fontSize) {
+                document.documentElement.style.fontSize = s.fontSize + 'px';
+            }
+            if (s.reducedMotion) {
+                document.documentElement.classList.add('reduce-motion');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
 
-<style>
-    /* ── Estilos específicos del panel admin ── */
-    .panel-hero {
-        text-align: center;
-        padding: 2.5rem 1.5rem 1.5rem;
-    }
-    .panel-hero h1 {
-        font-size: clamp(1.6rem, 4vw, 2.4rem);
-        font-weight: 700;
-        background: var(--accent-gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.4rem;
-    }
-    .panel-hero p {
-        color: var(--text-secondary, #666);
-        font-size: 0.95rem;
-    }
+    <style>
+        /* ── Estilos específicos del panel admin ── */
+        .panel-hero {
+            text-align: center;
+            padding: 2.5rem 1.5rem 1.5rem;
+        }
 
-    .panel-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 0 1.5rem 1rem;
-        flex-wrap: wrap;
-    }
+        .panel-hero h1 {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.4rem;
+        }
 
-    .panel-search {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: var(--glass-bg, rgba(255,255,255,0.9));
-        border: 1.5px solid var(--glass-border, rgba(0,0,0,0.08));
-        border-radius: 12px;
-        padding: 0.55rem 1rem;
-        flex: 1;
-        min-width: 220px;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .panel-search:focus-within {
-        border-color: var(--accent-color);
-        box-shadow: 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.12));
-    }
-    .panel-search svg {
-        width: 18px;
-        height: 18px;
-        fill: var(--text-secondary, #888);
-        flex-shrink: 0;
-    }
-    .panel-search input {
-        border: none;
-        outline: none;
-        background: transparent;
-        color: var(--text-primary, #1a1a1a);
-        font-size: 0.95rem;
-        width: 100%;
-    }
-    .panel-search input::placeholder {
-        color: var(--text-secondary, #aaa);
-    }
+        .panel-hero p {
+            color: var(--text-secondary, #666);
+            font-size: 0.95rem;
+        }
 
-    .panel-count {
-        padding: 0 1.5rem 0.8rem;
-        color: var(--text-secondary, #888);
-        font-size: 0.85rem;
-    }
+        .panel-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0 1.5rem 1rem;
+            flex-wrap: wrap;
+        }
 
-    /* Grid de usuarios */
-    .users-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 1.2rem;
-        padding: 0 1.5rem 2rem;
-    }
+        .panel-search {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--glass-bg, rgba(255, 255, 255, 0.9));
+            border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+            border-radius: 12px;
+            padding: 0.55rem 1rem;
+            flex: 1;
+            min-width: 220px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
 
-    .user-card {
-        background: var(--glass-bg, rgba(255,255,255,0.92));
-        border: 1.5px solid var(--glass-border, rgba(0,0,0,0.07));
-        border-radius: 16px;
-        padding: 1.4rem 1.2rem 1.1rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.65rem;
-        transition: transform 0.18s, box-shadow 0.18s;
-        position: relative;
-        overflow: hidden;
-    }
-    .user-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 3px;
-        background: var(--accent-gradient);
-        opacity: 0;
-        transition: opacity 0.2s;
-    }
-    .user-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px var(--accent-glow, rgba(103,80,164,0.14));
-    }
-    .user-card:hover::before {
-        opacity: 1;
-    }
+        .panel-search:focus-within {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.12));
+        }
 
-    /* Avatar */
-    .user-avatar {
-        width: 72px;
-        height: 72px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2.5px solid var(--glass-border, rgba(0,0,0,0.1));
-        background: var(--secondary-container, #E8DEF8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: var(--accent-color);
-        flex-shrink: 0;
-    }
-    .user-avatar img {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        object-fit: cover;
-    }
+        .panel-search svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--text-secondary, #888);
+            flex-shrink: 0;
+        }
 
-    .user-name {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary, #1a1a1a);
-        text-align: center;
-        margin: 0;
-        line-height: 1.3;
-    }
-    .user-email {
-        font-size: 0.8rem;
-        color: var(--text-secondary, #888);
-        text-align: center;
-        word-break: break-all;
-        margin: 0;
-    }
+        .panel-search input {
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-primary, #1a1a1a);
+            font-size: 0.95rem;
+            width: 100%;
+        }
 
-    /* Badge de rol */
-    .user-role-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        text-transform: capitalize;
-    }
-    .user-role-badge.role-admin {
-        background: linear-gradient(135deg, #6750A4, #7F67BE);
-        color: #fff;
-    }
-    .user-role-badge.role-profesor {
-        background: linear-gradient(135deg, #1565C0, #2196F3);
-        color: #fff;
-    }
-    .user-role-badge.role-student,
-    .user-role-badge.role-usuario {
-        background: var(--secondary-container, #E8DEF8);
-        color: var(--accent-color);
-    }
+        .panel-search input::placeholder {
+            color: var(--text-secondary, #aaa);
+        }
 
-    /* Selector de rol */
-    .role-select-wrapper {
-        width: 100%;
-        margin-top: 0.3rem;
-    }
-    .role-select {
-        width: 100%;
-        padding: 0.5rem 0.8rem;
-        border-radius: 10px;
-        border: 1.5px solid var(--glass-border, rgba(0,0,0,0.1));
-        background: var(--bg-primary, #f5f5f5);
-        color: var(--text-primary, #1a1a1a);
-        font-size: 0.88rem;
-        cursor: pointer;
-        outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16'%3E%3Cpath d='M7 10l5 5 5-5z' fill='%23888'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.6rem center;
-        padding-right: 2rem;
-    }
-    .role-select:focus {
-        border-color: var(--accent-color);
-        box-shadow: 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.12));
-    }
+        .panel-count {
+            padding: 0 1.5rem 0.8rem;
+            color: var(--text-secondary, #888);
+            font-size: 0.85rem;
+        }
 
-    .role-save-btn {
-        width: 100%;
-        padding: 0.5rem;
-        border-radius: 10px;
-        border: none;
-        background: var(--accent-gradient);
-        color: #fff;
-        font-size: 0.88rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity 0.15s, transform 0.15s;
-        margin-top: 0.2rem;
-    }
-    .role-save-btn:hover:not(:disabled) {
-        opacity: 0.88;
-        transform: translateY(-1px);
-    }
-    .role-save-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    .role-save-btn.saved {
-        background: linear-gradient(135deg, #2E7D32, #66BB6A);
-    }
+        /* Grid de usuarios */
+        .users-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.2rem;
+            padding: 0 1.5rem 2rem;
+        }
 
-    /* Estado vacío / error */
-    .panel-empty {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 3rem 1rem;
-        color: var(--text-secondary, #888);
-    }
-    .panel-empty-icon {
-        font-size: 2.8rem;
-        margin-bottom: 0.6rem;
-    }
+        .user-card {
+            background: var(--glass-bg, rgba(255, 255, 255, 0.92));
+            border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.07));
+            border-radius: 16px;
+            padding: 1.4rem 1.2rem 1.1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.65rem;
+            transition: transform 0.18s, box-shadow 0.18s;
+            position: relative;
+            overflow: hidden;
+        }
 
-    /* Toast de notificación */
-    .panel-toast {
-        position: fixed;
-        bottom: 1.5rem;
-        left: 50%;
-        transform: translateX(-50%) translateY(6rem);
-        background: var(--glass-bg, rgba(30,30,30,0.95));
-        color: var(--text-primary, #fff);
-        padding: 0.7rem 1.4rem;
-        border-radius: 12px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        z-index: 9999;
-        transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
-        pointer-events: none;
-        backdrop-filter: blur(12px);
-    }
-    .panel-toast.show {
-        transform: translateX(-50%) translateY(0);
-    }
+        .user-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
 
-    /* Spinner de carga */
-    .panel-loading {
-        grid-column: 1 / -1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.8rem;
-        padding: 3rem;
-        color: var(--text-secondary, #888);
-    }
-    .panel-spinner {
-        width: 24px;
-        height: 24px;
-        border: 3px solid var(--glass-border, rgba(0,0,0,0.1));
-        border-top-color: var(--accent-color);
-        border-radius: 50%;
-        animation: panelSpin 0.8s linear infinite;
-    }
-    @keyframes panelSpin {
-        to { transform: rotate(360deg); }
-    }
+        .user-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px var(--accent-glow, rgba(103, 80, 164, 0.14));
+        }
 
-    /* Acceso denegado */
-    .panel-denied {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        padding: 4rem 2rem;
-        text-align: center;
-    }
-    .panel-denied-icon { font-size: 3.5rem; }
-    .panel-denied h2 { color: var(--text-primary, #1a1a1a); }
-    .panel-denied p { color: var(--text-secondary, #888); font-size: 0.95rem; }
-</style>
+        .user-card:hover::before {
+            opacity: 1;
+        }
+
+        /* Avatar */
+        .user-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2.5px solid var(--glass-border, rgba(0, 0, 0, 0.1));
+            background: var(--secondary-container, #E8DEF8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            flex-shrink: 0;
+        }
+
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary, #1a1a1a);
+            text-align: center;
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .user-email {
+            font-size: 0.8rem;
+            color: var(--text-secondary, #888);
+            text-align: center;
+            word-break: break-all;
+            margin: 0;
+        }
+
+        /* Badge de rol */
+        .user-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: capitalize;
+        }
+
+        .user-role-badge.role-admin {
+            background: linear-gradient(135deg, #6750A4, #7F67BE);
+            color: #fff;
+        }
+
+        .user-role-badge.role-profesor {
+            background: linear-gradient(135deg, #1565C0, #2196F3);
+            color: #fff;
+        }
+
+        .user-role-badge.role-student,
+        .user-role-badge.role-usuario {
+            background: var(--secondary-container, #E8DEF8);
+            color: var(--accent-color);
+        }
+
+        /* Selector de rol */
+        .role-select-wrapper {
+            width: 100%;
+            margin-top: 0.3rem;
+        }
+
+        .role-select {
+            width: 100%;
+            padding: 0.5rem 0.8rem;
+            border-radius: 10px;
+            border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.1));
+            background: var(--bg-primary, #f5f5f5);
+            color: var(--text-primary, #1a1a1a);
+            font-size: 0.88rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16'%3E%3Cpath d='M7 10l5 5 5-5z' fill='%23888'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.6rem center;
+            padding-right: 2rem;
+        }
+
+        .role-select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.12));
+        }
+
+        .role-save-btn {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 10px;
+            border: none;
+            background: var(--accent-gradient);
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.15s;
+            margin-top: 0.2rem;
+        }
+
+        .role-save-btn:hover:not(:disabled) {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .role-save-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .role-save-btn.saved {
+            background: linear-gradient(135deg, #2E7D32, #66BB6A);
+        }
+
+        /* Estado vacío / error */
+        .panel-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary, #888);
+        }
+
+        .panel-empty-icon {
+            font-size: 2.8rem;
+            margin-bottom: 0.6rem;
+        }
+
+        /* Toast de notificación */
+        .panel-toast {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(6rem);
+            background: var(--glass-bg, rgba(30, 30, 30, 0.95));
+            color: var(--text-primary, #fff);
+            padding: 0.7rem 1.4rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+            backdrop-filter: blur(12px);
+        }
+
+        .panel-toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Spinner de carga */
+        .panel-loading {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            padding: 3rem;
+            color: var(--text-secondary, #888);
+        }
+
+        .panel-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--glass-border, rgba(0, 0, 0, 0.1));
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: panelSpin 0.8s linear infinite;
+        }
+
+        @keyframes panelSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Acceso denegado */
+        .panel-denied {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .panel-denied-icon {
+            font-size: 3.5rem;
+        }
+
+        .panel-denied h2 {
+            color: var(--text-primary, #1a1a1a);
+        }
+
+        .panel-denied p {
+            color: var(--text-secondary, #888);
+            font-size: 0.95rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -483,7 +520,7 @@
                                 <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
                                 <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
                                 <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
-                                <li><a href="#" >Quiénes somos</a></li>
+                                <li><a href="#">Quiénes somos</a></li>
                                 <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
                             </ul>
                         </div>
@@ -541,14 +578,15 @@
                     c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
                     c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
                     c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
-                    M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                    M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
                 </svg>
                 <span>Configuración</span>
             </a>
 
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
@@ -594,7 +632,7 @@
 
             <!-- Hero -->
             <div class="panel-hero">
-                <h1>🛡️ Panel de Administración</h1>
+                <h1>Panel de Administración</h1>
                 <p>Busca usuarios y gestiona sus roles en la plataforma.</p>
             </div>
 
@@ -602,9 +640,11 @@
             <div class="panel-toolbar">
                 <div class="panel-search">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                        <path
+                            d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                     </svg>
-                    <input type="text" id="user-search" placeholder="Buscar por nombre, apellido o DNI..." autocomplete="off">
+                    <input type="text" id="user-search" placeholder="Buscar por nombre, apellido o DNI..."
+                        autocomplete="off">
                 </div>
             </div>
 
@@ -630,171 +670,164 @@
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
     <script type="module">
-    /* ============================================================
-       PANEL ADMIN — Lógica de búsqueda y gestión de roles
-       Usa /api/admin/users (nuevo endpoint) o adapta al existente
-    ============================================================ */
+        /* ============================================================
+           PANEL ADMIN — Lógica de búsqueda y gestión de roles
+           Usa /api/admin/users (nuevo endpoint) o adapta al existente
+        ============================================================ */
 
-    // ── Utilidades ──────────────────────────────────────────────
+        // ── Utilidades ──────────────────────────────────────────────
 
-    function escHtml(str) {
-        if (!str) return '';
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-    }
-
-    /** Censura el email: a*****e@g***.com */
-    function censorEmail(email) {
-        if (!email || !email.includes('@')) return '***@***.***';
-        const [local, domain] = email.split('@');
-        const cLocal = local.length <= 2
-            ? local[0] + '*'
-            : local[0] + '*'.repeat(Math.min(local.length - 2, 5)) + local[local.length - 1];
-        const dotIdx = domain.lastIndexOf('.');
-        if (dotIdx <= 0) return cLocal + '@' + domain;
-        const dName = domain.substring(0, dotIdx);
-        const dExt  = domain.substring(dotIdx + 1);
-        const cDomain = dName[0] + '*'.repeat(Math.min(dName.length - 1, 3));
-        return `${cLocal}@${cDomain}.${dExt}`;
-    }
-
-    function showToast(msg, duration = 2800) {
-        const toast = document.getElementById('panel-toast');
-        toast.textContent = msg;
-        toast.classList.add('show');
-        clearTimeout(toast._t);
-        toast._t = setTimeout(() => toast.classList.remove('show'), duration);
-    }
-
-    function roleBadgeClass(role) {
-        if (!role) return 'role-usuario';
-        const r = role.toLowerCase();
-        if (r === 'admin') return 'role-admin';
-        if (r === 'profesor' || r === 'professor') return 'role-profesor';
-        return 'role-student';
-    }
-
-    function roleLabel(role) {
-        if (!role) return 'Usuario';
-        const map = { admin: 'Admin', profesor: 'Profesor', professor: 'Profesor', student: 'Estudiante' };
-        return map[role.toLowerCase()] || role;
-    }
-
-    // ── Estado ───────────────────────────────────────────────────
-
-    let allUsers = [];   // cache de usuarios
-    let debounceTimer;
-
-    // ── Verificar si el usuario actual es admin ──────────────────
-
-    async function checkAdminAccess() {
-        try {
-            // Usamos /api/check-professor-role para verificar rol elevado.
-            // El worker expone isProfessor; si tu backend tiene un endpoint
-            // específico para admin, cámbialo aquí.
-            const res = await fetch('/api/user/profile', { credentials: 'same-origin' });
-            if (!res.ok) return false;
-            const data = await res.json();
-            // Verificamos si está en la tabla professors (admin/profesor)
-            const roleRes = await fetch('/api/check-professor-role', { credentials: 'same-origin' });
-            if (!roleRes.ok) return false;
-            const roleData = await roleRes.json();
-            return roleData.is_professor === true;
-        } catch {
-            return false;
+        function escHtml(str) {
+            if (!str) return '';
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
         }
-    }
 
-    // ── Cargar usuarios ──────────────────────────────────────────
+        /** Censura el email: a*****e@g***.com */
+        function censorEmail(email) {
+            if (!email || !email.includes('@')) return '***@***.***';
+            const [local, domain] = email.split('@');
+            const cLocal = local.length <= 2
+                ? local[0] + '*'
+                : local[0] + '*'.repeat(Math.min(local.length - 2, 5)) + local[local.length - 1];
+            const dotIdx = domain.lastIndexOf('.');
+            if (dotIdx <= 0) return cLocal + '@' + domain;
+            const dName = domain.substring(0, dotIdx);
+            const dExt = domain.substring(dotIdx + 1);
+            const cDomain = dName[0] + '*'.repeat(Math.min(dName.length - 1, 3));
+            return `${cLocal}@${cDomain}.${dExt}`;
+        }
 
-    async function loadUsers() {
-        const grid = document.getElementById('users-grid');
-        grid.innerHTML = '<div class="panel-loading"><div class="panel-spinner"></div><span>Cargando usuarios...</span></div>';
+        function showToast(msg, duration = 2800) {
+            const toast = document.getElementById('panel-toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => toast.classList.remove('show'), duration);
+        }
 
-        try {
-            // Endpoint: GET /api/admin/users — devuelve lista de todos los usuarios
-            // Si no existe en tu worker aún, usa /api/students como fallback
-            // (que devuelve {id, name, email} de usuarios verificados no-profesores).
-            // Para el panel completo incluye también admins/profesores.
-            const res = await fetch('/api/admin/users', { credentials: 'same-origin' });
+        function roleBadgeClass(role) {
+            if (!role) return 'role-usuario';
+            const r = role.toLowerCase();
+            if (r === 'admin') return 'role-admin';
+            if (r === 'profesor' || r === 'professor') return 'role-profesor';
+            return 'role-student';
+        }
 
-            if (res.status === 404) {
-                // Fallback: usar /api/students
-                await loadUsersFromStudentsEndpoint();
-                return;
+        function roleLabel(role) {
+            if (!role) return 'Usuario';
+            const map = { admin: 'Admin', profesor: 'Profesor', professor: 'Profesor', student: 'Estudiante' };
+            return map[role.toLowerCase()] || role;
+        }
+
+        // ── Estado ───────────────────────────────────────────────────
+
+        let allUsers = [];   // cache de usuarios
+        let debounceTimer;
+
+        // ── Verificar si el usuario actual es admin ──────────────────
+
+        async function checkAdminAccess() {
+            try {
+                const res = await fetch('/api/check-admin-role', { credentials: 'same-origin' });
+                if (!res.ok) return false;
+                const data = await res.json();
+                return data.is_admin === true;
+            } catch {
+                return false;
             }
-
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const users = await res.json();
-            allUsers = Array.isArray(users) ? users : (users.users || []);
-            renderUsers(allUsers);
-        } catch (err) {
-            console.warn('[Panel] /api/admin/users no disponible, usando fallback:', err.message);
-            await loadUsersFromStudentsEndpoint();
         }
-    }
 
-    async function loadUsersFromStudentsEndpoint() {
-        try {
-            // Fallback: combina /api/students (estudiantes) + info de profesores
-            const res = await fetch('/api/students', { credentials: 'same-origin' });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const students = await res.json();
-            // Los que vienen de /api/students no son profesores
-            allUsers = (Array.isArray(students) ? students : []).map(u => ({
-                dni: u.id || u.dni,
-                first_name: (u.name || '').split(' ')[0] || '',
-                last_name:  (u.name || '').split(' ').slice(1).join(' ') || '',
-                email:      u.email || '',
-                role:       'student',
-                avatar_url: null
-            }));
-            renderUsers(allUsers);
-        } catch (err) {
-            console.error('[Panel] Error cargando usuarios:', err);
-            document.getElementById('users-grid').innerHTML = `
+        // ── Cargar usuarios ──────────────────────────────────────────
+
+        async function loadUsers() {
+            const grid = document.getElementById('users-grid');
+            grid.innerHTML = '<div class="panel-loading"><div class="panel-spinner"></div><span>Cargando usuarios...</span></div>';
+
+            try {
+                // Endpoint: GET /api/admin/users — devuelve lista de todos los usuarios
+                // Si no existe en tu worker aún, usa /api/students como fallback
+                // (que devuelve {id, name, email} de usuarios verificados no-profesores).
+                // Para el panel completo incluye también admins/profesores.
+                const res = await fetch('/api/admin/users', { credentials: 'same-origin' });
+
+                if (res.status === 404) {
+                    // Fallback: usar /api/students
+                    await loadUsersFromStudentsEndpoint();
+                    return;
+                }
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const users = await res.json();
+                allUsers = Array.isArray(users) ? users : (users.users || []);
+                renderUsers(allUsers);
+            } catch (err) {
+                console.warn('[Panel] /api/admin/users no disponible, usando fallback:', err.message);
+                await loadUsersFromStudentsEndpoint();
+            }
+        }
+
+        async function loadUsersFromStudentsEndpoint() {
+            try {
+                // Fallback: combina /api/students (estudiantes) + info de profesores
+                const res = await fetch('/api/students', { credentials: 'same-origin' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const students = await res.json();
+                // Los que vienen de /api/students no son profesores
+                allUsers = (Array.isArray(students) ? students : []).map(u => ({
+                    dni: u.id || u.dni,
+                    first_name: (u.name || '').split(' ')[0] || '',
+                    last_name: (u.name || '').split(' ').slice(1).join(' ') || '',
+                    email: u.email || '',
+                    role: 'student',
+                    avatar_url: null
+                }));
+                renderUsers(allUsers);
+            } catch (err) {
+                console.error('[Panel] Error cargando usuarios:', err);
+                document.getElementById('users-grid').innerHTML = `
                 <div class="panel-empty">
                     <div class="panel-empty-icon">⚠️</div>
                     <p>No se pudieron cargar los usuarios. Verifica la conexión.</p>
                 </div>`;
-            document.getElementById('panel-count').textContent = 'Error al cargar usuarios';
+                document.getElementById('panel-count').textContent = 'Error al cargar usuarios';
+            }
         }
-    }
 
-    // ── Renderizar tarjetas ──────────────────────────────────────
+        // ── Renderizar tarjetas ──────────────────────────────────────
 
-    function renderUsers(users) {
-        const grid    = document.getElementById('users-grid');
-        const counter = document.getElementById('panel-count');
+        function renderUsers(users) {
+            const grid = document.getElementById('users-grid');
+            const counter = document.getElementById('panel-count');
 
-        if (!users || users.length === 0) {
-            counter.textContent = 'No se encontraron usuarios';
-            grid.innerHTML = `
+            if (!users || users.length === 0) {
+                counter.textContent = 'No se encontraron usuarios';
+                grid.innerHTML = `
                 <div class="panel-empty">
                     <div class="panel-empty-icon">🔍</div>
                     <p>No hay usuarios que coincidan con la búsqueda</p>
                 </div>`;
-            return;
-        }
+                return;
+            }
 
-        counter.textContent = `Mostrando ${users.length} usuario${users.length !== 1 ? 's' : ''}`;
+            counter.textContent = `Mostrando ${users.length} usuario${users.length !== 1 ? 's' : ''}`;
 
-        grid.innerHTML = users.map(u => {
-            const firstName = escHtml(u.first_name || '');
-            const lastName  = escHtml(u.last_name  || '');
-            const fullName  = [firstName, lastName].filter(Boolean).join(' ') || escHtml(u.name || 'Sin nombre');
-            const email     = censorEmail(u.email || '');
-            const role      = u.role || 'student';
-            const dni       = u.dni || u.id || '';
-            const avatarUrl = u.avatar_url || '';
-            const initial   = (firstName || fullName || '?')[0].toUpperCase();
+            grid.innerHTML = users.map(u => {
+                const firstName = escHtml(u.first_name || '');
+                const lastName = escHtml(u.last_name || '');
+                const fullName = [firstName, lastName].filter(Boolean).join(' ') || escHtml(u.name || 'Sin nombre');
+                const email = censorEmail(u.email || '');
+                const role = u.role || 'student';
+                const dni = u.dni || u.id || '';
+                const avatarUrl = u.avatar_url || '';
+                const initial = (firstName || fullName || '?')[0].toUpperCase();
 
-            const avatarHtml = avatarUrl
-                ? `<img src="${escHtml(avatarUrl)}" alt="Avatar" loading="lazy" onerror="this.remove();this.parentElement.textContent='${initial}'">`
-                : initial;
+                const avatarHtml = avatarUrl
+                    ? `<img src="${escHtml(avatarUrl)}" alt="Avatar" loading="lazy" onerror="this.remove();this.parentElement.textContent='${initial}'">`
+                    : initial;
 
-            return `
+                return `
             <div class="user-card" data-dni="${escHtml(dni)}" data-name="${fullName.toLowerCase()} ${escHtml(u.email || '').toLowerCase()} ${escHtml(dni).toLowerCase()}">
                 <div class="user-avatar">${avatarHtml}</div>
                 <p class="user-name">${fullName}</p>
@@ -802,120 +835,120 @@
                 <span class="user-role-badge ${roleBadgeClass(role)}">${roleLabel(role)}</span>
                 <div class="role-select-wrapper">
                     <select class="role-select" data-dni="${escHtml(dni)}" data-current="${escHtml(role)}" aria-label="Cambiar rol de ${fullName}">
-                        <option value="student"   ${role === 'student'   ? 'selected' : ''}>🎓 Estudiante</option>
-                        <option value="profesor"  ${(role === 'profesor' || role === 'professor') ? 'selected' : ''}>🏫 Profesor</option>
-                        <option value="admin"     ${role === 'admin'     ? 'selected' : ''}>🛡️ Admin</option>
+<option value="student"  ${role === 'student' ? 'selected' : ''}>🎓 Estudiante</option>
+<option value="teacher"  ${role === 'teacher' ? 'selected' : ''}>🏫 Profesor</option>
+<option value="admin"    ${role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
                     </select>
                     <button class="role-save-btn" data-dni="${escHtml(dni)}" aria-label="Guardar rol de ${fullName}">
                         Guardar cambio
                     </button>
                 </div>
             </div>`;
-        }).join('');
+            }).join('');
 
-        // Listeners para los botones de guardar
-        grid.querySelectorAll('.role-save-btn').forEach(btn => {
-            btn.addEventListener('click', handleRoleChange);
-        });
-    }
-
-    // ── Guardar cambio de rol ────────────────────────────────────
-
-    async function handleRoleChange(e) {
-        const btn  = e.currentTarget;
-        const card = btn.closest('.user-card');
-        const dni  = btn.dataset.dni;
-        const sel  = card.querySelector('.role-select');
-        const newRole = sel.value;
-        const oldRole = sel.dataset.current;
-
-        if (newRole === oldRole) {
-            showToast('El rol ya es el mismo, no hay cambios.');
-            return;
+            // Listeners para los botones de guardar
+            grid.querySelectorAll('.role-save-btn').forEach(btn => {
+                btn.addEventListener('click', handleRoleChange);
+            });
         }
 
-        btn.disabled = true;
-        btn.textContent = 'Guardando...';
+        // ── Guardar cambio de rol ────────────────────────────────────
 
-        try {
-            const res = await fetch('/api/admin/set-role', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dni, role: newRole })
-            });
+        async function handleRoleChange(e) {
+            const btn = e.currentTarget;
+            const card = btn.closest('.user-card');
+            const dni = btn.dataset.dni;
+            const sel = card.querySelector('.role-select');
+            const newRole = sel.value;
+            const oldRole = sel.dataset.current;
 
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || `HTTP ${res.status}`);
+            if (newRole === oldRole) {
+                showToast('El rol ya es el mismo, no hay cambios.');
+                return;
             }
 
-            // Actualizar estado local
-            sel.dataset.current = newRole;
-            const badge = card.querySelector('.user-role-badge');
-            badge.className = `user-role-badge ${roleBadgeClass(newRole)}`;
-            badge.textContent = roleLabel(newRole);
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
 
-            // Actualizar en caché
-            const user = allUsers.find(u => (u.dni || u.id) === dni);
-            if (user) user.role = newRole;
+            try {
+                const res = await fetch('/api/admin/set-role', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni, role: newRole })
+                });
 
-            btn.textContent = '✓ Guardado';
-            btn.classList.add('saved');
-            showToast(`Rol de ${card.querySelector('.user-name').textContent} actualizado a "${roleLabel(newRole)}"`);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || `HTTP ${res.status}`);
+                }
 
-            setTimeout(() => {
+                // Actualizar estado local
+                sel.dataset.current = newRole;
+                const badge = card.querySelector('.user-role-badge');
+                badge.className = `user-role-badge ${roleBadgeClass(newRole)}`;
+                badge.textContent = roleLabel(newRole);
+
+                // Actualizar en caché
+                const user = allUsers.find(u => (u.dni || u.id) === dni);
+                if (user) user.role = newRole;
+
+                btn.textContent = '✓ Guardado';
+                btn.classList.add('saved');
+                showToast(`Rol de ${card.querySelector('.user-name').textContent} actualizado a "${roleLabel(newRole)}"`);
+
+                setTimeout(() => {
+                    btn.textContent = 'Guardar cambio';
+                    btn.classList.remove('saved');
+                    btn.disabled = false;
+                }, 2500);
+
+            } catch (err) {
+                console.error('[Panel] Error actualizando rol:', err);
+                showToast(`Error: ${err.message}`);
                 btn.textContent = 'Guardar cambio';
-                btn.classList.remove('saved');
                 btn.disabled = false;
-            }, 2500);
-
-        } catch (err) {
-            console.error('[Panel] Error actualizando rol:', err);
-            showToast(`Error: ${err.message}`);
-            btn.textContent = 'Guardar cambio';
-            btn.disabled = false;
+            }
         }
-    }
 
-    // ── Búsqueda en tiempo real ──────────────────────────────────
+        // ── Búsqueda en tiempo real ──────────────────────────────────
 
-    function handleSearch(query) {
-        const q = query.trim().toLowerCase();
-        if (!q) {
-            renderUsers(allUsers);
-            return;
+        function handleSearch(query) {
+            const q = query.trim().toLowerCase();
+            if (!q) {
+                renderUsers(allUsers);
+                return;
+            }
+            const filtered = allUsers.filter(u => {
+                const searchStr = [
+                    u.first_name, u.last_name, u.name,
+                    u.email, u.dni, u.id, u.role
+                ].filter(Boolean).join(' ').toLowerCase();
+                return searchStr.includes(q);
+            });
+            renderUsers(filtered);
         }
-        const filtered = allUsers.filter(u => {
-            const searchStr = [
-                u.first_name, u.last_name, u.name,
-                u.email, u.dni, u.id, u.role
-            ].filter(Boolean).join(' ').toLowerCase();
-            return searchStr.includes(q);
+
+        // ── Init ─────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const isAdmin = await checkAdminAccess();
+
+            if (!isAdmin) {
+                document.getElementById('panel-denied').style.display = 'flex';
+                return;
+            }
+
+            document.getElementById('panel-content').style.display = 'block';
+
+            await loadUsers();
+
+            // Búsqueda con debounce
+            document.getElementById('user-search').addEventListener('input', e => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => handleSearch(e.target.value), 250);
+            });
         });
-        renderUsers(filtered);
-    }
-
-    // ── Init ─────────────────────────────────────────────────────
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const isAdmin = await checkAdminAccess();
-
-        if (!isAdmin) {
-            document.getElementById('panel-denied').style.display = 'flex';
-            return;
-        }
-
-        document.getElementById('panel-content').style.display = 'block';
-
-        await loadUsers();
-
-        // Búsqueda con debounce
-        document.getElementById('user-search').addEventListener('input', e => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => handleSearch(e.target.value), 250);
-        });
-    });
     </script>
 
 </body>

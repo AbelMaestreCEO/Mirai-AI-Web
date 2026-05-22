@@ -1749,6 +1749,78 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/upload-audio' && request.method === 'POST') {
       return await handleUploadUserAudio(request, env, corsHeaders);
     }
+
+    // GET /api/check-admin-role
+    if (path === '/api/check-admin-role' && request.method === 'GET') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ is_admin: false }, 401, corsHeaders);
+
+      try {
+        const row = await env.MIRAI_AI_DB.prepare(
+          "SELECT role FROM users WHERE dni = ?"
+        ).bind(userDni.toUpperCase()).first();
+
+        return jsonResponse({ is_admin: row?.role === 'admin' }, 200, corsHeaders);
+      } catch {
+        return jsonResponse({ is_admin: false }, 500, corsHeaders);
+      }
+    }
+
+    // GET /api/admin/users
+    if (path === '/api/admin/users' && request.method === 'GET') {
+      const userDni = await requireAdminAuth(request, env, corsHeaders);
+      if (!userDni || userDni instanceof Response) return userDni;
+
+      try {
+        const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT
+        dni,
+        first_name,
+        last_name,
+        email,
+        role,
+        CASE WHEN avatar_r2_key IS NOT NULL
+             THEN '/api/user/avatar/' || dni
+             ELSE NULL END AS avatar_url
+      FROM users
+      WHERE is_verified = 1
+      ORDER BY last_name, first_name
+    `).all();
+
+        return jsonResponse(results, 200, corsHeaders);
+      } catch (error) {
+        return jsonResponse({ error: 'Error al obtener usuarios' }, 500, corsHeaders);
+      }
+    }
+
+    // POST /api/admin/set-role
+    if (path === '/api/admin/set-role' && request.method === 'POST') {
+      const userDni = await requireAdminAuth(request, env, corsHeaders);
+      if (!userDni || userDni instanceof Response) return userDni;
+
+      try {
+        const { dni, role } = await request.json();
+
+        if (!dni || !role) {
+          return jsonResponse({ error: 'Faltan campos: dni y role' }, 400, corsHeaders);
+        }
+
+        const validRoles = ['student', 'teacher', 'admin'];
+        if (!validRoles.includes(newRole)) {
+          showToast('Rol inválido');
+          return;
+        }
+
+        await env.MIRAI_AI_DB.prepare(
+          "UPDATE users SET role = ? WHERE dni = ?"
+        ).bind(role, dni.toUpperCase().trim()).run();
+
+        return jsonResponse({ success: true, dni: dni.toUpperCase(), role }, 200, corsHeaders);
+      } catch (error) {
+        return jsonResponse({ error: 'Error al cambiar rol', details: error.message }, 500, corsHeaders);
+      }
+    }
+
     // Ruta: GET /api/check-professor-role
     if (path === '/api/check-professor-role' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
@@ -6246,6 +6318,23 @@ async function getOrCreateEducationConversation(courseId, lessonId, userDni, env
     console.error('❌ Error en getOrCreateEducationConversation:', error.message);
     throw error;
   }
+}
+
+async function requireAdminAuth(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) {
+    return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+  }
+
+  const row = await env.MIRAI_AI_DB.prepare(
+    "SELECT role FROM users WHERE dni = ?"
+  ).bind(userDni.toUpperCase()).first();
+
+  if (!row || row.role !== 'admin') {
+    return jsonResponse({ error: 'Acceso denegado. Requiere rol de administrador.' }, 403, corsHeaders);
+  }
+
+  return userDni;
 }
 
 async function requireProfessorAuth(request, env, corsHeaders) {
