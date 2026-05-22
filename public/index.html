@@ -73,43 +73,62 @@
     <style>
         /* Grid de tarjetas: 2 columnas en móvil, 4 en PC */
         .welcome-cards-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
-            /* MÁS ESPACIO */
-            width: 100%;
-        }
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 22px;
+    width: 100%;
+}
 
         @media (min-width: 768px) {
             .welcome-cards-grid {
-                grid-template-columns: repeat(3, 1fr);
-                max-width: 1400px;
-                margin: 0 auto !important;
-                gap: 28px;
-            }
+        grid-template-columns: repeat(3, 1fr);
+        max-width: 1300px;
+        margin: 0 auto !important;
+        gap: 28px;
+    }
         }
 
         @media (min-width: 1200px) {
             .welcome-cards-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
+        grid-template-columns: repeat(4, 1fr);
+    }
         }
 
         /* Tarjeta en columna: icono arriba, luego título y descripción */
         .welcome-card {
-            min-height: 220px;
-            padding: 24px !important;
-            border-radius: 24px;
-        }
+    display: flex;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+
+    text-align: center;
+
+    padding: 22px !important;
+    min-height: 180px;
+    height: auto !important;
+
+    border-radius: 24px;
+}
+
 
         .welcome-card-icon {
-            margin-bottom: 8px !important;
-            align-self: flex-start !important;
-        }
+    font-size: 2rem;
+    margin-bottom: 14px !important;
+    align-self: center !important;
+}
 
         .welcome-card-body {
-            width: 100% !important;
-        }
+    width: 100% !important;
+}
+
+.welcome-card-title {
+    margin-bottom: 10px;
+}
+
+.welcome-card-desc {
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
 
         /* ===== TABS ===== */
         .welcome-tabs-container {

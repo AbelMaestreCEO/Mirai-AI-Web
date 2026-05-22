@@ -35,8 +35,8 @@ const STATIC_ASSETS = [
   '/styles.css',
   '/app.js',
   '/manifest.json',
-  '/css/transitions.css',  // 👈 El CSS de transiciones que agregaremos
-  '/js/transitions.js',    // 👈 El JS de transiciones que agregaremos
+  '/transitions.css',  // 👈 El CSS de transiciones que agregaremos
+  '/transitions.js',    // 👈 El JS de transiciones que agregaremos
 ];
 
 const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS];
