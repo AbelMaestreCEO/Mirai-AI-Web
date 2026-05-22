@@ -1783,7 +1783,6 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
              THEN '/api/user/avatar/' || dni
              ELSE NULL END AS avatar_url
       FROM users
-      WHERE is_verified = 1
       ORDER BY last_name, first_name
     `).all();
 
