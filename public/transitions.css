@@ -1,0 +1,133 @@
+/* ============================================================
+   transitions.css — Mirai AI PWA Native Feel
+   Incluir en el <head> de TODAS las páginas
+   ============================================================ */
+
+/* ─── 1. ESTADO INICIAL: página invisible al cargar ─────────
+   Evita el flash de contenido antes de la animación de entrada */
+html {
+  opacity: 0;
+}
+
+/* ─── 2. ESTADO VISIBLE: clase agregada por transitions.js ──*/
+html.page-ready {
+  opacity: 1;
+  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── 3. ANIMACIÓN DE SALIDA ─────────────────────────────────
+   Se aplica al body cuando el usuario hace clic en un link */
+html.page-exit {
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 1, 1);
+  pointer-events: none; /* Evita doble clic durante salida */
+}
+
+/* ─── 4. OVERLAY DE CARGA ────────────────────────────────────
+   Capa que cubre la pantalla durante la navegación */
+#transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: var(--overlay-bg, #0a0a0a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
+}
+
+/* Overlay visible */
+#transition-overlay.overlay-visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ─── 5. SPINNER ─────────────────────────────────────────────*/
+#transition-overlay .spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  border-top-color: var(--spinner-color, #ffffff);
+  border-right-color: var(--spinner-color, #ffffff);
+  animation: spin 0.7s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  will-change: transform;
+}
+
+/* Versión con logo en lugar de spinner — descomenta si prefieres */
+/*
+#transition-overlay .spinner-logo {
+  width: 48px;
+  height: 48px;
+  background: url('/icon.png') center/contain no-repeat;
+  animation: pulse-logo 1s ease-in-out infinite;
+}
+*/
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-logo {
+  0%, 100% { opacity: 0.6; transform: scale(0.95); }
+  50%       { opacity: 1;   transform: scale(1.05); }
+}
+
+/* ─── 6. SKELETON SCREEN (opcional) ─────────────────────────
+   Para páginas con estructura conocida, más elegante que spinner.
+   Agrega class="skeleton-line" o "skeleton-card" a tus placeholders */
+.skeleton-line,
+.skeleton-card {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #1e1e1e) 25%,
+    var(--skeleton-shine, #2e2e2e) 50%,
+    var(--skeleton-base, #1e1e1e) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-line  { height: 14px; margin-bottom: 10px; }
+.skeleton-card  { height: 120px; border-radius: 12px; }
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── 7. RESPETA PREFERENCIAS DE MOVIMIENTO ─────────────────
+   Accesibilidad: usuarios con vestigo/epilepsia */
+@media (prefers-reduced-motion: reduce) {
+  html,
+  html.page-ready,
+  html.page-exit,
+  #transition-overlay {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  #transition-overlay .spinner {
+    animation: none !important;
+    border-top-color: var(--spinner-color, #ffffff);
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    border-left-color: transparent;
+  }
+}
+
+/* ─── 8. VARIABLES PARA PERSONALIZAR ────────────────────────
+   Sobreescribe en tu styles.css principal si quieres
+   cambiar los colores del overlay y spinner:
+
+   :root {
+     --overlay-bg:     #0a0a0a;   <- color del fondo del overlay
+     --spinner-color:  #ffffff;   <- color del spinner
+     --skeleton-base:  #1e1e1e;   <- base del skeleton
+     --skeleton-shine: #2e2e2e;   <- brillo del skeleton
+   }
+*/

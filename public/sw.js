@@ -1,43 +1,76 @@
-const CACHE_NAME = 'mirai-ai-v116'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v118'; // 👈 Cambia esto en cada deploy
 
-const urlsToCache = [
+// ─── Páginas HTML a precargar ────────────────────────────────────────────────
+const HTML_PAGES = [
   '/',
+  '/about.html',
+  '/apa.html',
+  '/attendance.html',
+  '/attendance_admin.html',
   '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/manifest.json'
+  '/chat.html',
+  '/courses.html',
+  '/classroom_details.html',
+  '/classroom_admin.html',
+  '/classroom.html',
+  '/course_details.html',
+  '/course_category.html',
+  '/panel.html',
+  '/format.html',
+  '/inventory.html',
+  '/investigation.html',
+  '/learning_hub.html',
+  '/login.html',
+  '/mirror.html',
+  '/registration.html',
+  '/report.html',
+  '/report_admin.html',
+  '/settings.html',
+  '/verify.html',
+  // Agrega aquí el resto de tus páginas
 ];
 
-// Instalación: Cachear recursos estáticos
+// ─── Assets estáticos a precargar ───────────────────────────────────────────
+const STATIC_ASSETS = [
+  '/styles.css',
+  '/app.js',
+  '/manifest.json',
+  '/css/transitions.css',  // 👈 El CSS de transiciones que agregaremos
+  '/js/transitions.js',    // 👈 El JS de transiciones que agregaremos
+];
+
+const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS];
+
+// ─── Instalación: Precachear todo ───────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
-  caches.open(CACHE_NAME).then(cache => {
-    // Solo cachear GET requests
-    if (event.request.method !== 'GET') return;
-    return cache.put(event.request, response);
-  })
-);
-  // Forzar activación inmediata sin esperar que cierren las pestañas
+    caches.open(CACHE_NAME).then(cache => {
+      console.log('[SW] Precacheando páginas y assets...');
+      // addAll falla si cualquier recurso no responde — úsalo solo con archivos que existen
+      return cache.addAll(urlsToCache);
+    })
+  );
+  // Activar inmediatamente sin esperar que se cierren pestañas
   self.skipWaiting();
 });
 
-// Activación: Limpiar cachés antiguas y tomar control de inmediato
+// ─── Activación: Limpiar cachés antiguas ────────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames =>
       Promise.all(
         cacheNames
-          .filter(cacheName => cacheName !== CACHE_NAME)
-          .map(cacheName => {
-            console.log('Eliminando caché antigua:', cacheName);
-            return caches.delete(cacheName);
+          .filter(name => name !== CACHE_NAME)
+          .map(name => {
+            console.log('[SW] Eliminando caché antigua:', name);
+            return caches.delete(name);
           })
       )
-    ).then(() => self.clients.claim()) // 👈 Toma control de todas las pestañas abiertas
+    ).then(() => self.clients.claim())
   );
 });
 
-// Fetch: Network First para HTML, Cache First para assets estáticos
+// ─── Fetch: Estrategia mixta ─────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
 
   if (!event.request) return;
@@ -45,22 +78,28 @@ self.addEventListener('fetch', event => {
 
   const { request } = event;
   const url = new URL(request.url);
-  
-  // Solo manejar requests del mismo origen
-  if (url.origin !== location.origin) {
-    return;
-  }
 
-  // HTML: siempre intentar red primero (detecta actualizaciones)
-  if (request.headers.get('accept')?.includes('text/html')) {
+  // Solo manejar requests del mismo origen
+  if (url.origin !== location.origin) return;
+
+  const isHTML = request.headers.get('accept')?.includes('text/html');
+
+  if (isHTML) {
+    // HTML: Cache First para que la navegación sea INSTANTÁNEA (ilusión de app nativa)
+    // Si no está en caché o hay red, actualiza en background
     event.respondWith(
-      fetch(request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+      caches.match(request).then(cached => {
+        const networkFetch = fetch(request).then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
           return response;
-        })
-        .catch(() => caches.match(request)) // Fallback a caché si no hay red
+        }).catch(() => null);
+
+        // Devuelve caché inmediatamente si existe, si no espera la red
+        return cached || networkFetch;
+      })
     );
     return;
   }
@@ -69,16 +108,19 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(request).then(cached => {
       const networkFetch = fetch(request).then(response => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        }
         return response;
-      });
+      }).catch(() => null);
+
       return cached || networkFetch;
     })
   );
 });
 
-// Push notifications
+// ─── Push Notifications ──────────────────────────────────────────────────────
 self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const title = data.notification?.title || 'Mirai AI';

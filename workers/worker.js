@@ -283,7 +283,8 @@ async function sendVerificationEmail(email, code, env) {
           © 2026 Mirai AI · Powered by <strong>Proton</strong> & <strong>Cloudflare</strong>
         </div>
       </div>
-    </body>
+    <script src="transitions.js"></script>
+</body>
     </html>
   `;
 
