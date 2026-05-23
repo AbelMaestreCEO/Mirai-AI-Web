@@ -397,7 +397,7 @@
                         <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
                             <span class="nav-icon">📚</span><span class="nav-label">Cursos</span>
                         </a>
-                        <a href="project.html" class="nav-grid-item" data-tooltip="Proyectos">
+                        <a href="projects.html" class="nav-grid-item" data-tooltip="Proyectos">
                             <span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span>
                         </a>
                         <a href="code.html" class="nav-grid-item active-link" data-tooltip="Code">
@@ -575,7 +575,7 @@
 
     <!-- ══ CHAT ══════════════════════════════════════════════════ -->
     <div class="chat-container">
-        <main id="chat-messages" class="chat-messages" aria-live="polite">
+        <main id="code-messages" class="chat-messages" aria-live="polite">
             <!-- Mensaje de bienvenida / loading inicial -->
             <div class="code-loading-overlay" id="code-loading-overlay">
                 <div class="code-spinner"></div>
@@ -584,7 +584,7 @@
         </main>
 
         <!-- Indicador de escritura (mismo que chat.html) -->
-        <div id="typing-indicator" class="message ai hidden" style="margin-bottom:20px;">
+        <div id="code-indicator" class="message ai hidden" style="margin-bottom:20px;">
             <div class="message-avatar">M</div>
             <div class="message-content">
                 <div class="typing-indicator">
@@ -601,11 +601,11 @@
     <!-- ══ INPUT ═════════════════════════════════════════════════ -->
     <footer class="input-area">
         <div class="input-wrapper">
-            <textarea id="message-input" class="message-input"
+            <textarea id="code-input" class="message-input"
                 placeholder="Pregunta sobre tu código..." rows="1"
                 autocomplete="off" spellcheck="false"></textarea>
 
-            <button id="send-button" class="send-button" aria-label="Enviar mensaje">
+            <button id="code-button" class="send-button" aria-label="Enviar mensaje">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                 </svg>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v128'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v129'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -27,7 +27,7 @@ const HTML_PAGES = [
   '/report_admin.html',
   '/settings.html',
   '/verify.html',
-  '/project.html',
+  '/projects.html',
   '/task.html',
   '/code.html',
   // Agrega aquí el resto de tus páginas
