@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Code Chat">
+
+    <title>Mirai AI - Code</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <style>
+        svg { display: block; }
+
+        /* ── Mensajes: mismo estilo que chat.html ── */
+        @keyframes msgSlideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user .message-content {
+            background: var(--accent-glow, rgba(103, 80, 164, 0.18)) !important;
+            color: #1a1a1a !important;
+            border-radius: 18px !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
+            border: none !important;
+        }
+
+        .message.ai .message-content {
+            background: #ffffff !important;
+            color: #1a1a1a !important;
+            border-radius: 18px !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10) !important;
+            border: none !important;
+        }
+
+        html[data-theme="dark"] .message.ai .message-content {
+            background: #1c1c1e !important;
+            color: #f0f0f0 !important;
+        }
+
+        html[data-theme="dark"] .message.user .message-content {
+            color: #f0f0f0 !important;
+        }
+
+        @media (max-width: 768px) {
+            .chat-messages {
+                padding-left: 14px !important;
+                padding-right: 14px !important;
+            }
+            .message.user .message-content,
+            .message.ai .message-content {
+                max-width: 82% !important;
+            }
+        }
+
+        /* ── Barra de proyecto en el header ── */
+        .code-project-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.3rem 0.8rem 0.3rem 0;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .code-project-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .code-project-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .code-project-name {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text-primary, #1a1a1a);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .code-project-stack {
+            font-size: 0.7rem;
+            color: var(--text-secondary, #888);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .code-back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.15));
+            background: transparent;
+            color: var(--text-secondary, #666);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            flex-shrink: 0;
+            transition: background 0.18s, color 0.18s;
+            font-family: inherit;
+        }
+
+        .code-back-btn:hover {
+            background: var(--secondary-container, #E8DEF8);
+            color: var(--accent-color, #6750A4);
+        }
+
+        /* ── Header de conversaciones (sidebar) ── */
+        .conversations-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.2rem 0;
+        }
+
+        .conversations-header h4 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-secondary, #888);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0;
+        }
+
+        /* ── Nombre de proyecto en sidebar ── */
+        .code-sidebar-project {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.6rem;
+            border-radius: 12px;
+            background: var(--secondary-container, #E8DEF8);
+            margin-bottom: 0.5rem;
+            min-width: 0;
+        }
+
+        .code-sidebar-project-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--accent-color, #6750A4);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ── Item de chat en sidebar ── */
+        .code-conv-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.6rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+            min-width: 0;
+        }
+
+        .code-conv-item:hover {
+            background: var(--secondary-container, #E8DEF8);
+        }
+
+        .code-conv-item.active {
+            background: var(--secondary-container, #E8DEF8);
+        }
+
+        .code-conv-item .conv-title {
+            flex: 1;
+            font-size: 0.82rem;
+            color: var(--text-primary, #333);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+
+        .code-conv-item.active .conv-title {
+            font-weight: 600;
+            color: var(--accent-color, #6750A4);
+        }
+
+        .code-conv-delete {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary, #aaa);
+            cursor: pointer;
+            font-size: 0.95rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s, color 0.15s, background 0.15s;
+            padding: 0;
+        }
+
+        .code-conv-item:hover .code-conv-delete {
+            opacity: 1;
+        }
+
+        .code-conv-delete:hover {
+            color: #B71C1C;
+            background: #FFEBEE;
+        }
+
+        /* ── Indicador de contexto cargado ── */
+        .context-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            background: var(--secondary-container, #E8DEF8);
+            color: var(--accent-color, #6750A4);
+            flex-shrink: 0;
+        }
+
+        .context-badge.loading {
+            background: #FFF3E0;
+            color: #E65100;
+        }
+
+        .context-badge.error {
+            background: #FFEBEE;
+            color: #B71C1C;
+        }
+
+        /* ── Loading overlay en el chat ── */
+        .code-loading-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 3rem 1rem;
+            color: var(--text-secondary, #888);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .code-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--glass-border, #ddd);
+            border-top-color: var(--accent-color, #6750A4);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Botón nuevo chat ── */
+        .new-conv-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.18));
+            background: transparent;
+            color: var(--text-secondary, #888);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .new-conv-btn:hover {
+            background: var(--secondary-container, #E8DEF8);
+            color: var(--accent-color, #6750A4);
+        }
+
+        /* ── Estado vacío de chats ── */
+        .code-no-chats {
+            font-size: 0.78rem;
+            color: var(--text-secondary, #aaa);
+            text-align: center;
+            padding: 0.75rem 0.5rem;
+            line-height: 1.4;
+        }
+
+        /* ── Sugerencias de código ── */
+        #suggestions-bar { display: none; }
+
+        /* ── Responsive: header más compacto en móvil ── */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-title { display: none; } /* ocultamos el título genérico */
+
+        @media (max-width: 480px) {
+            .code-project-stack { display: none; }
+            .code-back-btn span { display: none; }
+            .code-back-btn { padding: 0.35rem 0.5rem; }
+        }
+    </style>
+
+    <script>
+        (function () {
+            var COLORS = {
+                purple:  { c:'#6750A4',cD:'#D0BCFF',g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)',gD:'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)',glow:'rgba(103,80,164,0.18)',glowD:'rgba(208,188,255,0.15)',sc:'#E8DEF8',scD:'#2A2438',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(30,27,36,0.96)',bg:'#F5F3F8',bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',bgD:'#141218',bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',gb:'rgba(103,80,164,0.12)',gbD:'rgba(207,188,255,0.10)'},
+                blue:    { c:'#1565C0',cD:'#90CAF9',g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)',gD:'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)',glow:'rgba(21,101,192,0.18)',glowD:'rgba(144,202,249,0.15)',sc:'#E3F2FD',scD:'#0D1E35',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(18,21,32,0.96)',bg:'#F3F6FB',bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',bgD:'#121520',bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',gb:'rgba(21,101,192,0.12)',gbD:'rgba(144,202,249,0.10)'},
+                teal:    { c:'#00695C',cD:'#80CBC4',g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)',gD:'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)',glow:'rgba(0,105,92,0.18)',glowD:'rgba(128,203,196,0.15)',sc:'#E0F2F1',scD:'#0A1F1D',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(18,26,25,0.96)',bg:'#F2F9F8',bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',bgD:'#121A19',bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',gb:'rgba(0,105,92,0.12)',gbD:'rgba(128,203,196,0.10)'},
+                green:   { c:'#2E7D32',cD:'#A5D6A7',g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)',gD:'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)',glow:'rgba(46,125,50,0.18)',glowD:'rgba(165,214,167,0.15)',sc:'#E8F5E9',scD:'#0D1F0E',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(18,24,18,0.96)',bg:'#F3F9F3',bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',bgD:'#121812',bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',gb:'rgba(46,125,50,0.12)',gbD:'rgba(165,214,167,0.10)'},
+                orange:  { c:'#E65100',cD:'#FFB74D',g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)',gD:'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)',glow:'rgba(230,81,0,0.18)',glowD:'rgba(255,183,77,0.15)',sc:'#FFF3E0',scD:'#271A08',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(30,22,16,0.96)',bg:'#FBF6F0',bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',bgD:'#1E1610',bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',gb:'rgba(230,81,0,0.12)',gbD:'rgba(255,183,77,0.10)'},
+                pink:    { c:'#AD1457',cD:'#F48FB1',g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)',gD:'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)',glow:'rgba(173,20,87,0.18)',glowD:'rgba(244,143,177,0.15)',sc:'#FCE4EC',scD:'#250C18',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(28,18,24,0.96)',bg:'#FAF2F6',bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',bgD:'#1C1218',bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',gb:'rgba(173,20,87,0.12)',gbD:'rgba(240,98,146,0.10)'},
+                red:     { c:'#B71C1C',cD:'#EF9A9A',g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)',gD:'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)',glow:'rgba(183,28,28,0.18)',glowD:'rgba(239,154,154,0.15)',sc:'#FFEBEE',scD:'#250D0D',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(28,18,18,0.96)',bg:'#FAF2F2',bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',bgD:'#1C1212',bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',gb:'rgba(183,28,28,0.12)',gbD:'rgba(239,83,80,0.10)'},
+                indigo:  { c:'#283593',cD:'#9FA8DA',g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)',gD:'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)',glow:'rgba(40,53,147,0.18)',glowD:'rgba(159,168,218,0.15)',sc:'#E8EAF6',scD:'#0E1020',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(19,19,24,0.96)',bg:'#F3F3FA',bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',bgD:'#131318',bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',gb:'rgba(40,53,147,0.12)',gbD:'rgba(121,134,203,0.10)'},
+                yellow:  { c:'#F57F17',cD:'#FFF176',g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)',gD:'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)',glow:'rgba(245,127,23,0.18)',glowD:'rgba(255,238,88,0.15)',sc:'#FFFDE7',scD:'#1F1C08',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(29,28,16,0.96)',bg:'#FDFBF0',bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',bgD:'#1D1C10',bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',gb:'rgba(245,127,23,0.12)',gbD:'rgba(255,238,88,0.10)'},
+                slate:   { c:'#37474F',cD:'#B0BEC5',g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)',gD:'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)',glow:'rgba(55,71,79,0.18)',glowD:'rgba(176,190,197,0.15)',sc:'#ECEFF1',scD:'#131618',gbg:'rgba(255,255,255,0.94)',gbgD:'rgba(25,28,30,0.96)',bg:'#F3F5F6',bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',bgD:'#131618',bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',gb:'rgba(55,71,79,0.12)',gbD:'rgba(144,164,174,0.10)'}
+            };
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
+            var theme = localStorage.getItem('mirai-ai-theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            var isDark = theme === 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor], r = document.documentElement;
+                r.style.setProperty('--accent-color',         isDark ? c.cD : c.c);
+                r.style.setProperty('--accent-gradient',      isDark ? c.gD : c.g);
+                r.style.setProperty('--accent-glow',          isDark ? c.glowD : c.glow);
+                r.style.setProperty('--secondary-container',  isDark ? c.scD : c.sc);
+                r.style.setProperty('--glass-bg',             isDark ? c.gbgD : c.gbg);
+                r.style.setProperty('--glass-border',         isDark ? c.gbD : c.gb);
+                r.style.setProperty('--bg-primary',           isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient',          isDark ? c.bgGD : c.bgG);
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            if (s.fontSize)   document.documentElement.style.fontSize = s.fontSize + 'px';
+            if (s.reducedMotion) document.documentElement.classList.add('reduce-motion');
+        })();
+    </script>
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="transitions.css">
+</head>
+
+<body>
+
+    <!-- ══ SIDEBAR ══════════════════════════════════════════════ -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+
+            <!-- Navegación -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
+                            <span class="nav-icon">🏠</span><span class="nav-label">Hogar</span>
+                        </a>
+                        <a href="chat.html" class="nav-grid-item" data-tooltip="Chat">
+                            <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
+                        </a>
+                        <a href="course_category.html" class="nav-grid-item" data-tooltip="Cursos">
+                            <span class="nav-icon">📚</span><span class="nav-label">Cursos</span>
+                        </a>
+                        <a href="projects.html" class="nav-grid-item" data-tooltip="Proyectos">
+                            <span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span>
+                        </a>
+                        <a href="code.html" class="nav-grid-item active-link" data-tooltip="Code">
+                            <span class="nav-icon">💻</span><span class="nav-label">Code</span>
+                        </a>
+                        <a href="inventory.html" class="nav-grid-item" data-tooltip="Inventario">
+                            <span class="nav-icon">📦</span><span class="nav-label">Inventario</span>
+                        </a>
+                        <a href="format.html" class="nav-grid-item" data-tooltip="Formato">
+                            <span class="nav-icon">📝</span><span class="nav-label">Formato</span>
+                        </a>
+                        <a href="apa.html" class="nav-grid-item" data-tooltip="APA 7">
+                            <span class="nav-icon">📄</span><span class="nav-label">APA 7</span>
+                        </a>
+                        <a href="investigation.html" class="nav-grid-item" data-tooltip="Investigar">
+                            <span class="nav-icon">🔭</span><span class="nav-label">Investigar</span>
+                        </a>
+                        <a href="report.html" class="nav-grid-item" data-tooltip="Reportes">
+                            <span class="nav-icon">📋</span><span class="nav-label">Reportes</span>
+                        </a>
+                        <a href="panel.html" class="nav-grid-item" data-tooltip="Panel">
+                            <span class="nav-icon">🔑</span><span class="nav-label">Panel</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chats del proyecto (ocupa el máximo espacio) -->
+            <section class="sidebar-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+
+                <!-- Info del proyecto activo -->
+                <div class="code-sidebar-project" id="sidebar-project-info" style="display:none;">
+                    <span id="sidebar-project-icon">💻</span>
+                    <span class="code-sidebar-project-name" id="sidebar-project-name">Proyecto</span>
+                </div>
+
+                <div class="conversations-header">
+                    <h4>Chats</h4>
+                    <button id="new-chat-btn" class="new-conv-btn" title="Nuevo chat">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <ul id="code-chats-list" class="conversations-list">
+                    <li>
+                        <div class="code-no-chats" id="chats-empty-msg">
+                            Abre un proyecto para ver sus chats
+                        </div>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Explorar -->
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Explorar</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Empresa</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14">
+                                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                            </svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Redes Sociales -->
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook">
+                    </a>
+                    <a href="#" aria-label="Twitter/X">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter">
+                    </a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok">
+                    </a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram">
+                    </a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub">
+                        <img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub">
+                    </a>
+                </div>
+            </section>
+
+            <a href="settings.html" class="settings-sidebar-btn" title="Configuración">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
+        c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96
+        c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84
+        c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33
+        c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58
+        C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61
+        l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54
+        c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54
+        c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32
+        c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z
+        M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                </svg>
+                <span>Configuración</span>
+            </a>
+
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:block;">
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                </svg>
+                <span>Cerrar Sesión</span>
+            </button>
+
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com">
+                    <img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai"
+                         style="max-width:80px;max-height:80px;">
+                </a>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
+        </div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
+    <!-- ══ HEADER ════════════════════════════════════════════════ -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+
+        <!-- Barra de proyecto en el header -->
+        <div class="code-project-bar" id="header-project-bar">
+            <span class="code-project-icon" id="header-project-icon">💻</span>
+            <div class="code-project-info">
+                <span class="code-project-name" id="header-project-name">Cargando proyecto...</span>
+                <span class="code-project-stack" id="header-project-stack"></span>
+            </div>
+        </div>
+
+        <!-- Badge de contexto -->
+        <span class="context-badge loading" id="context-badge" title="Estado del contexto">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+            </svg>
+            <span id="context-badge-text">Cargando</span>
+        </span>
+
+        <!-- Botón volver -->
+        <a href="projects.html" class="code-back-btn" id="back-to-projects">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+            <span>Proyectos</span>
+        </a>
+    </header>
+
+    <!-- ══ CHAT ══════════════════════════════════════════════════ -->
+    <div class="chat-container">
+        <main id="chat-messages" class="chat-messages" aria-live="polite">
+            <!-- Mensaje de bienvenida / loading inicial -->
+            <div class="code-loading-overlay" id="code-loading-overlay">
+                <div class="code-spinner"></div>
+                <p>Cargando proyecto y contexto...</p>
+            </div>
+        </main>
+
+        <!-- Indicador de escritura (mismo que chat.html) -->
+        <div id="typing-indicator" class="message ai hidden" style="margin-bottom:20px;">
+            <div class="message-avatar">M</div>
+            <div class="message-content">
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="suggestions-bar" id="suggestions-bar"></div>
+
+    <!-- ══ INPUT ═════════════════════════════════════════════════ -->
+    <footer class="input-area">
+        <div class="input-wrapper">
+            <textarea id="message-input" class="message-input"
+                placeholder="Pregunta sobre tu código..." rows="1"
+                autocomplete="off" spellcheck="false"></textarea>
+
+            <button id="send-button" class="send-button" aria-label="Enviar mensaje">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            </button>
+        </div>
+    </footer>
+
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+    <script type="module" src="code.js" defer></script>
+    <script src="transitions.js"></script>
+</body>
+</html>
