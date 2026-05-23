@@ -318,6 +318,7 @@
             flex-wrap: wrap;
             gap: 0.4rem;
             padding: 0.5rem 1rem 0.4rem;
+            justify-content: center;
         }
 
         .quick-action-btn {
@@ -735,27 +736,28 @@
         </div>
     </div>
 
-    <div class="quick-actions-bar" id="suggestions-bar">
-        <button class="quick-action-btn"
-            data-prompt="Busca bugs y errores en el código del proyecto y explícame cada uno">🐛 Buscar bugs</button>
-        <button class="quick-action-btn"
-            data-prompt="Documenta todas las funciones y módulos principales del proyecto con JSDoc o el estándar del lenguaje">📝
-            Documentar</button>
-        <button class="quick-action-btn"
-            data-prompt="Analiza el rendimiento del código y sugiere optimizaciones concretas con ejemplos">⚡
-            Optimizar</button>
-        <button class="quick-action-btn"
-            data-prompt="Revisa el código en busca de vulnerabilidades de seguridad y malas prácticas">🔐
-            Seguridad</button>
-        <button class="quick-action-btn"
-            data-prompt="Genera tests unitarios para las funciones principales del proyecto">🧪 Generar tests</button>
-        <button class="quick-action-btn"
-            data-prompt="Refactoriza el código para mejorar legibilidad y mantenibilidad sin cambiar su comportamiento">🔄
-            Refactorizar</button>
-    </div>
-
     <!-- ══ INPUT ═════════════════════════════════════════════════ -->
     <footer class="input-area">
+        <div class="quick-actions-bar" id="suggestions-bar">
+            <button class="quick-action-btn"
+                data-prompt="Busca bugs y errores en el código del proyecto y explícame cada uno">🐛 Buscar
+                bugs</button>
+            <button class="quick-action-btn"
+                data-prompt="Documenta todas las funciones y módulos principales del proyecto con JSDoc o el estándar del lenguaje">📝
+                Documentar</button>
+            <button class="quick-action-btn"
+                data-prompt="Analiza el rendimiento del código y sugiere optimizaciones concretas con ejemplos">⚡
+                Optimizar</button>
+            <button class="quick-action-btn"
+                data-prompt="Revisa el código en busca de vulnerabilidades de seguridad y malas prácticas">🔐
+                Seguridad</button>
+            <button class="quick-action-btn"
+                data-prompt="Genera tests unitarios para las funciones principales del proyecto">🧪 Generar
+                tests</button>
+            <button class="quick-action-btn"
+                data-prompt="Refactoriza el código para mejorar legibilidad y mantenibilidad sin cambiar su comportamiento">🔄
+                Refactorizar</button>
+        </div>
         <div class="input-wrapper">
             <textarea id="code-input" class="message-input" placeholder="Pregunta sobre tu código..." rows="1"
                 autocomplete="off" spellcheck="false"></textarea>
