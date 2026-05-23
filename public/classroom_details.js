@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dni = localStorage.getItem('mirai_user_dni');
 
     if (!dni) {
-        window.location.href = 'login.html';
+        window.location.href = 'login';
         return;
     }
 
@@ -95,7 +95,7 @@ async function loadAssignmentDetails() {
             if (response.status === 404) {
                 showError('Esta tarea no está disponible para ti o no existe.');
             } else if (response.status === 401) {
-                window.location.href = 'login.html';
+                window.location.href = 'login';
             } else {
                 showError(data.error || 'Error al cargar los detalles');
             }
@@ -492,7 +492,7 @@ function showError(message) {
                 <div class="error-icon">⚠️</div>
                 <h3>Error</h3>
                 <p>${message}</p>
-                <a href="classroom.html" class="btn btn-primary" style="margin-top: 15px; display:inline-block;">Volver a Tareas</a>
+                <a href="classroom" class="btn btn-primary" style="margin-top: 15px; display:inline-block;">Volver a Tareas</a>
             </div>
         `;
     } else {
@@ -514,7 +514,7 @@ function setupLogout() {
                 localStorage.removeItem('mirai-ai-conversation-id');
                 localStorage.removeItem('mirai-ai-course-id');
                 localStorage.removeItem('mirai-ai-lesson-id');
-                window.location.href = 'login.html';
+                window.location.href = 'login';
             }
         });
     }

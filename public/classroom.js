@@ -8,7 +8,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
         const dni = localStorage.getItem('mirai_user_dni');
         if (!dni) {
-            window.location.replace('login.html');
+            window.location.replace('login');
             return;
         }
 
@@ -45,7 +45,7 @@
                         <div class="empty-state">
                             <span class="empty-state-icon">⚠️</span>
                             <h3>Sesión expirada</h3>
-                            <p>Por favor, <a href="login.html">inicia sesión de nuevo</a>.</p>
+                            <p>Por favor, <a href="login">inicia sesión de nuevo</a>.</p>
                         </div>`;
                     return;
                 }
@@ -95,7 +95,7 @@
 
             // Determinar estado y acento
             let statusText, statusClass, cardAccent, taskIcon, actionText, actionHref;
-            actionHref = `classroom_details.html?id=${assignment.id}`;
+            actionHref = `classroom_details?id=${assignment.id}`;
 
             if (submission) {
                 if (submission.score !== null) {
@@ -174,7 +174,7 @@
             btn.addEventListener('click', e => {
                 const id    = e.currentTarget.dataset.id;
                 const title = e.currentTarget.dataset.title;
-                window.location.href = `learning_hub.html?task_id=${id}&task_title=${encodeURIComponent(title)}`;
+                window.location.href = `learning_hub?task_id=${id}&task_title=${encodeURIComponent(title)}`;
             });
         });
 
@@ -215,7 +215,7 @@
                 const data = await res.json();
 
                 if (data.is_professor) {
-                    window.location.href = 'classroom_admin.html';
+                    window.location.href = 'classroom_admin';
                 } else {
                     alert('⛔ No tienes acceso al panel de profesor. Contacta al administrador.');
                 }
@@ -237,7 +237,7 @@
             } catch (_) {}
             ['mirai_user_dni', 'mirai_user_name', 'mirai_user_role', 'mirai-ai-conversation-id',
              'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
-            window.location.href = 'login.html';
+            window.location.href = 'login';
         });
     }
 

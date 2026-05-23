@@ -76,7 +76,7 @@ function toggleTheme() {
 document.addEventListener('DOMContentLoaded', () => {
     // El tema ya fue aplicado por mirai-boot.js.
     // Solo asegurar que el toggle de Mirror esté vinculado
-    // si mirai-boot.js no lo encontró (id="themeToggle" en mirror.html).
+    // si mirai-boot.js no lo encontró (id="themeToggle" en mirror).
     const themeToggle = document.getElementById('themeToggle')
                      || document.getElementById('theme-toggle');
     if (themeToggle && !themeToggle.dataset.bootInit) {

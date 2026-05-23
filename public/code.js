@@ -46,7 +46,7 @@ async function initCode() {
   projectId = params.get('project') || params.get('projects');
 
   if (!projectId) {
-    showFatalError('No se especificó ningún proyecto.', 'Ir a Proyectos', 'projects.html');
+    showFatalError('No se especificó ningún proyecto.', 'Ir a Proyectos', 'projects');
     return;
   }
 

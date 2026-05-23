@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Redirigir
             setTimeout(() => {
-                window.location.href = 'verify.html';
+                window.location.href = 'verify';
             }, 2000);
 
         } catch (err) {

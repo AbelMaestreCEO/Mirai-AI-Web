@@ -734,7 +734,7 @@ async function handleFormSubmit(e) {
         // Si es error 401, redirigir a login
         if (error.message.includes('401') || error.message.includes('No autorizado')) {
             showStatus('❌ Sesión expirada. Serás redirigido al login...', 'error');
-            setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+            setTimeout(() => { window.location.href = 'login'; }, 2000);
         } else {
             showStatus(`❌ Error: ${error.message}`, 'error');
         }
@@ -777,7 +777,7 @@ async function deleteProduct(productId) {
 
         if (error.message.includes('Sesión expirada') || error.message.includes('401')) {
             showStatus('❌ Sesión expirada. Redirigiendo...', 'error');
-            setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+            setTimeout(() => { window.location.href = 'login'; }, 2000);
         } else {
             showStatus(`❌ Error: ${error.message}`, 'error');
         }

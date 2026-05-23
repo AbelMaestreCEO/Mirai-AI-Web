@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v136'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v137'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -150,6 +150,6 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   event.waitUntil(
-    clients.openWindow('https://ai.aberumirai.com/inventory.html')
+    clients.openWindow('https://ai.aberumirai.com/inventory')
   );
 });

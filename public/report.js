@@ -39,7 +39,7 @@
  *   almacenando solo la URL pública final en D1.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * USO EN report.html:
+ * USO EN report:
  *   Sustituye el bloque <script type="module"> inline por:
  *   <script type="module" src="report.js"></script>
  * ─────────────────────────────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ function logout() {
     localStorage.removeItem('mirai_user_role');
     localStorage.removeItem('mirai_auth_token');
     localStorage.removeItem('mirai-ai-conversation-id');
-    window.location.href = 'login.html';
+    window.location.href = 'login';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

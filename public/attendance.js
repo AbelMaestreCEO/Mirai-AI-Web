@@ -9,7 +9,7 @@
 
 // ── Salir inmediatamente si no es la página correcta ─────────
 if (!document.getElementById('btn-start-scan')) {
-    // Este script fue cargado en una página que no es attendance.html
+    // Este script fue cargado en una página que no es attendance
     // (por caché o error de configuración). No hacer nada.
     throw new Error('[attendance.js] Página incorrecta, abortando init.');
 }

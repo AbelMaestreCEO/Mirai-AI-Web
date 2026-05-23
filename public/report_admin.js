@@ -39,7 +39,7 @@
  *   }
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * USO EN report_admin.html:
+ * USO EN report_admin:
  *   Sustituye el bloque <script type="module"> inline por:
  *   <script type="module" src="report_admin.js"></script>
  * ─────────────────────────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ function logout() {
     localStorage.removeItem('mirai_user_role');
     localStorage.removeItem('mirai_auth_token');
     localStorage.removeItem('mirai-ai-conversation-id');
-    window.location.href = 'login.html';
+    window.location.href = 'login';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

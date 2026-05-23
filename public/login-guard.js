@@ -2,10 +2,10 @@
  * MIRAI AI - Login Guard
  *
  * INSTRUCCIONES DE USO:
- * - Poner SOLO en login.html (antes de login.js)
+ * - Poner SOLO en login (antes de login.js)
  * - NO poner en ninguna otra página
  *
- * Comportamiento: si ya hay sesión activa → redirige a index.html
+ * Comportamiento: si ya hay sesión activa → redirige a index
  */
 (function () {
     'use strict';
@@ -14,6 +14,6 @@
     var dni   = localStorage.getItem('mirai_user_dni');
 
     if (token && dni) {
-        window.location.replace('index.html');
+        window.location.replace('index');
     }
 })();

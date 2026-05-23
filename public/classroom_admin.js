@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentUserDni = localStorage.getItem('mirai_user_dni');
 
     if (!currentUserDni) {
-        window.location.href = 'login.html';
+        window.location.href = 'login';
         return;
     }
 
@@ -17,18 +17,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             credentials: 'same-origin'
         });
         if (checkResponse.status === 401) {
-            window.location.href = 'login.html';
+            window.location.href = 'login';
             return;
         }
         const checkData = await checkResponse.json();
         if (!checkData.is_professor) {
             alert('⛔ Acceso denegado.');
-            window.location.href = 'index.html';
+            window.location.href = 'index';
             return;
         }
     } catch (error) {
         console.error('Error verificando rol:', error);
-        window.location.href = 'login.html';
+        window.location.href = 'login';
         return;
     }
 
@@ -524,7 +524,7 @@ function setupLogout() {
                 localStorage.removeItem('mirai-ai-conversation-id');
                 localStorage.removeItem('mirai-ai-course-id');
                 localStorage.removeItem('mirai-ai-lesson-id');
-                window.location.href = 'login.html';
+                window.location.href = 'login';
             }
         });
     }

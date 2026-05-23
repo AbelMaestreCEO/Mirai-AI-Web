@@ -6180,7 +6180,7 @@ async function serveStatic(url, env, corsHeaders) {
   // Ruta raíz: servir index.html
   if (path === '/' || path === '') {
     try {
-      const object = await env.MIRAI_AI_ASSETS.get('index.html');
+      const object = await env.MIRAI_AI_ASSETS.get('index');
 
       if (object === null) {
         return jsonResponse({ error: 'index.html no encontrado en R2' }, 404, corsHeaders);

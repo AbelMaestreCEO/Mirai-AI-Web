@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('pending_dni', dni);
 
                     setTimeout(() => {
-                        window.location.href = 'verify.html';
+                        window.location.href = 'verify';
                     }, 2500);
                     return;
                 }
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.dni) localStorage.setItem('mirai_user_dni', data.dni);
             if (data.first_name) localStorage.setItem('mirai_user_name', data.first_name);
             if (data.role) localStorage.setItem('mirai_user_role', data.role);
-            window.location.href = 'index.html';
+            window.location.href = 'index';
 
         } catch (err) {
             showError(errorMsg, err.message);

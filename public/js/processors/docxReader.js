@@ -9,7 +9,7 @@
  * 3. Extrae párrafos, tablas e imágenes.
  * 4. Devuelve un array de objetos estandarizados para ser procesados por los módulos APA.
  * 
- * Dependencias externas (deben estar cargadas en index.html):
+ * Dependencias externas (deben estar cargadas en index):
  * - mammoth.js (npm install mammoth)
  * - jszip (opcional, si se usa para inspección profunda)
  * 

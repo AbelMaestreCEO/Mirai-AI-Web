@@ -6,7 +6,7 @@
 
 'use strict';
 
-// ── Guardia de página: solo corre en investigation.html ──
+// ── Guardia de página: solo corre en investigation ──
 if (!document.getElementById('inv-input')) {
     throw new Error('[investigation.js] No estoy en la página de investigación. Saliendo.');
 }

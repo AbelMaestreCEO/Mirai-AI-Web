@@ -2,7 +2,7 @@
  * ============================================
  * MIRAI EDUCATION - courses.js
  * Versión Dinámica: Carga Categorías y Cursos desde D1
- * Maneja: courses.html, course_details.html, course_category.html
+ * Maneja: courses, course_details, course_category
  * ============================================
  */
 
@@ -199,7 +199,7 @@
     }
 
     // ============================================
-    // PÁGINA: course_category.html (Categorías)
+    // PÁGINA: course_category (Categorías)
     // ============================================
 
     async function initCategoriesPage() {
@@ -280,7 +280,7 @@
             `;
 
             card.addEventListener('click', () => {
-                window.location.href = `courses.html?category=${category.id}`;
+                window.location.href = `courses?category=${category.id}`;
             });
 
             grid.appendChild(card);
@@ -288,7 +288,7 @@
     }
 
     // ============================================
-    // PÁGINA: courses.html (Lista de Cursos)
+    // PÁGINA: courses (Lista de Cursos)
     // ============================================
 
     async function initCoursesPage() {
@@ -358,7 +358,7 @@
                         btn.textContent = 'Redirigiendo...';
                         btn.disabled = true;
                         setTimeout(() => {
-                            window.location.href = `chat.html?course=${courseId}&mode=education`;
+                            window.location.href = `chat?course=${courseId}&mode=education`;
                         }, 300);
                     }
                 }
@@ -517,7 +517,7 @@
     }
 
     // ============================================
-    // PÁGINA: course_details.html (Detalles)
+    // PÁGINA: course_details (Detalles)
     // ============================================
 
     function initCourseDetailsPage() {
@@ -542,7 +542,7 @@
         const courseId = urlParams.get('id') || urlParams.get('course');
 
         if (!courseId) {
-            showError(els, 'No se especificó un curso. <a href="courses.html">Volver</a>');
+            showError(els, 'No se especificó un curso. <a href="courses">Volver</a>');
             return;
         }
 
@@ -597,7 +597,7 @@
                                 if (cid && lid) {
                                     btn.textContent = 'Redirigiendo...';
                                     setTimeout(() => {
-                                        window.location.href = `chat.html?course=${cid}&lesson=${lid}&mode=education`;
+                                        window.location.href = `chat?course=${cid}&lesson=${lid}&mode=education`;
                                     }, 300);
                                 }
                             }
@@ -680,7 +680,7 @@
                 localStorage.removeItem('mirai-ai-conversation-id');
                 localStorage.removeItem('mirai-ai-course-id');
                 localStorage.removeItem('mirai-ai-lesson-id');
-                window.location.href = 'login.html';
+                window.location.href = 'login';
             }
         });
     }
@@ -713,11 +713,11 @@
     // ============================================
 
     window.startLesson = (courseId, lessonId) => {
-        window.location.href = `chat.html?course=${courseId}&lesson=${lessonId}&mode=education`;
+        window.location.href = `chat?course=${courseId}&lesson=${lessonId}&mode=education`;
     };
 
     window.selectCourse = (courseId) => {
-        window.location.href = `course_details.html?id=${courseId}`;
+        window.location.href = `course_details?id=${courseId}`;
     };
 
 })();

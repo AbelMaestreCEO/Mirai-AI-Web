@@ -222,7 +222,7 @@ function escapeHtml(str) {
 }
 
 function openInCode(projectId) {
-  window.location.href = `code.html?projects=${projectId}`;
+  window.location.href = `code?projects=${projectId}`;
 }
 
 // ── CARGAR PROYECTOS ───────────────────────────────────────────

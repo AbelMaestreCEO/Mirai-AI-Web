@@ -1367,10 +1367,10 @@ async function loadOrCreateConversation() {
     localStorage.setItem(CONFIG.TTS_MODE_KEY, 'never');
     updateAudioModeUI(); // Actualizar la interfaz visual inmediatamente
 
-    // Si NO hay lesson_id, redirigir a course_details.html para seleccionarla
+    // Si NO hay lesson_id, redirigir a course_details para seleccionarla
     if (!lessonId) {
-      console.warn('⚠️ No hay lesson_id. Redirigiendo a course_details.html');
-      window.location.href = `course_details.html?id=${courseId}`;
+      console.warn('⚠️ No hay lesson_id. Redirigiendo a course_details');
+      window.location.href = `course_details?id=${courseId}`;
       return;
     }
 
@@ -1473,7 +1473,7 @@ async function loadConversationHistory(conversationId) {
       localStorage.removeItem('mirai_user_dni');
       localStorage.removeItem('mirai_user_name');
       localStorage.removeItem('mirai_user_role');
-      window.location.href = 'login.html';
+      window.location.href = 'login';
     }
     console.error('Error cargando historial:', error);
   }
@@ -1588,7 +1588,7 @@ async function handleClearConversation() {
 
 function getUserAvatarHTML() {
   // La URL se guarda en localStorage como caché cuando el usuario
-  // sube/elimina foto desde settings.html
+  // sube/elimina foto desde settings
   const avatarUrl = localStorage.getItem('mirai-user-avatar-url');
   if (avatarUrl) {
     return `<img src="${avatarUrl}" alt="Avatar"
@@ -2496,7 +2496,7 @@ async function loadConversations() {
       localStorage.removeItem('mirai_user_dni');
       localStorage.removeItem('mirai_user_name');
       localStorage.removeItem('mirai_user_role');
-      window.location.href = 'login.html';
+      window.location.href = 'login';
     }
     console.error('Error cargando conversaciones:', error);
   }
@@ -3172,7 +3172,7 @@ if (_logoutBtn) {
       localStorage.removeItem('mirai-ai-conversation-id');
       localStorage.removeItem('mirai-ai-course-id');
       localStorage.removeItem('mirai-ai-lesson-id');
-      window.location.href = 'login.html';
+      window.location.href = 'login';
     }
   });
 }
