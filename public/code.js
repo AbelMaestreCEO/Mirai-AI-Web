@@ -293,7 +293,7 @@ async function switchChat(chatId) {
     const res = await fetch(CODE_API.HISTORY(chatId), { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const messages = data.messages || [];
+    const messages = Array.isArray(data) ? data : (data.messages || []);
 
     if (messages.length === 0) {
       showWelcome();
