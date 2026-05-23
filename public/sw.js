@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v141'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v142'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -37,8 +37,29 @@ const STATIC_ASSETS = [
   '/styles.css',
   '/app.js',
   '/manifest.json',
-  '/transitions.css',  // 👈 El CSS de transiciones que agregaremos
-  '/transitions.js',    // 👈 El JS de transiciones que agregaremos
+  '/transitions.css',
+  '/transitions.js',
+  '/app-mirror.js',
+  '/attendance_admin.js',
+  '/attendance.js',
+  '/authguard.js',
+  '/classroom_admin.js',
+  '/classroom_details.js',
+  '/classroom.js',
+  '/code.js',
+  '/courses.js',
+  '/format.js',
+  '/inventory.js',
+  '/investigation.js',
+  '/login-guard.js',
+  '/login.js',
+  '/mirai-boot.js',
+  '/projects.js',
+  '/registration.js',
+  '/report.js',
+  '/report_admin.js',
+  '/verify.js',
+
 ];
 
 const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS];
