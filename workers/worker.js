@@ -91,7 +91,7 @@ async function callAI(model, messages, options = {}, env) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${env.AI_GATEWAY_KEY}` // nuevo secret en tu Worker
+      'cf-aig-authorization': `Bearer ${env.AI_GATEWAY_KEY}`
     },
     body: JSON.stringify({
       model,
