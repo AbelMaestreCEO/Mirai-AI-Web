@@ -29,6 +29,99 @@ const CATEGORY_ICONS = {
   movil: '📱', datos: '📊', devops: '🚀', otros: '🗂️',
 };
 
+// ── ICONOS Y DETECCIÓN DE LENGUAJE ──────────────────────────────
+const LANG_ICONS = {
+  html:       { icon: '🌐', label: 'HTML',       color: '#e34c26' },
+  css:        { icon: '🎨', label: 'CSS',        color: '#264de4' },
+  javascript: { icon: '🟨', label: 'JavaScript', color: '#f7df1e' },
+  typescript: { icon: '🔷', label: 'TypeScript', color: '#3178c6' },
+  react:      { icon: '⚛️', label: 'React',      color: '#61dafb' },
+  vue:        { icon: '💚', label: 'Vue',        color: '#42b883' },
+  svelte:     { icon: '🔥', label: 'Svelte',     color: '#ff3e00' },
+  python:     { icon: '🐍', label: 'Python',     color: '#3572a5' },
+  rust:       { icon: '🦀', label: 'Rust',       color: '#dea584' },
+  go:         { icon: '🐹', label: 'Go',         color: '#00add8' },
+  php:        { icon: '🐘', label: 'PHP',        color: '#4f5d95' },
+  java:       { icon: '☕', label: 'Java',       color: '#b07219' },
+  sql:        { icon: '🗄️', label: 'SQL',        color: '#336791' },
+  json:       { icon: '📋', label: 'JSON',       color: '#888' },
+  bash:       { icon: '🖥️', label: 'Bash',       color: '#4eaa25' },
+  kotlin:     { icon: '🟣', label: 'Kotlin',     color: '#f18e33' },
+  swift:      { icon: '🍎', label: 'Swift',      color: '#fa7343' },
+  dart:       { icon: '🎯', label: 'Dart',       color: '#00b4ab' },
+  graphql:    { icon: '🔗', label: 'GraphQL',    color: '#e10098' },
+  workers:    { icon: '⚡', label: 'Workers',    color: '#f6821f' },
+  default:    { icon: '💻', label: 'Código',     color: '#6750a4' },
+};
+
+/**
+ * Detecta el lenguaje de programación predominante en el mensaje
+ * y el stack tecnológico del proyecto.
+ */
+function detectLanguageFromContext(message) {
+  const lower = message.toLowerCase();
+
+  if (/workers|cloudflare|wrangler|d1\b|r2\b|pages\b/.test(lower)) return 'workers';
+  if (/<\/?[a-z][\s\S]*>/i.test(message) || /\bhtml\b/.test(lower))  return 'html';
+  if (/\breact\b|jsx|\.tsx|use[A-Z]/.test(lower))                     return 'react';
+  if (/\bvue\b|\.vue\b/.test(lower))                                  return 'vue';
+  if (/\bsvelte\b/.test(lower))                                       return 'svelte';
+  if (/\btypescript\b|\.ts\b|: string|: number|interface /.test(lower)) return 'typescript';
+  if (/\bgraphql\b|gql`|schema!/.test(lower))                         return 'graphql';
+  if (/\bcss\b|flexbox|grid-template|selector|@media|tailwind/.test(lower)) return 'css';
+  if (/\bsql\b|select\s+\*|insert into|create table|where\s+/.test(lower)) return 'sql';
+  if (/\bpython\b|def\s+|\.py\b|pip\s|import\s+numpy|pandas/.test(lower))  return 'python';
+  if (/\brust\b|fn\s+main|cargo\b|\.rs\b|println!/.test(lower))      return 'rust';
+  if (/\bgolang\b|\bgo\b.*func|\.go\b|goroutine/.test(lower))        return 'go';
+  if (/\bphp\b|<\?php|laravel|composer/.test(lower))                  return 'php';
+  if (/\bjava\b|\.java\b|public\s+static\s+void\s+main/.test(lower))  return 'java';
+  if (/\bkotlin\b|\.kt\b|fun\s+/.test(lower))                        return 'kotlin';
+  if (/\bswift\b|\.swift\b|func\s+/.test(lower))                     return 'swift';
+  if (/\bdart\b|flutter\b|\.dart\b/.test(lower))                     return 'dart';
+  if (/\bjson\b|api\b.*fetch|axios|\.json\b/.test(lower))             return 'json';
+  if (/\bbash\b|shell\b|npm\b|yarn\b|#!/.test(lower))                 return 'bash';
+  if (/\bjavascript\b|js\b|const\s|let\s|var\s|function\s/.test(lower)) return 'javascript';
+
+  // Fallback: inferir del stack del proyecto
+  if (projectData?.tech_stack) {
+    const stack = Array.isArray(projectData.tech_stack)
+      ? projectData.tech_stack
+      : [];
+    const stackStr = stack.join(' ').toLowerCase();
+    if (/workers|cloudflare/.test(stackStr)) return 'workers';
+    if (/react/.test(stackStr))              return 'react';
+    if (/vue/.test(stackStr))                return 'vue';
+    if (/svelte/.test(stackStr))             return 'svelte';
+    if (/typescript/.test(stackStr))         return 'typescript';
+    if (/python/.test(stackStr))             return 'python';
+    if (/rust/.test(stackStr))               return 'rust';
+    if (/go\b/.test(stackStr))               return 'go';
+    if (/html|css/.test(stackStr))           return 'html';
+    if (/javascript|node/.test(stackStr))    return 'javascript';
+  }
+
+  return 'default';
+}
+
+/**
+ * Actualiza el indicador de escritura con el icono del lenguaje detectado.
+ */
+function showLangTypingIndicator(langKey) {
+  const lang = LANG_ICONS[langKey] || LANG_ICONS.default;
+  const indicator = document.getElementById('code-indicator');
+
+  indicator.querySelector('.message-content').innerHTML = `
+    <div class="lang-typing-wrap">
+      <span class="lang-typing-icon">${lang.icon}</span>
+      <span class="lang-typing-badge" style="background:${lang.color}22;color:${lang.color}">${lang.label}</span>
+      <div class="lang-typing-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>`;
+
+  indicator.classList.remove('hidden');
+}
+
 // ── ESTADO ──────────────────────────────────────────────────────
 let projectId = null;
 let projectData = null;
@@ -301,9 +394,9 @@ async function sendMessage() {
   appendMessage('user', message);
   scrollToBottom();
 
-  // Mostrar indicador de escritura
-  const typing = document.getElementById('code-indicator');
-  typing.classList.remove('hidden');
+  // Mostrar indicador de escritura con lenguaje detectado
+  const detectedLang = detectLanguageFromContext(message);
+  showLangTypingIndicator(detectedLang);
   scrollToBottom();
 
   try {
@@ -315,7 +408,7 @@ async function sendMessage() {
         message,
         conversation_id: currentChatId,
         project_id: projectId,
-        model: 'deepseek',
+        model: 'deepseek-reasoner',
       }),
     });
 

@@ -7,6 +7,7 @@ import { createZipArchive, generateZipName } from './zip-builder.js';
 // --- CONFIGURACIÓN ---
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
+const DEEPSEEK_REASONER_MODEL = 'deepseek-reasoner';
 const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
 
 // ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
@@ -5181,6 +5182,45 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       });
 
       aiResponse = response.response || response.text || '';
+
+    } else if (model === 'deepseek-reasoner') {
+      // --- LLAMADA A DEEPSEEK REASONER (deepseek-reasoner / R1 Pro) ---
+      console.log('🧠 Usando modelo DeepSeek Reasoner (Pro)');
+
+      // deepseek-reasoner no acepta system prompt como primer mensaje; lo inyectamos en user
+      const reasonerMessages = [
+        ...history.map(msg => ({ role: msg.role, content: msg.content })),
+        { role: "user", content: message }
+      ];
+
+      // Prefijo de contexto en el primer mensaje si hay historial vacío
+      if (reasonerMessages.length === 1) {
+        reasonerMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${message}`;
+      }
+
+      const reasonerResponse = await fetch(DEEPSEEK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_REASONER_MODEL,
+          messages: reasonerMessages,
+          temperature: 0.6,
+          max_tokens: 8000
+        })
+      });
+
+      if (!reasonerResponse.ok) {
+        const errorData = await reasonerResponse.text();
+        console.error('DeepSeek Reasoner API error:', errorData);
+        return jsonResponse({ error: 'Error con DeepSeek Reasoner API' }, reasonerResponse.status, corsHeaders);
+      }
+
+      const reasonerData = await reasonerResponse.json();
+      // El reasoner devuelve el razonamiento en reasoning_content y la respuesta final en content
+      aiResponse = reasonerData.choices?.[0]?.message?.content || '';
 
     } else {
       // --- LLAMADA A DEEPSEEK (API Externa) ---

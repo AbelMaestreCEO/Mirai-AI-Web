@@ -301,6 +301,59 @@
         /* ── Sugerencias de código ── */
         #suggestions-bar { display: none; }
 
+        /* ── Indicador de escritura con lenguaje ── */
+        .lang-typing-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.15rem 0;
+        }
+
+        .lang-typing-icon {
+            font-size: 1.35rem;
+            line-height: 1;
+            animation: langPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes langPulse {
+            0%, 100% { transform: scale(1);   opacity: 1; }
+            50%       { transform: scale(1.18); opacity: 0.75; }
+        }
+
+        .lang-typing-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: 1px solid currentColor;
+            opacity: 0.85;
+        }
+
+        .lang-typing-dots {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .lang-typing-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent-color, #6750A4);
+            animation: langDot 1.3s ease-in-out infinite;
+        }
+
+        .lang-typing-dots span:nth-child(1) { animation-delay: 0s; }
+        .lang-typing-dots span:nth-child(2) { animation-delay: 0.22s; }
+        .lang-typing-dots span:nth-child(3) { animation-delay: 0.44s; }
+
+        @keyframes langDot {
+            0%, 80%, 100% { transform: translateY(0);    opacity: 0.35; }
+            40%            { transform: translateY(-6px); opacity: 1; }
+        }
+
         /* ── Responsive: header más compacto en móvil ── */
         .header {
             display: flex;
@@ -583,14 +636,16 @@
             </div>
         </main>
 
-        <!-- Indicador de escritura (mismo que chat) -->
+        <!-- Indicador de escritura dinámico (lenguaje detectado en code.js) -->
         <div id="code-indicator" class="message ai hidden" style="margin-bottom:20px;">
             <div class="message-avatar">M</div>
             <div class="message-content">
-                <div class="typing-indicator">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
+                <div class="lang-typing-wrap">
+                    <span class="lang-typing-icon">💻</span>
+                    <span class="lang-typing-badge" style="background:rgba(103,80,164,0.1);color:#6750A4">Código</span>
+                    <div class="lang-typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
                 </div>
             </div>
         </div>
