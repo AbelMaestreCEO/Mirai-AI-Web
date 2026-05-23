@@ -623,9 +623,9 @@ body::before {
     padding: 12px 16px 16px;
     background: transparent;
     box-shadow: none;
-    align-items: stretch;
-    width: 100%;
+    align-items: center;
   }
+  
 
   .input-wrapper {
     border-radius: var(--border-radius-lg);
