@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v132'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v133'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -45,15 +45,21 @@ const STATIC_ASSETS = [
 const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS];
 
 // ─── Instalación: Precachear todo ───────────────────────────────────────────
+// DESPUÉS
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       console.log('[SW] Precacheando páginas y assets...');
-      // addAll falla si cualquier recurso no responde — úsalo solo con archivos que existen
-      return cache.addAll(urlsToCache);
+      // Promise.all + catch individual: si un recurso falla, los demás siguen
+      return Promise.all(
+        urlsToCache.map(url =>
+          cache.add(url).catch(err =>
+            console.warn('[SW] No se pudo cachear (probablemente redirect/auth):', url, err.message)
+          )
+        )
+      );
     })
   );
-  // Activar inmediatamente sin esperar que se cierren pestañas
   self.skipWaiting();
 });
 
@@ -92,8 +98,9 @@ self.addEventListener('fetch', event => {
     // Si no está en caché o hay red, actualiza en background
     event.respondWith(
       caches.match(request).then(cached => {
-        const networkFetch = fetch(request).then(response => {
-          if (response.ok) {
+        const networkFetch = fetch(request, { redirect: 'follow' }).then(response => {
+          // No cachear respuestas redirigidas (ej. auth redirects)
+          if (response.ok && !response.redirected) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
           }
@@ -110,8 +117,8 @@ self.addEventListener('fetch', event => {
   // CSS, JS, imágenes: Cache First con actualización en background
   event.respondWith(
     caches.match(request).then(cached => {
-      const networkFetch = fetch(request).then(response => {
-        if (response.ok) {
+      const networkFetch = fetch(request, { redirect: 'follow' }).then(response => {
+        if (response.ok && !response.redirected) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
