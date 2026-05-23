@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const checkData = await checkResponse.json();
         if (!checkData.is_professor) {
             alert('⛔ Acceso denegado.');
-            window.location.href = 'index';
+            window.location.href = '/';
             return;
         }
     } catch (error) {

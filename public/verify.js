@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Redirigir a INDEX (NO a login)
             setTimeout(() => {
-                window.location.href = 'index';
+                window.location.href = '/';
             }, 1500); // 1.5s es suficiente para ver el mensaje de éxito
 
         } catch (err) {

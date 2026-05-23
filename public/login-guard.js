@@ -14,6 +14,6 @@
     var dni   = localStorage.getItem('mirai_user_dni');
 
     if (token && dni) {
-        window.location.replace('index');
+        window.location.replace('/');
     }
 })();
