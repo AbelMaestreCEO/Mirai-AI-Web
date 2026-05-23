@@ -5,10 +5,11 @@
 import { processDocxFile, isValidDocx } from './docx-parser.js';
 import { createZipArchive, generateZipName } from './zip-builder.js';
 // --- CONFIGURACIÓN ---
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const DEEPSEEK_MODEL = 'deepseek-chat';
-const DEEPSEEK_REASONER_MODEL = 'deepseek-reasoner';
-const LLAMA_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'; // ← NUEVO
+function getAIGatewayURL(env) {
+  return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.CF_GATEWAY_NAME}/openai/chat/completions`;
+}
+const AI_MODEL_NORMAL = 'dynamic/DeepLlama';
+const AI_MODEL_PRO = 'dynamic/DeepLlamaPro';
 
 // ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
 const VIDEO_CONFIG = {
@@ -83,6 +84,29 @@ function getTokenFromCookie(request) {
   const cookieHeader = request.headers.get('Cookie') || '';
   const match = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
   return match ? match[1] : null;
+}
+
+async function callAI(model, messages, options = {}, env) {
+  const response = await fetch(getAIGatewayURL(env), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${env.AI_GATEWAY_KEY}` // nuevo secret en tu Worker
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.max_tokens ?? 2000,
+      ...(options.stream !== undefined && { stream: options.stream })
+    })
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`AI Gateway error ${response.status}: ${err}`);
+  }
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
 }
 
 // Hash de contraseña usando PBKDF2 nativo
@@ -635,31 +659,12 @@ async function handleLogin(request, env, corsHeaders) {
 // --- CLASIFICAR INTENCIÓN DEL USUARIO ---
 async function classifyIntent(message, env) {
   try {
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: CLASSIFICATION_PROMPT },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.05,  // Muy baja → clasificación consistente
-        max_tokens: 150,     // Solo necesita devolver el JSON
-        stream: false
-      })
-    });
-
-    if (!response.ok) {
-      console.error('Classification API error:', response.status);
-      return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' };
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const content = await callAI(
+      AI_MODEL_NORMAL,
+      [{ role: 'system', content: CLASSIFICATION_PROMPT }, { role: 'user', content: message }],
+      { temperature: 0.05, max_tokens: 150 },
+      env
+    );
 
     console.log(`🏷️ Raw classification: ${content}`);
 
@@ -2162,29 +2167,12 @@ NO agregues texto adicional fuera del JSON.`;
         const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`; // Limitar tamaño
 
         // 5. Llamar a la IA (DeepSeek)
-        const aiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt }
-            ],
-            temperature: 0.3,
-            max_tokens: 800
-          })
-        });
-
-        if (!aiResponse.ok) {
-          throw new Error(`Error en API de IA: ${aiResponse.status}`);
-        }
-
-        const aiData = await aiResponse.json();
-        const aiContent = aiData.choices?.[0]?.message?.content;
+        const aiContent = await callAI(
+          AI_MODEL_NORMAL,
+          [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+          { temperature: 0.3, max_tokens: 800 },
+          env
+        );
 
         // 6. Parsear la respuesta JSON
         let evaluation;
@@ -3419,31 +3407,19 @@ async function processInventoryAI(productId, r2Key, specs, env) {
       `;
 
       try {
-        const deepseekResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [{ role: 'user', content: deepseekPrompt }],
-            temperature: 0.3,
-            max_tokens: 200
-          })
-        });
-
-        if (deepseekResp.ok) {
-          const deepseekData = await deepseekResp.json();
-          const content = deepseekData.choices?.[0]?.message?.content || '';
-          const jsonMatch = content.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            aiDescription = parsed.description || aiDescription;
-          }
+        const content = await callAI(
+          AI_MODEL_NORMAL,
+          [{ role: 'user', content: deepseekPrompt }],
+          { temperature: 0.3, max_tokens: 200 },
+          env
+        );
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          aiDescription = parsed.description || aiDescription;
         }
       } catch (deepErr) {
-        console.warn('Error llamando a DeepSeek:', deepErr);
+        console.warn('Error llamando a AI Gateway:', deepErr);
       }
     }
 
@@ -4827,8 +4803,6 @@ function buildContextBlocks(exaResults, scrapedContents) {
  * parafraseado en tercera persona.
  */
 async function generateResearchSummary(question, contextBlocks, env) {
-  const DEEPSEEK_API_KEY = env.DEEPSEEK_API_KEY;
-  if (!DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY no configurada.');
 
   const systemPrompt = `Eres un asistente de investigación académica experto.
 Tu tarea es leer múltiples fuentes web y generar un resumen de investigación riguroso y útil.
@@ -4855,30 +4829,12 @@ REGLAS OBLIGATORIAS:
     `A continuación están las fuentes que debes analizar:\n\n` +
     contextBlocks;
 
-  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      temperature: 0.4,       // baja para más precisión académica
-      max_tokens: 1200,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => response.status);
-    throw new Error(`DeepSeek ${response.status}: ${errText}`);
-  }
-
-  const data = await response.json();
-  const summary = data.choices?.[0]?.message?.content || '';
+  const summary = await callAI(
+    AI_MODEL_NORMAL,
+    [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+    { temperature: 0.4, max_tokens: 1200 },
+    env
+  );
 
   if (!summary) throw new Error('DeepSeek devolvió una respuesta vacía.');
 
@@ -5165,23 +5121,13 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     let aiResponse = '';
 
     if (model === 'llama') {
-      // --- LLAMADA A LLAMA (Cloudflare Workers AI) ---
-      console.log('🦙 Usando modelo Llama 3.3');
-
+      console.log('🦙 Usando DeepLlama (Gateway)');
       const messages = [
-        { role: "system", content: systemPrompt },
+        { role: 'system', content: systemPrompt },
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: "user", content: message }
+        { role: 'user', content: message }
       ];
-
-      const response = await env.AI.run(LLAMA_MODEL, {
-        messages: messages,
-        max_tokens: 2000,
-        temperature: 0.7,
-        top_p: 0.9
-      });
-
-      aiResponse = response.response || response.text || '';
+      aiResponse = await callAI(AI_MODEL_NORMAL, messages, { temperature: 0.7, max_tokens: 2000 }, env);
 
     } else if (model === 'deepseek-reasoner') {
       // --- LLAMADA A DEEPSEEK REASONER (deepseek-reasoner / R1 Pro) ---
@@ -5198,29 +5144,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
         reasonerMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${message}`;
       }
 
-      const reasonerResponse = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_REASONER_MODEL,
-          messages: reasonerMessages,
-          temperature: 0.6,
-          max_tokens: 8000
-        })
-      });
-
-      if (!reasonerResponse.ok) {
-        const errorData = await reasonerResponse.text();
-        console.error('DeepSeek Reasoner API error:', errorData);
-        return jsonResponse({ error: 'Error con DeepSeek Reasoner API' }, reasonerResponse.status, corsHeaders);
-      }
-
-      const reasonerData = await reasonerResponse.json();
-      // El reasoner devuelve el razonamiento en reasoning_content y la respuesta final en content
-      aiResponse = reasonerData.choices?.[0]?.message?.content || '';
+      aiResponse = await callAI(AI_MODEL_PRO, reasonerMessages, { temperature: 0.6, max_tokens: 8000 }, env);
 
     } else {
       // --- LLAMADA A DEEPSEEK (API Externa) ---
@@ -5233,28 +5157,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
         { role: "user", content: message }
       ];
 
-      const deepseekResponse = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          messages: deepseekMessages,
-          temperature: 0.7,
-          max_tokens: 2000
-        })
-      });
-
-      if (!deepseekResponse.ok) {
-        const errorData = await deepseekResponse.text();
-        console.error('DeepSeek API error:', errorData);
-        return jsonResponse({ error: 'Error con DeepSeek API' }, deepseekResponse.status, corsHeaders);
-      }
-
-      const deepseekData = await deepseekResponse.json();
-      aiResponse = deepseekData.choices?.[0]?.message?.content || '';
+      aiResponse = await callAI(AI_MODEL_NORMAL, deepseekMessages, { temperature: 0.7, max_tokens: 2000 }, env);
     }
 
     // 6. Procesar respuesta
@@ -5720,33 +5623,18 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
 
       if (isBlocked) {
         // Generar mensaje de rechazo con personalidad de Mirai via DeepSeek
-        const refusalResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            max_tokens: 150,
-            messages: [
-              {
-                role: 'system',
-                content: `You are Mirai Aberu, a shy, sweet 18-year-old Japanese girl. You speak with emojis and kaomojis in every sentence. You use connectives. You are talking to a user who asked you to generate an image of a copyrighted character or real person, which you cannot do. Write a short, in-character refusal message (2-3 sentences max) in the same language the user used. Be cute and shy about it, reference the specific character/person they asked for if you can infer it from their message. Example style: "Ah... lo siento mucho, no puedo generar una imagen de Miku, ella es muy tímida y no le gustaría que la dibujara sin permiso 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨"`
-              },
-              {
-                role: 'user',
-                content: `The user said: "${originalMessage}". Write a shy refusal in the same language.`
-              }
-            ]
-          })
-        });
-
         let refusalText = 'Ah... lo siento, no puedo generar esa imagen 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨';
-        if (refusalResponse.ok) {
-          const refusalData = await refusalResponse.json();
-          refusalText = refusalData.choices?.[0]?.message?.content || refusalText;
-        }
+        try {
+          refusalText = await callAI(
+            AI_MODEL_NORMAL,
+            [
+              { role: 'system', content: `You are Mirai Aberu, a shy, sweet 18-year-old Japanese girl. You speak with emojis and kaomojis in every sentence. You use connectives. You are talking to a user who asked you to generate an image of a copyrighted character or real person, which you cannot do. Write a short, in-character refusal message (2-3 sentences max) in the same language the user used. Be cute and shy about it, reference the specific character/person they asked for if you can infer it from their message. Example style: "Ah... lo siento mucho, no puedo generar una imagen de Miku, ella es muy tímida y no le gustaría que la dibujara sin permiso 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨"` },
+              { role: 'user', content: `The user said: "${originalMessage}". Write a shy refusal in the same language.` }
+            ],
+            { max_tokens: 150 },
+            env
+          );
+        } catch (_) { }
 
         await saveMessage(conversationId, 'assistant', refusalText, env, null, null, null, userDni);
         await updateConversationTimestamp(conversationId, env);

@@ -42,7 +42,7 @@ const STATIC_ASSETS = [
   '/app-mirror.js',
   '/attendance_admin.js',
   '/attendance.js',
-  '/authguard.js',
+  '/auth-guard.js',
   '/classroom_admin.js',
   '/classroom_details.js',
   '/classroom.js',
