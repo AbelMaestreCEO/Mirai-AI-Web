@@ -395,6 +395,7 @@ async function sendMessage() {
   scrollToBottom();
 
   // Mostrar indicador de escritura con lenguaje detectado
+  const typing = document.getElementById('code-indicator');
   const detectedLang = detectLanguageFromContext(message);
   showLangTypingIndicator(detectedLang);
   scrollToBottom();
