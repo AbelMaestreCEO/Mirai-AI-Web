@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', initCode);
 async function initCode() {
   // Leer project ID de la URL
   const params = new URLSearchParams(window.location.search);
-  projectId = params.get('project');
+  projectId = params.get('project') || params.get('projects');
 
   if (!projectId) {
     showFatalError('No se especificó ningún proyecto.', 'Ir a Proyectos', 'projects.html');
