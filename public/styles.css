@@ -412,6 +412,7 @@ body::before {
   justify-content: center;
   flex-direction: column;
   align-items: stretch;
+  width: 100%;
 }
 
 .input-wrapper {
