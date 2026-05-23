@@ -1372,6 +1372,8 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     const projectMatch = path.match(/^\/api\/projects\/([^/]+)$/);
     if (projectMatch) {
       const projectId = projectMatch[1];
+      if (request.method === 'GET')
+        return handleProjectGet(request, env, corsHeaders, projectId);
       if (request.method === 'PUT')
         return handleProjectUpdate(request, env, corsHeaders, projectId);
       if (request.method === 'DELETE')
@@ -2556,6 +2558,37 @@ async function handleProjectCreate(request, env, corsHeaders) {
   } catch (error) {
     console.error('[Projects] Error al crear:', error);
     return jsonResponse({ error: 'Error al crear proyecto' }, 500, corsHeaders);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/projects/:id
+// Devuelve un proyecto por ID (solo si pertenece al usuario)
+// ─────────────────────────────────────────────────────────────
+async function handleProjectGet(request, env, corsHeaders, projectId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const project = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, name, description, tech_stack, category, file_count, created_at, updated_at
+      FROM projects
+      WHERE id = ? AND user_dni = ?
+    `).bind(projectId, userDni.toUpperCase()).first();
+
+    if (!project) {
+      return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
+    }
+
+    return jsonResponse({
+      project: {
+        ...project,
+        tech_stack: safeJsonParse(project.tech_stack, []),
+      }
+    }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Projects] Error al obtener proyecto:', error);
+    return jsonResponse({ error: 'Error al obtener proyecto' }, 500, corsHeaders);
   }
 }
 
