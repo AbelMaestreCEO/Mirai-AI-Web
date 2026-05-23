@@ -15,13 +15,13 @@
 
 // ── CONSTANTES ─────────────────────────────────────────────────
 const CODE_API = {
-  CHATS:       (pid) => `/api/code-chats?project_id=${pid}`,
+  CHATS: (pid) => `/api/code-chats?project_id=${pid}`,
   CHAT_CREATE: '/api/code-chats',
-  CHAT_DELETE: (id)  => `/api/code-chats/${id}`,
-  CHAT_MSG:    '/api/code-chat/message',
-  PROJECT:     (id)  => `/api/projects/${id}`,
-  CONTEXT:     (id)  => `/api/projects/${id}/context`,
-  HISTORY:     (id)  => `/api/history/${id}`,
+  CHAT_DELETE: (id) => `/api/code-chats/${id}`,
+  CHAT_MSG: '/api/code-chat/message',
+  PROJECT: (id) => `/api/projects/${id}`,
+  CONTEXT: (id) => `/api/projects/${id}/context`,
+  HISTORY: (id) => `/api/history/${id}`,
 };
 
 const CATEGORY_ICONS = {
@@ -30,12 +30,12 @@ const CATEGORY_ICONS = {
 };
 
 // ── ESTADO ──────────────────────────────────────────────────────
-let projectId   = null;
+let projectId = null;
 let projectData = null;
 let projectContext = '';
 let currentChatId = null;
-let allChats    = [];
-let isTyping    = false;
+let allChats = [];
+let isTyping = false;
 
 // ── INIT ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', initCode);
@@ -67,7 +67,8 @@ async function initCode() {
     } else if (allChats.length > 0) {
       await switchChat(allChats[0].id);
     } else {
-      showWelcome();
+      // Auto-crear el primer chat cuando no existe ninguno
+      await createNewChat();
     }
 
   } catch (err) {
@@ -188,7 +189,7 @@ async function switchChat(chatId) {
   window.history.replaceState({}, '', url);
 
   // Mostrar loading
-  const messagesEl = document.getElementById('chat-messages');
+  const messagesEl = document.getElementById('code-messages');
   messagesEl.innerHTML = `
     <div class="code-loading-overlay">
       <div class="code-spinner"></div>
@@ -217,7 +218,10 @@ async function switchChat(chatId) {
 
 // ── CREAR NUEVO CHAT ────────────────────────────────────────────
 async function createNewChat() {
-  if (!projectData) return;
+  if (!projectData) {
+    console.warn('[Code] projectData aún no disponible, reintentando...');
+    await loadProjectInfo();
+  }
 
   const btn = document.getElementById('new-chat-btn');
   btn.disabled = true;
@@ -279,7 +283,7 @@ async function deleteChat(chatId) {
 
 // ── ENVIAR MENSAJE ──────────────────────────────────────────────
 async function sendMessage() {
-  const input = document.getElementById('message-input');
+  const input = document.getElementById('code-input');
   const message = input.value.trim();
   if (!message || isTyping) return;
 
@@ -298,7 +302,7 @@ async function sendMessage() {
   scrollToBottom();
 
   // Mostrar indicador de escritura
-  const typing = document.getElementById('typing-indicator');
+  const typing = document.getElementById('code-indicator');
   typing.classList.remove('hidden');
   scrollToBottom();
 
@@ -345,7 +349,7 @@ async function sendMessage() {
 
 // ── RENDERIZADO DE MENSAJES ─────────────────────────────────────
 function appendMessage(role, content) {
-  const messagesEl = document.getElementById('chat-messages');
+  const messagesEl = document.getElementById('code-messages');
 
   // Quitar el overlay de welcome/loading si existe
   const overlay = messagesEl.querySelector('.code-loading-overlay, .code-welcome');
@@ -426,7 +430,7 @@ function escHtml(str) {
 window.copyCode = function (id) {
   const el = document.getElementById(id);
   if (!el) return;
-  navigator.clipboard.writeText(el.textContent).catch(() => {});
+  navigator.clipboard.writeText(el.textContent).catch(() => { });
   const btn = el.closest('.code-block-wrap')?.querySelector('.copy-code-btn');
   if (btn) {
     btn.textContent = '✓ Copiado';
@@ -440,7 +444,7 @@ window.copyCode = function (id) {
 
 // ── WELCOME ──────────────────────────────────────────────────────
 function showWelcome() {
-  const messagesEl = document.getElementById('chat-messages');
+  const messagesEl = document.getElementById('code-messages');
   const name = projectData?.name || 'tu proyecto';
   const techStack = Array.isArray(projectData?.tech_stack)
     ? projectData.tech_stack
@@ -470,7 +474,7 @@ function showWelcome() {
 }
 
 function showFatalError(msg, btnText, href) {
-  const messagesEl = document.getElementById('chat-messages');
+  const messagesEl = document.getElementById('code-messages');
   messagesEl.innerHTML = `
     <div class="code-loading-overlay">
       <div style="font-size:2rem">⚠️</div>
@@ -484,7 +488,7 @@ function showFatalError(msg, btnText, href) {
 }
 
 function scrollToBottom() {
-  const el = document.getElementById('chat-messages');
+  const el = document.getElementById('code-messages');
   el.scrollTop = el.scrollHeight;
 }
 
@@ -558,11 +562,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .addEventListener('click', createNewChat);
 
   // Enviar mensaje
-  document.getElementById('send-button')
+  document.getElementById('code-button')
     .addEventListener('click', sendMessage);
 
   // Enter para enviar (Shift+Enter = nueva línea)
-  document.getElementById('message-input')
+  document.getElementById('code-input')
     .addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -571,7 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
   // Auto-resize del textarea
-  document.getElementById('message-input')
+  document.getElementById('code-input')
     .addEventListener('input', function () {
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 160) + 'px';
