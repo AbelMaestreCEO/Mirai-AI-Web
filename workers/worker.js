@@ -2938,13 +2938,6 @@ async function handleProjectContext(request, env, corsHeaders, projectId) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helper: parsear JSON de forma segura
-// ─────────────────────────────────────────────────────────────
-function safeJsonParse(str, fallback = null) {
-  try { return JSON.parse(str); } catch { return fallback; }
-}
-
 // ============================================
 // Listar Productos
 // ============================================
