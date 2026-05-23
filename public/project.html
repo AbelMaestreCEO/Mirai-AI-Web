@@ -451,6 +451,12 @@
             /* evita que el padre comprima esta lista */
         }
 
+        .courses-container {
+            padding-left: 1.1rem;
+            padding-right: 1.1rem;
+            box-sizing: border-box;
+        }
+
         .file-item {
             display: flex;
             align-items: center;
@@ -459,7 +465,8 @@
             border-radius: 10px;
             background: var(--secondary-container, #F5F0FF);
             font-size: 0.82rem;
-            flex-shrink: 0;   /* AGREGAR esta propiedad al bloque ya existente */
+            flex-shrink: 0;
+            /* AGREGAR esta propiedad al bloque ya existente */
         }
 
         .file-item-icon {
@@ -667,6 +674,22 @@
             border-radius: 10px;
             background: var(--secondary-container, #F5F0FF);
             font-size: 0.82rem;
+            flex-shrink: 0;
+            /* no se comprima verticalmente */
+            min-width: 0;
+            /* permite truncar texto largo */
+            width: 100%;
+            /* fuerza una sola columna */
+            box-sizing: border-box;
+        }
+
+        #existing-files-list {
+            flex-direction: column;
+            flex-wrap: nowrap;
+            /* elimina el layout de 2 columnas */
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: 220px;
         }
 
         .existing-file-item.marked-delete {
