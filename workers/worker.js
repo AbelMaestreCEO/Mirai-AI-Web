@@ -6,7 +6,7 @@ import { processDocxFile, isValidDocx } from './docx-parser.js';
 import { createZipArchive, generateZipName } from './zip-builder.js';
 // --- CONFIGURACIÓN ---
 function getAIGatewayURL(env) {
-  return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/openai/chat/completions`;
+  return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/chat/completions`;
 }
 const AI_MODEL_NORMAL = 'dynamic/DeepLlama';
 const AI_MODEL_PRO = 'dynamic/DeepLlamaPro';
