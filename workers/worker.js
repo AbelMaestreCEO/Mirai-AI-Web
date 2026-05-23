@@ -87,7 +87,9 @@ function getTokenFromCookie(request) {
 }
 
 async function callAI(model, messages, options = {}, env) {
-  const response = await fetch(getAIGatewayURL(env), {
+  const url = getAIGatewayURL(env);
+  console.log('🌐 AI Gateway URL:', url); // ← AGREGA ESTO
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
