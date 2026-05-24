@@ -108,6 +108,7 @@ async function callAI(model, messages, options = {}, env) {
     throw new Error(`AI Gateway error ${response.status}: ${err}`);
   }
   const data = await response.json();
+  console.log('📨 AI data:', JSON.stringify(data).substring(0, 300)); // ← agrega esto
   return data.choices?.[0]?.message?.content || '';
 }
 
