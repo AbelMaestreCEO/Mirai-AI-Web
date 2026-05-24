@@ -108,8 +108,11 @@ async function callAI(model, messages, options = {}, env) {
     throw new Error(`AI Gateway error ${response.status}: ${err}`);
   }
   const data = await response.json();
-  console.log('📨 AI data:', JSON.stringify(data).substring(0, 300)); // ← agrega esto
-  return data.choices?.[0]?.message?.content || '';
+  const msg = data.choices?.[0]?.message;
+  return msg?.content
+    || msg?.reasoning_content  // DeepSeek V4 / reasoning models
+    || msg?.reasoning           // Gemma 4 / otros
+    || '';
 }
 
 // Hash de contraseña usando PBKDF2 nativo
