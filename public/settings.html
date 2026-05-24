@@ -1022,7 +1022,7 @@
         }
     </style>
     <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="transitions.css">
+    <link rel="stylesheet" href="transitions.css">
     <style>
         [data-theme="dark"] .settings-hero {
             background: #4A4458 !important;
@@ -1413,10 +1413,10 @@
                             <div class="model-check"><svg viewBox="0 0 24 24" width="12" height="12">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                                 </svg></div>
-                            <span class="model-emoji">🚀</span>
-                            <span class="model-name">DeepSeek</span>
-                            <span class="model-desc">Modelo por defecto. Excelente para análisis, código y conversación
-                                general.</span>
+                            <span class="model-emoji">🌸</span>
+                            <span class="model-name">Mirai</span>
+                            <span class="model-desc">Modelo por defecto. Excelente para conversación general, análisis y
+                                creatividad.</span>
                             <span class="model-badge">Recomendado</span>
                         </div>
                     </label>
@@ -1426,11 +1426,11 @@
                             <div class="model-check"><svg viewBox="0 0 24 24" width="12" height="12">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                                 </svg></div>
-                            <span class="model-emoji">🦙</span>
-                            <span class="model-name">Llama 3.3 70B</span>
-                            <span class="model-desc">Meta AI de alto rendimiento. Ideal para razonamiento complejo y
-                                creatividad.</span>
-                            <span class="model-badge alt">Cloudflare AI</span>
+                            <span class="model-emoji">⚡</span>
+                            <span class="model-name">Mirai Pro</span>
+                            <span class="model-desc">Motor avanzado con razonamiento profundo. Ideal para código, lógica
+                                compleja y análisis técnico.</span>
+                            <span class="model-badge alt">Pro</span>
                         </div>
                     </label>
                 </div>
@@ -1883,7 +1883,7 @@
 
                 /* ── MODELO ───────────────────────────────────────────── */
                 function loadModel() {
-                    const saved = localStorage.getItem(MODEL_KEY) || 'deepseek';
+                    const saved = localStorage.getItem(MODEL_KEY) || 'deepseek'; // Mirai es el default
                     const radio = document.querySelector(`input[name="ai-model"][value="${saved}"]`);
                     if (radio) radio.checked = true;
                 }
@@ -1892,7 +1892,7 @@
                     const sel = document.querySelector('input[name="ai-model"]:checked');
                     if (!sel) { showToast('Selecciona un modelo', '❌'); return; }
                     localStorage.setItem(MODEL_KEY, sel.value);
-                    const labels = { deepseek: '🚀 DeepSeek', llama: '🦙 Llama 3.3 70B' };
+                    const labels = { deepseek: '🌸 Mirai', llama: '⚡ Mirai Pro' };
                     showToast(`Modelo cambiado a ${labels[sel.value]}`, '✅');
                     window.dispatchEvent(new CustomEvent('mirai-model-changed', { detail: sel.value }));
                 });
@@ -2101,8 +2101,8 @@
 
             })();
     </script>
-<script type="module" src="inventory.js" defer></script>
-<script src="transitions.js"></script>
+    <script type="module" src="inventory.js" defer></script>
+    <script src="transitions.js"></script>
 </body>
 
 </html>
