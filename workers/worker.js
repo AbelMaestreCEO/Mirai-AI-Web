@@ -841,7 +841,7 @@ async function handleChat(request, env, corsHeaders) {
     ).bind(conversation_id).first();
 
     if (!convData) {
-      await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni);
+      await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni, model);
       const newConvData = await env.MIRAI_AI_DB.prepare(
         "SELECT user_dni, course_id FROM conversations WHERE id = ?"
       ).bind(conversation_id).first();
@@ -5072,7 +5072,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
 
     // 1. Asegurar conversación
-    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni);
+    await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni, model);
 
     // 2. Guardar contexto educativo si se proporciona
     if (course_id && lesson_id) {
@@ -5615,7 +5615,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
 
 async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false) {
   try {
-    await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni);
+    await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, model = AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', originalMessage, env, null, null, null, userDni);
 
     let imageUrl;
@@ -5700,7 +5700,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     console.log('🎬 Prompt original:', prompt);
 
     // 1. Guardar traza inicial en la base de datos
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, model = AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     const videoPrompt = simplifyVideoPrompt(prompt);
@@ -5998,9 +5998,9 @@ async function getConversationHistory(conversationId, env) {
 }
 
 // --- GUARDAR MENSAJE (CORREGIDO) ---
-async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null, userDni = null) {
+async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null, userDni = null, model = AI_MODEL_NORMAL) {
   try {
-    await ensureConversationExists(conversationId, content, env, null, null, userDni);
+    await ensureConversationExists(conversationId, content, env, null, null, userDni, model);
 
     if (userDni) {
       const conv = await env.MIRAI_AI_DB.prepare(
@@ -6032,7 +6032,7 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null, 
   }
 }
 
-async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null, userDni = null) {
+async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null, userDni = null, model = AI_MODEL_NORMAL) {
   try {
     // 1. Verificar si ya existe
     const existing = await env.MIRAI_AI_DB.prepare(
@@ -6051,7 +6051,7 @@ async function ensureConversationExists(conversationId, firstMessage, env, cours
       ).bind(
         conversationId,
         title,
-        DEEPSEEK_MODEL,
+        model,
         courseId || null,
         lessonId || null,
         userDni || null // Si es curso, user_dni puede ser null
@@ -6485,7 +6485,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
     const imageUrl = await generateAndStoreImage(prompt, conversation_id, env);
 
     // Guardar en D1
-    await ensureConversationExists(conversation_id, prompt, env);
+    await ensureConversationExists(conversation_id, prompt, env, courseId = null, lessonId = null, userDni = null, model = AI_MODEL_NORMAL);
     const aiResponseText = `Aquí tienes la imagen que pediste:\n\n![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
     await saveMessage(conversation_id, 'assistant', aiResponseText, env);
 
@@ -6774,7 +6774,7 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
     console.log('🎵 Prompt original:', prompt);
 
     // PASAR userDni
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni);
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, model=AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     // 2. Limpiar y simplificar el prompt para MiniMax
