@@ -1,0 +1,2193 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Módulo de Dieta y Nutrición">
+    <title>Mirai AI - Dieta</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script>
+        (function () {
+            var COLORS = {
+                purple: { c: '#6750A4', cD: '#D0BCFF', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD: 'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', glowD: 'rgba(208,188,255,0.15)', sc: '#E8DEF8', scD: '#2A2438', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,27,36,0.96)', bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)' },
+                blue: { c: '#1565C0', cD: '#90CAF9', g: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD: 'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow: 'rgba(21,101,192,0.18)', glowD: 'rgba(144,202,249,0.15)', sc: '#E3F2FD', scD: '#0D1E35', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,21,32,0.96)', bg: '#F3F6FB', bgG: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD: '#121520', bgGD: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb: 'rgba(21,101,192,0.12)', gbD: 'rgba(144,202,249,0.10)' },
+                teal: { c: '#00695C', cD: '#80CBC4', g: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD: 'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow: 'rgba(0,105,92,0.18)', glowD: 'rgba(128,203,196,0.15)', sc: '#E0F2F1', scD: '#0A1F1D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,26,25,0.96)', bg: '#F2F9F8', bgG: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD: '#121A19', bgGD: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb: 'rgba(0,105,92,0.12)', gbD: 'rgba(128,203,196,0.10)' },
+                green: { c: '#2E7D32', cD: '#A5D6A7', g: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD: 'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow: 'rgba(46,125,50,0.18)', glowD: 'rgba(165,214,167,0.15)', sc: '#E8F5E9', scD: '#0D1F0E', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,24,18,0.96)', bg: '#F3F9F3', bgG: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD: '#121812', bgGD: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb: 'rgba(46,125,50,0.12)', gbD: 'rgba(165,214,167,0.10)' },
+                orange: { c: '#E65100', cD: '#FFB74D', g: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD: 'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow: 'rgba(230,81,0,0.18)', glowD: 'rgba(255,183,77,0.15)', sc: '#FFF3E0', scD: '#271A08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,22,16,0.96)', bg: '#FBF6F0', bgG: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD: '#1E1610', bgGD: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb: 'rgba(230,81,0,0.12)', gbD: 'rgba(255,183,77,0.10)' },
+                pink: { c: '#AD1457', cD: '#F48FB1', g: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD: 'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow: 'rgba(173,20,87,0.18)', glowD: 'rgba(244,143,177,0.15)', sc: '#FCE4EC', scD: '#250C18', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,24,0.96)', bg: '#FAF2F6', bgG: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD: '#1C1218', bgGD: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb: 'rgba(173,20,87,0.12)', gbD: 'rgba(240,98,146,0.10)' },
+                red: { c: '#B71C1C', cD: '#EF9A9A', g: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD: 'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow: 'rgba(183,28,28,0.18)', glowD: 'rgba(239,154,154,0.15)', sc: '#FFEBEE', scD: '#250D0D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,18,0.96)', bg: '#FAF2F2', bgG: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD: '#1C1212', bgGD: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb: 'rgba(183,28,28,0.12)', gbD: 'rgba(239,83,80,0.10)' },
+                indigo: { c: '#283593', cD: '#9FA8DA', g: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD: 'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow: 'rgba(40,53,147,0.18)', glowD: 'rgba(159,168,218,0.15)', sc: '#E8EAF6', scD: '#0E1020', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(19,19,24,0.96)', bg: '#F3F3FA', bgG: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD: '#131318', bgGD: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb: 'rgba(40,53,147,0.12)', gbD: 'rgba(121,134,203,0.10)' },
+                yellow: { c: '#F57F17', cD: '#FFF176', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD: 'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow: 'rgba(245,127,23,0.18)', glowD: 'rgba(255,238,88,0.15)', sc: '#FFFDE7', scD: '#1F1C08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(29,28,16,0.96)', bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)' },
+                slate: { c: '#37474F', cD: '#B0BEC5', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD: 'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow: 'rgba(55,71,79,0.18)', glowD: 'rgba(176,190,197,0.15)', sc: '#ECEFF1', scD: '#131618', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(25,28,30,0.96)', bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)' }
+            };
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
+            var theme = localStorage.getItem('mirai-ai-theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            var isDark = theme === 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor];
+                var r = document.documentElement;
+                r.style.setProperty('--accent-color', isDark ? c.cD : c.c);
+                r.style.setProperty('--accent-gradient', isDark ? c.gD : c.g);
+                r.style.setProperty('--accent-glow', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--secondary-container', isDark ? c.scD : c.sc);
+                r.style.setProperty('--glass-bg', isDark ? c.gbgD : c.gbg);
+                r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            if (s.fontSize) document.documentElement.style.fontSize = s.fontSize + 'px';
+            if (s.reducedMotion) document.documentElement.classList.add('reduce-motion');
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="transitions.css">
+
+    <style>
+        /* =====================================================
+           DIETA – Estilos nuevos mínimos (lo que no existe en
+           styles.css ni puede resolverse con clases existentes)
+        ===================================================== */
+
+        /* ── Tabs principales ── */
+        .diet-tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 0 0 18px;
+            scrollbar-width: none;
+        }
+        .diet-tabs::-webkit-scrollbar { display: none; }
+        .diet-tab {
+            flex-shrink: 0;
+            padding: 8px 18px;
+            border: 1.5px solid var(--glass-border);
+            border-radius: 22px;
+            background: var(--glass-bg);
+            color: var(--text-secondary);
+            font-size: 0.84rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            font-family: var(--font-family);
+        }
+        .diet-tab:hover { border-color: var(--accent-color); color: var(--accent-color); }
+        .diet-tab.active {
+            background: var(--accent-gradient);
+            border-color: transparent;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* ── Paneles ── */
+        .diet-panel { display: none; }
+        .diet-panel.active { display: block; }
+
+        /* ── Encabezados de sección ── */
+        .diet-section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0 0 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .diet-section-sub {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin: 0 0 20px;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           PLANIFICADOR SEMANAL
+        ───────────────────────────────────────────────────── */
+        .planner-wrapper { overflow-x: auto; border-radius: 16px; margin-bottom: 20px; }
+        .planner-grid {
+            display: grid;
+            grid-template-columns: 86px repeat(7, 1fr);
+            gap: 6px;
+            min-width: 660px;
+        }
+        .planner-corner { /* vacío */ }
+        .planner-day-header {
+            background: var(--accent-gradient);
+            color: #fff;
+            border-radius: 10px;
+            padding: 8px 4px;
+            text-align: center;
+            font-size: 0.74rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .planner-meal-label {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: right;
+            line-height: 1.3;
+        }
+        .planner-cell {
+            background: var(--glass-bg);
+            border: 1.5px dashed var(--glass-border);
+            border-radius: 10px;
+            padding: 7px;
+            min-height: 66px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .planner-cell:hover { border-color: var(--accent-color); border-style: solid; }
+        .planner-cell.filled { border-style: solid; border-color: var(--accent-color); background: var(--secondary-container); }
+        .planner-cell-name { font-size: 0.71rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+        .planner-cell-kcal { font-size: 0.65rem; color: var(--accent-color); margin-top: 2px; font-weight: 600; }
+        .planner-cell-add {
+            position: absolute; bottom: 5px; right: 5px;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--accent-gradient); color: #fff;
+            font-size: 13px; line-height: 18px; text-align: center;
+            opacity: 0.55; pointer-events: none;
+        }
+        .planner-cell:hover .planner-cell-add { opacity: 1; }
+
+        .planner-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .planner-sum-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+        .planner-sum-card .val { font-size: 1.3rem; font-weight: 800; color: var(--accent-color); }
+        .planner-sum-card .lbl { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+        /* ─────────────────────────────────────────────────────
+           CONTADOR CALÓRICO
+        ───────────────────────────────────────────────────── */
+        .macro-profile {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .macro-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 15px 18px;
+        }
+        .macro-card-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+        .macro-lbl { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+        .macro-val { font-size: 0.78rem; color: var(--text-secondary); }
+        .macro-val b { font-size: 1.15rem; color: var(--text-primary); font-weight: 800; }
+        .macro-track { height: 8px; background: var(--secondary-container); border-radius: 4px; overflow: hidden; }
+        .macro-fill {
+            height: 100%; border-radius: 4px;
+            background: var(--accent-gradient);
+            transition: width 0.5s cubic-bezier(.4,0,.2,1);
+        }
+        .macro-fill.prot { background: linear-gradient(90deg,#ef5350,#ff8a80); }
+        .macro-fill.carb { background: linear-gradient(90deg,#ffa726,#ffcc02); }
+        .macro-fill.fat  { background: linear-gradient(90deg,#42a5f5,#80d8ff); }
+
+        .food-log {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .food-log-head {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .food-log-head h3 { margin: 0; font-size: 0.92rem; }
+        .food-log-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 18px;
+            border-bottom: 1px solid var(--glass-border);
+            transition: background 0.15s;
+        }
+        .food-log-item:last-child { border-bottom: none; }
+        .food-log-item:hover { background: var(--secondary-container); }
+        .fli-emoji { font-size: 1.3rem; }
+        .fli-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+        .fli-macros { font-size: 0.73rem; color: var(--text-secondary); }
+        .fli-kcal { font-size: 0.82rem; color: var(--accent-color); font-weight: 700; min-width: 54px; text-align: right; }
+        .fli-del {
+            width: 24px; height: 24px; border-radius: 50%; border: none;
+            background: transparent; color: var(--text-secondary);
+            cursor: pointer; font-size: 15px; line-height: 1; transition: all 0.15s;
+        }
+        .fli-del:hover { background: rgba(255,82,82,0.12); color: #ff5252; }
+
+        .add-food-form {
+            display: grid;
+            grid-template-columns: 2fr 1fr 80px auto;
+            gap: 8px;
+            padding: 14px;
+            background: var(--secondary-container);
+            border-radius: 12px;
+            margin-top: 14px;
+            align-items: end;
+        }
+        .aff-group { display: flex; flex-direction: column; gap: 4px; }
+        .aff-group label { font-size: 0.73rem; color: var(--text-secondary); }
+        .aff-group input, .aff-group select {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 0.83rem;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+        }
+        .aff-group input:focus, .aff-group select:focus { outline: none; border-color: var(--accent-color); }
+
+        /* ─────────────────────────────────────────────────────
+           LISTA DE COMPRAS
+        ───────────────────────────────────────────────────── */
+        .shopping-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .shopping-category {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .shopping-cat-title {
+            padding: 11px 16px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            background: var(--secondary-container);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .shopping-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--glass-border);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .shopping-item:last-child { border-bottom: none; }
+        .shopping-item:hover { background: var(--secondary-container); }
+        .shopping-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent-color); flex-shrink: 0; }
+        .si-name { flex: 1; font-size: 0.85rem; }
+        .si-qty { font-size: 0.78rem; color: var(--text-secondary); font-weight: 600; }
+        .shopping-item.checked .si-name { text-decoration: line-through; color: var(--text-secondary); }
+
+        /* ─────────────────────────────────────────────────────
+           HISTORIAL
+        ───────────────────────────────────────────────────── */
+        .history-day {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+        .history-day-head {
+            padding: 11px 16px;
+            background: var(--secondary-container);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .hd-date { font-weight: 700; font-size: 0.88rem; }
+        .hd-total { font-size: 0.8rem; color: var(--accent-color); font-weight: 700; }
+        .history-meal {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .history-meal:last-child { border-bottom: none; }
+        .hm-icon { font-size: 1.25rem; }
+        .hm-info { flex: 1; }
+        .hm-name { font-size: 0.85rem; font-weight: 500; }
+        .hm-time { font-size: 0.72rem; color: var(--text-secondary); }
+        .hm-kcal { font-size: 0.82rem; color: var(--accent-color); font-weight: 700; }
+
+        /* ─────────────────────────────────────────────────────
+           IA NUTRICIONAL
+        ───────────────────────────────────────────────────── */
+        .ai-modes {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px;
+        }
+        .ai-mode-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1.5px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-family);
+        }
+        .ai-mode-btn:hover:not(.active) { border-color: var(--accent-color); color: var(--accent-color); }
+        .ai-mode-btn.active { background: var(--accent-gradient); border-color: transparent; color: #fff; font-weight: 700; }
+        .ai-mode-panel { display: none; }
+        .ai-mode-panel.active { display: block; }
+
+        .ai-chat-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 18px;
+        }
+        .ai-messages {
+            min-height: 160px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ai-msg {
+            padding: 9px 13px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            line-height: 1.55;
+            max-width: 88%;
+        }
+        .ai-msg.user { align-self: flex-end; background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 3px; }
+        .ai-msg.bot { align-self: flex-start; background: var(--secondary-container); color: var(--text-primary); border-bottom-left-radius: 3px; }
+        .ai-msg.thinking { align-self: flex-start; background: var(--secondary-container); color: var(--text-secondary); font-style: italic; }
+        .ai-input-row { display: flex; gap: 8px; }
+        .ai-input {
+            flex: 1;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 9px 13px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            resize: none;
+        }
+        .ai-input:focus { outline: none; border-color: var(--accent-color); }
+        .ai-send { padding: 9px 18px; background: var(--accent-gradient); color: #fff; border: none; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: opacity 0.2s; font-family: var(--font-family); }
+        .ai-send:hover { opacity: 0.88; }
+        .ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* Perfil nutricional */
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .profile-field {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 14px;
+        }
+        .profile-field label { display: block; font-size: 0.73rem; color: var(--text-secondary); margin-bottom: 5px; font-weight: 600; }
+        .profile-field input, .profile-field select {
+            width: 100%; box-sizing: border-box;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 6px 9px;
+            font-size: 0.83rem;
+            color: var(--text-primary);
+            font-family: var(--font-family);
+        }
+        .profile-field input:focus, .profile-field select:focus { outline: none; border-color: var(--accent-color); }
+
+        /* ─────────────────────────────────────────────────────
+           MODAL DE RECETA
+        ───────────────────────────────────────────────────── */
+        .recipe-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.52);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+            padding: 16px;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s;
+        }
+        .recipe-overlay.open { opacity: 1; pointer-events: all; }
+        .recipe-modal {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            max-width: 540px; width: 100%;
+            max-height: 88vh; overflow-y: auto;
+            padding: 24px;
+            transform: translateY(18px);
+            transition: transform 0.25s;
+        }
+        .recipe-overlay.open .recipe-modal { transform: translateY(0); }
+        .rm-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+        .rm-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-secondary); line-height: 1; transition: color 0.15s; }
+        .rm-close:hover { color: var(--text-primary); }
+        .rm-icon { font-size: 3rem; text-align: center; margin: 6px 0 14px; }
+        .rm-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+        .rm-badge { background: var(--secondary-container); border: 1px solid var(--glass-border); border-radius: 20px; padding: 3px 10px; font-size: 0.74rem; font-weight: 600; }
+        .rm-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px; }
+
+        .portion-bar {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--secondary-container); border-radius: 10px;
+            padding: 10px 14px; margin-bottom: 16px;
+        }
+        .portion-bar label { font-size: 0.8rem; color: var(--text-secondary); flex: 1; }
+        .pbtn {
+            width: 28px; height: 28px; border-radius: 50%;
+            border: 1.5px solid var(--accent-color); background: transparent;
+            color: var(--accent-color); font-size: 16px; font-weight: 700;
+            cursor: pointer; line-height: 1; transition: all 0.15s;
+        }
+        .pbtn:hover { background: var(--accent-color); color: #fff; }
+        .pcount { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); min-width: 22px; text-align: center; }
+
+        .rm-section { font-size: 0.85rem; font-weight: 700; margin: 14px 0 8px; color: var(--text-primary); }
+        .ingredient-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+        .itag { background: var(--secondary-container); border: 1px solid var(--glass-border); border-radius: 20px; padding: 3px 10px; font-size: 0.77rem; }
+        .recipe-steps { list-style: none; padding: 0; margin: 0; counter-reset: steps; }
+        .recipe-steps li {
+            counter-increment: steps; padding: 9px 0 9px 38px;
+            position: relative; border-bottom: 1px solid var(--glass-border);
+            font-size: 0.84rem; line-height: 1.55; color: var(--text-primary);
+        }
+        .recipe-steps li:last-child { border-bottom: none; }
+        .recipe-steps li::before {
+            content: counter(steps); position: absolute; left: 0; top: 10px;
+            width: 25px; height: 25px; border-radius: 50%;
+            background: var(--accent-gradient); color: #fff;
+            font-size: 0.73rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .rm-macro-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+        .rm-macro { background: var(--secondary-container); border: 1px solid var(--glass-border); border-radius: 10px; padding: 7px 12px; text-align: center; flex: 1; min-width: 70px; }
+        .rm-macro .mv { font-size: 1rem; font-weight: 800; color: var(--accent-color); }
+        .rm-macro .ml { font-size: 0.68rem; color: var(--text-secondary); }
+
+        /* Modal selector receta para planificador */
+        .plan-recipe-list { max-height: 340px; overflow-y: auto; }
+        .plan-recipe-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-radius: 10px; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .plan-recipe-item:hover { background: var(--secondary-container); }
+        .pri-emoji { font-size: 1.4rem; }
+        .pri-info { flex: 1; }
+        .pri-name { font-size: 0.87rem; font-weight: 600; }
+        .pri-meta { font-size: 0.73rem; color: var(--text-secondary); }
+
+        /* Chips de integración */
+        .integrations-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+        .int-chip {
+            display: flex; align-items: center; gap: 5px;
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 20px;
+            padding: 5px 12px; font-size: 0.76rem; text-decoration: none;
+            color: var(--text-secondary); transition: all 0.15s;
+        }
+        .int-chip:hover { border-color: var(--accent-color); color: var(--accent-color); }
+
+        /* Botón genérico secundario */
+        .btn-secondary {
+            padding: 8px 16px; border-radius: 10px;
+            border: 1.5px solid var(--accent-color); background: transparent;
+            color: var(--accent-color); font-size: 0.83rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; font-family: var(--font-family);
+        }
+        .btn-secondary:hover { background: var(--accent-color); color: #fff; }
+
+        @media (max-width: 580px) {
+            .add-food-form { grid-template-columns: 1fr 1fr; }
+            .add-food-form .aff-btn { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ════════════════════════════════
+         SIDEBAR (idéntico a courses.html)
+    ════════════════════════════════ -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <h3>Mirai AI</h3>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Colapsar barra">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </button>
+                <button class="close-menu" aria-label="Cerrar menú">&times;</button>
+            </div>
+        </div>
+
+        <div class="sidebar-content">
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+                <div class="collapsible-content" style="max-height:500px;opacity:1;margin-top:0.5rem;">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar"><span class="nav-icon">🏠</span><span class="nav-label">Hogar</span></a>
+                        <a href="chat" class="nav-grid-item" data-tooltip="Chat"><span class="nav-icon">💬</span><span class="nav-label">Chat</span></a>
+                        <a href="projects" class="nav-grid-item" data-tooltip="Proyectos"><span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span></a>
+                        <a href="course_category" class="nav-grid-item" data-tooltip="Cursos"><span class="nav-icon">📚</span><span class="nav-label">Cursos</span></a>
+                        <a href="classroom" class="nav-grid-item" data-tooltip="Aula"><span class="nav-icon">🏫</span><span class="nav-label">Aula</span></a>
+                        <a href="inventory" class="nav-grid-item" data-tooltip="Inventario"><span class="nav-icon">📦</span><span class="nav-label">Inventario</span></a>
+                        <a href="mirror" class="nav-grid-item" data-tooltip="Organizador"><span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span></a>
+                        <a href="diet" class="nav-grid-item active-link" data-tooltip="Dieta"><span class="nav-icon">🥗</span><span class="nav-label">Dieta</span></a>
+                        <a href="format" class="nav-grid-item" data-tooltip="Formato"><span class="nav-icon">📝</span><span class="nav-label">Formato</span></a>
+                        <a href="apa" class="nav-grid-item" data-tooltip="APA 7"><span class="nav-icon">📄</span><span class="nav-label">APA 7</span></a>
+                        <a href="attendance" class="nav-grid-item" data-tooltip="Asistencia"><span class="nav-icon">✅</span><span class="nav-label">Asistencia</span></a>
+                        <a href="investigation" class="nav-grid-item" data-tooltip="Investigador"><span class="nav-icon">🔭</span><span class="nav-label">Investigar</span></a>
+                        <a href="report" class="nav-grid-item" data-tooltip="Reportes"><span class="nav-icon">📋</span><span class="nav-label">Reportes</span></a>
+                        <a href="task" class="nav-grid-item" data-tooltip="Tareas"><span class="nav-icon">🗒️</span><span class="nav-label">Tareas</span></a>
+                        <a href="panel" class="nav-grid-item" data-tooltip="Panel"><span class="nav-icon">🔑</span><span class="nav-label">Panel</span></a>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sidebar-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                <div class="conversations-header">
+                    <h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
+                        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
+                </div>
+                <ul id="conversations-list" class="conversations-list"></ul>
+            </section>
+
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Explorar</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Servicios</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
+                                <li><a href="https://aberumirai.com#education">Educación</a></li>
+                                <li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li>
+                                <li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li>
+                                <li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Empresa</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+                                <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+                                <li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li>
+                                <li><a href="#">Quiénes somos</a></li>
+                                <li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="nested-collapsible">
+                        <div class="collapsible-header nested-header" role="button" tabindex="0">
+                            <h5>Enlaces Externos</h5>
+                            <svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </div>
+                        <div class="collapsible-content nested-content">
+                            <ul class="sidebar-links">
+                                <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
+                                <li><a href="https://mirror.aberumirai.com">Organizador de Fotos</a></li>
+                                <li><a href="https://format.aberumirai.com">Formato de texto</a></li>
+                                <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sidebar-section">
+                <h4>Síguenos</h4>
+                <div class="sidebar-social">
+                    <a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook"></a>
+                    <a href="#" aria-label="Twitter/X"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter"></a>
+                    <a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok"></a>
+                    <a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram"></a>
+                    <a href="https://github.com/AbelMaestreCEO" aria-label="GitHub"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub"></a>
+                </div>
+            </section>
+
+            <a href="settings" class="settings-sidebar-btn" title="Configuración">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94zM12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+                <span>Configuración</span>
+            </a>
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:block;"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                <span>Cerrar Sesión</span>
+            </button>
+            <div class="sidebar-logo">
+                <a href="https://aberumirai.com"><img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai" style="max-width:80px;max-height:80px;"></a>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p>
+        </div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
+    <!-- ════════════════════════════════
+         HEADER
+    ════════════════════════════════ -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </button>
+        <div class="header-title">Dieta & Nutrición</div>
+    </header>
+
+    <!-- ════════════════════════════════
+         CONTENEDOR PRINCIPAL
+    ════════════════════════════════ -->
+    <div class="courses-container">
+
+        <!-- Hero -->
+        <div class="courses-hero">
+            <h1>🥗 Dieta & Nutrición</h1>
+            <p>Planifica tu alimentación, descubre recetas con IA y alcanza tus metas nutricionales.</p>
+        </div>
+
+        <!-- Tabs de navegación del módulo -->
+        <div class="diet-tabs" id="diet-tabs">
+            <button class="diet-tab active" data-panel="recetas">🍽️ Recetas</button>
+            <button class="diet-tab" data-panel="planificador">📅 Planificador</button>
+            <button class="diet-tab" data-panel="contador">📊 Contador</button>
+            <button class="diet-tab" data-panel="compras">🛒 Compras</button>
+            <button class="diet-tab" data-panel="historial">📋 Historial</button>
+            <button class="diet-tab" data-panel="ia">🤖 IA Nutricional</button>
+        </div>
+
+        <!-- ══════════════════════════════
+             PANEL 1 – RECETAS
+        ══════════════════════════════ -->
+        <div class="diet-panel active" id="panel-recetas">
+
+            <!-- Integraciones rápidas -->
+            <div class="integrations-row">
+                <a href="inventory" class="int-chip">📦 Inventario conectado</a>
+                <a href="mirror" class="int-chip">🖼️ Galería de platos</a>
+                <a href="report" class="int-chip">📋 Evolución nutricional</a>
+                <a href="https://aberumirai.com#sweets" class="int-chip">🍰 Catálogo Aberu Sweets</a>
+            </div>
+
+            <!-- Buscador + filtros (reutiliza clases de courses) -->
+            <div class="courses-toolbar">
+                <div class="courses-search">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="recipe-search" placeholder="Buscar por nombre o ingrediente..." autocomplete="off">
+                </div>
+                <div class="filter-pills" id="filter-pills-diet">
+                    <button class="filter-pill active" data-category="todos">Todos</button>
+                    <button class="filter-pill" data-category="vegano">🌿 Vegano</button>
+                    <button class="filter-pill" data-category="keto">🥑 Keto</button>
+                    <button class="filter-pill" data-category="proteina">💪 Proteína</button>
+                    <button class="filter-pill" data-category="mediterraneo">🫒 Mediterráneo</button>
+                    <button class="filter-pill" data-category="paleo">🍖 Paleo</button>
+                    <button class="filter-pill" data-category="singluten">🌾 Sin Gluten</button>
+                </div>
+            </div>
+
+            <div class="courses-count" id="recipe-count">Mostrando 21 recetas</div>
+
+            <!-- Grid de recetas (reutiliza .courses-grid y .course-card) -->
+            <div class="courses-grid" id="recipes-grid">
+
+                <!-- ══ VEGANO ══ -->
+                <div class="course-card" data-category="vegano" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#43a047,#66bb6a);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥗</div>
+                    <h3 class="course-title">Buddha Bowl de Quinoa</h3>
+                    <p class="course-description">Bowl nutritivo con quinoa, garbanzos crujientes, aguacate, espinacas y aderezo tahini. Rico en proteína vegetal y fibra.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 25 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 420 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="1">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="vegano" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#ff8f00,#ffca28);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🍛</div>
+                    <h3 class="course-title">Curry de Garbanzos</h3>
+                    <p class="course-description">Curry cremoso con leche de coco, garbanzos, tomate, jengibre y especias aromáticas. Servir con arroz basmati.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 35 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 380 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 4 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="2">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="vegano" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#00897b,#26c6da);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🌮</div>
+                    <h3 class="course-title">Tacos de Jackfruit BBQ</h3>
+                    <p class="course-description">Jackfruit desmenuzado con salsa BBQ ahumada, col morada encurtida y crema de cilantro. Alternativa vegana perfecta.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 40 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 310 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 3 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="3">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="vegano" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#29b6f6,#4fc3f7);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥤</div>
+                    <h3 class="course-title">Smoothie Verde Energizante</h3>
+                    <p class="course-description">Licuado de espinaca, mango, jengibre, leche de almendras y semillas de chía. Desayuno rápido y lleno de nutrientes.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 5 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 220 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 1 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="4">Ver Receta</button>
+                </div>
+
+                <!-- ══ KETO ══ -->
+                <div class="course-card" data-category="keto" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#e53935,#ef9a9a);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🐟</div>
+                    <h3 class="course-title">Salmón con Aguacate</h3>
+                    <p class="course-description">Filete de salmón a la plancha con salsa de aguacate y limón, acompañado de espárragos salteados en mantequilla.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 20 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 550 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="5">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="keto" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#ffa000,#ffc107);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥚</div>
+                    <h3 class="course-title">Huevos con Bacon Keto</h3>
+                    <p class="course-description">Huevos revueltos cremosos con bacon crujiente, queso parmesano y cebollín. Desayuno alto en grasa y proteína.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 15 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 420 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 1 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="6">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="keto" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#5e35b1,#9c27b0);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🍗</div>
+                    <h3 class="course-title">Pollo al Limón Keto</h3>
+                    <p class="course-description">Muslos de pollo a la sartén con salsa de mantequilla, limón y ajo, acompañados de coliflor gratinada con queso.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 30 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 480 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="7">Ver Receta</button>
+                </div>
+
+                <!-- ══ PROTEÍNA ══ -->
+                <div class="course-card" data-category="proteina" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#1565c0,#42a5f5);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🏋️</div>
+                    <h3 class="course-title">Pechuga con Arroz</h3>
+                    <p class="course-description">Pechuga de pollo a la plancha con condimento de hierbas, arroz integral y verduras al vapor. Clásico de ganancia muscular.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 20 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 520 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 1 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="8">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="proteina" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#6d4c41,#a1887f);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥛</div>
+                    <h3 class="course-title">Batido Proteico</h3>
+                    <p class="course-description">Batido de proteína de suero con leche, plátano, mantequilla de maní y avena. Post-entreno de alta densidad nutricional.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 5 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 450 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 1 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="9">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="proteina" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#00695c,#4caf50);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🥙</div>
+                    <h3 class="course-title">Quinoa con Pollo y Verduras</h3>
+                    <p class="course-description">Quinoa cocida con tiras de pollo marinado, pimiento, zanahoria y salsa teriyaki reducida. Alta en proteína completa.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 35 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 580 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="10">Ver Receta</button>
+                </div>
+
+                <!-- ══ MEDITERRÁNEO ══ -->
+                <div class="course-card" data-category="mediterraneo" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#1976d2,#42a5f5);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥙</div>
+                    <h3 class="course-title">Ensalada Griega</h3>
+                    <p class="course-description">Tomate, pepino, cebolla morada, aceitunas Kalamata, queso feta y orégano con aceite de oliva virgen extra.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 10 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 320 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="11">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="mediterraneo" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#e64a19,#ff8a65);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🍝</div>
+                    <h3 class="course-title">Pasta Integral Primavera</h3>
+                    <p class="course-description">Pasta integral con verduras de temporada, albahaca fresca, tomates cherry y pecorino. Ligera y equilibrada.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 30 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 460 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="12">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="mediterraneo" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#f9a825,#fdd835);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🫘</div>
+                    <h3 class="course-title">Hummus Casero</h3>
+                    <p class="course-description">Hummus suave de garbanzos con tahini, limón, ajo y aceite de oliva. Decorado con pimentón ahumado y semillas.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 10 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 180 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 6 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="13">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="mediterraneo" data-level="avanzado"
+                     style="--card-accent:linear-gradient(135deg,#0288d1,#4fc3f7);">
+                    <span class="course-level avanzado">Avanzado</span>
+                    <div class="course-icon">🐟</div>
+                    <h3 class="course-title">Lubina al Horno con Olivas</h3>
+                    <p class="course-description">Lubina entera al horno con olivas, tomates cherry, vino blanco, alcaparras y hierbas provenzales. Plato de gala.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 50 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 420 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 4 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="14">Ver Receta</button>
+                </div>
+
+                <!-- ══ PALEO ══ -->
+                <div class="course-card" data-category="paleo" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#6d4c41,#ff7043);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥗</div>
+                    <h3 class="course-title">Ensalada Tropical de Pollo</h3>
+                    <p class="course-description">Pechuga de pollo grillada con mango, aguacate, coco rallado y aderezo de lima. Fresca y completamente paleo.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 20 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 380 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 2 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="15">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="paleo" data-level="avanzado"
+                     style="--card-accent:linear-gradient(135deg,#b71c1c,#e53935);">
+                    <span class="course-level avanzado">Avanzado</span>
+                    <div class="course-icon">🍖</div>
+                    <h3 class="course-title">Costillas BBQ Paleo</h3>
+                    <p class="course-description">Costillas de cerdo con marinada paleo de miel de agave, mostaza, ajo y hierbas. Horneadas lentamente para máxima ternura.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 3 h</span>
+                        <span class="course-meta-item"><span>🔥</span> 680 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 4 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="16">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="paleo" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#558b2f,#aed581);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🍳</div>
+                    <h3 class="course-title">Huevos con Verduras Paleo</h3>
+                    <p class="course-description">Huevos fritos en aceite de coco con pimiento, champiñones, espinacas y boniato troceado. Desayuno completo y nutritivo.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 15 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 310 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 1 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="17">Ver Receta</button>
+                </div>
+
+                <!-- ══ SIN GLUTEN ══ -->
+                <div class="course-card" data-category="singluten" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#f57f17,#ffca28);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🥚</div>
+                    <h3 class="course-title">Tortilla Española S/G</h3>
+                    <p class="course-description">Tortilla de patatas y cebolla caramelizada, 100% sin gluten. Jugosa por dentro y dorada por fuera. Tapas definitiva.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 35 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 360 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 4 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="18">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="singluten" data-level="avanzado"
+                     style="--card-accent:linear-gradient(135deg,#0277bd,#29b6f6);">
+                    <span class="course-level avanzado">Avanzado</span>
+                    <div class="course-icon">🦐</div>
+                    <h3 class="course-title">Arroz con Mariscos S/G</h3>
+                    <p class="course-description">Arroz bomba con gambas, mejillones, calamar y caldo de pescado casero. Receta 100% libre de gluten.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 50 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 520 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 4 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="19">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="singluten" data-level="intermedio"
+                     style="--card-accent:linear-gradient(135deg,#00838f,#4dd0e1);">
+                    <span class="course-level intermedio">Medio</span>
+                    <div class="course-icon">🍋</div>
+                    <h3 class="course-title">Ceviche de Camarón</h3>
+                    <p class="course-description">Camarones marinados en jugo de limón con cebolla morada, cilantro, tomate y ají. Fresco, saludable y sin gluten.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 20 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 280 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 3 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="20">Ver Receta</button>
+                </div>
+
+                <div class="course-card" data-category="keto singluten" data-level="principiante"
+                     style="--card-accent:linear-gradient(135deg,#4a148c,#7b1fa2);">
+                    <span class="course-level principiante">Fácil</span>
+                    <div class="course-icon">🥑</div>
+                    <h3 class="course-title">Bowl de Atún Keto S/G</h3>
+                    <p class="course-description">Atún en aceite con aguacate en cubos, pepino, sésamo tostado y aderezo de ponzu. Listo en 10 minutos.</p>
+                    <div class="course-meta">
+                        <span class="course-meta-item"><span>⏱️</span> 10 min</span>
+                        <span class="course-meta-item"><span>🔥</span> 390 kcal</span>
+                        <span class="course-meta-item"><span>👥</span> 1 pers.</span>
+                    </div>
+                    <button class="course-start-btn" data-recipe="21">Ver Receta</button>
+                </div>
+
+                <!-- Sin resultados -->
+                <div class="no-results" id="no-results-recipe" style="display:none;">
+                    <div class="no-results-icon">🔍</div>
+                    <p>No se encontraron recetas con ese filtro</p>
+                </div>
+
+            </div><!-- /recipes-grid -->
+        </div><!-- /panel-recetas -->
+
+        <!-- ══════════════════════════════
+             PANEL 2 – PLANIFICADOR SEMANAL
+        ══════════════════════════════ -->
+        <div class="diet-panel" id="panel-planificador">
+            <h2 class="diet-section-title">📅 Planificador Semanal</h2>
+            <p class="diet-section-sub">Asigna desayuno, almuerzo y cena para cada día. Haz clic en una celda para elegir receta.</p>
+
+            <div class="planner-wrapper">
+                <div class="planner-grid" id="planner-grid">
+                    <!-- Se genera por JS -->
+                </div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px;">
+                <button class="btn-secondary" id="btn-clear-plan">🗑️ Limpiar plan</button>
+                <button class="btn-secondary" id="btn-gen-shopping">🛒 Generar lista de compras</button>
+                <button class="btn-secondary" id="btn-ai-plan">🤖 Planificar con IA</button>
+            </div>
+
+            <div class="planner-summary" id="planner-summary"></div>
+        </div><!-- /panel-planificador -->
+
+        <!-- ══════════════════════════════
+             PANEL 3 – CONTADOR CALÓRICO
+        ══════════════════════════════ -->
+        <div class="diet-panel" id="panel-contador">
+            <h2 class="diet-section-title">📊 Contador Calórico Diario</h2>
+            <p class="diet-section-sub">Registro en tiempo real de kcal, proteínas, carbohidratos y grasas.</p>
+
+            <!-- Perfil nutricional del usuario -->
+            <div class="profile-grid">
+                <div class="profile-field">
+                    <label>🎯 Objetivo calórico (kcal/día)</label>
+                    <input type="number" id="goal-kcal" value="2000" min="1000" max="5000">
+                </div>
+                <div class="profile-field">
+                    <label>🥩 Proteínas objetivo (g/día)</label>
+                    <input type="number" id="goal-prot" value="150" min="50" max="400">
+                </div>
+                <div class="profile-field">
+                    <label>🍞 Carbohidratos objetivo (g/día)</label>
+                    <input type="number" id="goal-carb" value="220" min="20" max="600">
+                </div>
+                <div class="profile-field">
+                    <label>🧈 Grasas objetivo (g/día)</label>
+                    <input type="number" id="goal-fat" value="65" min="20" max="300">
+                </div>
+                <div class="profile-field">
+                    <label>🥗 Tipo de dieta preferida</label>
+                    <select id="pref-diet">
+                        <option value="todos">Sin restricción</option>
+                        <option value="vegano">Vegano/Vegetariano</option>
+                        <option value="keto">Keto / Low-carb</option>
+                        <option value="proteina">Alto en proteína</option>
+                        <option value="mediterraneo">Mediterráneo</option>
+                        <option value="paleo">Paleo</option>
+                        <option value="singluten">Sin Gluten</option>
+                    </select>
+                </div>
+                <div class="profile-field">
+                    <label>⚠️ Alergias / Intolerancias</label>
+                    <input type="text" id="allergies" placeholder="ej: gluten, lácteos, nueces">
+                </div>
+            </div>
+
+            <!-- Barras de macros -->
+            <div class="macro-profile" id="macro-cards">
+                <!-- Generadas por JS -->
+            </div>
+
+            <!-- Log de alimentos del día -->
+            <div class="food-log" id="food-log">
+                <div class="food-log-head">
+                    <h3>🍽️ Alimentos de hoy</h3>
+                    <button class="btn-secondary" id="btn-clear-log" style="font-size:0.78rem;padding:5px 12px;">Limpiar día</button>
+                </div>
+                <div id="food-log-items">
+                    <!-- Se llena por JS -->
+                </div>
+            </div>
+
+            <!-- Formulario añadir alimento -->
+            <div class="add-food-form">
+                <div class="aff-group">
+                    <label>Alimento</label>
+                    <input type="text" id="aff-name" placeholder="ej: Pollo a la plancha">
+                </div>
+                <div class="aff-group">
+                    <label>Kcal</label>
+                    <input type="number" id="aff-kcal" placeholder="0" min="0">
+                </div>
+                <div class="aff-group">
+                    <label>Porción</label>
+                    <input type="text" id="aff-portion" placeholder="100g">
+                </div>
+                <div class="aff-group aff-btn">
+                    <label>&nbsp;</label>
+                    <button class="course-start-btn" id="btn-add-food" style="width:100%;border-radius:8px;">+ Añadir</button>
+                </div>
+            </div>
+        </div><!-- /panel-contador -->
+
+        <!-- ══════════════════════════════
+             PANEL 4 – LISTA DE COMPRAS
+        ══════════════════════════════ -->
+        <div class="diet-panel" id="panel-compras">
+            <div class="shopping-head">
+                <div>
+                    <h2 class="diet-section-title">🛒 Lista de Compras</h2>
+                    <p class="diet-section-sub" style="margin-bottom:0;">Generada automáticamente desde tu plan semanal.</p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-secondary" id="btn-print-list">🖨️ Imprimir</button>
+                    <button class="btn-secondary" id="btn-uncheck-all">↺ Desmarcar todo</button>
+                </div>
+            </div>
+            <div id="shopping-content">
+                <!-- Generado por JS -->
+            </div>
+        </div><!-- /panel-compras -->
+
+        <!-- ══════════════════════════════
+             PANEL 5 – HISTORIAL
+        ══════════════════════════════ -->
+        <div class="diet-panel" id="panel-historial">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <h2 class="diet-section-title">📋 Historial de Comidas</h2>
+                <button class="btn-secondary" id="btn-log-today" style="font-size:0.8rem;">+ Registrar hoy</button>
+            </div>
+            <p class="diet-section-sub">Registro diario consultable por el usuario o un profesional de salud.</p>
+            <div id="history-content">
+                <!-- Generado por JS -->
+            </div>
+        </div><!-- /panel-historial -->
+
+        <!-- ══════════════════════════════
+             PANEL 6 – IA NUTRICIONAL
+        ══════════════════════════════ -->
+        <div class="diet-panel" id="panel-ia">
+            <h2 class="diet-section-title">🤖 IA Nutricional</h2>
+            <p class="diet-section-sub">Tres modos de asistencia inteligente integrados con el Chat AI de Mirai.</p>
+
+            <div class="ai-modes" id="ai-modes">
+                <button class="ai-mode-btn active" data-mode="ingredientes">🧑‍🍳 ¿Qué cocino?</button>
+                <button class="ai-mode-btn" data-mode="foto">📸 Análisis de foto</button>
+                <button class="ai-mode-btn" data-mode="plan">📅 Planificación automática</button>
+            </div>
+
+            <!-- Modo 1: Ingredientes → receta -->
+            <div class="ai-mode-panel active" id="mode-ingredientes">
+                <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px;">Escribe los ingredientes que tienes en casa y la IA te sugerirá recetas posibles.</p>
+                <div class="ai-chat-box">
+                    <div class="ai-messages" id="msgs-ingredientes">
+                        <div class="ai-msg bot">¡Hola! Dime qué ingredientes tienes disponibles y te diré qué puedes preparar 🍳</div>
+                    </div>
+                    <div class="ai-input-row">
+                        <textarea class="ai-input" id="input-ingredientes" rows="2" placeholder="ej: tengo pollo, arroz, tomate y limón..."></textarea>
+                        <button class="ai-send" id="send-ingredientes">Preguntar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modo 2: Análisis de foto -->
+            <div class="ai-mode-panel" id="mode-foto">
+                <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px;">Sube una foto de tu plato y la IA estimará las calorías y macronutrientes.</p>
+                <div class="ai-chat-box">
+                    <div class="ai-messages" id="msgs-foto">
+                        <div class="ai-msg bot">📸 Sube una foto de tu plato y analizaré su contenido nutricional estimado.</div>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="display:inline-block;cursor:pointer;">
+                            <input type="file" id="photo-upload" accept="image/*" style="display:none;">
+                            <span class="btn-secondary">📎 Seleccionar imagen</span>
+                        </label>
+                        <span id="photo-name" style="margin-left:10px;font-size:0.8rem;color:var(--text-secondary);"></span>
+                    </div>
+                    <div class="ai-input-row">
+                        <textarea class="ai-input" id="input-foto" rows="2" placeholder="Descripción adicional (opcional)..."></textarea>
+                        <button class="ai-send" id="send-foto">Analizar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modo 3: Planificación automática -->
+            <div class="ai-mode-panel" id="mode-plan">
+                <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px;">La IA generará un menú semanal personalizado según tu objetivo, presupuesto y preferencias.</p>
+                <div class="profile-grid" style="margin-bottom:14px;">
+                    <div class="profile-field">
+                        <label>🎯 Objetivo</label>
+                        <select id="ai-objetivo">
+                            <option value="bajar">Bajar de peso</option>
+                            <option value="muscular" selected>Ganar músculo</option>
+                            <option value="mantener">Mantenerse</option>
+                            <option value="rendimiento">Rendimiento deportivo</option>
+                        </select>
+                    </div>
+                    <div class="profile-field">
+                        <label>💰 Presupuesto semanal</label>
+                        <select id="ai-presupuesto">
+                            <option value="bajo">Bajo (&lt; $30)</option>
+                            <option value="medio" selected>Medio ($30–$70)</option>
+                            <option value="alto">Alto (&gt; $70)</option>
+                        </select>
+                    </div>
+                    <div class="profile-field">
+                        <label>🥗 Dieta</label>
+                        <select id="ai-dieta">
+                            <option value="todos">Sin restricción</option>
+                            <option value="vegano">Vegano</option>
+                            <option value="keto">Keto</option>
+                            <option value="mediterraneo">Mediterráneo</option>
+                            <option value="paleo">Paleo</option>
+                            <option value="singluten">Sin gluten</option>
+                        </select>
+                    </div>
+                    <div class="profile-field">
+                        <label>⚠️ Restricciones</label>
+                        <input type="text" id="ai-restricciones" placeholder="gluten, lactosa...">
+                    </div>
+                </div>
+                <div class="ai-chat-box">
+                    <div class="ai-messages" id="msgs-plan">
+                        <div class="ai-msg bot">Configura tus preferencias arriba y luego haz clic en "Generar plan" para recibir tu menú semanal personalizado 📅</div>
+                    </div>
+                    <div class="ai-input-row">
+                        <textarea class="ai-input" id="input-plan" rows="2" placeholder="Notas adicionales (alergias, horarios, preferencias)..."></textarea>
+                        <button class="ai-send" id="send-plan">Generar plan</button>
+                    </div>
+                </div>
+            </div>
+        </div><!-- /panel-ia -->
+
+    </div><!-- /courses-container -->
+
+    <!-- ══════════════════════════════════════════
+         MODAL – DETALLE DE RECETA
+    ══════════════════════════════════════════ -->
+    <div class="recipe-overlay" id="recipe-overlay">
+        <div class="recipe-modal" id="recipe-modal">
+            <div class="rm-header">
+                <div>
+                    <h2 id="rm-title" style="margin:0;font-size:1.2rem;"></h2>
+                    <div class="rm-badges" id="rm-badges"></div>
+                </div>
+                <button class="rm-close" id="rm-close">&times;</button>
+            </div>
+            <div class="rm-icon" id="rm-icon"></div>
+            <p class="rm-desc" id="rm-desc"></p>
+
+            <div class="portion-bar">
+                <label>👥 Porciones</label>
+                <button class="pbtn" id="pbtn-minus">−</button>
+                <span class="pcount" id="pcount">2</span>
+                <button class="pbtn" id="pbtn-plus">+</button>
+                <span style="font-size:0.78rem;color:var(--text-secondary);margin-left:6px;" id="portion-kcal"></span>
+            </div>
+
+            <div class="rm-section">🧂 Ingredientes</div>
+            <div class="ingredient-tags" id="rm-ingredients"></div>
+
+            <div class="rm-section">📋 Pasos</div>
+            <ol class="recipe-steps" id="rm-steps"></ol>
+
+            <div class="rm-section">📊 Macros por porción</div>
+            <div class="rm-macro-row" id="rm-macros"></div>
+
+            <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;">
+                <button class="course-start-btn" id="rm-add-log" style="flex:1;">+ Añadir al contador</button>
+                <button class="btn-secondary" id="rm-add-plan" style="flex:1;">📅 Añadir al plan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MODAL – SELECTOR DE RECETA (PLANIFICADOR)
+    ══════════════════════════════════════════ -->
+    <div class="recipe-overlay" id="plan-selector-overlay">
+        <div class="recipe-modal" style="max-width:420px;">
+            <div class="rm-header" style="margin-bottom:12px;">
+                <h3 id="plan-selector-title" style="margin:0;font-size:1rem;"></h3>
+                <button class="rm-close" id="plan-selector-close">&times;</button>
+            </div>
+            <div class="courses-search" style="margin-bottom:10px;">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="text" id="plan-recipe-search" placeholder="Buscar receta..." autocomplete="off">
+            </div>
+            <div class="plan-recipe-list" id="plan-recipe-list"></div>
+            <button class="btn-secondary" id="plan-remove-meal" style="width:100%;margin-top:10px;border-color:#ff5252;color:#ff5252;">🗑️ Quitar comida</button>
+        </div>
+    </div>
+
+    <!-- Scripts del sistema -->
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+    <script src="transitions.js"></script>
+
+    <!-- ══════════════════════════════════════════
+         DIET MODULE SCRIPT
+    ══════════════════════════════════════════ -->
+    <script>
+    (function() {
+    'use strict';
+
+    /* ─────────────────────────────────────────
+       BASE DE DATOS DE RECETAS
+    ───────────────────────────────────────── */
+    const RECIPES = [
+      { id:1,  name:'Buddha Bowl de Quinoa',   emoji:'🥗', cat:'vegano',       level:'principiante', time:25,  kcal:420, servings:2, prot:18, carb:52, fat:14,
+        desc:'Bowl nutritivo con quinoa, garbanzos crujientes, aguacate, espinacas y aderezo tahini. Rico en proteína vegetal y fibra.',
+        ingredients:['200g quinoa','1 lata garbanzos','1 aguacate','100g espinacas','Cherry tomatoes','3 cdas tahini','1 limón','Aceite de oliva','Sal, comino, pimentón'],
+        steps:['Cocer quinoa en agua con sal durante 15 min hasta que absorba el líquido.','Escurrir garbanzos, condimentar con aceite, comino y pimentón. Asar en horno 200°C por 20 min.','Preparar aderezo: tahini + zumo de limón + agua fría + sal. Remover hasta obtener salsa.','Disponer quinoa en base. Agregar espinacas, garbanzos, aguacate y tomates. Verter aderezo al gusto.']
+      },
+      { id:2,  name:'Curry de Garbanzos',       emoji:'🍛', cat:'vegano',       level:'intermedio',   time:35,  kcal:380, servings:4, prot:14, carb:48, fat:16,
+        desc:'Curry cremoso con leche de coco, garbanzos, tomate, jengibre y especias aromáticas. Servir con arroz basmati.',
+        ingredients:['2 latas garbanzos','400ml leche de coco','400g tomate triturado','1 cebolla','3 dientes ajo','2cm jengibre fresco','Curry en polvo','Cúrcuma','Aceite de coco'],
+        steps:['Sofreír cebolla picada en aceite de coco hasta dorar. Añadir ajo y jengibre rallado.','Agregar especias (curry, cúrcuma, garam masala) y tostar 1 min revolviendo.','Incorporar tomate triturado. Cocinar 5 min a fuego medio.','Añadir garbanzos escurridos y leche de coco. Cocinar 15 min hasta espesar. Salpimentar.']
+      },
+      { id:3,  name:'Tacos de Jackfruit BBQ',   emoji:'🌮', cat:'vegano',       level:'intermedio',   time:40,  kcal:310, servings:3, prot:9,  carb:52, fat:8,
+        desc:'Jackfruit desmenuzado con salsa BBQ ahumada, col morada encurtida y crema de cilantro.',
+        ingredients:['2 latas jackfruit','Salsa BBQ vegana','Col morada','Vinagre de manzana','Cilantro','Crema de coco','Limón','Tortillas maíz','Ajo en polvo'],
+        steps:['Escurrir jackfruit, desmenuzar con tenedor y marinar en BBQ + ajo 15 min.','Encurtir col morada fina con vinagre, sal y azúcar. Reservar.','Saltear jackfruit en sartén caliente hasta caramelizar. Añadir más BBQ al gusto.','Preparar crema de cilantro: coco + cilantro + limón en licuadora. Armar tacos.']
+      },
+      { id:4,  name:'Smoothie Verde Energizante',emoji:'🥤', cat:'vegano',       level:'principiante', time:5,   kcal:220, servings:1, prot:6,  carb:34, fat:7,
+        desc:'Licuado de espinaca, mango, jengibre, leche de almendras y semillas de chía.',
+        ingredients:['60g espinaca fresca','150g mango congelado','1cm jengibre','300ml leche almendras','1 cda semillas chía','Zumo 1/2 limón','Hielo al gusto'],
+        steps:['Agregar todos los ingredientes a la licuadora en este orden: líquidos, espinaca, frutas.','Licuar a velocidad alta 60 segundos hasta obtener textura completamente lisa.','Verter sobre vaso con hielo. Decorar con semillas de chía. Servir inmediatamente.']
+      },
+      { id:5,  name:'Salmón con Aguacate',       emoji:'🐟', cat:'keto',         level:'principiante', time:20,  kcal:550, servings:2, prot:42, carb:4,  fat:40,
+        desc:'Filete de salmón a la plancha con salsa de aguacate y limón, acompañado de espárragos salteados en mantequilla.',
+        ingredients:['2 filetes salmón 180g c/u','1 aguacate maduro','12 espárragos','30g mantequilla','1 limón','Ajo','Sal, pimienta','Eneldo fresco'],
+        steps:['Sazonar salmón con sal, pimienta y eneldo. Calentar sartén con aceite a fuego alto.','Cocinar salmón 3-4 min por lado hasta piel crujiente y centro sonrosado.','Saltear espárragos en mantequilla con ajo 3 min hasta tiernos pero crujientes.','Preparar guacamole rápido: aguacate + limón + sal. Servir junto al salmón.']
+      },
+      { id:6,  name:'Huevos con Bacon Keto',     emoji:'🥚', cat:'keto',         level:'principiante', time:15,  kcal:420, servings:1, prot:28, carb:2,  fat:33,
+        desc:'Huevos revueltos cremosos con bacon crujiente, queso parmesano y cebollín.',
+        ingredients:['3 huevos grandes','4 lonchas bacon','25g parmesano rallado','2 cdas mantequilla','Cebollín','Sal, pimienta negra','Crema 1 cda (opcional)'],
+        steps:['Cocinar bacon en sartén fría, subir fuego gradualmente hasta crujiente. Retirar y reservar.','Batir huevos con crema, sal y pimienta. En la misma sartén con mantequilla a fuego bajo.','Remover constantemente con espátula dibujando ochos. Retirar del fuego mientras aún brillantes.','Emplatar, rallar parmesano encima, agregar bacon troceado y cebollín picado.']
+      },
+      { id:7,  name:'Pollo al Limón Keto',       emoji:'🍗', cat:'keto',         level:'intermedio',   time:30,  kcal:480, servings:2, prot:44, carb:5,  fat:30,
+        desc:'Muslos de pollo a la sartén con salsa de mantequilla, limón y ajo, acompañados de coliflor gratinada con queso.',
+        ingredients:['4 muslos pollo','200g coliflor','60g queso gruyère','40g mantequilla','3 dientes ajo','1 limón','Tomillo','Caldo de pollo 100ml'],
+        steps:['Dorar muslos con piel en sartén caliente 5 min por lado. Salpimentar generosamente.','Agregar ajo laminado, tomillo y desgrasar con caldo. Tapar y cocinar 15 min.','Coliflor en florets, blanquear 3 min, escurrir y gratinar con queso 10 min a 200°C.','Añadir mantequilla y limón a la sartén. Glasear el pollo 2 min. Servir con coliflor.']
+      },
+      { id:8,  name:'Pechuga con Arroz',         emoji:'🏋️', cat:'proteina',     level:'principiante', time:20,  kcal:520, servings:1, prot:52, carb:48, fat:9,
+        desc:'Pechuga de pollo a la plancha con condimento de hierbas, arroz integral y verduras al vapor.',
+        ingredients:['200g pechuga pollo','100g arroz integral','Brócoli 100g','1 cda aceite oliva','Ajo en polvo','Pimentón','Orégano','Sal, pimienta'],
+        steps:['Cocer arroz integral 18-20 min en agua hirviendo con sal. Escurrir.','Sazonar pechuga con ajo, pimentón, orégano, sal y pimienta. Dejar 5 min.','Calentar sartén con aceite. Cocinar pechuga 6 min por lado a fuego medio-alto.','Cocinar brócoli al vapor 5 min. Filetear pollo en diagonal. Servir con arroz y brócoli.']
+      },
+      { id:9,  name:'Batido Proteico',           emoji:'🥛', cat:'proteina',     level:'principiante', time:5,   kcal:450, servings:1, prot:45, carb:42, fat:10,
+        desc:'Batido de proteína de suero con leche, plátano, mantequilla de maní y avena. Post-entreno de alta densidad nutricional.',
+        ingredients:['1 scoop proteína whey chocolate','300ml leche entera o vegetal','1 plátano maduro','2 cdas mantequilla maní','30g avena','Hielo'],
+        steps:['Pesar todos los ingredientes con exactitud para control de macros.','Colocar en licuadora: leche, proteína, plátano, mantequilla de maní y avena.','Licuar 30 segundos a velocidad máxima. Agregar hielo y pulsar 10 seg más.','Verter inmediatamente. Consumir dentro de los 30 min post-entreno para máxima absorción.']
+      },
+      { id:10, name:'Quinoa con Pollo y Verduras',emoji:'🥙', cat:'proteina',    level:'intermedio',   time:35,  kcal:580, servings:2, prot:48, carb:55, fat:14,
+        desc:'Quinoa cocida con tiras de pollo marinado, pimiento, zanahoria y salsa teriyaki reducida.',
+        ingredients:['150g quinoa','300g pechuga pollo','1 pimiento rojo','2 zanahorias','3 cdas salsa soja','1 cda miel','Jengibre','Ajo','Aceite sésamo'],
+        steps:['Marinar pollo en tiras con soja, miel, ajo y jengibre 15 min.','Cocer quinoa 15 min. Saltear pimiento y zanahoria juliana en aceite sésamo 4 min.','Añadir pollo marinado al wok. Saltear a fuego alto 5-6 min hasta dorado.','Mezclar quinoa con verduras y pollo. Reducir marinada 2 min y glasear. Sésamo encima.']
+      },
+      { id:11, name:'Ensalada Griega',           emoji:'🥙', cat:'mediterraneo', level:'principiante', time:10,  kcal:320, servings:2, prot:10, carb:18, fat:24,
+        desc:'Tomate, pepino, cebolla morada, aceitunas Kalamata, queso feta y orégano con aceite de oliva virgen extra.',
+        ingredients:['3 tomates maduros','1 pepino','1/2 cebolla morada','100g feta','80g aceitunas Kalamata','Aceite oliva virgen extra','Orégano seco','Sal marina'],
+        steps:['Cortar tomates y pepino en trozos irregulares grandes. No picar demasiado fino.','Laminar cebolla morada y remojar 5 min en agua fría para suavizar el sabor.','Disponer verduras en fuente. Colocar feta entero encima (no desmenuzar antes).','Agregar aceitunas. Regar generosamente con aceite oliva. Orégano y sal marina al gusto.']
+      },
+      { id:12, name:'Pasta Integral Primavera',  emoji:'🍝', cat:'mediterraneo', level:'intermedio',   time:30,  kcal:460, servings:2, prot:16, carb:72, fat:14,
+        desc:'Pasta integral con verduras de temporada, albahaca fresca, tomates cherry y pecorino.',
+        ingredients:['200g pasta integral','Cherry 200g','1 calabacín','1 pimiento amarillo','Albahaca fresca','40g pecorino','3 dientes ajo','Aceite oliva','Sal, pimienta'],
+        steps:['Cocer pasta al dente según paquete. Reservar 1 taza del agua de cocción.','Saltear ajo en aceite caliente. Añadir pimiento y calabacín. Cocinar 5 min.','Agregar cherry cortados por la mitad. Saltear 2 min. Añadir pasta y agua reservada.','Mezclar a fuego bajo. Añadir albahaca rasgada y pecorino. Ajustar sal y pimienta.']
+      },
+      { id:13, name:'Hummus Casero',             emoji:'🫘', cat:'mediterraneo', level:'principiante', time:10,  kcal:180, servings:6, prot:8,  carb:22, fat:8,
+        desc:'Hummus suave de garbanzos con tahini, limón, ajo y aceite de oliva.',
+        ingredients:['400g garbanzos cocidos','3 cdas tahini','2 limones (zumo)','2 dientes ajo','3 cdas aceite oliva','Sal','Agua fría 3 cdas','Pimentón y perejil para decorar'],
+        steps:['Escurrir garbanzos. Reservar 2 cdas para decorar. Pelar los garbanzos para textura más suave.','Procesar ajo, tahini y limón en procesadora hasta cremoso, 1 min.','Añadir garbanzos progresivamente. Agregar agua fría y aceite mientras procesa.','Rectificar sal y limón. Servir en plato hondo con aceite, pimentón y perejil.']
+      },
+      { id:14, name:'Lubina al Horno con Olivas',emoji:'🐟', cat:'mediterraneo', level:'avanzado',     time:50,  kcal:420, servings:4, prot:38, carb:8,  fat:26,
+        desc:'Lubina entera al horno con olivas, tomates cherry, vino blanco, alcaparras y hierbas provenzales.',
+        ingredients:['1 lubina 1.2kg','200g cherry','100g olivas verdes','100ml vino blanco seco','2 cdas alcaparras','Hierbas provenzales','Ajo laminado','Aceite oliva','Limón'],
+        steps:['Precalentar horno a 200°C. Limpiar lubina, hacer cortes en el lomo y rellenar con ajo y limón.','Disponer cherry y olivas en fuente. Colocar lubina encima. Salpimentar generosamente.','Verter vino blanco y aceite. Espolvorear hierbas y alcaparras. Láminas de limón encima.','Hornear 30-35 min hasta que la piel esté crujiente. Reposar 5 min antes de servir.']
+      },
+      { id:15, name:'Ensalada Tropical Paleo',   emoji:'🥗', cat:'paleo',        level:'principiante', time:20,  kcal:380, servings:2, prot:32, carb:28, fat:16,
+        desc:'Pechuga de pollo grillada con mango, aguacate, coco rallado y aderezo de lima.',
+        ingredients:['300g pechuga pollo','1 mango maduro','1 aguacate','Mix de hojas verdes','Coco rallado sin azúcar','Zumo 2 limas','Aceite de coco','Sal, pimienta'],
+        steps:['Sazonar pechuga con sal, pimienta y coco rallado. Grillar 6 min por lado.','Cortar mango y aguacate en cubos. Preparar aderezo con lima y aceite de coco.','Reposar pollo 3 min y cortar en láminas diagonales.','Montar: hojas verdes, mango, aguacate, pollo. Aderezo y coco tostado encima.']
+      },
+      { id:16, name:'Costillas BBQ Paleo',       emoji:'🍖', cat:'paleo',        level:'avanzado',     time:180, kcal:680, servings:4, prot:48, carb:12, fat:48,
+        desc:'Costillas de cerdo con marinada paleo de miel de agave, mostaza, ajo y hierbas. Horneadas lentamente.',
+        ingredients:['1.5kg costillas cerdo','3 cdas miel agave','2 cdas mostaza Dijon','4 dientes ajo','Romero fresco','Tomillo','Pimentón ahumado','Sal marina gruesa','Pimienta negra'],
+        steps:['Retirar membrana de costillas. Mezclar marinada: miel, mostaza, ajo, especias y hierbas.','Cubrir costillas con marinada y refrigerar mínimo 2 horas (idealmente toda la noche).','Envolver en papel aluminio y hornear a 150°C por 2.5 horas. Retirar papel los últimos 30 min.','Opcional: terminar 3 min en grill para caramelizar. Reposar 5 min antes de cortar.']
+      },
+      { id:17, name:'Huevos con Verduras Paleo', emoji:'🍳', cat:'paleo',        level:'principiante', time:15,  kcal:310, servings:1, prot:20, carb:18, fat:20,
+        desc:'Huevos fritos en aceite de coco con pimiento, champiñones, espinacas y boniato troceado.',
+        ingredients:['3 huevos','100g boniato','1/2 pimiento rojo','80g champiñones','40g espinacas','1 cda aceite coco','Sal','Pimienta','Pimentón dulce'],
+        steps:['Cortar boniato en cubitos pequeños y saltear en aceite de coco 5 min hasta dorar.','Añadir pimiento y champiñones laminados. Saltear 3 min más a fuego medio.','Incorporar espinacas, remover hasta marchitar. Crear huecos y casacr los huevos.','Tapar sartén 2 min para cocer claras manteniendo yemas líquidas. Salpimentar.']
+      },
+      { id:18, name:'Tortilla Española S/G',     emoji:'🥚', cat:'singluten',    level:'intermedio',   time:35,  kcal:360, servings:4, prot:16, carb:28, fat:22,
+        desc:'Tortilla de patatas y cebolla caramelizada, 100% sin gluten. Jugosa por dentro y dorada por fuera.',
+        ingredients:['600g patatas','6 huevos','1 cebolla grande','150ml aceite oliva','Sal','Perejil opcional'],
+        steps:['Pelar y laminar patatas finas. Pochar en aceite a 130°C con cebolla 20 min sin dorar.','Escurrir aceite. Batir huevos con sal. Mezclar con patatas y cebolla. Reposar 5 min.','En sartén antiadherente con poco aceite, verter mezcla a fuego medio. Cuajar bordes.','Dar vuelta con plato. Deslizar de nuevo a sartén 3 min. Debe quedar jugosa al centro.']
+      },
+      { id:19, name:'Arroz con Mariscos S/G',    emoji:'🦐', cat:'singluten',    level:'avanzado',     time:50,  kcal:520, servings:4, prot:32, carb:64, fat:12,
+        desc:'Arroz bomba con gambas, mejillones, calamar y caldo de pescado casero. Receta 100% libre de gluten.',
+        ingredients:['320g arroz bomba','300g gambas','400g mejillones','200g calamar','1L caldo pescado casero','1 cebolla','Azafrán','Pimentón','Ajo','Tomate frito'],
+        steps:['Sofreír cebolla y ajo en paellera. Añadir tomate y pimentón. Cocinar 5 min.','Agregar calamar troceado, saltear 2 min. Incorporar arroz y sofreír 1 min.','Verter caldo caliente con azafrán infusionado. Fuego alto 5 min, medio 12 min, sin remover.','Añadir gambas y mejillones los últimos 5 min. Reposar 5 min tapado con paño.']
+      },
+      { id:20, name:'Ceviche de Camarón',        emoji:'🍋', cat:'singluten',    level:'intermedio',   time:20,  kcal:280, servings:3, prot:26, carb:18, fat:8,
+        desc:'Camarones marinados en jugo de limón con cebolla morada, cilantro, tomate y ají.',
+        ingredients:['500g camarones crudos pelados','6 limones (zumo)','1 cebolla morada','2 tomates','1 ají amarillo','Cilantro fresco','Sal','Pimienta','Tostadas sin gluten'],
+        steps:['Limpiar camarones y cortar en mitades. Marinar en zumo de limón 10 min en nevera.','Cortar cebolla morada en juliana fina. Remojar en agua fría 5 min para suavizar.','Picar tomate en cubitos, cilantro y ají (sin semillas para menos picante).','Escurrir un poco el limón. Mezclar todo. Rectificar sal. Servir frío con tostadas.']
+      },
+      { id:21, name:'Bowl de Atún Keto S/G',     emoji:'🥑', cat:'keto singluten', level:'principiante', time:10, kcal:390, servings:1, prot:34, carb:6, fat:26,
+        desc:'Atún en aceite con aguacate en cubos, pepino, sésamo tostado y aderezo de ponzu.',
+        ingredients:['1 lata atún en aceite','1 aguacate','1/2 pepino','1 cda salsa ponzu','1 cdita aceite sésamo','Sésamo tostado','Cebollín','Rábano (opcional)'],
+        steps:['Escurrir atún conservando un poco de aceite para sabor. Desmenuzar en bowl.','Cortar aguacate y pepino en cubos uniformes de 1cm.','Preparar aderezo: ponzu + aceite de sésamo + cebollín picado.','Montar bowl: base de lechuga, atún, aguacate y pepino. Regar aderezo y sésamo encima.']
+      }
+    ];
+
+    /* ─────────────────────────────────────────
+       ESTADO DE LA APLICACIÓN (localStorage)
+    ───────────────────────────────────────── */
+    const STATE_KEY = 'mirai-diet-state';
+    function loadState() {
+      try { return JSON.parse(localStorage.getItem(STATE_KEY)) || {}; } catch { return {}; }
+    }
+    function saveState(state) {
+      try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch {}
+    }
+
+    let state = loadState();
+    if (!state.planner) state.planner = {};            // { 'lun-desayuno': recipeId, ... }
+    if (!state.log)     state.log = [];                // [ {name, kcal, prot, carb, fat, portion, emoji, ts} ]
+    if (!state.history) state.history = [];            // [ {date, meals:[...]} ]
+    if (!state.shopping) state.shopping = {};          // { itemName: {qty, checked} }
+    if (!state.goals)   state.goals = { kcal:2000, prot:150, carb:220, fat:65 };
+
+    const DAYS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const MEALS  = ['🌅 Desayuno','🌞 Almuerzo','🌙 Cena'];
+    const MEALS_KEY = ['desayuno','almuerzo','cena'];
+
+    /* ─────────────────────────────────────────
+       TABS PRINCIPALES
+    ───────────────────────────────────────── */
+    document.querySelectorAll('.diet-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diet-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.diet-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const panel = document.getElementById('panel-' + btn.dataset.panel);
+        if (panel) panel.classList.add('active');
+      });
+    });
+
+    /* ─────────────────────────────────────────
+       PANEL 1 – BUSCADOR Y FILTRO DE RECETAS
+    ───────────────────────────────────────── */
+    const searchInput = document.getElementById('recipe-search');
+    const filterPills = document.querySelectorAll('#filter-pills-diet .filter-pill');
+    const recipesGrid = document.getElementById('recipes-grid');
+    const recipeCount = document.getElementById('recipe-count');
+    const noResults   = document.getElementById('no-results-recipe');
+    let activeCategory = 'todos';
+
+    filterPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        filterPills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeCategory = pill.dataset.category;
+        filterRecipes();
+      });
+    });
+    searchInput.addEventListener('input', filterRecipes);
+
+    function filterRecipes() {
+      const q = searchInput.value.toLowerCase().trim();
+      const cards = recipesGrid.querySelectorAll('.course-card');
+      let visible = 0;
+      cards.forEach(card => {
+        const cat  = card.dataset.category || '';
+        const title = card.querySelector('.course-title').textContent.toLowerCase();
+        const desc  = card.querySelector('.course-description').textContent.toLowerCase();
+        const matchCat  = activeCategory === 'todos' || cat.includes(activeCategory);
+        const matchQuery = !q || title.includes(q) || desc.includes(q);
+        const show = matchCat && matchQuery;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      noResults.style.display = visible === 0 ? '' : 'none';
+      recipeCount.textContent = `Mostrando ${visible} receta${visible !== 1 ? 's' : ''}`;
+    }
+    filterRecipes();
+
+    /* ─────────────────────────────────────────
+       MODAL DE RECETA
+    ───────────────────────────────────────── */
+    let currentRecipeId = null;
+    let currentPortions = 2;
+
+    document.querySelectorAll('.course-start-btn[data-recipe]').forEach(btn => {
+      btn.addEventListener('click', () => openRecipeModal(parseInt(btn.dataset.recipe)));
+    });
+
+    function openRecipeModal(id) {
+      const r = RECIPES.find(x => x.id === id);
+      if (!r) return;
+      currentRecipeId = id;
+      currentPortions = r.servings;
+
+      document.getElementById('rm-title').textContent = r.name;
+      document.getElementById('rm-icon').textContent  = r.emoji;
+      document.getElementById('rm-desc').textContent  = r.desc;
+
+      const badges = document.getElementById('rm-badges');
+      badges.innerHTML = `
+        <span class="rm-badge">${getCatLabel(r.cat)}</span>
+        <span class="rm-badge">${getLevelLabel(r.level)}</span>
+        <span class="rm-badge">⏱️ ${r.time} min</span>
+      `;
+
+      renderIngredients(r, currentPortions);
+      renderSteps(r);
+      renderMacros(r, currentPortions);
+      updatePortionDisplay(r);
+
+      document.getElementById('pcount').textContent = currentPortions;
+      document.getElementById('recipe-overlay').classList.add('open');
+    }
+
+    function renderIngredients(r, portions) {
+      const base = r.servings;
+      const scale = portions / base;
+      document.getElementById('rm-ingredients').innerHTML = r.ingredients
+        .map(ing => `<span class="itag">${scaleIngredient(ing, scale)}</span>`).join('');
+    }
+
+    function scaleIngredient(ing, scale) {
+      if (scale === 1) return ing;
+      return ing.replace(/(\d+(?:\.\d+)?)/g, (_, n) => {
+        const v = Math.round(parseFloat(n) * scale * 10) / 10;
+        return v % 1 === 0 ? v : v.toFixed(1);
+      });
+    }
+
+    function renderSteps(r) {
+      document.getElementById('rm-steps').innerHTML = r.steps.map(s => `<li>${s}</li>`).join('');
+    }
+
+    function renderMacros(r, portions) {
+      const scale = portions / r.servings;
+      const kcal = Math.round(r.kcal * scale);
+      const prot = Math.round(r.prot * scale);
+      const carb = Math.round(r.carb * scale);
+      const fat  = Math.round(r.fat  * scale);
+      document.getElementById('rm-macros').innerHTML = `
+        <div class="rm-macro"><div class="mv">${kcal}</div><div class="ml">kcal</div></div>
+        <div class="rm-macro"><div class="mv">${prot}g</div><div class="ml">Proteína</div></div>
+        <div class="rm-macro"><div class="mv">${carb}g</div><div class="ml">Carbohidratos</div></div>
+        <div class="rm-macro"><div class="mv">${fat}g</div><div class="ml">Grasas</div></div>
+      `;
+    }
+
+    function updatePortionDisplay(r) {
+      const scale = currentPortions / r.servings;
+      document.getElementById('portion-kcal').textContent = `${Math.round(r.kcal * scale)} kcal totales`;
+    }
+
+    document.getElementById('pbtn-minus').addEventListener('click', () => {
+      if (currentPortions <= 1) return;
+      currentPortions--;
+      const r = RECIPES.find(x => x.id === currentRecipeId);
+      document.getElementById('pcount').textContent = currentPortions;
+      renderIngredients(r, currentPortions);
+      renderMacros(r, currentPortions);
+      updatePortionDisplay(r);
+    });
+    document.getElementById('pbtn-plus').addEventListener('click', () => {
+      currentPortions++;
+      const r = RECIPES.find(x => x.id === currentRecipeId);
+      document.getElementById('pcount').textContent = currentPortions;
+      renderIngredients(r, currentPortions);
+      renderMacros(r, currentPortions);
+      updatePortionDisplay(r);
+    });
+
+    document.getElementById('rm-close').addEventListener('click', () => {
+      document.getElementById('recipe-overlay').classList.remove('open');
+    });
+    document.getElementById('recipe-overlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('recipe-overlay'))
+        document.getElementById('recipe-overlay').classList.remove('open');
+    });
+
+    document.getElementById('rm-add-log').addEventListener('click', () => {
+      const r = RECIPES.find(x => x.id === currentRecipeId);
+      if (!r) return;
+      const scale = currentPortions / r.servings;
+      state.log.push({
+        name: r.name, emoji: r.emoji,
+        kcal: Math.round(r.kcal * scale),
+        prot: Math.round(r.prot * scale),
+        carb: Math.round(r.carb * scale),
+        fat:  Math.round(r.fat  * scale),
+        portion: `${currentPortions} porción${currentPortions > 1 ? 'es' : ''}`,
+        ts: new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' })
+      });
+      saveState(state);
+      renderFoodLog();
+      document.getElementById('recipe-overlay').classList.remove('open');
+      // Cambiar a pestaña contador
+      document.querySelector('[data-panel="contador"]').click();
+    });
+
+    document.getElementById('rm-add-plan').addEventListener('click', () => {
+      document.getElementById('recipe-overlay').classList.remove('open');
+      document.querySelector('[data-panel="planificador"]').click();
+      showToast(`"${RECIPES.find(x=>x.id===currentRecipeId)?.name}" — elige una celda del planificador`);
+      pendingRecipeForPlan = currentRecipeId;
+    });
+
+    function getCatLabel(cat) {
+      const map = { vegano:'🌿 Vegano', keto:'🥑 Keto', proteina:'💪 Proteína',
+        mediterraneo:'🫒 Mediterráneo', paleo:'🍖 Paleo', singluten:'🌾 Sin Gluten' };
+      return map[cat.split(' ')[0]] || cat;
+    }
+    function getLevelLabel(level) {
+      const map = { principiante:'🟢 Fácil', intermedio:'🟡 Medio', avanzado:'🔴 Avanzado' };
+      return map[level] || level;
+    }
+
+    /* ─────────────────────────────────────────
+       PANEL 2 – PLANIFICADOR SEMANAL
+    ───────────────────────────────────────── */
+    let pendingRecipeForPlan = null;
+    let planTarget = null; // { day, meal }
+
+    function renderPlanner() {
+      const grid = document.getElementById('planner-grid');
+      let html = '<div class="planner-corner"></div>';
+      DAYS.forEach(d => { html += `<div class="planner-day-header">${d}</div>`; });
+      MEALS.forEach((meal, mi) => {
+        html += `<div class="planner-meal-label">${meal}</div>`;
+        DAYS.forEach((day, di) => {
+          const key = `${day.toLowerCase()}-${MEALS_KEY[mi]}`;
+          const rid = state.planner[key];
+          const rec = rid ? RECIPES.find(x => x.id === rid) : null;
+          html += `<div class="planner-cell ${rec ? 'filled' : ''}" data-key="${key}" data-day="${day}" data-meal="${MEALS_KEY[mi]}">
+            ${rec ? `<div class="planner-cell-name">${rec.emoji} ${rec.name}</div><div class="planner-cell-kcal">${rec.kcal} kcal</div>` : ''}
+            <div class="planner-cell-add">+</div>
+          </div>`;
+        });
+      });
+      grid.innerHTML = html;
+      grid.querySelectorAll('.planner-cell').forEach(cell => {
+        cell.addEventListener('click', () => openPlanSelector(cell.dataset.key, cell.dataset.day, cell.dataset.meal));
+      });
+      renderPlannerSummary();
+    }
+
+    function renderPlannerSummary() {
+      const totalKcal = Object.values(state.planner).reduce((sum, rid) => {
+        const r = RECIPES.find(x => x.id === rid);
+        return sum + (r ? r.kcal : 0);
+      }, 0);
+      const meals = Object.keys(state.planner).length;
+      const avgKcalDay = meals > 0 ? Math.round(totalKcal / Math.max(Object.keys(state.planner).filter(k=>k.includes('desayuno')).length, 1)) : 0;
+      document.getElementById('planner-summary').innerHTML = `
+        <div class="planner-sum-card"><div class="val">${Object.values(state.planner).filter(Boolean).length}</div><div class="lbl">Comidas planificadas</div></div>
+        <div class="planner-sum-card"><div class="val">${totalKcal.toLocaleString()}</div><div class="lbl">kcal totales sem.</div></div>
+        <div class="planner-sum-card"><div class="val">${Math.round(totalKcal/7)}</div><div class="lbl">kcal promedio/día</div></div>
+        <div class="planner-sum-card"><div class="val">${meals}</div><div class="lbl">de 21 slots llenos</div></div>
+      `;
+    }
+
+    /* Modal selector planificador */
+    function openPlanSelector(key, day, meal) {
+      document.getElementById('plan-selector-title').textContent = `${day} – ${meal.charAt(0).toUpperCase()+meal.slice(1)}`;
+      renderPlanRecipeList('');
+      document.getElementById('plan-recipe-search').value = '';
+      document.getElementById('plan-selector-overlay').classList.add('open');
+      planTarget = { key, day, meal };
+    }
+
+    function renderPlanRecipeList(query) {
+      const q = query.toLowerCase();
+      const list = document.getElementById('plan-recipe-list');
+      list.innerHTML = RECIPES.filter(r => !q || r.name.toLowerCase().includes(q) || r.cat.includes(q))
+        .map(r => `<div class="plan-recipe-item" data-rid="${r.id}">
+          <div class="pri-emoji">${r.emoji}</div>
+          <div class="pri-info">
+            <div class="pri-name">${r.name}</div>
+            <div class="pri-meta">${getCatLabel(r.cat)} · ${r.kcal} kcal · ${r.time} min</div>
+          </div>
+        </div>`).join('');
+      list.querySelectorAll('.plan-recipe-item').forEach(item => {
+        item.addEventListener('click', () => {
+          if (!planTarget) return;
+          state.planner[planTarget.key] = parseInt(item.dataset.rid);
+          saveState(state);
+          renderPlanner();
+          document.getElementById('plan-selector-overlay').classList.remove('open');
+          pendingRecipeForPlan = null;
+        });
+      });
+    }
+
+    document.getElementById('plan-recipe-search').addEventListener('input', e => renderPlanRecipeList(e.target.value));
+    document.getElementById('plan-selector-close').addEventListener('click', () => {
+      document.getElementById('plan-selector-overlay').classList.remove('open');
+      pendingRecipeForPlan = null;
+    });
+    document.getElementById('plan-selector-overlay').addEventListener('click', e => {
+      if (e.target === document.getElementById('plan-selector-overlay'))
+        document.getElementById('plan-selector-overlay').classList.remove('open');
+    });
+    document.getElementById('plan-remove-meal').addEventListener('click', () => {
+      if (!planTarget) return;
+      delete state.planner[planTarget.key];
+      saveState(state);
+      renderPlanner();
+      document.getElementById('plan-selector-overlay').classList.remove('open');
+    });
+
+    document.getElementById('btn-clear-plan').addEventListener('click', () => {
+      if (!confirm('¿Limpiar el plan completo?')) return;
+      state.planner = {};
+      saveState(state);
+      renderPlanner();
+    });
+    document.getElementById('btn-gen-shopping').addEventListener('click', () => {
+      generateShoppingList();
+      document.querySelector('[data-panel="compras"]').click();
+    });
+    document.getElementById('btn-ai-plan').addEventListener('click', () => {
+      document.querySelector('[data-panel="ia"]').click();
+      document.querySelector('[data-mode="plan"]').click();
+    });
+
+    renderPlanner();
+
+    /* ─────────────────────────────────────────
+       PANEL 3 – CONTADOR CALÓRICO
+    ───────────────────────────────────────── */
+    ['goal-kcal','goal-prot','goal-carb','goal-fat'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => {
+        state.goals = {
+          kcal: +document.getElementById('goal-kcal').value,
+          prot: +document.getElementById('goal-prot').value,
+          carb: +document.getElementById('goal-carb').value,
+          fat:  +document.getElementById('goal-fat').value
+        };
+        saveState(state);
+        renderMacroCards();
+      });
+    });
+    // Restaurar objetivos
+    document.getElementById('goal-kcal').value = state.goals.kcal;
+    document.getElementById('goal-prot').value = state.goals.prot;
+    document.getElementById('goal-carb').value = state.goals.carb;
+    document.getElementById('goal-fat').value  = state.goals.fat;
+
+    function getTotals() {
+      return state.log.reduce((acc, item) => ({
+        kcal: acc.kcal + (item.kcal || 0),
+        prot: acc.prot + (item.prot || 0),
+        carb: acc.carb + (item.carb || 0),
+        fat:  acc.fat  + (item.fat  || 0)
+      }), { kcal:0, prot:0, carb:0, fat:0 });
+    }
+
+    function renderMacroCards() {
+      const t = getTotals();
+      const g = state.goals;
+      const macros = [
+        { key:'kcal', label:'Calorías',       unit:'kcal', cur:t.kcal, goal:g.kcal, cls:''     },
+        { key:'prot', label:'Proteínas',      unit:'g',    cur:t.prot, goal:g.prot, cls:'prot'  },
+        { key:'carb', label:'Carbohidratos',  unit:'g',    cur:t.carb, goal:g.carb, cls:'carb'  },
+        { key:'fat',  label:'Grasas',         unit:'g',    cur:t.fat,  goal:g.fat,  cls:'fat'   }
+      ];
+      document.getElementById('macro-cards').innerHTML = macros.map(m => {
+        const pct = Math.min(100, Math.round((m.cur / m.goal) * 100));
+        const over = m.cur > m.goal;
+        return `<div class="macro-card">
+          <div class="macro-card-top">
+            <span class="macro-lbl">${m.label}</span>
+            <span class="macro-val"><b>${m.cur}</b> / ${m.goal}${m.unit}</span>
+          </div>
+          <div class="macro-track">
+            <div class="macro-fill ${m.cls}" style="width:${pct}%;${over?'background:linear-gradient(90deg,#ff5252,#ff1744);':''}"></div>
+          </div>
+          <div style="font-size:0.72rem;color:${over?'#ff5252':'var(--text-secondary)'};margin-top:5px;text-align:right;">
+            ${over ? `⚠️ ${m.cur - m.goal}${m.unit} sobre el objetivo` : `${m.goal - m.cur}${m.unit} restantes`}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderFoodLog() {
+      renderMacroCards();
+      const container = document.getElementById('food-log-items');
+      if (state.log.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:0.85rem;">No has registrado alimentos hoy 🍽️</div>';
+        return;
+      }
+      container.innerHTML = state.log.map((item, i) => `
+        <div class="food-log-item">
+          <span class="fli-emoji">${item.emoji || '🍽️'}</span>
+          <div class="fli-name">${item.name} <span style="font-size:0.72rem;color:var(--text-secondary);">(${item.portion || '1 porción'})</span></div>
+          <div class="fli-macros">P:${item.prot||0}g C:${item.carb||0}g G:${item.fat||0}g</div>
+          <span class="fli-kcal">${item.kcal} kcal</span>
+          <button class="fli-del" data-index="${i}" title="Eliminar">×</button>
+        </div>
+      `).join('');
+      container.querySelectorAll('.fli-del').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.log.splice(parseInt(btn.dataset.index), 1);
+          saveState(state);
+          renderFoodLog();
+        });
+      });
+    }
+
+    document.getElementById('btn-clear-log').addEventListener('click', () => {
+      if (!confirm('¿Limpiar el registro de hoy?')) return;
+      state.log = [];
+      saveState(state);
+      renderFoodLog();
+    });
+
+    document.getElementById('btn-add-food').addEventListener('click', () => {
+      const name    = document.getElementById('aff-name').value.trim();
+      const kcal    = parseInt(document.getElementById('aff-kcal').value) || 0;
+      const portion = document.getElementById('aff-portion').value.trim() || '1 porción';
+      if (!name) { document.getElementById('aff-name').focus(); return; }
+      state.log.push({ name, kcal, prot:0, carb:0, fat:0, portion, emoji:'🍽️',
+        ts: new Date().toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'}) });
+      saveState(state);
+      renderFoodLog();
+      document.getElementById('aff-name').value  = '';
+      document.getElementById('aff-kcal').value  = '';
+      document.getElementById('aff-portion').value = '';
+    });
+
+    renderFoodLog();
+
+    /* ─────────────────────────────────────────
+       PANEL 4 – LISTA DE COMPRAS
+    ───────────────────────────────────────── */
+    function generateShoppingList() {
+      const recipeIds = [...new Set(Object.values(state.planner).filter(Boolean))];
+      const ingredientMap = {};
+      recipeIds.forEach(rid => {
+        const r = RECIPES.find(x => x.id === rid);
+        if (!r) return;
+        r.ingredients.forEach(ing => {
+          const key = ing.replace(/\d+[a-z]*/gi, '').trim().toLowerCase();
+          if (!ingredientMap[key]) ingredientMap[key] = { raw: ing, count: 0 };
+          ingredientMap[key].count++;
+        });
+      });
+      state.shopping = {};
+      Object.entries(ingredientMap).forEach(([key, val]) => {
+        state.shopping[key] = { display: val.raw, count: val.count, checked: false };
+      });
+      saveState(state);
+      renderShoppingList();
+    }
+
+    function renderShoppingList() {
+      const cont = document.getElementById('shopping-content');
+      const items = Object.entries(state.shopping);
+      if (items.length === 0) {
+        cont.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);">
+          <div style="font-size:2.5rem;margin-bottom:12px;">🛒</div>
+          <p>La lista está vacía. Planifica tu semana y haz clic en "Generar lista de compras".</p>
+          <button class="btn-secondary" onclick="document.querySelector('[data-panel=\\'planificador\\']').click()" style="margin-top:12px;">Ir al planificador</button>
+        </div>`;
+        return;
+      }
+      // Agrupar por categoría simple
+      const categories = {
+        'Proteínas 🥩': [], 'Vegetales 🥦': [], 'Lácteos 🧀': [],
+        'Legumbres 🫘': [], 'Carbohidratos 🍞': [], 'Otros 🛒': []
+      };
+      const cats = {
+        proteinas: ['pollo','pechuga','salmón','atún','huevo','carne','cerdo','bacon','gambas','camarón','mejillón','calamar','lubina'],
+        vegetales: ['tomate','pepino','pimiento','espinaca','brócoli','cebolla','ajo','zanahoria','champiñón','aguacate','cherry','boniato','coliflor','mango','espárrago','jackfruit'],
+        lacteos:   ['queso','parmesano','feta','gruyère','mantequilla','leche','crema','pecorino'],
+        legumbres: ['garbanzo','quinoa','lentejas','arroz','pasta'],
+        carbos:    ['arroz','pasta','pan','avena','tortilla','harina']
+      };
+      items.forEach(([key, val]) => {
+        let assigned = false;
+        if (cats.proteinas.some(k => key.includes(k))) { categories['Proteínas 🥩'].push([key,val]); assigned = true; }
+        else if (cats.vegetales.some(k => key.includes(k))) { categories['Vegetales 🥦'].push([key,val]); assigned = true; }
+        else if (cats.lacteos.some(k => key.includes(k))) { categories['Lácteos 🧀'].push([key,val]); assigned = true; }
+        else if (cats.legumbres.some(k => key.includes(k))) { categories['Legumbres 🫘'].push([key,val]); assigned = true; }
+        else if (cats.carbos.some(k => key.includes(k))) { categories['Carbohidratos 🍞'].push([key,val]); assigned = true; }
+        if (!assigned) categories['Otros 🛒'].push([key,val]);
+      });
+
+      cont.innerHTML = Object.entries(categories)
+        .filter(([, items]) => items.length > 0)
+        .map(([catName, catItems]) => `
+          <div class="shopping-category">
+            <div class="shopping-cat-title">${catName}</div>
+            ${catItems.map(([key, val]) => `
+              <div class="shopping-item ${val.checked ? 'checked' : ''}" data-key="${key}">
+                <input type="checkbox" ${val.checked ? 'checked' : ''} onchange="toggleShoppingItem('${key}', this.checked)">
+                <span class="si-name">${val.display}</span>
+                ${val.count > 1 ? `<span class="si-qty">×${val.count} recetas</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `).join('');
+    }
+
+    window.toggleShoppingItem = function(key, checked) {
+      if (state.shopping[key]) {
+        state.shopping[key].checked = checked;
+        saveState(state);
+        renderShoppingList();
+      }
+    };
+
+    document.getElementById('btn-print-list').addEventListener('click', () => window.print());
+    document.getElementById('btn-uncheck-all').addEventListener('click', () => {
+      Object.values(state.shopping).forEach(v => v.checked = false);
+      saveState(state);
+      renderShoppingList();
+    });
+
+    renderShoppingList();
+
+    /* ─────────────────────────────────────────
+       PANEL 5 – HISTORIAL
+    ───────────────────────────────────────── */
+    function renderHistory() {
+      const cont = document.getElementById('history-content');
+      if (state.history.length === 0) {
+        const today = getTotals();
+        if (state.log.length > 0) {
+          const dateStr = new Date().toLocaleDateString('es', { weekday:'long', day:'numeric', month:'long' });
+          cont.innerHTML = `
+            <div class="history-day">
+              <div class="history-day-head">
+                <span class="hd-date">📅 Hoy — ${dateStr}</span>
+                <span class="hd-total">${today.kcal} kcal · P:${today.prot}g · C:${today.carb}g · G:${today.fat}g</span>
+              </div>
+              ${state.log.map(item => `
+                <div class="history-meal">
+                  <span class="hm-icon">${item.emoji || '🍽️'}</span>
+                  <div class="hm-info">
+                    <div class="hm-name">${item.name}</div>
+                    <div class="hm-time">${item.ts || ''}</div>
+                  </div>
+                  <span class="hm-kcal">${item.kcal} kcal</span>
+                </div>
+              `).join('')}
+            </div>`;
+        } else {
+          cont.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);">
+            <div style="font-size:2.5rem;margin-bottom:12px;">📋</div>
+            <p>El historial está vacío. Empieza registrando alimentos en el Contador.</p>
+          </div>`;
+        }
+        return;
+      }
+      cont.innerHTML = state.history.map(day => `
+        <div class="history-day">
+          <div class="history-day-head">
+            <span class="hd-date">📅 ${day.date}</span>
+            <span class="hd-total">${day.totalKcal} kcal · P:${day.prot}g · C:${day.carb}g · G:${day.fat}g</span>
+          </div>
+          ${day.meals.map(m => `
+            <div class="history-meal">
+              <span class="hm-icon">${m.emoji || '🍽️'}</span>
+              <div class="hm-info"><div class="hm-name">${m.name}</div><div class="hm-time">${m.time || ''}</div></div>
+              <span class="hm-kcal">${m.kcal} kcal</span>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('btn-log-today').addEventListener('click', () => {
+      if (state.log.length === 0) { showToast('No hay alimentos en el contador de hoy'); return; }
+      const t = getTotals();
+      const dateStr = new Date().toLocaleDateString('es', { weekday:'long', day:'numeric', month:'long' });
+      state.history.unshift({
+        date: dateStr,
+        totalKcal: t.kcal, prot: t.prot, carb: t.carb, fat: t.fat,
+        meals: state.log.map(item => ({ name:item.name, emoji:item.emoji, kcal:item.kcal, time:item.ts }))
+      });
+      state.log = [];
+      saveState(state);
+      renderFoodLog();
+      renderHistory();
+      showToast('✅ Día registrado en el historial');
+    });
+
+    renderHistory();
+
+    /* ─────────────────────────────────────────
+       PANEL 6 – IA NUTRICIONAL
+    ───────────────────────────────────────── */
+    document.querySelectorAll('.ai-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.ai-mode-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.ai-mode-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('mode-' + btn.dataset.mode).classList.add('active');
+      });
+    });
+
+    async function callMiraiAI(messages, systemPrompt) {
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages, systemPrompt, model: 'dynamic/DeepLlamaPro' })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data.content || data.reply || data.message || 'Respuesta recibida ✅';
+      } catch (err) {
+        // Fallback: respuesta local inteligente
+        return null;
+      }
+    }
+
+    function fallbackIngredientes(text) {
+      const found = RECIPES.filter(r => {
+        const t = text.toLowerCase();
+        return r.ingredients.some(ing => {
+          const ingLower = ing.toLowerCase();
+          return t.split(/[\s,]+/).some(word => word.length > 3 && ingLower.includes(word));
+        });
+      }).slice(0, 3);
+      if (found.length === 0) return 'No encontré recetas exactas con esos ingredientes, pero puedo ayudarte con el Chat AI 💬';
+      return `Con esos ingredientes puedes preparar:\n\n${found.map(r => `**${r.emoji} ${r.name}** (${r.time} min, ${r.kcal} kcal)\n${r.desc}`).join('\n\n')}\n\n¿Quieres ver la receta completa de alguna?`;
+    }
+
+    function setupAIChat(inputId, sendId, messagesId, getPrompt) {
+      const input = document.getElementById(inputId);
+      const send  = document.getElementById(sendId);
+      const msgs  = document.getElementById(messagesId);
+
+      async function doSend() {
+        const text = input.value.trim();
+        if (!text) return;
+        addMsg(msgs, text, 'user');
+        input.value = '';
+        send.disabled = true;
+        const thinking = addMsg(msgs, 'Pensando...', 'thinking');
+
+        const prompt = getPrompt(text);
+        let response = await callMiraiAI([{ role:'user', content:prompt }],
+          'Eres Mirai, asistente nutricional experto. Responde en español, de forma clara, concisa y útil. Cuando listes recetas, usa formato legible.');
+        if (!response) response = fallbackIngredientes(text);
+        thinking.remove();
+        addMsg(msgs, response, 'bot');
+        send.disabled = false;
+      }
+
+      send.addEventListener('click', doSend);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); } });
+    }
+
+    function addMsg(container, text, type) {
+      const div = document.createElement('div');
+      div.className = `ai-msg ${type}`;
+      div.textContent = text;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      return div;
+    }
+
+    setupAIChat('input-ingredientes', 'send-ingredientes', 'msgs-ingredientes',
+      text => `Tengo estos ingredientes disponibles: ${text}. ¿Qué recetas saludables puedo preparar? Dame 2-3 opciones con pasos básicos y estimación de calorías.`);
+
+    setupAIChat('input-foto', 'send-foto', 'msgs-foto',
+      text => `Analiza este plato de comida${text ? ': ' + text : ''}. Estima las calorías totales y el desglose de macronutrientes (proteínas, carbohidratos, grasas) aproximado para una porción normal.`);
+
+    document.getElementById('send-plan').addEventListener('click', async () => {
+      const objetivo     = document.getElementById('ai-objetivo').value;
+      const presupuesto  = document.getElementById('ai-presupuesto').value;
+      const dieta        = document.getElementById('ai-dieta').value;
+      const restricciones = document.getElementById('ai-restricciones').value;
+      const notas        = document.getElementById('input-plan').value.trim();
+
+      const prompt = `Genera un menú semanal completo (7 días × desayuno, almuerzo, cena) para alguien con estos parámetros:
+      - Objetivo: ${objetivo}
+      - Presupuesto semanal: ${presupuesto}
+      - Tipo de dieta: ${dieta}
+      - Alergias/Restricciones: ${restricciones || 'ninguna'}
+      - Notas adicionales: ${notas || 'ninguna'}
+      
+      Para cada comida indica: nombre del plato, kcal aproximadas y tiempo de preparación. Incluye variedad y equilibrio nutricional.`;
+
+      const msgs = document.getElementById('msgs-plan');
+      addMsg(msgs, `Generar plan: objetivo ${objetivo}, dieta ${dieta}`, 'user');
+      document.getElementById('send-plan').disabled = true;
+      const thinking = addMsg(msgs, 'Generando tu plan personalizado...', 'thinking');
+
+      let response = await callMiraiAI([{ role:'user', content:prompt }],
+        'Eres un nutricionista experto. Genera menús equilibrados, variados y específicos. Responde en español con formato claro.');
+
+      if (!response) {
+        const dietLabel = { todos:'variada', vegano:'vegana', keto:'keto', mediterraneo:'mediterránea', paleo:'paleo', singluten:'sin gluten' }[dieta] || dieta;
+        response = `**📅 Plan semanal personalizado — Dieta ${dietLabel}**\n\nTu plan ha sido generado considerando tu objetivo de ${objetivo}. Para una planificación completamente personalizada con macros exactos, usa el Chat AI de Mirai con tu perfil completo.\n\n*Tip: Ve al planificador y asigna las recetas de nuestro catálogo manualmente.*`;
+      }
+
+      thinking.remove();
+      addMsg(msgs, response, 'bot');
+      document.getElementById('send-plan').disabled = false;
+    });
+
+    // Análisis de foto
+    document.getElementById('photo-upload').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) document.getElementById('photo-name').textContent = file.name;
+    });
+
+    /* ─────────────────────────────────────────
+       UTILIDADES
+    ───────────────────────────────────────── */
+    function showToast(msg) {
+      const toast = document.createElement('div');
+      toast.textContent = msg;
+      toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent-gradient);color:#fff;padding:10px 20px;border-radius:20px;font-size:0.85rem;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.style.opacity = '1', 10);
+      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2800);
+    }
+
+    // Sincronizar historial desde contador cuando se cambia a pestaña historial
+    document.querySelector('[data-panel="historial"]')?.addEventListener('click', renderHistory, { once: false });
+
+    })(); // IIFE
+    </script>
+</body>
+</html>
