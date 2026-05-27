@@ -690,11 +690,15 @@ async function loadSectionStudents() {
         }
 
         students.forEach(s => {
+            const fullName = [s.first_name, s.last_name].filter(Boolean).join(' ');
             const div = document.createElement('div');
             div.style.cssText = 'background: var(--bg-color); padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color);';
             div.innerHTML = `
-                <span><strong>${escapeHtml(s.user_dni)}</strong></span>
-                <button class="action-btn btn-delete" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">Quitar</button>
+                <div>
+                    <strong>${escapeHtml(s.user_dni)}</strong>
+                    ${fullName ? `<span style="color: var(--text-secondary); font-size: 0.88rem; margin-left: 8px;">${escapeHtml(fullName)}</span>` : ''}
+                </div>
+                <button class="action-btn btn-delete" style="flex-shrink:0; width:auto;" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">🗑️</button>
             `;
             list.appendChild(div);
         });

@@ -1995,9 +1995,13 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       ).bind(sectionId, userDni).first();
       if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
-      const { results } = await env.MIRAI_AI_DB.prepare(
-        'SELECT user_dni FROM section_students WHERE section_id = ? ORDER BY user_dni'
-      ).bind(sectionId).all();
+      const { results } = await env.MIRAI_AI_DB.prepare(`
+    SELECT ss.user_dni, u.first_name, u.last_name
+    FROM section_students ss
+    LEFT JOIN users u ON ss.user_dni = u.dni
+    WHERE ss.section_id = ?
+    ORDER BY u.last_name, u.first_name
+  `).bind(sectionId).all();
 
       return jsonResponse(results, 200, corsHeaders);
     }
