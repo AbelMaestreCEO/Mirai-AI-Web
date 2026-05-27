@@ -132,6 +132,12 @@
 
         /* ── GANTT ── */
         .gantt-wrapper { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden; }
+        /* Scroll horizontal del Gantt — funciona en móvil y PC */
+        .gantt-scroll-area { overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; border-radius: 14px; }
+        .gantt-scroll-area::-webkit-scrollbar { height: 5px; }
+        .gantt-scroll-area::-webkit-scrollbar-track { background: var(--glass-border); border-radius: 99px; }
+        .gantt-scroll-area::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 99px; opacity: .6; }
+        .gantt-inner { min-width: 720px; }
         .gantt-header-row { display: flex; background: var(--secondary-container); border-bottom: 1px solid var(--glass-border); }
         .gantt-label-col { width: 200px; flex-shrink: 0; padding: .65rem 1rem; font-size: .75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--glass-border); }
         .gantt-timeline-header { flex: 1; display: flex; overflow: hidden; }
@@ -414,11 +420,15 @@
                 <!-- GANTT -->
                 <div id="view-gantt" class="view-panel" style="display:none;">
                     <div class="gantt-wrapper">
-                        <div class="gantt-header-row">
-                            <div class="gantt-label-col">Tarea</div>
-                            <div class="gantt-timeline-header" id="gantt-days-header"></div>
+                        <div class="gantt-scroll-area">
+                            <div class="gantt-inner">
+                                <div class="gantt-header-row">
+                                    <div class="gantt-label-col">Tarea</div>
+                                    <div class="gantt-timeline-header" id="gantt-days-header"></div>
+                                </div>
+                                <div id="gantt-rows"></div>
+                            </div>
                         </div>
-                        <div id="gantt-rows"></div>
                     </div>
                 </div>
 

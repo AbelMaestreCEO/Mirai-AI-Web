@@ -527,28 +527,30 @@
     item.querySelector('input[type=text]').focus();
   });
 
-  // Asistente IA
+  // Asistente IA — usa el AI Gateway interno del worker (AI_MODEL_NORMAL)
   document.getElementById('ai-generate-btn')?.addEventListener('click', async () => {
     const input     = document.getElementById('ai-task-input').value.trim();
     const resultDiv = document.getElementById('ai-result');
     if (!input) return;
+
+    const btn = document.getElementById('ai-generate-btn');
+    btn.disabled = true;
     resultDiv.style.display = ''; resultDiv.textContent = '✨ Generando con IA...';
+
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('/api/tasks/ai-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: `Eres un asistente de gestión de tareas. Para la siguiente tarea, genera en español:\n1. Descripción clara (2-3 oraciones)\n2. Prioridad sugerida (Baja/Media/Alta/Crítica) con razón breve\n3. 3-4 subtareas concretas\n\nTarea: "${input}"\n\nResponde en formato limpio sin Markdown.`,
-          }],
-        }),
+        body: JSON.stringify({ task_title: input }),
       });
       const data = await res.json();
-      resultDiv.textContent = data.content?.map(c => c.text || '').join('') || 'Sin respuesta.';
-    } catch (e) { resultDiv.textContent = '⚠️ No se pudo conectar con la IA.'; }
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      resultDiv.textContent = data.suggestion || 'Sin respuesta.';
+    } catch (e) {
+      resultDiv.textContent = '⚠️ ' + (e.message || 'No se pudo generar la sugerencia.');
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   document.getElementById('ai-suggest-btn')?.addEventListener('click', () => {
