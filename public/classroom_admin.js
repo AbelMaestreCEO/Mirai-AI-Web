@@ -698,7 +698,7 @@ async function loadSectionStudents() {
                     <strong>${escapeHtml(s.user_dni)}</strong>
                     ${fullName ? `<span style="color: var(--text-secondary); font-size: 0.88rem; margin-left: 8px;">${escapeHtml(fullName)}</span>` : ''}
                 </div>
-                <button class="action-btn btn-delete" style="flex-shrink:0; max-width:50px;" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">🗑️ Eliminar</button>
+                <button class="action-btn btn-delete" style="flex-shrink:0; max-width:150px;" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">🗑️ Eliminar</button>
             `;
             list.appendChild(div);
         });
