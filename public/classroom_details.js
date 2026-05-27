@@ -139,7 +139,10 @@ async function loadAssignmentDetails() {
 
         // Rellenar datos
         elements.title.textContent = assignment.title || 'Sin título';
-        elements.course.textContent = assignment.course_title || 'General';
+        const sectionLabel = assignment.section_name
+            ? ` — Sección: ${assignment.section_name}`
+            : '';
+        elements.course.textContent = (assignment.course_title || 'General') + sectionLabel;
         elements.description.textContent = assignment.description || 'Sin descripción';
 
         if (assignment.due_date) {

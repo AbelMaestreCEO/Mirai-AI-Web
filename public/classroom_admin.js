@@ -66,11 +66,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupCreateCourseModal();
     setupCreateTaskForm();
     setupStudentManagement();
+    setupSectionManagement();
 
     await loadCourses();
     await loadTasksList();
     await loadStats();
     await loadDisputedAssignments();
+    await loadSections();
 });
 
 // --- RESTO DE FUNCIONES (Sin cambios funcionales, solo limpieza) ---
@@ -107,6 +109,25 @@ async function loadCourses() {
         addOpt.style.fontWeight = 'bold';
         addOpt.style.color = 'var(--primary-color)';
         select.appendChild(addOpt);
+
+        // Poblar select de materia en tab Secciones
+        const secCourseSelect = document.getElementById('section-course-select');
+        if (secCourseSelect) {
+            secCourseSelect.innerHTML = '<option value="">Selecciona una materia...</option>';
+            courses.forEach(course => {
+                const opt = document.createElement('option');
+                opt.value = course.id;
+                opt.textContent = course.title;
+                secCourseSelect.appendChild(opt);
+            });
+        }
+
+        // Poblar select de sección en crear tarea
+        const taskSectionSelect = document.getElementById('task-section-select');
+        if (taskSectionSelect) {
+            taskSectionSelect.innerHTML = '<option value="">Sin sección específica</option>';
+            // Se llenará en loadSections()
+        }
 
         updateStats();
 
@@ -204,6 +225,7 @@ function setupCreateTaskForm() {
         const desc = document.getElementById('task-desc').value;
         const due = document.getElementById('task-due').value;
         const score = document.getElementById('task-score').value;
+        const sectionId = document.getElementById('task-section-select')?.value || '';
 
         if (!courseId) {
             alert('Por favor selecciona un curso');
@@ -214,7 +236,7 @@ function setupCreateTaskForm() {
             const res = await fetch('/api/create-assignment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, course_id: courseId, description: desc, due_date: due, max_score: score })
+                body: JSON.stringify({ title, course_id: courseId, description: desc, due_date: due, max_score: score, section_id: sectionId || null })
             });
 
             if (res.ok) {
@@ -531,6 +553,196 @@ function setupLogout() {
 }
 
 function escapeHtml(text) { if (!text) return ''; const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
+
+// ── SECCIONES ─────────────────────────────────────────────────────────────
+
+function setupSectionManagement() {
+    // Nada especial que inicializar, los botones usan onclick directamente
+}
+
+async function loadSections() {
+    const list = document.getElementById('sections-list');
+    const sectionStudentSelect = document.getElementById('section-student-select');
+    const taskSectionSelect = document.getElementById('task-section-select');
+
+    try {
+        const res = await fetch('/api/sections', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const sections = await res.json();
+
+        window.userSections = sections;
+
+        // Renderizar lista
+        if (list) {
+            if (sections.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-secondary);">No hay secciones creadas todavía</p>';
+            } else {
+                list.innerHTML = '';
+                sections.forEach(sec => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'background: var(--bg-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color);';
+                    div.innerHTML = `
+                        <div>
+                            <strong>${escapeHtml(sec.name)}</strong>
+                            <span style="color: var(--text-secondary); font-size: 0.85rem; margin-left: 8px;">📚 ${escapeHtml(sec.course_title || '')}</span>
+                            <br><small style="color: var(--text-secondary);">${sec.student_count} estudiante${sec.student_count !== 1 ? 's' : ''}</small>
+                        </div>
+                        <button class="action-btn btn-delete" onclick="deleteSection('${sec.id}')">🗑️ Eliminar</button>
+                    `;
+                    list.appendChild(div);
+                });
+            }
+        }
+
+        // Poblar selects de sección
+        const opts = sections.map(s => `<option value="${s.id}">${escapeHtml(s.name)} — ${escapeHtml(s.course_title || '')}</option>`).join('');
+
+        if (sectionStudentSelect) {
+            sectionStudentSelect.innerHTML = '<option value="">Selecciona una sección...</option>' + opts;
+        }
+        if (taskSectionSelect) {
+            taskSectionSelect.innerHTML = '<option value="">Sin sección específica</option>' + opts;
+        }
+
+    } catch (error) {
+        console.error('Error cargando secciones:', error);
+        if (list) list.innerHTML = '<p style="color: red;">Error al cargar secciones</p>';
+    }
+}
+
+async function createSection() {
+    const name = document.getElementById('section-name').value.trim();
+    const courseId = document.getElementById('section-course-select').value;
+    const desc = document.getElementById('section-desc').value.trim();
+
+    if (!name || !courseId) {
+        alert('El nombre y la materia son obligatorios');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/create-section', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ name, course_id: courseId, description: desc })
+        });
+
+        if (res.ok) {
+            alert('✅ Sección creada');
+            document.getElementById('section-name').value = '';
+            document.getElementById('section-desc').value = '';
+            document.getElementById('section-course-select').value = '';
+            await loadSections();
+        } else {
+            const err = await res.json();
+            alert('❌ Error: ' + err.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
+
+async function deleteSection(id) {
+    if (!confirm('¿Eliminar esta sección? No se eliminarán las tareas ni los estudiantes ya asignados.')) return;
+
+    try {
+        const res = await fetch(`/api/delete-section?id=${id}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        if (res.ok) {
+            await loadSections();
+        } else {
+            const err = await res.json();
+            alert('❌ Error: ' + err.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
+
+async function loadSectionStudents() {
+    const sectionId = document.getElementById('section-student-select').value;
+    const list = document.getElementById('section-students-list');
+
+    if (!sectionId) {
+        list.innerHTML = '<p style="color: var(--text-secondary);">Selecciona una sección primero</p>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/section-students?section_id=${sectionId}`, { credentials: 'same-origin' });
+        const students = await res.json();
+
+        list.innerHTML = '';
+        if (!students.length) {
+            list.innerHTML = '<p style="color: var(--text-secondary);">No hay estudiantes en esta sección</p>';
+            return;
+        }
+
+        students.forEach(s => {
+            const div = document.createElement('div');
+            div.style.cssText = 'background: var(--bg-color); padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color);';
+            div.innerHTML = `
+                <span><strong>${escapeHtml(s.user_dni)}</strong></span>
+                <button class="action-btn btn-delete" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">Quitar</button>
+            `;
+            list.appendChild(div);
+        });
+    } catch (error) {
+        list.innerHTML = '<p style="color: red;">Error cargando estudiantes</p>';
+    }
+}
+
+async function addStudentToSection() {
+    const sectionId = document.getElementById('section-student-select').value;
+    const dni = document.getElementById('section-student-dni').value.trim();
+
+    if (!sectionId || !dni) {
+        alert('Selecciona una sección y escribe un DNI');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/section-add-student', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ section_id: sectionId, user_dni: dni })
+        });
+
+        if (res.ok) {
+            document.getElementById('section-student-dni').value = '';
+            await loadSectionStudents();
+            await loadSections(); // Actualizar contadores
+        } else {
+            const err = await res.json();
+            alert('❌ Error: ' + err.error);
+        }
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
+
+async function removeStudentFromSection(sectionId, userDni) {
+    if (!confirm('¿Quitar a este estudiante de la sección?')) return;
+
+    try {
+        const res = await fetch('/api/section-remove-student', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ section_id: sectionId, user_dni: userDni })
+        });
+        if (res.ok) {
+            await loadSectionStudents();
+            await loadSections();
+        }
+    } catch (error) {
+        alert('Error de conexión');
+    }
+}
 
 function setupTabs() {
     console.log('Tabs system initialized');

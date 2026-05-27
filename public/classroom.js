@@ -148,7 +148,10 @@
 
                 <h3 class="task-title">${escapeHtml(assignment.title)}</h3>
 
-                <p class="task-course-name">📚 ${escapeHtml(assignment.course_title || 'Curso general')}</p>
+                <p class="task-course-name">
+                    📚 ${escapeHtml(assignment.course_title || 'Curso general')}
+                    ${assignment.section_name ? `<span style="margin-left:8px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🗂️ ${escapeHtml(assignment.section_name)}</span>` : ''}
+                </p>
 
                 <div class="task-meta">
                     <span class="task-meta-item"><span>📅</span> ${dueDate}</span>

@@ -1632,14 +1632,16 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
       try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
-            SELECT 
-                a.*, 
-                uc.title as course_title 
-            FROM assignments a
-            LEFT JOIN user_courses uc ON a.course_id = uc.id
-            WHERE uc.user_dni = ?
-            ORDER BY a.created_at DESC
-        `).bind(userDni).all();
+    SELECT 
+        a.*,
+        uc.title as course_title,
+        s.name   as section_name
+    FROM assignments a
+    LEFT JOIN user_courses uc ON a.course_id = uc.id
+    LEFT JOIN sections     s  ON a.section_id = s.id
+    WHERE uc.user_dni = ?
+    ORDER BY a.created_at DESC
+`).bind(userDni).all();
 
         return jsonResponse(results, 200, corsHeaders);
       } catch (error) {
@@ -1703,12 +1705,12 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (request.method === 'POST')
         return handleTaskCreate(request, env, corsHeaders);
     }
- 
+
     // POST /api/tasks/ai-suggest → sugerencia IA para una tarea (usa AI Gateway interno)
     if (path === '/api/tasks/ai-suggest' && request.method === 'POST') {
       return handleTaskAISuggest(request, env, corsHeaders);
     }
- 
+
     // PUT    /api/tasks/:id     → actualizar tarea
     // DELETE /api/tasks/:id     → eliminar tarea
     const taskMatch = path.match(/^\/api\/tasks\/([^/]+)$/);
@@ -1911,6 +1913,135 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       }
     }
 
+    // ── SECCIONES ─────────────────────────────────────────────────────────────
+
+    // GET /api/sections — lista las secciones del profesor autenticado
+    if (path === '/api/sections' && request.method === 'GET') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const { results } = await env.MIRAI_AI_DB.prepare(`
+    SELECT s.id, s.name, s.description, s.course_id, s.created_at,
+           uc.title as course_title,
+           COUNT(ss.user_dni) as student_count
+    FROM sections s
+    LEFT JOIN user_courses  uc ON s.course_id = uc.id
+    LEFT JOIN section_students ss ON s.id = ss.section_id
+    WHERE s.professor_dni = ?
+    GROUP BY s.id
+    ORDER BY s.created_at DESC
+  `).bind(userDni).all();
+
+      return jsonResponse(results, 200, corsHeaders);
+    }
+
+    // POST /api/create-section
+    if (path === '/api/create-section' && request.method === 'POST') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const { name, description, course_id } = await request.json();
+      if (!name || !course_id) {
+        return jsonResponse({ error: 'Nombre y Materia son requeridos' }, 400, corsHeaders);
+      }
+
+      // Verificar que el curso pertenece al profesor
+      const course = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM user_courses WHERE id = ? AND user_dni = ?'
+      ).bind(course_id, userDni).first();
+      if (!course) return jsonResponse({ error: 'Materia no encontrada o no autorizada' }, 403, corsHeaders);
+
+      const id = crypto.randomUUID();
+      await env.MIRAI_AI_DB.prepare(`
+    INSERT INTO sections (id, professor_dni, course_id, name, description)
+    VALUES (?, ?, ?, ?, ?)
+  `).bind(id, userDni, course_id, name, description || '').run();
+
+      return jsonResponse({ success: true, id }, 201, corsHeaders);
+    }
+
+    // DELETE /api/delete-section?id=xxx
+    if (path === '/api/delete-section' && request.method === 'DELETE') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const id = url.searchParams.get('id');
+      if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+
+      // Verificar propiedad
+      const sec = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+      ).bind(id, userDni).first();
+      if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
+
+      await env.MIRAI_AI_DB.prepare('DELETE FROM section_students WHERE section_id = ?').bind(id).run();
+      await env.MIRAI_AI_DB.prepare('UPDATE assignments SET section_id = NULL WHERE section_id = ?').bind(id).run();
+      await env.MIRAI_AI_DB.prepare('DELETE FROM sections WHERE id = ?').bind(id).run();
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // GET /api/section-students?section_id=xxx
+    if (path === '/api/section-students' && request.method === 'GET') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const sectionId = url.searchParams.get('section_id');
+      if (!sectionId) return jsonResponse({ error: 'section_id requerido' }, 400, corsHeaders);
+
+      // Verificar propiedad
+      const sec = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+      ).bind(sectionId, userDni).first();
+      if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
+
+      const { results } = await env.MIRAI_AI_DB.prepare(
+        'SELECT user_dni FROM section_students WHERE section_id = ? ORDER BY user_dni'
+      ).bind(sectionId).all();
+
+      return jsonResponse(results, 200, corsHeaders);
+    }
+
+    // POST /api/section-add-student
+    if (path === '/api/section-add-student' && request.method === 'POST') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const { section_id, user_dni } = await request.json();
+      if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
+
+      const sec = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+      ).bind(section_id, userDni).first();
+      if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
+
+      await env.MIRAI_AI_DB.prepare(
+        'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
+      ).bind(section_id, user_dni.toUpperCase()).run();
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // DELETE /api/section-remove-student
+    if (path === '/api/section-remove-student' && request.method === 'DELETE') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const { section_id, user_dni } = await request.json();
+      if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
+
+      const sec = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+      ).bind(section_id, userDni).first();
+      if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
+
+      await env.MIRAI_AI_DB.prepare(
+        'DELETE FROM section_students WHERE section_id = ? AND user_dni = ?'
+      ).bind(section_id, user_dni.toUpperCase()).run();
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
     // Ruta: GET /api/check-professor-role
     if (path === '/api/check-professor-role' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
@@ -1928,19 +2059,38 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
       if (!userDni) return;
 
-      // Opcional: Verificar que el usuario es profesor aquí
-
-      const { title, description, course_id, due_date } = await request.json();
+      const { title, description, course_id, due_date, section_id } = await request.json();
 
       if (!title || !course_id) {
         return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
       }
 
+      // Si viene section_id, validar que pertenece al profesor
+      if (section_id) {
+        const sec = await env.MIRAI_AI_DB.prepare(
+          'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+        ).bind(section_id, userDni).first();
+        if (!sec) return jsonResponse({ error: 'Sección inválida o no autorizada' }, 403, corsHeaders);
+      }
+
       const id = crypto.randomUUID();
       await env.MIRAI_AI_DB.prepare(`
-        INSERT INTO assignments (id, course_id, title, description, due_date)
-        VALUES (?, ?, ?, ?, ?)
-    `).bind(id, course_id, title, description || '', due_date || null).run();
+    INSERT INTO assignments (id, course_id, title, description, due_date, section_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(id, course_id, title, description || '', due_date || null, section_id || null).run();
+
+      // Auto-asignar todos los estudiantes de la sección
+      if (section_id) {
+        const { results: secStudents } = await env.MIRAI_AI_DB.prepare(
+          'SELECT user_dni FROM section_students WHERE section_id = ?'
+        ).bind(section_id).all();
+
+        for (const st of secStudents) {
+          await env.MIRAI_AI_DB.prepare(
+            'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+          ).bind(id, st.user_dni).run();
+        }
+      }
 
       return jsonResponse({ success: true, id }, 201, corsHeaders);
     }
@@ -2018,15 +2168,18 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       try {
         // ✨ Obtener SOLO las tareas donde el estudiante está asignado
         const { results: assignments } = await env.MIRAI_AI_DB.prepare(`
-            SELECT DISTINCT 
-                a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-                uc.title as course_title
-            FROM assignments a
-            INNER JOIN assignment_students ast ON a.id = ast.assignment_id
-            LEFT JOIN user_courses uc ON a.course_id = uc.id
-            WHERE ast.user_dni = ?
-            ORDER BY a.created_at DESC
-        `).bind(userDni.toUpperCase()).all();
+    SELECT DISTINCT
+        a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
+        a.section_id,
+        uc.title as course_title,
+        s.name   as section_name
+    FROM assignments a
+    INNER JOIN assignment_students ast ON a.id = ast.assignment_id
+    LEFT JOIN user_courses uc ON a.course_id = uc.id
+    LEFT JOIN sections     s  ON a.section_id = s.id
+    WHERE ast.user_dni = ?
+    ORDER BY a.created_at DESC
+`).bind(userDni.toUpperCase()).all();
 
         // Obtener entregas del estudiante
         const { results: submissions } = await env.MIRAI_AI_DB.prepare(`
@@ -2041,7 +2194,6 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       }
     }
 
-    // Ruta: GET /api/assignment-details
     // Ruta: GET /api/assignment-details (CORREGIDA)
     if (path === '/api/assignment-details' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
@@ -2054,21 +2206,24 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         // 1. Obtener datos de la tarea + curso (usando user_courses)
         // 2. Verificar que el estudiante esté asignado a esta tarea
         const assignStmt = env.MIRAI_AI_DB.prepare(`
-            SELECT 
-                a.id, 
-                a.title, 
-                a.description, 
-                a.due_date, 
-                a.max_score, 
-                a.course_id,
-                a.created_at,
-                uc.title as course_title,
-                uc.user_dni as professor_dni
-            FROM assignments a
-            LEFT JOIN user_courses uc ON a.course_id = uc.id
-            INNER JOIN assignment_students ast ON a.id = ast.assignment_id
-            WHERE a.id = ? AND ast.user_dni = ?
-        `);
+    SELECT
+        a.id,
+        a.title,
+        a.description,
+        a.due_date,
+        a.max_score,
+        a.course_id,
+        a.section_id,
+        a.created_at,
+        uc.title    as course_title,
+        uc.user_dni as professor_dni,
+        s.name      as section_name
+    FROM assignments a
+    LEFT JOIN user_courses uc ON a.course_id = uc.id
+    LEFT JOIN sections     s  ON a.section_id = s.id
+    INNER JOIN assignment_students ast ON a.id = ast.assignment_id
+    WHERE a.id = ? AND ast.user_dni = ?
+`);
 
         const assignment = await assignStmt.bind(id, userDni.toUpperCase()).first();
 
@@ -2499,7 +2654,7 @@ NO agregues texto adicional fuera del JSON.`;
    BLOQUE B — Pegar DESPUÉS de handleApiRequest() (como funciones
    de nivel superior en el módulo, igual que handleProjectList etc.)
    ════════════════════════════════════════════════════════════════ */
- 
+
 /**
  * POST /api/tasks/ai-suggest
  * Genera una sugerencia de tarea usando el AI Gateway interno del worker.
@@ -2510,17 +2665,17 @@ NO agregues texto adicional fuera del JSON.`;
 async function handleTaskAISuggest(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
- 
+
   let body;
   try { body = await request.json(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
- 
+
   const { task_title } = body;
   if (!task_title || !task_title.trim()) {
     return jsonResponse({ error: 'task_title es requerido' }, 400, corsHeaders);
   }
- 
+
   const prompt = `Eres un asistente de gestión de tareas. Para la siguiente tarea, genera en español:
 1. Descripción clara (2-3 oraciones)
 2. Prioridad sugerida (Baja/Media/Alta/Crítica) con razón breve
@@ -2529,7 +2684,7 @@ async function handleTaskAISuggest(request, env, corsHeaders) {
 Tarea: "${task_title.trim()}"
  
 Responde en formato limpio, sin Markdown ni asteriscos.`;
- 
+
   try {
     const suggestion = await callAI(
       AI_MODEL_NORMAL,
@@ -2537,14 +2692,14 @@ Responde en formato limpio, sin Markdown ni asteriscos.`;
       { temperature: 0.7, max_tokens: 600 },
       env
     );
- 
+
     return jsonResponse({ suggestion: suggestion || 'Sin respuesta del modelo.' }, 200, corsHeaders);
   } catch (error) {
     console.error('[Tasks] AI suggest error:', error);
     return jsonResponse({ error: 'Error al generar sugerencia', details: error.message }, 500, corsHeaders);
   }
 }
- 
+
 /**
  * GET /api/tasks
  * Devuelve todas las tareas del usuario autenticado.
@@ -2553,7 +2708,7 @@ Responde en formato limpio, sin Markdown ni asteriscos.`;
 async function handleTaskList(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
- 
+
   try {
     const { results } = await env.MIRAI_AI_DB.prepare(`
       SELECT
@@ -2564,14 +2719,14 @@ async function handleTaskList(request, env, corsHeaders) {
       WHERE user_dni = ?
       ORDER BY created_at DESC
     `).bind(userDni.toUpperCase()).all();
- 
+
     return jsonResponse(results, 200, corsHeaders);
   } catch (error) {
     console.error('[Tasks] Error al listar:', error);
     return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
   }
 }
- 
+
 /**
  * POST /api/tasks
  * Crea una nueva tarea asociada al usuario autenticado.
@@ -2581,32 +2736,32 @@ async function handleTaskList(request, env, corsHeaders) {
 async function handleTaskCreate(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
- 
+
   let body;
   try { body = await request.json(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
- 
+
   const { title, description, status, priority, assignee, tag, due_date, estimated_time, project } = body;
- 
+
   if (!title || !title.trim()) {
     return jsonResponse({ error: 'El título es obligatorio' }, 400, corsHeaders);
   }
- 
-  const VALID_STATUS   = ['pendiente', 'progreso', 'revision', 'completado'];
+
+  const VALID_STATUS = ['pendiente', 'progreso', 'revision', 'completado'];
   const VALID_PRIORITY = ['baja', 'media', 'alta', 'critica'];
- 
+
   if (status && !VALID_STATUS.includes(status)) {
     return jsonResponse({ error: `Estado inválido: ${status}` }, 400, corsHeaders);
   }
   if (priority && !VALID_PRIORITY.includes(priority)) {
     return jsonResponse({ error: `Prioridad inválida: ${priority}` }, 400, corsHeaders);
   }
- 
+
   try {
-    const id  = crypto.randomUUID();
+    const id = crypto.randomUUID();
     const now = new Date().toISOString();
- 
+
     await env.MIRAI_AI_DB.prepare(`
       INSERT INTO tasks
         (id, user_dni, title, description, status, priority,
@@ -2618,24 +2773,24 @@ async function handleTaskCreate(request, env, corsHeaders) {
       userDni.toUpperCase(),
       title.trim(),
       (description || '').trim(),
-      status         || 'pendiente',
-      priority       || 'media',
-      (assignee      || '').trim(),
-      (tag           || '').trim(),
-      due_date       || null,
+      status || 'pendiente',
+      priority || 'media',
+      (assignee || '').trim(),
+      (tag || '').trim(),
+      due_date || null,
       parseFloat(estimated_time) || 0,
-      (project       || '').trim(),
+      (project || '').trim(),
       now,
       now
     ).run();
- 
+
     return jsonResponse({ success: true, id }, 201, corsHeaders);
   } catch (error) {
     console.error('[Tasks] Error al crear:', error);
     return jsonResponse({ error: 'Error al crear tarea', details: error.message }, 500, corsHeaders);
   }
 }
- 
+
 /**
  * PUT /api/tasks/:id
  * Actualiza cualquier campo de una tarea.
@@ -2646,60 +2801,60 @@ async function handleTaskCreate(request, env, corsHeaders) {
 async function handleTaskUpdate(request, env, corsHeaders, taskId) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
- 
+
   // Verificar propiedad
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM tasks WHERE id = ? AND user_dni = ?'
   ).bind(taskId, userDni.toUpperCase()).first();
- 
+
   if (!existing) {
     return jsonResponse({ error: 'Tarea no encontrada o sin permiso' }, 404, corsHeaders);
   }
- 
+
   let body;
   try { body = await request.json(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
- 
+
   // Construir SET dinámico con solo los campos enviados
   const fields = [];
   const values = [];
- 
+
   const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
- 
-  if (body.title       !== undefined) addField('title',          body.title.trim());
-  if (body.description !== undefined) addField('description',    (body.description || '').trim());
-  if (body.status      !== undefined) addField('status',         body.status);
-  if (body.priority    !== undefined) addField('priority',       body.priority);
-  if (body.assignee    !== undefined) addField('assignee',       (body.assignee || '').trim());
-  if (body.tag         !== undefined) addField('tag',            (body.tag || '').trim());
-  if (body.due_date    !== undefined) addField('due_date',       body.due_date || null);
+
+  if (body.title !== undefined) addField('title', body.title.trim());
+  if (body.description !== undefined) addField('description', (body.description || '').trim());
+  if (body.status !== undefined) addField('status', body.status);
+  if (body.priority !== undefined) addField('priority', body.priority);
+  if (body.assignee !== undefined) addField('assignee', (body.assignee || '').trim());
+  if (body.tag !== undefined) addField('tag', (body.tag || '').trim());
+  if (body.due_date !== undefined) addField('due_date', body.due_date || null);
   if (body.estimated_time !== undefined) addField('estimated_time', parseFloat(body.estimated_time) || 0);
-  if (body.project     !== undefined) addField('project',        (body.project || '').trim());
-  if (body.progress    !== undefined) addField('progress',       parseInt(body.progress, 10) || 0);
-  if (body.done        !== undefined) addField('done',           body.done ? 1 : 0);
- 
+  if (body.project !== undefined) addField('project', (body.project || '').trim());
+  if (body.progress !== undefined) addField('progress', parseInt(body.progress, 10) || 0);
+  if (body.done !== undefined) addField('done', body.done ? 1 : 0);
+
   if (fields.length === 0) {
     return jsonResponse({ error: 'Sin campos para actualizar' }, 400, corsHeaders);
   }
- 
+
   fields.push('updated_at = ?');
   values.push(new Date().toISOString());
   // WHERE
   values.push(taskId, userDni.toUpperCase());
- 
+
   try {
     await env.MIRAI_AI_DB.prepare(
       `UPDATE tasks SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`
     ).bind(...values).run();
- 
+
     return jsonResponse({ success: true }, 200, corsHeaders);
   } catch (error) {
     console.error('[Tasks] Error al actualizar:', error);
     return jsonResponse({ error: 'Error al actualizar tarea', details: error.message }, 500, corsHeaders);
   }
 }
- 
+
 /**
  * DELETE /api/tasks/:id
  * Elimina una tarea. Solo el dueño puede eliminarla.
@@ -2707,20 +2862,20 @@ async function handleTaskUpdate(request, env, corsHeaders, taskId) {
 async function handleTaskDelete(request, env, corsHeaders, taskId) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
- 
+
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM tasks WHERE id = ? AND user_dni = ?'
   ).bind(taskId, userDni.toUpperCase()).first();
- 
+
   if (!existing) {
     return jsonResponse({ error: 'Tarea no encontrada o sin permiso' }, 404, corsHeaders);
   }
- 
+
   try {
     await env.MIRAI_AI_DB.prepare(
       'DELETE FROM tasks WHERE id = ? AND user_dni = ?'
     ).bind(taskId, userDni.toUpperCase()).run();
- 
+
     return jsonResponse({ success: true }, 200, corsHeaders);
   } catch (error) {
     console.error('[Tasks] Error al eliminar:', error);

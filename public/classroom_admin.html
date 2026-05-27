@@ -7,64 +7,69 @@
     <title>Panel Docente - Mirai AI</title>
     <style>
         /* Tabs críticos — garantizan el comportamiento correcto */
-        .admin-tab-content          { display: none !important; }
-        .admin-tab-content.active   { display: block !important; }
+        .admin-tab-content {
+            display: none !important;
+        }
+
+        .admin-tab-content.active {
+            display: block !important;
+        }
     </style>
-<script>
-// Restaura el color de acento completo (incluye fondo de página)
-// — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
-(function () {
-    var COLORS = {
-        purple:  { c:'#6750A4', cD:'#D0BCFF', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD:'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', glowD:'rgba(208,188,255,0.15)', sc:'#E8DEF8', scD:'#2A2438', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,27,36,0.96)', bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
-        blue:    { c:'#1565C0', cD:'#90CAF9', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD:'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', glowD:'rgba(144,202,249,0.15)', sc:'#E3F2FD', scD:'#0D1E35', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,21,32,0.96)', bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
-        teal:    { c:'#00695C', cD:'#80CBC4', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD:'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', glowD:'rgba(128,203,196,0.15)', sc:'#E0F2F1', scD:'#0A1F1D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,26,25,0.96)', bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
-        green:   { c:'#2E7D32', cD:'#A5D6A7', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD:'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', glowD:'rgba(165,214,167,0.15)', sc:'#E8F5E9', scD:'#0D1F0E', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(18,24,18,0.96)', bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
-        orange:  { c:'#E65100', cD:'#FFB74D', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD:'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow:'rgba(230,81,0,0.18)', glowD:'rgba(255,183,77,0.15)', sc:'#FFF3E0', scD:'#271A08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(30,22,16,0.96)', bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
-        pink:    { c:'#AD1457', cD:'#F48FB1', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD:'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow:'rgba(173,20,87,0.18)', glowD:'rgba(244,143,177,0.15)', sc:'#FCE4EC', scD:'#250C18', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,24,0.96)', bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
-        red:     { c:'#B71C1C', cD:'#EF9A9A', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD:'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', glowD:'rgba(239,154,154,0.15)', sc:'#FFEBEE', scD:'#250D0D', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(28,18,18,0.96)', bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
-        indigo:  { c:'#283593', cD:'#9FA8DA', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD:'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow:'rgba(40,53,147,0.18)', glowD:'rgba(159,168,218,0.15)', sc:'#E8EAF6', scD:'#0E1020', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(19,19,24,0.96)', bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
-        yellow:  { c:'#F57F17', cD:'#FFF176', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD:'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow:'rgba(245,127,23,0.18)', glowD:'rgba(255,238,88,0.15)', sc:'#FFFDE7', scD:'#1F1C08', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(29,28,16,0.96)', bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
-        slate:   { c:'#37474F', cD:'#B0BEC5', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD:'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow:'rgba(55,71,79,0.18)', glowD:'rgba(176,190,197,0.15)', sc:'#ECEFF1', scD:'#131618', gbg:'rgba(255,255,255,0.94)', gbgD:'rgba(25,28,30,0.96)', bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
-    };
+    <script>
+        // Restaura el color de acento completo (incluye fondo de página)
+        // — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
+        (function () {
+            var COLORS = {
+                purple: { c: '#6750A4', cD: '#D0BCFF', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD: 'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', glowD: 'rgba(208,188,255,0.15)', sc: '#E8DEF8', scD: '#2A2438', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,27,36,0.96)', bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)' },
+                blue: { c: '#1565C0', cD: '#90CAF9', g: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD: 'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow: 'rgba(21,101,192,0.18)', glowD: 'rgba(144,202,249,0.15)', sc: '#E3F2FD', scD: '#0D1E35', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,21,32,0.96)', bg: '#F3F6FB', bgG: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD: '#121520', bgGD: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb: 'rgba(21,101,192,0.12)', gbD: 'rgba(144,202,249,0.10)' },
+                teal: { c: '#00695C', cD: '#80CBC4', g: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD: 'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow: 'rgba(0,105,92,0.18)', glowD: 'rgba(128,203,196,0.15)', sc: '#E0F2F1', scD: '#0A1F1D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,26,25,0.96)', bg: '#F2F9F8', bgG: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD: '#121A19', bgGD: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb: 'rgba(0,105,92,0.12)', gbD: 'rgba(128,203,196,0.10)' },
+                green: { c: '#2E7D32', cD: '#A5D6A7', g: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD: 'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow: 'rgba(46,125,50,0.18)', glowD: 'rgba(165,214,167,0.15)', sc: '#E8F5E9', scD: '#0D1F0E', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,24,18,0.96)', bg: '#F3F9F3', bgG: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD: '#121812', bgGD: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb: 'rgba(46,125,50,0.12)', gbD: 'rgba(165,214,167,0.10)' },
+                orange: { c: '#E65100', cD: '#FFB74D', g: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD: 'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow: 'rgba(230,81,0,0.18)', glowD: 'rgba(255,183,77,0.15)', sc: '#FFF3E0', scD: '#271A08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,22,16,0.96)', bg: '#FBF6F0', bgG: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD: '#1E1610', bgGD: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb: 'rgba(230,81,0,0.12)', gbD: 'rgba(255,183,77,0.10)' },
+                pink: { c: '#AD1457', cD: '#F48FB1', g: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD: 'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow: 'rgba(173,20,87,0.18)', glowD: 'rgba(244,143,177,0.15)', sc: '#FCE4EC', scD: '#250C18', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,24,0.96)', bg: '#FAF2F6', bgG: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD: '#1C1218', bgGD: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb: 'rgba(173,20,87,0.12)', gbD: 'rgba(240,98,146,0.10)' },
+                red: { c: '#B71C1C', cD: '#EF9A9A', g: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD: 'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow: 'rgba(183,28,28,0.18)', glowD: 'rgba(239,154,154,0.15)', sc: '#FFEBEE', scD: '#250D0D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,18,0.96)', bg: '#FAF2F2', bgG: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD: '#1C1212', bgGD: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb: 'rgba(183,28,28,0.12)', gbD: 'rgba(239,83,80,0.10)' },
+                indigo: { c: '#283593', cD: '#9FA8DA', g: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD: 'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow: 'rgba(40,53,147,0.18)', glowD: 'rgba(159,168,218,0.15)', sc: '#E8EAF6', scD: '#0E1020', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(19,19,24,0.96)', bg: '#F3F3FA', bgG: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD: '#131318', bgGD: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb: 'rgba(40,53,147,0.12)', gbD: 'rgba(121,134,203,0.10)' },
+                yellow: { c: '#F57F17', cD: '#FFF176', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD: 'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow: 'rgba(245,127,23,0.18)', glowD: 'rgba(255,238,88,0.15)', sc: '#FFFDE7', scD: '#1F1C08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(29,28,16,0.96)', bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)' },
+                slate: { c: '#37474F', cD: '#B0BEC5', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD: 'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow: 'rgba(55,71,79,0.18)', glowD: 'rgba(176,190,197,0.15)', sc: '#ECEFF1', scD: '#131618', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(25,28,30,0.96)', bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)' }
+            };
 
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
-    var theme = localStorage.getItem('mirai-ai-theme') ||
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
+            var theme = localStorage.getItem('mirai-ai-theme') ||
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    var isDark = theme === 'dark';
+            var isDark = theme === 'dark';
 
-    // Aplicar data-theme inmediatamente para que CSS [data-theme="dark"] funcione
-    document.documentElement.setAttribute('data-theme', theme);
+            // Aplicar data-theme inmediatamente para que CSS [data-theme="dark"] funcione
+            document.documentElement.setAttribute('data-theme', theme);
 
-    if (s.accentColor && COLORS[s.accentColor]) {
-        var c = COLORS[s.accentColor];
-        var r = document.documentElement;
-        r.style.setProperty('--accent-color',        isDark ? c.cD   : c.c);
-        r.style.setProperty('--accent-gradient',     isDark ? c.gD   : c.g);
-        r.style.setProperty('--accent-glow',         isDark ? c.glowD : c.glow);
-        r.style.setProperty('--secondary-container', isDark ? c.scD  : c.sc);
-        r.style.setProperty('--glass-bg',            isDark ? c.gbgD : c.gbg);
-        r.style.setProperty('--glass-border',        isDark ? c.gbD  : c.gb);
-        r.style.setProperty('--message-user-bg',     isDark ? c.glowD.replace('0.15','0.10') : c.glow.replace('0.18','0.08'));
-        r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
-        r.style.setProperty('--bg-primary',          isDark ? c.bgD  : c.bg);
-        r.style.setProperty('--bg-gradient',         isDark ? c.bgGD : c.bgG);
-        r.style.background      = isDark ? c.bgD  : c.bg;
-        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
-    }
-    if (s.fontFamily) {
-        document.documentElement.style.setProperty('--font-family', s.fontFamily);
-    }
-    if (s.fontSize) {
-        document.documentElement.style.fontSize = s.fontSize + 'px';
-    }
-    if (s.reducedMotion) {
-        document.documentElement.classList.add('reduce-motion');
-    }
-})();
-</script>
-<link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="transitions.css">
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor];
+                var r = document.documentElement;
+                r.style.setProperty('--accent-color', isDark ? c.cD : c.c);
+                r.style.setProperty('--accent-gradient', isDark ? c.gD : c.g);
+                r.style.setProperty('--accent-glow', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--secondary-container', isDark ? c.scD : c.sc);
+                r.style.setProperty('--glass-bg', isDark ? c.gbgD : c.gbg);
+                r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                r.style.setProperty('--message-user-bg', isDark ? c.glowD.replace('0.15', '0.10') : c.glow.replace('0.18', '0.08'));
+                r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) {
+                document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            }
+            if (s.fontSize) {
+                document.documentElement.style.fontSize = s.fontSize + 'px';
+            }
+            if (s.reducedMotion) {
+                document.documentElement.classList.add('reduce-motion');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="transitions.css">
 </head>
 
 <body>
@@ -319,9 +324,11 @@
         <div class="courses-toolbar">
             <div class="courses-search">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                    <path
+                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                 </svg>
-                <input type="text" id="dashboard-search" placeholder="Buscar tareas o estudiantes..." autocomplete="off">
+                <input type="text" id="dashboard-search" placeholder="Buscar tareas o estudiantes..."
+                    autocomplete="off">
             </div>
             <button class="btn-primary" onclick="switchTab('create')">➕ Nueva Tarea</button>
         </div>
@@ -385,9 +392,10 @@
 
             <!-- Nav de Tabs (filter-pills reutilizadas como tabs) -->
             <div class="admin-tabs-nav">
-                <button class="admin-tab-btn active" onclick="switchTab('create')" data-tab="create">➕ Crear Tarea</button>
+                <button class="admin-tab-btn active" onclick="switchTab('create')" data-tab="create">➕ Crear
+                    Tarea</button>
                 <button class="admin-tab-btn" onclick="switchTab('list')" data-tab="list">📋 Mis Tareas</button>
-                <button class="admin-tab-btn" onclick="switchTab('students')" data-tab="students">👥 Estudiantes</button>
+                <button class="admin-tab-btn" onclick="switchTab('sections')" data-tab="sections">🗂️ Secciones</button>
             </div>
 
             <!-- TAB: Crear Tarea -->
@@ -396,7 +404,8 @@
                     <div class="course-detail-icon">✏️</div>
                     <div class="course-detail-info">
                         <h2 class="course-detail-title" style="font-size:1.3rem;">Crear Nueva Tarea</h2>
-                        <p class="course-detail-description">Completa los campos para asignar una tarea a tus estudiantes</p>
+                        <p class="course-detail-description">Completa los campos para asignar una tarea a tus
+                            estudiantes</p>
                     </div>
                 </div>
 
@@ -431,7 +440,14 @@
                             <input type="number" id="task-score" value="100" min="1">
                         </div>
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px;">
+                    <div class="form-group">
+                        <label>Sección (Opcional — asigna automáticamente a sus estudiantes)</label>
+                        <select id="task-section-select">
+                            <option value="">Sin sección específica</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary"
+                        style="width: 100%; justify-content: center; padding: 14px;">
                         Crear Tarea
                     </button>
                 </form>
@@ -496,7 +512,66 @@
                     </div>
                 </div>
             </div>
+            <!-- TAB: Secciones -->
+            <div id="tab-sections" class="admin-tab-content">
+                <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
+                    <div class="course-detail-icon">🗂️</div>
+                    <div class="course-detail-info">
+                        <h2 class="course-detail-title" style="font-size:1.3rem;">Gestionar Secciones</h2>
+                        <p class="course-detail-description">Crea grupos de estudiantes por materia</p>
+                    </div>
+                </div>
 
+                <div style="padding: 0 8px 8px;">
+                    <!-- Crear sección -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre de la Sección</label>
+                            <input type="text" id="section-name" placeholder="Ej: Sección A - Turno Mañana">
+                        </div>
+                        <div class="form-group">
+                            <label>Materia</label>
+                            <select id="section-course-select">
+                                <option value="">Selecciona una materia...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción (Opcional)</label>
+                        <input type="text" id="section-desc" placeholder="Ej: Grupo del turno mañana, aula 301">
+                    </div>
+                    <button onclick="createSection()" class="btn-primary" style="margin-bottom: 32px;">
+                        ➕ Crear Sección
+                    </button>
+
+                    <!-- Lista de secciones -->
+                    <h3 class="lessons-section-title">Secciones Existentes</h3>
+                    <div id="sections-list" style="margin-bottom: 32px;">
+                        <p style="color: var(--text-secondary);">Cargando...</p>
+                    </div>
+
+                    <!-- Gestionar estudiantes de una sección -->
+                    <h3 class="lessons-section-title">Estudiantes de la Sección</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Seleccionar Sección</label>
+                            <select id="section-student-select" onchange="loadSectionStudents()">
+                                <option value="">Selecciona una sección...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>DNI del Estudiante</label>
+                            <input type="text" id="section-student-dni" placeholder="Ej: 30840119">
+                        </div>
+                    </div>
+                    <button onclick="addStudentToSection()" class="btn-primary" style="margin-bottom: 24px;">
+                        Agregar a Sección
+                    </button>
+                    <div id="section-students-list" style="max-height: 400px; overflow-y: auto;">
+                        <p style="color: var(--text-secondary);">Selecciona una sección primero</p>
+                    </div>
+                </div>
+            </div>
         </div><!-- /tabs-container -->
 
     </main>
@@ -531,10 +606,10 @@
     <script>
         // ── TABS ──────────────────────────────────────────────
         function switchTab(tabId) {
-            document.querySelectorAll('.admin-tab-content').forEach(function(el) {
+            document.querySelectorAll('.admin-tab-content').forEach(function (el) {
                 el.style.display = 'none';
             });
-            document.querySelectorAll('.admin-tab-btn').forEach(function(btn) {
+            document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
                 btn.classList.remove('active');
             });
             var content = document.getElementById('tab-' + tabId);
@@ -544,9 +619,9 @@
         }
 
         // Inicializar tabs al cargar
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Ocultar todos los tabs con style directo (no depende de CSS externo)
-            document.querySelectorAll('.admin-tab-content').forEach(function(el) {
+            document.querySelectorAll('.admin-tab-content').forEach(function (el) {
                 el.style.display = 'none';
             });
             // Mostrar solo el primero
@@ -556,7 +631,7 @@
             // Botón agregar curso → abrir modal
             var btnAddCourse = document.getElementById('btn-add-course');
             if (btnAddCourse) {
-                btnAddCourse.addEventListener('click', function() {
+                btnAddCourse.addEventListener('click', function () {
                     openModal();
                 });
             }
@@ -586,7 +661,7 @@
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
     <script src="classroom_admin.js" defer></script>
-<script src="transitions.js"></script>
+    <script src="transitions.js"></script>
 </body>
 
 </html>
