@@ -587,7 +587,10 @@ async function loadSections() {
                             <span style="color: var(--text-secondary); font-size: 0.85rem; margin-left: 8px;">📚 ${escapeHtml(sec.course_title || '')}</span>
                             <br><small style="color: var(--text-secondary);">${sec.student_count} estudiante${sec.student_count !== 1 ? 's' : ''}</small>
                         </div>
-                        <button class="action-btn btn-delete" onclick="deleteSection('${sec.id}')">🗑️ Eliminar</button>
+                        <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                            <button class="action-btn btn-edit" onclick="selectSectionForStudents('${sec.id}')">👥 Ver</button>
+                            <button class="action-btn btn-delete" onclick="deleteSection('${sec.id}')">🗑️ Eliminar</button>
+                        </div>
                     `;
                     list.appendChild(div);
                 });
@@ -595,13 +598,18 @@ async function loadSections() {
         }
 
         // Poblar selects de sección
+        // Poblar selects de sección (preservando la selección actual)
         const opts = sections.map(s => `<option value="${s.id}">${escapeHtml(s.name)} — ${escapeHtml(s.course_title || '')}</option>`).join('');
 
         if (sectionStudentSelect) {
+            const prevSectionVal = sectionStudentSelect.value;
             sectionStudentSelect.innerHTML = '<option value="">Selecciona una sección...</option>' + opts;
+            if (prevSectionVal) sectionStudentSelect.value = prevSectionVal;
         }
         if (taskSectionSelect) {
+            const prevTaskSectionVal = taskSectionSelect.value;
             taskSectionSelect.innerHTML = '<option value="">Sin sección específica</option>' + opts;
+            if (prevTaskSectionVal) taskSectionSelect.value = prevTaskSectionVal;
         }
 
     } catch (error) {
@@ -714,8 +722,8 @@ async function addStudentToSection() {
 
         if (res.ok) {
             document.getElementById('section-student-dni').value = '';
-            await loadSectionStudents();
-            await loadSections(); // Actualizar contadores
+            await loadSections();          // Actualiza contadores y preserva selección
+            await loadSectionStudents();   // Recarga la lista del select activo
         } else {
             const err = await res.json();
             alert('❌ Error: ' + err.error);
@@ -741,6 +749,19 @@ async function removeStudentFromSection(sectionId, userDni) {
         }
     } catch (error) {
         alert('Error de conexión');
+    }
+}
+
+function selectSectionForStudents(sectionId) {
+    const select = document.getElementById('section-student-select');
+    if (select) {
+        select.value = sectionId;
+        loadSectionStudents();
+        // Scroll suave hacia la sección de estudiantes
+        setTimeout(() => {
+            document.getElementById('section-students-list')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     }
 }
 
