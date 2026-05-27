@@ -331,11 +331,11 @@
 
         <!-- Estadísticas -->
         <div class="tasks-stats">
-            <div class="stat-card"><div class="stat-card-value" id="stat-total">12</div><div class="stat-card-label">Total de Tareas</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-done">3</div><div class="stat-card-label">Completadas</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-progress">3</div><div class="stat-card-label">En Progreso</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-overdue">2</div><div class="stat-card-label">Vencidas</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-time">50h</div><div class="stat-card-label">Tiempo Estimado</div></div>
+            <div class="stat-card"><div class="stat-card-value" id="stat-total">…</div><div class="stat-card-label">Total de Tareas</div></div>
+            <div class="stat-card"><div class="stat-card-value" id="stat-done">…</div><div class="stat-card-label">Completadas</div></div>
+            <div class="stat-card"><div class="stat-card-value" id="stat-progress">…</div><div class="stat-card-label">En Progreso</div></div>
+            <div class="stat-card"><div class="stat-card-value" id="stat-overdue">…</div><div class="stat-card-label">Vencidas</div></div>
+            <div class="stat-card"><div class="stat-card-value" id="stat-time">…</div><div class="stat-card-label">Tiempo Estimado</div></div>
         </div>
 
         <!-- Proyectos -->
@@ -379,104 +379,32 @@
                         <!-- Pendiente -->
                         <div class="kanban-col" data-col="pendiente">
                             <div class="kanban-col-header">
-                                <div class="kanban-col-title">⬜ Pendiente <span class="kanban-col-badge">4</span></div>
+                                <div class="kanban-col-title">⬜ Pendiente <span class="kanban-col-badge">0</span></div>
                                 <button class="kanban-add-btn" data-col="pendiente">＋</button>
-                            </div>
-                            <div class="task-card" data-priority="alta" data-col="pendiente">
-                                <div class="task-card-header"><span class="task-card-title">Diseñar pantalla de login</span><span class="task-priority alta"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(99,102,241,.12);color:#6366f1;">UI/UX</span><span>⏱ 3h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Ana López">AL</div><span class="task-due">Vence 25 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:30%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="media" data-col="pendiente">
-                                <div class="task-card-header"><span class="task-card-title">Redactar política de privacidad</span><span class="task-priority media"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(234,179,8,.12);color:#ca8a04;">Legal</span><span>⏱ 2h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Carlos R.">CR</div><span class="task-due">Vence 28 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:0%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="baja" data-col="pendiente">
-                                <div class="task-card-header"><span class="task-card-title">Actualizar README del proyecto</span><span class="task-priority baja"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(34,197,94,.12);color:#16a34a;">Docs</span><span>⏱ 1h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Mirai Bot">MB</div><span class="task-due">Vence 30 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:10%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="baja" data-col="pendiente">
-                                <div class="task-card-header"><span class="task-card-title">Documentar endpoints REST</span><span class="task-priority baja"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(34,197,94,.12);color:#16a34a;">Docs</span><span>⏱ 2h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Mirai Bot">MB</div><span class="task-due">Vence 1 jun</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:5%"></div></div>
                             </div>
                             <div class="kanban-drop-zone" data-col="pendiente">＋ Agregar tarea</div>
                         </div>
                         <!-- En Progreso -->
                         <div class="kanban-col" data-col="progreso">
                             <div class="kanban-col-header">
-                                <div class="kanban-col-title">🔵 En Progreso <span class="kanban-col-badge">3</span></div>
+                                <div class="kanban-col-title">🔵 En Progreso <span class="kanban-col-badge">0</span></div>
                                 <button class="kanban-add-btn" data-col="progreso">＋</button>
-                            </div>
-                            <div class="task-card" data-priority="critica" data-col="progreso">
-                                <div class="task-card-header"><span class="task-card-title">Integrar API de pagos</span><span class="task-priority critica"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(239,68,68,.12);color:#ef4444;">Backend</span><span>⏱ 8h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Diego M.">DM</div><span class="task-due vencida">Venció 20 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:60%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="alta" data-col="progreso">
-                                <div class="task-card-header"><span class="task-card-title">Módulo de reportes PDF</span><span class="task-priority alta"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(249,115,22,.12);color:#f97316;">Feature</span><span>⏱ 5h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Ana López">AL</div><span class="task-due">Vence 26 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:45%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="media" data-col="progreso">
-                                <div class="task-card-header"><span class="task-card-title">Optimizar carga de imágenes</span><span class="task-priority media"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(14,165,233,.12);color:#0ea5e9;">Performance</span><span>⏱ 3h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Luis P.">LP</div><span class="task-due">Vence 27 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:75%"></div></div>
                             </div>
                             <div class="kanban-drop-zone" data-col="progreso">＋ Agregar tarea</div>
                         </div>
                         <!-- Revisión -->
                         <div class="kanban-col" data-col="revision">
                             <div class="kanban-col-header">
-                                <div class="kanban-col-title">🟡 Revisión <span class="kanban-col-badge">2</span></div>
+                                <div class="kanban-col-title">🟡 Revisión <span class="kanban-col-badge">0</span></div>
                                 <button class="kanban-add-btn" data-col="revision">＋</button>
-                            </div>
-                            <div class="task-card" data-priority="alta" data-col="revision">
-                                <div class="task-card-header"><span class="task-card-title">Tests E2E del flujo de compra</span><span class="task-priority alta"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(99,102,241,.12);color:#6366f1;">Testing</span><span>⏱ 4h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Sofia R.">SR</div><span class="task-due">Vence 24 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:90%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="baja" data-col="revision">
-                                <div class="task-card-header"><span class="task-card-title">Revisión de accesibilidad WCAG</span><span class="task-priority baja"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(34,197,94,.12);color:#16a34a;">A11y</span><span>⏱ 2h est.</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Carlos R.">CR</div><span class="task-due">Vence 23 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:85%"></div></div>
                             </div>
                             <div class="kanban-drop-zone" data-col="revision">＋ Agregar tarea</div>
                         </div>
                         <!-- Completado -->
                         <div class="kanban-col" data-col="completado">
                             <div class="kanban-col-header">
-                                <div class="kanban-col-title">✅ Completado <span class="kanban-col-badge">3</span></div>
+                                <div class="kanban-col-title">✅ Completado <span class="kanban-col-badge">0</span></div>
                                 <button class="kanban-add-btn" data-col="completado">＋</button>
-                            </div>
-                            <div class="task-card" data-priority="alta" data-col="completado" style="opacity:.7;">
-                                <div class="task-card-header"><span class="task-card-title" style="text-decoration:line-through;">Configurar CI/CD pipeline</span><span class="task-priority alta"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(14,165,233,.12);color:#0ea5e9;">DevOps</span><span>✓ 6h reales</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Diego M.">DM</div><span class="task-due">Completada 18 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:100%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="media" data-col="completado" style="opacity:.7;">
-                                <div class="task-card-header"><span class="task-card-title" style="text-decoration:line-through;">Maqueta del dashboard</span><span class="task-priority media"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(99,102,241,.12);color:#6366f1;">UI/UX</span><span>✓ 4h reales</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Ana López">AL</div><span class="task-due">Completada 15 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:100%"></div></div>
-                            </div>
-                            <div class="task-card" data-priority="critica" data-col="completado" style="opacity:.7;">
-                                <div class="task-card-header"><span class="task-card-title" style="text-decoration:line-through;">Migración de base de datos</span><span class="task-priority critica"></span></div>
-                                <div class="task-card-meta"><span class="task-tag" style="background:rgba(239,68,68,.12);color:#ef4444;">Backend</span><span>✓ 10h reales</span></div>
-                                <div class="task-card-footer"><div class="task-assignee" title="Diego M.">DM</div><span class="task-due">Completada 10 may</span></div>
-                                <div class="task-checklist-bar"><div class="task-checklist-fill" style="width:100%"></div></div>
                             </div>
                             <div class="kanban-drop-zone" data-col="completado">＋ Agregar tarea</div>
                         </div>
@@ -600,197 +528,6 @@
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
     <script src="transitions.js"></script>
-
-    <script>
-    (function(){
-        'use strict';
-        const TASKS=[
-            {id:1,title:'Diseñar pantalla de login',status:'pendiente',priority:'alta',assignee:'AL',tag:'UI/UX',due:'2026-05-25',time:3,done:false,progress:30},
-            {id:2,title:'Redactar política de privacidad',status:'pendiente',priority:'media',assignee:'CR',tag:'Legal',due:'2026-05-28',time:2,done:false,progress:0},
-            {id:3,title:'Actualizar README del proyecto',status:'pendiente',priority:'baja',assignee:'MB',tag:'Docs',due:'2026-05-30',time:1,done:false,progress:10},
-            {id:4,title:'Integrar API de pagos',status:'progreso',priority:'critica',assignee:'DM',tag:'Backend',due:'2026-05-20',time:8,done:false,progress:60},
-            {id:5,title:'Módulo de reportes PDF',status:'progreso',priority:'alta',assignee:'AL',tag:'Feature',due:'2026-05-26',time:5,done:false,progress:45},
-            {id:6,title:'Optimizar carga de imágenes',status:'progreso',priority:'media',assignee:'LP',tag:'Performance',due:'2026-05-27',time:3,done:false,progress:75},
-            {id:7,title:'Tests E2E del flujo de compra',status:'revision',priority:'alta',assignee:'SR',tag:'Testing',due:'2026-05-24',time:4,done:false,progress:90},
-            {id:8,title:'Revisión de accesibilidad WCAG',status:'revision',priority:'baja',assignee:'CR',tag:'A11y',due:'2026-05-23',time:2,done:false,progress:85},
-            {id:9,title:'Configurar CI/CD pipeline',status:'completado',priority:'alta',assignee:'DM',tag:'DevOps',due:'2026-05-18',time:6,done:true,progress:100},
-            {id:10,title:'Maqueta del dashboard',status:'completado',priority:'media',assignee:'AL',tag:'UI/UX',due:'2026-05-15',time:4,done:true,progress:100},
-            {id:11,title:'Migración de base de datos',status:'completado',priority:'critica',assignee:'DM',tag:'Backend',due:'2026-05-10',time:10,done:true,progress:100},
-            {id:12,title:'Documentar endpoints REST',status:'pendiente',priority:'baja',assignee:'MB',tag:'Docs',due:'2026-06-01',time:2,done:false,progress:5},
-        ];
-        const CAL_COLORS={critica:'#ef4444',alta:'#f97316',media:'#eab308',baja:'#22c55e'};
-        const STATUS_LABEL={pendiente:'Pendiente',progreso:'En Progreso',revision:'Revisión',completado:'Completado'};
-        const today=new Date(2026,4,22);
-        let activeView='kanban',calYear=2026,calMonth=4;
-
-        /* Vista tabs */
-        document.querySelectorAll('.view-tab').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                document.querySelectorAll('.view-tab').forEach(b=>b.classList.remove('active'));
-                btn.classList.add('active');
-                activeView=btn.dataset.view;
-                document.querySelectorAll('.view-panel').forEach(p=>p.style.display='none');
-                document.getElementById('view-'+activeView).style.display='';
-                if(activeView==='gantt') renderGantt();
-                if(activeView==='list') renderList();
-                if(activeView==='calendar') renderCalendar();
-            });
-        });
-
-        /* Modal */
-        const overlay=document.getElementById('task-modal-overlay');
-        document.getElementById('open-modal-btn').addEventListener('click',()=>overlay.classList.add('open'));
-        document.getElementById('close-modal-btn').addEventListener('click',()=>overlay.classList.remove('open'));
-        document.getElementById('cancel-modal-btn').addEventListener('click',()=>overlay.classList.remove('open'));
-        overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('open');});
-
-        document.getElementById('save-task-btn').addEventListener('click',()=>{
-            const title=document.getElementById('modal-title').value.trim();
-            if(!title){alert('Escribe un título.');return;}
-            TASKS.push({id:TASKS.length+1,title,status:document.getElementById('modal-status').value,priority:document.getElementById('modal-priority').value,assignee:document.getElementById('modal-assignee').value||'??',tag:document.getElementById('modal-tag').value,due:document.getElementById('modal-date').value,time:parseFloat(document.getElementById('modal-time').value)||0,done:false,progress:0});
-            updateStats();
-            if(activeView==='list') renderList();
-            if(activeView==='gantt') renderGantt();
-            if(activeView==='calendar') renderCalendar();
-            overlay.classList.remove('open');
-            document.getElementById('modal-title').value='';
-        });
-
-        document.getElementById('add-subtask-btn').addEventListener('click',()=>{
-            const item=document.createElement('div');
-            item.className='checklist-item';
-            item.innerHTML='<input class="checklist-checkbox" type="checkbox"> <input type="text" placeholder="Nueva subtarea..." style="border:none;background:transparent;font-size:.85rem;color:var(--text-primary);width:100%;outline:none;">';
-            document.getElementById('modal-checklist').appendChild(item);
-            item.querySelector('input[type=text]').focus();
-        });
-
-        document.querySelectorAll('.kanban-add-btn,.kanban-drop-zone').forEach(el=>{
-            el.addEventListener('click',()=>{document.getElementById('modal-status').value=el.dataset.col||'pendiente';overlay.classList.add('open');});
-        });
-
-        function updateStats(){
-            const total=TASKS.length,done=TASKS.filter(t=>t.status==='completado').length,prog=TASKS.filter(t=>t.status==='progreso').length;
-            const overdue=TASKS.filter(t=>t.due&&new Date(t.due)<today&&t.status!=='completado').length;
-            const time=TASKS.reduce((a,t)=>a+(t.time||0),0);
-            document.getElementById('stat-total').textContent=total;
-            document.getElementById('stat-done').textContent=done;
-            document.getElementById('stat-progress').textContent=prog;
-            document.getElementById('stat-overdue').textContent=overdue;
-            document.getElementById('stat-time').textContent=time+'h';
-        }
-        updateStats();
-
-        /* Vista Lista */
-        function renderList(){
-            const container=document.getElementById('list-rows');container.innerHTML='';
-            const q=document.getElementById('task-search').value.toLowerCase();
-            TASKS.filter(t=>!q||t.title.toLowerCase().includes(q)).forEach(t=>{
-                const dueFmt=t.due?new Date(t.due).toLocaleDateString('es-ES',{day:'numeric',month:'short'}):'—';
-                const vencida=t.due&&new Date(t.due)<today&&!t.done;
-                const row=document.createElement('div');row.className='list-task-row';
-                row.innerHTML=`<div class="list-task-check ${t.done?'done':''}" data-id="${t.id}">${t.done?'✓':''}</div>
-                    <div class="list-task-name ${t.done?'done':''}">${t.title}</div>
-                    <div><span class="priority-badge ${t.priority}">${{critica:'🔴 Crítica',alta:'🟠 Alta',media:'🟡 Media',baja:'🟢 Baja'}[t.priority]}</span></div>
-                    <div style="font-size:.82rem;font-weight:600;">${t.assignee||'—'}</div>
-                    <div style="font-size:.8rem;color:var(--text-secondary);">${STATUS_LABEL[t.status]}</div>
-                    <div style="font-size:.78rem;color:${vencida?'#ef4444':'var(--text-secondary)'};">${dueFmt}</div>
-                    <div style="font-size:.78rem;color:var(--text-secondary);">${t.time?t.time+'h':'—'}</div>`;
-                row.querySelector('.list-task-check').addEventListener('click',e=>{
-                    e.stopPropagation();t.done=!t.done;t.status=t.done?'completado':'pendiente';t.progress=t.done?100:0;updateStats();renderList();
-                });
-                container.appendChild(row);
-            });
-        }
-
-        /* Vista Gantt */
-        function renderGantt(){
-            const dH=document.getElementById('gantt-days-header'),rC=document.getElementById('gantt-rows');
-            dH.innerHTML='';rC.innerHTML='';
-            const startDate=new Date(2026,4,18),totalDays=21,dayWidth=100/totalDays;
-            for(let i=0;i<totalDays;i++){
-                const d=new Date(startDate);d.setDate(startDate.getDate()+i);
-                const isToday=d.toDateString()===today.toDateString();
-                const div=document.createElement('div');div.className='gantt-day'+(isToday?' today':'');
-                div.textContent=d.getDate()+'/'+(d.getMonth()+1);dH.appendChild(div);
-            }
-            TASKS.forEach(t=>{
-                if(!t.due)return;
-                const row=document.createElement('div');row.className='gantt-row';
-                const label=document.createElement('div');label.className='gantt-task-label';label.title=t.title;label.textContent=t.title;row.appendChild(label);
-                const tl=document.createElement('div');tl.className='gantt-timeline-row';
-                const tOff=Math.round((today-startDate)/86400000);
-                if(tOff>=0&&tOff<totalDays){const tl2=document.createElement('div');tl2.className='gantt-today-line';tl2.style.left=(tOff*dayWidth)+'%';tl.appendChild(tl2);}
-                const dueDate=new Date(t.due),endOff=Math.round((dueDate-startDate)/86400000),dur=Math.max(2,Math.min(5,Math.ceil(t.time/2))),startOff=Math.max(0,endOff-dur);
-                if(endOff>=0&&startOff<totalDays){
-                    const cs=Math.max(0,startOff),ce=Math.min(totalDays,endOff+1);
-                    const bar=document.createElement('div');bar.className='gantt-bar-wrap';bar.title=t.title;
-                    bar.style.left=(cs*dayWidth)+'%';bar.style.width=((ce-cs)*dayWidth)+'%';bar.style.background=CAL_COLORS[t.priority];
-                    bar.textContent=t.title.split(' ').slice(0,2).join(' ');tl.appendChild(bar);
-                }
-                row.appendChild(tl);rC.appendChild(row);
-            });
-        }
-
-        /* Vista Calendario */
-        function renderCalendar(){
-            const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-            document.getElementById('cal-month-label').textContent=months[calMonth]+' '+calYear;
-            const grid=document.getElementById('cal-grid');grid.innerHTML='';
-            const firstDay=new Date(calYear,calMonth,1);
-            let startDow=firstDay.getDay();startDow=startDow===0?6:startDow-1;
-            const dim=new Date(calYear,calMonth+1,0).getDate(),diPrev=new Date(calYear,calMonth,0).getDate();
-            const total=Math.ceil((startDow+dim)/7)*7;
-            const tbd={};TASKS.forEach(t=>{if(!t.due){return;}if(!tbd[t.due])tbd[t.due]=[];tbd[t.due].push(t);});
-            for(let i=0;i<total;i++){
-                const cell=document.createElement('div');cell.className='cal-cell';
-                let dn,y=calYear,m=calMonth;
-                if(i<startDow){dn=diPrev-startDow+i+1;m--;if(m<0){m=11;y--;}cell.classList.add('other-month');}
-                else if(i>=startDow+dim){dn=i-startDow-dim+1;m++;if(m>11){m=0;y++;}cell.classList.add('other-month');}
-                else{dn=i-startDow+1;}
-                if(dn===today.getDate()&&m===today.getMonth()&&y===today.getFullYear())cell.classList.add('today');
-                const dd=document.createElement('div');dd.className='cal-date';dd.textContent=dn;cell.appendChild(dd);
-                const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(dn).padStart(2,'0');
-                if(tbd[key])tbd[key].slice(0,3).forEach(t=>{const pill=document.createElement('span');pill.className='cal-task-pill';pill.style.background=CAL_COLORS[t.priority];pill.title=t.title;pill.textContent=t.title;cell.appendChild(pill);});
-                grid.appendChild(cell);
-            }
-        }
-        document.getElementById('cal-prev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();});
-        document.getElementById('cal-next').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();});
-
-        /* Búsqueda */
-        document.getElementById('task-search').addEventListener('input',()=>{if(activeView==='list')renderList();});
-
-        /* Filtros prioridad */
-        document.querySelectorAll('[data-priority]').forEach(btn=>{
-            btn.addEventListener('click',()=>{
-                document.querySelectorAll('[data-priority]').forEach(b=>b.classList.remove('active'));
-                btn.classList.add('active');
-                const p=btn.dataset.priority;
-                document.querySelectorAll('.task-card').forEach(c=>{c.style.display=(p==='todas'||c.dataset.priority===p)?'':'none';});
-                if(activeView==='list')renderList();
-            });
-        });
-
-        /* Proyectos */
-        document.querySelectorAll('.project-chip').forEach(c=>{
-            c.addEventListener('click',()=>{document.querySelectorAll('.project-chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');});
-        });
-
-        /* IA */
-        document.getElementById('ai-generate-btn').addEventListener('click',async()=>{
-            const input=document.getElementById('ai-task-input').value.trim();
-            if(!input)return;
-            const resultDiv=document.getElementById('ai-result');
-            resultDiv.style.display='';resultDiv.textContent='✨ Generando con IA...';
-            try{
-                const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Eres un asistente de gestión de tareas. Para la siguiente tarea, genera en español:\n1. Descripción clara (2-3 oraciones)\n2. Prioridad sugerida (Baja/Media/Alta/Crítica) con razón breve\n3. 3-4 subtareas concretas\n\nTarea: "${input}"\n\nResponde en formato limpio sin Markdown.`}]})});
-                const data=await res.json();
-                const text=data.content?.map(c=>c.text||'').join('')||'Sin respuesta.';
-                resultDiv.textContent=text;
-            }catch(e){resultDiv.textContent='⚠️ No se pudo conectar con la IA.';}
-        });
-        document.getElementById('ai-suggest-btn').addEventListener('click',()=>{document.getElementById('ai-task-input').focus();document.getElementById('ai-task-input').scrollIntoView({behavior:'smooth'});});
-    })();
-    </script>
+    <script src="task.js" defer></script>
 </body>
 </html>

@@ -1694,6 +1694,27 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return await handleUpload(request, env, corsHeaders);
     }
 
+    // ── TAREAS DE USUARIO ─────────────────────────────────────────
+    // GET  /api/tasks           → listar tareas del usuario
+    // POST /api/tasks           → crear tarea
+    if (path === '/api/tasks') {
+      if (request.method === 'GET')
+        return handleTaskList(request, env, corsHeaders);
+      if (request.method === 'POST')
+        return handleTaskCreate(request, env, corsHeaders);
+    }
+
+    // PUT    /api/tasks/:id     → actualizar tarea
+    // DELETE /api/tasks/:id     → eliminar tarea
+    const taskMatch = path.match(/^\/api\/tasks\/([^/]+)$/);
+    if (taskMatch) {
+      const taskId = taskMatch[1];
+      if (request.method === 'PUT')
+        return handleTaskUpdate(request, env, corsHeaders, taskId);
+      if (request.method === 'DELETE')
+        return handleTaskDelete(request, env, corsHeaders, taskId);
+    }
+
     // ── RUTAS APA 7 ────────────────────────────────────────────
     if (path === '/api/apa/upload' && request.method === 'POST') {
       return await handleApaUpload(request, env, corsHeaders);
@@ -2466,6 +2487,194 @@ NO agregues texto adicional fuera del JSON.`;
       500,
       corsHeaders
     );
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   BLOQUE B — Pegar DESPUÉS de handleApiRequest() (como funciones
+   de nivel superior en el módulo, igual que handleProjectList etc.)
+   ════════════════════════════════════════════════════════════════ */
+
+/**
+ * GET /api/tasks
+ * Devuelve todas las tareas del usuario autenticado.
+ * Cada usuario solo ve SUS propias tareas.
+ */
+async function handleTaskList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT
+        id, title, description, status, priority,
+        assignee, tag, due_date, estimated_time, progress,
+        project, done, created_at, updated_at
+      FROM tasks
+      WHERE user_dni = ?
+      ORDER BY created_at DESC
+    `).bind(userDni.toUpperCase()).all();
+
+    return jsonResponse(results, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Tasks] Error al listar:', error);
+    return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * POST /api/tasks
+ * Crea una nueva tarea asociada al usuario autenticado.
+ * Body: { title, description?, status?, priority?, assignee?,
+ *         tag?, due_date?, estimated_time?, project? }
+ */
+async function handleTaskCreate(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const { title, description, status, priority, assignee, tag, due_date, estimated_time, project } = body;
+
+  if (!title || !title.trim()) {
+    return jsonResponse({ error: 'El título es obligatorio' }, 400, corsHeaders);
+  }
+
+  const VALID_STATUS = ['pendiente', 'progreso', 'revision', 'completado'];
+  const VALID_PRIORITY = ['baja', 'media', 'alta', 'critica'];
+
+  if (status && !VALID_STATUS.includes(status)) {
+    return jsonResponse({ error: `Estado inválido: ${status}` }, 400, corsHeaders);
+  }
+  if (priority && !VALID_PRIORITY.includes(priority)) {
+    return jsonResponse({ error: `Prioridad inválida: ${priority}` }, 400, corsHeaders);
+  }
+
+  try {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO tasks
+        (id, user_dni, title, description, status, priority,
+         assignee, tag, due_date, estimated_time, progress,
+         project, done, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?)
+    `).bind(
+      id,
+      userDni.toUpperCase(),
+      title.trim(),
+      (description || '').trim(),
+      status || 'pendiente',
+      priority || 'media',
+      (assignee || '').trim(),
+      (tag || '').trim(),
+      due_date || null,
+      parseFloat(estimated_time) || 0,
+      (project || '').trim(),
+      now,
+      now
+    ).run();
+
+    return jsonResponse({ success: true, id }, 201, corsHeaders);
+  } catch (error) {
+    console.error('[Tasks] Error al crear:', error);
+    return jsonResponse({ error: 'Error al crear tarea', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * PUT /api/tasks/:id
+ * Actualiza cualquier campo de una tarea.
+ * Solo el dueño (user_dni) puede actualizar.
+ * Body: Partial<{ title, description, status, priority, assignee,
+ *                 tag, due_date, estimated_time, project, progress, done }>
+ */
+async function handleTaskUpdate(request, env, corsHeaders, taskId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  // Verificar propiedad
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id FROM tasks WHERE id = ? AND user_dni = ?'
+  ).bind(taskId, userDni.toUpperCase()).first();
+
+  if (!existing) {
+    return jsonResponse({ error: 'Tarea no encontrada o sin permiso' }, 404, corsHeaders);
+  }
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  // Construir SET dinámico con solo los campos enviados
+  const fields = [];
+  const values = [];
+
+  const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
+
+  if (body.title !== undefined) addField('title', body.title.trim());
+  if (body.description !== undefined) addField('description', (body.description || '').trim());
+  if (body.status !== undefined) addField('status', body.status);
+  if (body.priority !== undefined) addField('priority', body.priority);
+  if (body.assignee !== undefined) addField('assignee', (body.assignee || '').trim());
+  if (body.tag !== undefined) addField('tag', (body.tag || '').trim());
+  if (body.due_date !== undefined) addField('due_date', body.due_date || null);
+  if (body.estimated_time !== undefined) addField('estimated_time', parseFloat(body.estimated_time) || 0);
+  if (body.project !== undefined) addField('project', (body.project || '').trim());
+  if (body.progress !== undefined) addField('progress', parseInt(body.progress, 10) || 0);
+  if (body.done !== undefined) addField('done', body.done ? 1 : 0);
+
+  if (fields.length === 0) {
+    return jsonResponse({ error: 'Sin campos para actualizar' }, 400, corsHeaders);
+  }
+
+  fields.push('updated_at = ?');
+  values.push(new Date().toISOString());
+  // WHERE
+  values.push(taskId, userDni.toUpperCase());
+
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `UPDATE tasks SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`
+    ).bind(...values).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Tasks] Error al actualizar:', error);
+    return jsonResponse({ error: 'Error al actualizar tarea', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * DELETE /api/tasks/:id
+ * Elimina una tarea. Solo el dueño puede eliminarla.
+ */
+async function handleTaskDelete(request, env, corsHeaders, taskId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id FROM tasks WHERE id = ? AND user_dni = ?'
+  ).bind(taskId, userDni.toUpperCase()).first();
+
+  if (!existing) {
+    return jsonResponse({ error: 'Tarea no encontrada o sin permiso' }, 404, corsHeaders);
+  }
+
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      'DELETE FROM tasks WHERE id = ? AND user_dni = ?'
+    ).bind(taskId, userDni.toUpperCase()).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Tasks] Error al eliminar:', error);
+    return jsonResponse({ error: 'Error al eliminar tarea', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -6774,7 +6983,7 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
     console.log('🎵 Prompt original:', prompt);
 
     // PASAR userDni
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, model=AI_MODEL_NORMAL);
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, model = AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     // 2. Limpiar y simplificar el prompt para MiniMax
