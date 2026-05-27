@@ -1468,22 +1468,64 @@
     ];
 
     /* ─────────────────────────────────────────
-       ESTADO DE LA APLICACIÓN (localStorage)
+       ESTADO DE LA APLICACIÓN (D1 por usuario)
     ───────────────────────────────────────── */
-    const STATE_KEY = 'mirai-diet-state';
-    function loadState() {
-      try { return JSON.parse(localStorage.getItem(STATE_KEY)) || {}; } catch { return {}; }
-    }
-    function saveState(state) {
-      try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch {}
-    }
+    let state = {
+      planner:  {},   // { 'lun-desayuno': recipeId, ... }
+      log:      [],   // [ {name, kcal, prot, carb, fat, portion, emoji, ts} ]
+      shopping: {},   // { itemName: {display, count, checked} }
+      goals:    { kcal:2000, prot:150, carb:220, fat:65 }
+    };
 
-    let state = loadState();
-    if (!state.planner) state.planner = {};            // { 'lun-desayuno': recipeId, ... }
-    if (!state.log)     state.log = [];                // [ {name, kcal, prot, carb, fat, portion, emoji, ts} ]
-    if (!state.history) state.history = [];            // [ {date, meals:[...]} ]
-    if (!state.shopping) state.shopping = {};          // { itemName: {qty, checked} }
-    if (!state.goals)   state.goals = { kcal:2000, prot:150, carb:220, fat:65 };
+    // ─── Capa de persistencia contra la DB ───────────────────────────────
+    const DB = {
+      _put(endpoint, data) {
+        fetch('/api/diet/' + endpoint, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        }).catch(e => console.warn('[Diet DB] save error:', e));
+      },
+      _del(endpoint) {
+        fetch('/api/diet/' + endpoint, { method: 'DELETE' })
+          .catch(e => console.warn('[Diet DB] delete error:', e));
+      },
+      saveGoals()    { this._put('goals',    state.goals);    },
+      savePlanner()  { this._put('planner',  state.planner);  },
+      clearPlanner() { this._del('planner');                   },
+      saveLog()      { this._put('log',      state.log);      },
+      clearLog()     { this._del('log');                       },
+      saveShopping() { this._put('shopping', state.shopping); },
+      async getHistory() {
+        try {
+          const r = await fetch('/api/diet/history');
+          if (!r.ok) return [];
+          return await r.json();
+        } catch { return []; }
+      },
+      postHistory(entry) {
+        return fetch('/api/diet/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entry)
+        });
+      }
+    };
+
+    // ─── Carga inicial desde la DB ────────────────────────────────────────
+    async function initDietState() {
+      try {
+        const r = await fetch('/api/diet/state');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const s = await r.json();
+        state.goals    = s.goals    || state.goals;
+        state.planner  = s.planner  || {};
+        state.log      = s.log      || [];
+        state.shopping = s.shopping || {};
+      } catch(e) {
+        console.warn('[Diet DB] load error (usando estado vacío):', e);
+      }
+    }
 
     const DAYS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
     const MEALS  = ['🌅 Desayuno','🌞 Almuerzo','🌙 Cena'];
@@ -1654,7 +1696,7 @@
         portion: `${currentPortions} porción${currentPortions > 1 ? 'es' : ''}`,
         ts: new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' })
       });
-      saveState(state);
+      DB.saveLog();
       renderFoodLog();
       document.getElementById('recipe-overlay').classList.remove('open');
       // Cambiar a pestaña contador
@@ -1746,7 +1788,7 @@
         item.addEventListener('click', () => {
           if (!planTarget) return;
           state.planner[planTarget.key] = parseInt(item.dataset.rid);
-          saveState(state);
+          DB.savePlanner();
           renderPlanner();
           document.getElementById('plan-selector-overlay').classList.remove('open');
           pendingRecipeForPlan = null;
@@ -1766,7 +1808,7 @@
     document.getElementById('plan-remove-meal').addEventListener('click', () => {
       if (!planTarget) return;
       delete state.planner[planTarget.key];
-      saveState(state);
+      DB.savePlanner();
       renderPlanner();
       document.getElementById('plan-selector-overlay').classList.remove('open');
     });
@@ -1774,7 +1816,7 @@
     document.getElementById('btn-clear-plan').addEventListener('click', () => {
       if (!confirm('¿Limpiar el plan completo?')) return;
       state.planner = {};
-      saveState(state);
+      DB.clearPlanner();
       renderPlanner();
     });
     document.getElementById('btn-gen-shopping').addEventListener('click', () => {
@@ -1785,8 +1827,6 @@
       document.querySelector('[data-panel="ia"]').click();
       document.querySelector('[data-mode="plan"]').click();
     });
-
-    renderPlanner();
 
     /* ─────────────────────────────────────────
        PANEL 3 – CONTADOR CALÓRICO
@@ -1799,15 +1839,13 @@
           carb: +document.getElementById('goal-carb').value,
           fat:  +document.getElementById('goal-fat').value
         };
-        saveState(state);
+        DB.saveGoals();
         renderMacroCards();
       });
     });
-    // Restaurar objetivos
-    document.getElementById('goal-kcal').value = state.goals.kcal;
-    document.getElementById('goal-prot').value = state.goals.prot;
-    document.getElementById('goal-carb').value = state.goals.carb;
-    document.getElementById('goal-fat').value  = state.goals.fat;
+    /* ─────────────────────────────────────────
+       PANEL 4 – LISTA DE COMPRAS
+    ───────────────────────────────────────── */
 
     function getTotals() {
       return state.log.reduce((acc, item) => ({
@@ -1864,7 +1902,7 @@
       container.querySelectorAll('.fli-del').forEach(btn => {
         btn.addEventListener('click', () => {
           state.log.splice(parseInt(btn.dataset.index), 1);
-          saveState(state);
+          DB.saveLog();
           renderFoodLog();
         });
       });
@@ -1873,7 +1911,7 @@
     document.getElementById('btn-clear-log').addEventListener('click', () => {
       if (!confirm('¿Limpiar el registro de hoy?')) return;
       state.log = [];
-      saveState(state);
+      DB.clearLog();
       renderFoodLog();
     });
 
@@ -1884,14 +1922,12 @@
       if (!name) { document.getElementById('aff-name').focus(); return; }
       state.log.push({ name, kcal, prot:0, carb:0, fat:0, portion, emoji:'🍽️',
         ts: new Date().toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'}) });
-      saveState(state);
+      DB.saveLog();
       renderFoodLog();
       document.getElementById('aff-name').value  = '';
       document.getElementById('aff-kcal').value  = '';
       document.getElementById('aff-portion').value = '';
     });
-
-    renderFoodLog();
 
     /* ─────────────────────────────────────────
        PANEL 4 – LISTA DE COMPRAS
@@ -1912,7 +1948,7 @@
       Object.entries(ingredientMap).forEach(([key, val]) => {
         state.shopping[key] = { display: val.raw, count: val.count, checked: false };
       });
-      saveState(state);
+      DB.saveShopping();
       renderShoppingList();
     }
 
@@ -1968,7 +2004,7 @@
     window.toggleShoppingItem = function(key, checked) {
       if (state.shopping[key]) {
         state.shopping[key].checked = checked;
-        saveState(state);
+        DB.saveShopping();
         renderShoppingList();
       }
     };
@@ -1976,18 +2012,18 @@
     document.getElementById('btn-print-list').addEventListener('click', () => window.print());
     document.getElementById('btn-uncheck-all').addEventListener('click', () => {
       Object.values(state.shopping).forEach(v => v.checked = false);
-      saveState(state);
+      DB.saveShopping();
       renderShoppingList();
     });
-
-    renderShoppingList();
 
     /* ─────────────────────────────────────────
        PANEL 5 – HISTORIAL
     ───────────────────────────────────────── */
-    function renderHistory() {
+    async function renderHistory() {
       const cont = document.getElementById('history-content');
-      if (state.history.length === 0) {
+      cont.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:0.85rem;">Cargando historial…</div>';
+      const records = await DB.getHistory();
+      if (records.length === 0) {
         const today = getTotals();
         if (state.log.length > 0) {
           const dateStr = new Date().toLocaleDateString('es', { weekday:'long', day:'numeric', month:'long' });
@@ -2016,13 +2052,13 @@
         }
         return;
       }
-      cont.innerHTML = state.history.map(day => `
+      cont.innerHTML = records.map(day => `
         <div class="history-day">
           <div class="history-day-head">
             <span class="hd-date">📅 ${day.date}</span>
             <span class="hd-total">${day.totalKcal} kcal · P:${day.prot}g · C:${day.carb}g · G:${day.fat}g</span>
           </div>
-          ${day.meals.map(m => `
+          ${(day.meals || []).map(m => `
             <div class="history-meal">
               <span class="hm-icon">${m.emoji || '🍽️'}</span>
               <div class="hm-info"><div class="hm-name">${m.name}</div><div class="hm-time">${m.time || ''}</div></div>
@@ -2033,23 +2069,24 @@
       `).join('');
     }
 
-    document.getElementById('btn-log-today').addEventListener('click', () => {
+    document.getElementById('btn-log-today').addEventListener('click', async () => {
       if (state.log.length === 0) { showToast('No hay alimentos en el contador de hoy'); return; }
       const t = getTotals();
       const dateStr = new Date().toLocaleDateString('es', { weekday:'long', day:'numeric', month:'long' });
-      state.history.unshift({
+      const btn = document.getElementById('btn-log-today');
+      btn.disabled = true;
+      await DB.postHistory({
         date: dateStr,
         totalKcal: t.kcal, prot: t.prot, carb: t.carb, fat: t.fat,
         meals: state.log.map(item => ({ name:item.name, emoji:item.emoji, kcal:item.kcal, time:item.ts }))
       });
       state.log = [];
-      saveState(state);
+      DB.clearLog();
+      btn.disabled = false;
       renderFoodLog();
       renderHistory();
       showToast('✅ Día registrado en el historial');
     });
-
-    renderHistory();
 
     /* ─────────────────────────────────────────
        PANEL 6 – IA NUTRICIONAL
@@ -2186,6 +2223,19 @@
 
     // Sincronizar historial desde contador cuando se cambia a pestaña historial
     document.querySelector('[data-panel="historial"]')?.addEventListener('click', renderHistory, { once: false });
+
+    // ─── Inicialización async: carga desde DB y renderiza ────────────────
+    initDietState().then(() => {
+      // Restaurar inputs de objetivos
+      document.getElementById('goal-kcal').value = state.goals.kcal;
+      document.getElementById('goal-prot').value = state.goals.prot;
+      document.getElementById('goal-carb').value = state.goals.carb;
+      document.getElementById('goal-fat').value  = state.goals.fat;
+      // Renderizar paneles con los datos del usuario
+      renderPlanner();
+      renderFoodLog();
+      renderShoppingList();
+    });
 
     })(); // IIFE
     </script>
