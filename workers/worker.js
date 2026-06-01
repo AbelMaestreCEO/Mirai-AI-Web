@@ -5444,7 +5444,7 @@ REGLAS OBLIGATORIAS:
   // DeepSeek usará esos títulos para construir las citas (regla 9 del systemPrompt).
 
   const summary = await callAI(
-    AI_MODEL_PRO,
+    AI_MODEL_NORMAL,
     [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
     { temperature: 0.4, max_tokens: 3000 },
     env
