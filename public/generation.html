@@ -61,8 +61,16 @@
             flex-direction: column;
             transition: margin-left 0.3s ease;
         }
-        body.sidebar-collapsed .gen-page-content { margin-left: 60px; }
-        @media (max-width: 768px) { .gen-page-content { margin-left: 0; } }
+
+        body.sidebar-collapsed .gen-page-content {
+            margin-left: 60px;
+        }
+
+        @media (max-width: 768px) {
+            .gen-page-content {
+                margin-left: 0;
+            }
+        }
 
         /* ── Hero + input superior (estilo investigation) ── */
         .gen-hero-zone {
@@ -73,25 +81,36 @@
             padding: 52px 24px 28px;
             text-align: center;
         }
+
         .gen-hero-icon {
             font-size: 3rem;
             margin-bottom: 12px;
             display: block;
-            animation: gen-icon-in 0.6s cubic-bezier(0.16,1,0.3,1) both;
+            animation: gen-icon-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
+
         @keyframes gen-icon-in {
-            from { opacity:0; transform: scale(0.7) translateY(10px); }
-            to   { opacity:1; transform: scale(1) translateY(0); }
+            from {
+                opacity: 0;
+                transform: scale(0.7) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
         }
+
         .gen-hero-title {
             font-size: clamp(1.6rem, 4vw, 2.2rem);
             font-weight: 700;
-            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
             margin: 0 0 6px;
         }
+
         .gen-hero-subtitle {
             font-size: 0.93rem;
             color: var(--text-secondary, #888);
@@ -107,20 +126,31 @@
             width: 100%;
             max-width: 720px;
             background: var(--gen-input-bg, #ffffff);
-            border: 2px solid var(--glass-border, rgba(103,80,164,0.2));
+            border: 2px solid var(--glass-border, rgba(103, 80, 164, 0.2));
             border-radius: 999px;
             padding: 10px 10px 10px 22px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
             transition: border-color 0.2s, box-shadow 0.2s;
             box-sizing: border-box;
         }
-        :root .gen-input-wrapper            { --gen-input-bg: #ffffff; }
-        [data-theme="dark"] .gen-input-wrapper { --gen-input-bg: #1e1b26; }
-        .gen-input-wrapper:hover            { border-color: var(--accent-color, #6750A4); }
-        .gen-input-wrapper:focus-within     {
-            border-color: var(--accent-color, #6750A4);
-            box-shadow: 0 2px 16px rgba(0,0,0,0.08), 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.18));
+
+        :root .gen-input-wrapper {
+            --gen-input-bg: #ffffff;
         }
+
+        [data-theme="dark"] .gen-input-wrapper {
+            --gen-input-bg: #1e1b26;
+        }
+
+        .gen-input-wrapper:hover {
+            border-color: var(--accent-color, #6750A4);
+        }
+
+        .gen-input-wrapper:focus-within {
+            border-color: var(--accent-color, #6750A4);
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08), 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.18));
+        }
+
         .gen-input-wrapper textarea {
             flex: 1;
             background: transparent !important;
@@ -138,7 +168,11 @@
             max-height: 100px;
             font-family: inherit;
         }
-        .gen-input-wrapper textarea::placeholder { color: var(--text-secondary, #aaa); }
+
+        .gen-input-wrapper textarea::placeholder {
+            color: var(--text-secondary, #aaa);
+        }
+
         .gen-input-wrapper .send-button {
             flex-shrink: 0;
             width: 42px;
@@ -169,8 +203,13 @@
         }
 
         /* ── Paneles ── */
-        .gen-panel { display: none; }
-        .gen-panel.active { display: block; }
+        .gen-panel {
+            display: none;
+        }
+
+        .gen-panel.active {
+            display: block;
+        }
 
         /* ── Sección de opciones dentro de cada panel ── */
         .gen-options-label {
@@ -181,6 +220,7 @@
             color: var(--text-secondary, #999);
             margin: 0 0 10px;
         }
+
         .gen-options-row {
             display: flex;
             flex-wrap: wrap;
@@ -191,18 +231,30 @@
         /* ── Tarjeta de resultado (misma base que inv-summary-box) ── */
         .gen-result-card {
             display: none;
-            background: var(--glass-bg, rgba(255,255,255,0.94));
-            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+            background: var(--glass-bg, rgba(255, 255, 255, 0.94));
+            border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
             border-radius: 18px;
             padding: 28px;
-            box-shadow: 0 2px 16px var(--accent-glow, rgba(103,80,164,0.06));
+            box-shadow: 0 2px 16px var(--accent-glow, rgba(103, 80, 164, 0.06));
             animation: gen-fade-up 0.45s ease both;
         }
-        .gen-result-card.visible { display: block; }
-        @keyframes gen-fade-up {
-            from { opacity:0; transform: translateY(16px); }
-            to   { opacity:1; transform: translateY(0); }
+
+        .gen-result-card.visible {
+            display: block;
         }
+
+        @keyframes gen-fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .gen-result-header {
             display: flex;
             align-items: center;
@@ -211,6 +263,7 @@
             gap: 10px;
             margin-bottom: 18px;
         }
+
         .gen-result-title {
             font-size: 1rem;
             font-weight: 700;
@@ -219,6 +272,7 @@
             align-items: center;
             gap: 8px;
         }
+
         .gen-result-badge {
             font-size: 0.7rem;
             padding: 3px 11px;
@@ -227,6 +281,7 @@
             color: var(--accent-color, #6750A4);
             font-weight: 600;
         }
+
         /* Texto generado */
         .gen-text-output {
             font-size: 0.95rem;
@@ -235,6 +290,7 @@
             white-space: pre-wrap;
             word-break: break-word;
         }
+
         /* Imagen generada */
         .gen-image-output {
             width: 100%;
@@ -242,12 +298,14 @@
             display: block;
             margin: 0 auto;
         }
+
         /* Video generado */
         .gen-video-output {
             width: 100%;
             border-radius: 12px;
             display: block;
         }
+
         /* Audio generado */
         .gen-audio-output {
             width: 100%;
@@ -271,8 +329,17 @@
             font-family: inherit;
             text-decoration: none;
         }
-        .gen-action-btn:hover  { background: var(--accent-color, #6750A4); color: #fff; }
-        .gen-action-btn.copied { background: #34c759; border-color: #34c759; color: #fff; }
+
+        .gen-action-btn:hover {
+            background: var(--accent-color, #6750A4);
+            color: #fff;
+        }
+
+        .gen-action-btn.copied {
+            background: #34c759;
+            border-color: #34c759;
+            color: #fff;
+        }
 
         /* ── Loading ── */
         .gen-loading {
@@ -283,21 +350,38 @@
             padding: 36px 0 44px;
             text-align: center;
         }
-        .gen-loading.visible { display: flex; }
+
+        .gen-loading.visible {
+            display: flex;
+        }
+
         .gen-orb {
             width: 64px;
             height: 64px;
             border-radius: 50%;
-            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
-            box-shadow: 0 0 0 0 var(--accent-glow, rgba(103,80,164,0.4));
+            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
+            box-shadow: 0 0 0 0 var(--accent-glow, rgba(103, 80, 164, 0.4));
             animation: gen-pulse 1.8s ease-in-out infinite;
             position: relative;
         }
+
         @keyframes gen-pulse {
-            0%   { transform: scale(1);    box-shadow: 0 0 0 0   var(--accent-glow, rgba(103,80,164,0.35)); }
-            50%  { transform: scale(1.08); box-shadow: 0 0 0 16px transparent; }
-            100% { transform: scale(1);    box-shadow: 0 0 0 0   transparent; }
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 var(--accent-glow, rgba(103, 80, 164, 0.35));
+            }
+
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 0 0 16px transparent;
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 transparent;
+            }
         }
+
         .gen-orb-icon {
             position: absolute;
             inset: 0;
@@ -306,24 +390,33 @@
             justify-content: center;
             font-size: 1.5rem;
         }
+
         .gen-progress-bar {
             width: min(340px, 80vw);
             height: 4px;
             border-radius: 999px;
-            background: var(--glass-border, rgba(103,80,164,0.15));
+            background: var(--glass-border, rgba(103, 80, 164, 0.15));
             overflow: hidden;
         }
+
         .gen-progress-fill {
             height: 100%;
             width: 38%;
             border-radius: 999px;
-            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
             animation: gen-slide 1.5s ease-in-out infinite;
         }
+
         @keyframes gen-slide {
-            0%   { transform: translateX(-120%); }
-            100% { transform: translateX(380%); }
+            0% {
+                transform: translateX(-120%);
+            }
+
+            100% {
+                transform: translateX(380%);
+            }
         }
+
         .gen-loading-text {
             font-size: 0.95rem;
             font-weight: 600;
@@ -341,12 +434,156 @@
             font-size: 0.88rem;
             margin-bottom: 16px;
         }
-        .gen-error.visible { display: block; }
+
+        .gen-error.visible {
+            display: block;
+        }
+
+        /* ── Historial ── */
+        .gen-history-section {
+            margin-top: 36px;
+            border-top: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
+            padding-top: 28px;
+        }
+
+        .gen-history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .gen-history-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary, #333);
+            margin: 0;
+        }
+
+        .gen-history-empty {
+            text-align: center;
+            padding: 36px 0;
+            color: var(--text-secondary, #aaa);
+            font-size: 0.92rem;
+        }
+
+        .gen-history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .gen-hist-card {
+            background: var(--glass-bg, rgba(255, 255, 255, 0.94));
+            border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 1px 8px var(--accent-glow, rgba(103, 80, 164, 0.05));
+            animation: gen-fade-up 0.3s ease both;
+        }
+
+        .gen-hist-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .gen-hist-badge {
+            font-size: 0.68rem;
+            padding: 2px 9px;
+            border-radius: 999px;
+            background: var(--secondary-container, #E8DEF8);
+            color: var(--accent-color, #6750A4);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .gen-hist-date {
+            font-size: 0.7rem;
+            color: var(--text-secondary, #aaa);
+            white-space: nowrap;
+        }
+
+        .gen-hist-prompt {
+            font-size: 0.82rem;
+            color: var(--text-secondary, #888);
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.5;
+        }
+
+        .gen-hist-preview-text {
+            font-size: 0.88rem;
+            color: var(--text-primary, #333);
+            line-height: 1.6;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            white-space: pre-wrap;
+        }
+
+        .gen-hist-img {
+            width: 100%;
+            border-radius: 8px;
+            display: block;
+            max-height: 180px;
+            object-fit: cover;
+        }
+
+        .gen-hist-audio {
+            width: 100%;
+        }
+
+        .gen-hist-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 2px;
+        }
+
+        .gen-hist-del-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary, #aaa);
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+            font-family: inherit;
+        }
+
+        .gen-hist-del-btn:hover {
+            color: #B71C1C;
+            background: #FFEBEE;
+        }
 
         @media (max-width: 480px) {
-            .gen-hero-zone  { padding: 36px 16px 20px; }
-            .gen-result-card { padding: 18px; }
-            .gen-result-header { flex-direction: column; align-items: flex-start; }
+            .gen-hero-zone {
+                padding: 36px 16px 20px;
+            }
+
+            .gen-result-card {
+                padding: 18px;
+            }
+
+            .gen-result-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .gen-history-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -541,7 +778,8 @@
             </a>
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    <path
+                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
@@ -579,19 +817,15 @@
         <div class="gen-hero-zone">
             <span class="gen-hero-icon">✨</span>
             <h1 class="gen-hero-title">Generación con IA</h1>
-            <p class="gen-hero-subtitle">Describe lo que necesitas y la IA lo creará por ti: texto, imágenes, vídeo o música.</p>
+            <p class="gen-hero-subtitle">Describe lo que necesitas y la IA lo creará por ti: texto, imágenes, vídeo o
+                música.</p>
 
             <div class="gen-input-wrapper">
-                <textarea
-                    id="gen-input"
-                    placeholder="¿Qué quieres generar?"
-                    rows="1"
-                    autocomplete="off"
-                    spellcheck="false"
-                ></textarea>
+                <textarea id="gen-input" placeholder="¿Qué quieres generar?" rows="1" autocomplete="off"
+                    spellcheck="false"></textarea>
                 <button id="gen-send-btn" class="send-button" aria-label="Generar">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                     </svg>
                 </button>
             </div>
@@ -700,6 +934,35 @@
                 <div id="gen-result-body"></div>
             </div>
 
+            <!-- ── HISTORIAL ── -->
+            <div class="gen-history-section" id="gen-history-section" style="display:none;">
+                <div class="gen-history-header">
+                    <h2 class="gen-history-title">🗂️ Mi historial</h2>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                        <button class="gen-action-btn" id="gen-hist-clear-tab-btn"
+                            style="font-size:0.78rem;padding:6px 14px;">
+                            🗑️ Limpiar categoría
+                        </button>
+                        <button class="gen-action-btn" id="gen-hist-clear-all-btn"
+                            style="font-size:0.78rem;padding:6px 14px;border-color:#EF9A9A;color:#B71C1C;">
+                            🗑️ Limpiar todo
+                        </button>
+                    </div>
+                </div>
+                <div class="courses-toolbar" style="margin-bottom:16px;">
+                    <div class="filter-pills" id="gen-history-tabs">
+                        <button class="filter-pill active" data-htab="texto">✍️ Texto</button>
+                        <button class="filter-pill" data-htab="imagen">🖼️ Imágenes</button>
+                        <button class="filter-pill" data-htab="video">🎬 Vídeo</button>
+                        <button class="filter-pill" data-htab="musica">🎵 Música</button>
+                    </div>
+                </div>
+                <div id="gen-history-list"></div>
+                <div id="gen-history-more" style="text-align:center;margin-top:20px;display:none;">
+                    <button class="gen-action-btn" id="gen-hist-load-more">Cargar más</button>
+                </div>
+            </div>
+
         </div><!-- /gen-body -->
     </div><!-- /gen-page-content -->
 
@@ -709,4 +972,5 @@
     <script type="module" src="generation.js" defer></script>
     <script src="transitions.js"></script>
 </body>
+
 </html>
