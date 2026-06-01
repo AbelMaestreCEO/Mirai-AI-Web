@@ -174,34 +174,38 @@ function escHtml(text) {
  * Si no hay autor: Título del artículo. (Año). Nombre del sitio. URL
  */
 function buildApaReference(src, index) {
-    const url   = src.url   || '';
-     let rawTitle = src.title || '';
+    const url = src.url || '';
+
+    // Limpiar título cuando Exa devuelve la URL como título (ej: "https://arxiv.org/pdf/...")
+    let rawTitle = src.title || '';
     if (rawTitle.startsWith('http://') || rawTitle.startsWith('https://')) {
         try { rawTitle = new URL(rawTitle).hostname.replace('www.', ''); } catch(_) { rawTitle = ''; }
     }
-    const title = rawTitle || `Fuente ${index + 1}`;
+
+    // Hostname limpio como nombre del sitio y fallback de título
+    let siteName = '';
+    try {
+        siteName = new URL(url).hostname.replace('www.', '');
+    } catch (_) { siteName = ''; }
+
+    const title = rawTitle || siteName || `Fuente ${index + 1}`;
 
     // ── Autor ──
-    // Exa devuelve author como string libre (ej: "John Doe" o "John Doe, Jane Smith")
     let authorPart = '';
     if (src.author) {
-        // Intentar convertir "Nombre Apellido" → "Apellido, N."
-        // Si ya viene con coma (apellido, nombre) lo dejamos
         const names = src.author.split(',').map(s => s.trim());
         if (names.length >= 2) {
-            // Ya viene "Apellido, Nombre" o "A, B, C"
             authorPart = names.map(n => {
                 const parts = n.split(' ').filter(Boolean);
                 if (parts.length < 2) return n;
-                const last = parts[parts.length - 1];
+                const last     = parts[parts.length - 1];
                 const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
                 return `${last}, ${initials}`;
             }).join(', & ');
         } else {
-            // Un solo nombre: "Juan Pérez" → "Pérez, J."
             const parts = src.author.trim().split(' ').filter(Boolean);
             if (parts.length >= 2) {
-                const last = parts[parts.length - 1];
+                const last     = parts[parts.length - 1];
                 const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
                 authorPart = `${last}, ${initials}`;
             } else {
@@ -211,32 +215,25 @@ function buildApaReference(src, index) {
     }
 
     // ── Fecha ──
-    // publishedDate de Exa viene en formato ISO: "2024-06-15T00:00:00.000Z" o "2024-06-15"
-    let yearPart = 's.f.';  // sin fecha
+    let yearPart     = 's.f.';
     let fullDatePart = '';
     if (src.publishedDate) {
         try {
             const d = new Date(src.publishedDate);
             if (!isNaN(d.getTime())) {
-                const year = d.getFullYear();
-                const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-                const month = months[d.getMonth()];
-                const day = d.getDate();
-                yearPart = String(year);
+                const year   = d.getFullYear();
+                const months = ['enero','febrero','marzo','abril','mayo','junio',
+                                'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+                const month  = months[d.getMonth()];
+                const day    = d.getDate();
+                yearPart     = String(year);
                 fullDatePart = `${year}, ${day} de ${month}`;
             }
         } catch (_) { /* dejar s.f. */ }
     }
 
-    // ── Construir la referencia ──
-    // APA 7 página web con autor:
-    //   Apellido, N. (Año, D de Mes). Título. Nombre del sitio. URL
-    // Sin autor:
-    //   Título. (Año, D de Mes). Nombre del sitio. URL
-
+    // ── Construir referencia APA 7 ──
     let ref = '';
-
     if (authorPart) {
         ref += `${authorPart}. `;
         ref += fullDatePart ? `(${fullDatePart}). ` : `(${yearPart}). `;
