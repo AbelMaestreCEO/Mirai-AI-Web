@@ -174,14 +174,12 @@ function escHtml(text) {
  * Si no hay autor: Título del artículo. (Año). Nombre del sitio. URL
  */
 function buildApaReference(src, index) {
-    const url = src.url || '';
-    // Si no hay título real, usamos el hostname limpio (ej: "uned.es")
-    // para evitar que una URL larga aparezca como título del documento
-    let siteName = '';
-    try {
-        siteName = new URL(url).hostname.replace('www.', '');
-    } catch (_) { siteName = ''; }
-    const title = src.title || siteName || `Fuente ${index + 1}`;
+    const url   = src.url   || '';
+     let rawTitle = src.title || '';
+    if (rawTitle.startsWith('http://') || rawTitle.startsWith('https://')) {
+        try { rawTitle = new URL(rawTitle).hostname.replace('www.', ''); } catch(_) { rawTitle = ''; }
+    }
+    const title = rawTitle || `Fuente ${index + 1}`;
 
     // ── Autor ──
     // Exa devuelve author como string libre (ej: "John Doe" o "John Doe, Jane Smith")

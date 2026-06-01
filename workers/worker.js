@@ -5173,6 +5173,29 @@ async function handleInvestigationSearch(request, env, corsHeaders) {
   // ── 5. Construir el contexto para DeepSeek ──
   const contextBlocks = buildContextBlocks(exaResults, scrapedContents);
 
+  // Mapa de identificadores de cita para que DeepSeek use exactamente
+  // el mismo texto que aparecerá en las referencias del frontend
+  const citationIds = exaResults.map((r, i) => {
+    let id = '';
+    if (r.author) {
+      // Usar apellido del primer autor
+      const firstAuthor = r.author.split(',')[0].trim();
+      const parts = firstAuthor.split(' ').filter(Boolean);
+      id = parts.length >= 2 ? parts[parts.length - 1] : firstAuthor;
+    } else if (r.title && !r.title.startsWith('http')) {
+      // Primeras 3 palabras significativas del título
+      id = r.title.split(' ').filter(w => w.length > 2).slice(0, 3).join(' ');
+    } else {
+      // Fallback: hostname limpio
+      try { id = new URL(r.url).hostname.replace('www.', ''); } catch (_) { id = `Fuente ${i + 1}`; }
+    }
+    let year = 's.f.';
+    if (r.publishedDate) {
+      try { year = String(new Date(r.publishedDate).getFullYear()); } catch (_) { }
+    }
+    return `Fuente [${i + 1}] → citar como: (${id}, ${year})`;
+  }).join('\n');
+
   if (contextBlocks.trim().length < 100) {
     return jsonResponse({ error: 'No se pudo extraer suficiente contenido de las fuentes encontradas.' }, 422, corsHeaders);
   }
@@ -5180,7 +5203,7 @@ async function handleInvestigationSearch(request, env, corsHeaders) {
   // ── 6. Generar resumen con DeepSeek ──
   let summary;
   try {
-    summary = await generateResearchSummary(question, contextBlocks, exaResults, env);
+    summary = await generateResearchSummary(question, contextBlocks, citationIds, env);
     console.log(`✅ [Investigation] Resumen generado (${summary.length} caracteres)`);
   } catch (err) {
     console.error('❌ [Investigation] Error en DeepSeek:', err.message);
@@ -5396,22 +5419,7 @@ function buildContextBlocks(exaResults, scrapedContents) {
  * Llama a DeepSeek para generar un resumen académico
  * parafraseado en tercera persona.
  */
-async function generateResearchSummary(question, contextBlocks, exaResults, env) {
-  const citationMap = exaResults.map((r, i) => {
-    let author = '';
-    if (r.author) {
-      const parts = r.author.trim().split(' ');
-      author = parts[parts.length - 1]; // apellido
-    } else {
-      try { author = new URL(r.url).hostname.replace('www.', ''); } catch (_) { author = 'Fuente'; }
-    }
-    let year = 's.f.';
-    if (r.publishedDate) {
-      try { year = new Date(r.publishedDate).getFullYear(); } catch (_) { }
-    }
-    return `[${i + 1}] → (${author}, ${year})`;
-  }).join('\n');
-
+async function generateResearchSummary(question, contextBlocks, citationIds, env) {
   const systemPrompt = `Eres un asistente de investigación académica experto.
 Tu tarea es leer múltiples fuentes web y generar un resumen de investigación riguroso y útil.
  
@@ -5435,7 +5443,7 @@ REGLAS OBLIGATORIAS:
 15. Cuando debas incluir fórmulas o expresiones matemáticas, escríbelas en Unicode matemático legible, NO en LaTeX. Ejemplo: e ≈ 1.6 × 10⁻¹⁹ C, F = k·q₁·q₂/r², E = mc².`;
 
   const userPrompt =
-    `Mapa de citas (usa EXACTAMENTE este formato al citar): "${citationMap}"` +
+    `IDENTIFICADORES DE CITA OBLIGATORIOS (usa EXACTAMENTE este texto en cada cita, sin modificarlo):\n${citationIds}\n\n` +
     `A continuación están las fuentes que debes analizar:\n\n` + contextBlocks +
     `\n\nPregunta de investigación: "${question}"`;
 
