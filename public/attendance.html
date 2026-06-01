@@ -49,6 +49,8 @@
     <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="transitions.css">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <!-- SheetJS para exportar Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .att-center-wrap {
             max-width: 560px;
@@ -522,7 +524,37 @@
 
             <!-- Historial personal -->
             <div class="course-card" style="margin-top:4px;">
-                <h3 class="course-title" style="margin-bottom:16px;">📋 Mis últimas marcaciones</h3>
+                <h3 class="course-title" style="margin-bottom:16px;">📋 Mis marcaciones</h3>
+
+                <!-- Filtros -->
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end;">
+                    <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0;">
+                        <label for="hist-date-from" style="font-size:0.78rem;">Desde</label>
+                        <input type="date" id="hist-date-from">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0;">
+                        <label for="hist-date-to" style="font-size:0.78rem;">Hasta</label>
+                        <input type="date" id="hist-date-to">
+                    </div>
+                    <button id="btn-clear-filters" style="padding:10px 14px;border:1px solid var(--glass-border);border-radius:var(--border-radius-pill);background:var(--glass-bg);color:var(--text-secondary);font-size:0.8rem;cursor:pointer;font-family:inherit;white-space:nowrap;">✕ Limpiar</button>
+                </div>
+
+                <!-- Filtro por clase (se muestra solo si el usuario tiene clases) -->
+                <div id="hist-filter-row" style="display:none;margin-bottom:14px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hist-filter-class" style="font-size:0.78rem;">Filtrar por clase</label>
+                        <select id="hist-filter-class">
+                            <option value="">Todas las clases</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Botones de exportación -->
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                    <button id="btn-my-pdf" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--glass-border);border-radius:var(--border-radius-pill);background:var(--glass-bg);color:var(--text-primary);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);">📄 PDF</button>
+                    <button id="btn-my-excel" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--glass-border);border-radius:var(--border-radius-pill);background:var(--glass-bg);color:var(--text-primary);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all var(--transition-fast);">📊 Excel</button>
+                </div>
+
                 <ul class="att-history-list" id="att-history-list">
                     <li style="text-align:center;color:var(--text-tertiary);font-size:0.85rem;padding:20px 0;">
                         <div class="att-spinner"></div>Cargando historial...

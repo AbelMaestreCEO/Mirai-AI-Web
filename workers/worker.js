@@ -1349,6 +1349,8 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return handleAttMyProfile(request, env, corsHeaders);
     if (path === '/api/attendance/my-history' && request.method === 'GET')
       return handleAttMyHistory(request, env, corsHeaders);
+    if (path === '/api/attendance/my-classes' && request.method === 'GET')
+      return handleAttMyClasses(request, env, corsHeaders);
     if (path === '/api/attendance/record' && request.method === 'POST')
       return handleAttRecord(request, env, corsHeaders);
     if (path === '/api/attendance/admin/active-qr' && request.method === 'GET')
@@ -1367,6 +1369,43 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return handleAttStaffUpdate(request, env, corsHeaders);
     if (path === '/api/attendance/admin/lookup-user' && request.method === 'GET')
       return handleAttLookupUser(request, env, corsHeaders);
+
+    // ── ASISTENCIA: Clases ────────────────────────────────────
+    if (path === '/api/attendance/admin/classes' && request.method === 'GET')
+      return handleAttClassList(request, env, corsHeaders);
+    if (path === '/api/attendance/admin/classes' && request.method === 'POST')
+      return handleAttClassCreate(request, env, corsHeaders);
+
+    const attClassMatch = path.match(/^\/api\/attendance\/admin\/classes\/([^/]+)$/);
+    if (attClassMatch) {
+      const classId = attClassMatch[1];
+      if (request.method === 'PUT')
+        return handleAttClassUpdate(request, env, corsHeaders, classId);
+      if (request.method === 'DELETE')
+        return handleAttClassDelete(request, env, corsHeaders, classId);
+    }
+    const attClassStudentsMatch = path.match(/^\/api\/attendance\/admin\/classes\/([^/]+)\/students$/);
+    if (attClassStudentsMatch) {
+      const classId = attClassStudentsMatch[1];
+      if (request.method === 'GET')
+        return handleAttClassStudents(request, env, corsHeaders, classId);
+      if (request.method === 'POST')
+        return handleAttClassAddStudent(request, env, corsHeaders, classId);
+    }
+    const attClassStudentRemoveMatch = path.match(/^\/api\/attendance\/admin\/classes\/([^/]+)\/students\/([^/]+)$/);
+    if (attClassStudentRemoveMatch) {
+      const [, classId, studentDni] = attClassStudentRemoveMatch;
+      if (request.method === 'DELETE')
+        return handleAttClassRemoveStudent(request, env, corsHeaders, classId, studentDni);
+    }
+    const attClassQrMatch = path.match(/^\/api\/attendance\/admin\/classes\/([^/]+)\/qr$/);
+    if (attClassQrMatch) {
+      const classId = attClassQrMatch[1];
+      if (request.method === 'GET')
+        return handleAttClassActiveQr(request, env, corsHeaders, classId);
+      if (request.method === 'POST')
+        return handleAttClassGenerateQr(request, env, corsHeaders, classId);
+    }
 
     // ── PROYECTOS ────────────────────────────────────────────────
 
@@ -4226,21 +4265,60 @@ async function handleAttMyHistory(request, env, corsHeaders) {
   if (!userDni || typeof userDni !== 'string') {
     return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
   }
+  const url = new URL(request.url);
+  const dateFrom = url.searchParams.get('date_from');
+  const dateTo = url.searchParams.get('date_to');
+  const classId = url.searchParams.get('class_id');
+
   try {
     const staff = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
     ).bind(userDni.toUpperCase()).first();
     if (!staff) return jsonResponse({ records: [] }, 200, corsHeaders);
 
-    const { results } = await env.MIRAI_AI_DB.prepare(`
-            SELECT type, date, time FROM att_records
-            WHERE staff_id = ?
-            ORDER BY date DESC, time DESC
-            LIMIT 20
-        `).bind(staff.id).all();
+    let query = `
+      SELECT r.type, r.date, r.time, COALESCE(c.name, 'General') AS class_name
+      FROM att_records r
+      LEFT JOIN att_qr_sessions q ON r.session_id = q.id
+      LEFT JOIN att_classes c ON q.class_id = c.id
+      WHERE r.staff_id = ?`;
+    const bindings = [staff.id];
+
+    if (dateFrom && dateTo) {
+      query += ' AND r.date BETWEEN ? AND ?';
+      bindings.push(dateFrom, dateTo);
+    }
+    if (classId) {
+      query += ' AND q.class_id = ?';
+      bindings.push(classId);
+    }
+    query += ' ORDER BY r.date DESC, r.time DESC LIMIT 50';
+
+    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
     return jsonResponse({ records: results }, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+async function handleAttMyClasses(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni || typeof userDni !== 'string') {
+    return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+  }
+  try {
+    const staff = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
+    ).bind(userDni.toUpperCase()).first();
+    if (!staff) return jsonResponse({ classes: [] }, 200, corsHeaders);
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT c.id, c.name FROM att_classes c
+      JOIN att_class_students cs ON cs.class_id = c.id
+      WHERE cs.staff_id = ? AND c.is_active = 1 ORDER BY c.name
+    `).bind(staff.id).all();
+    return jsonResponse({ classes: results }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ classes: [] }, 200, corsHeaders);
   }
 }
 
@@ -5043,7 +5121,7 @@ async function handleAttActiveQr(request, env, corsHeaders) {
   const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
   try {
     const session = await env.MIRAI_AI_DB.prepare(
-      'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ?'
+      'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ? AND class_id IS NULL'
     ).bind(date).first();
     if (!session) return jsonResponse({ error: 'Sin QR activo para esta fecha' }, 404, corsHeaders);
     return jsonResponse(session, 200, corsHeaders);
@@ -5063,11 +5141,13 @@ async function handleAttGenerateQr(request, env, corsHeaders) {
   const expiresAt = `${targetDate} 23:59:59`;
 
   try {
-    // Reemplazar sesión previa del mismo día
-    await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ?').bind(targetDate).run();
+    // Reemplazar sesión previa del mismo día (solo QR general, sin clase)
+    await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ? AND class_id IS NULL').bind(targetDate).run();
+    // Asegurar columna class_id existe (por si la tabla fue creada antes)
+    try { await env.MIRAI_AI_DB.prepare('ALTER TABLE att_qr_sessions ADD COLUMN class_id TEXT').run(); } catch (_) {}
     await env.MIRAI_AI_DB.prepare(`
-            INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by)
-            VALUES (?, ?, ?, ?, 0, ?)
+            INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by, class_id)
+            VALUES (?, ?, ?, ?, 0, ?, NULL)
         `).bind(crypto.randomUUID(), token, targetDate, expiresAt, dni).run();
 
     return jsonResponse({
@@ -5089,18 +5169,34 @@ async function handleAttAdminRecords(request, env, corsHeaders) {
   const url = new URL(request.url);
   const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
   const type = url.searchParams.get('type');
+  const classId = url.searchParams.get('class_id');
+  const dateFrom = url.searchParams.get('date_from');
+  const dateTo = url.searchParams.get('date_to');
 
   try {
     let query = `
             SELECT r.id, r.type, r.date, r.time, r.session_id,
                    s.name AS staff_name, s.dni AS staff_dni,
-                   s.department, s.position
+                   s.department, s.position,
+                   COALESCE(c.name, '—') AS class_name
             FROM att_records r
             JOIN att_staff s ON r.staff_id = s.id
-            WHERE r.date = ?`;
-    const bindings = [date];
+            LEFT JOIN att_qr_sessions q ON r.session_id = q.id
+            LEFT JOIN att_classes c ON q.class_id = c.id
+            WHERE 1=1`;
+    const bindings = [];
+
+    if (dateFrom && dateTo) {
+      query += ' AND r.date BETWEEN ? AND ?';
+      bindings.push(dateFrom, dateTo);
+    } else {
+      query += ' AND r.date = ?';
+      bindings.push(date);
+    }
+
     if (type && type !== 'todos') { query += ' AND r.type = ?'; bindings.push(type); }
-    query += ' ORDER BY r.time DESC';
+    if (classId) { query += ' AND q.class_id = ?'; bindings.push(classId); }
+    query += ' ORDER BY r.date DESC, r.time DESC';
 
     const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
     return jsonResponse({ records: results }, 200, corsHeaders);
@@ -5154,6 +5250,175 @@ async function handleAttStaffList(request, env, corsHeaders) {
 // AGREGAR:
 // GET /api/attendance/admin/lookup-user?dni=XXX
 // Busca en users y devuelve nombre censurado para confirmar antes de registrar
+
+// ════════════════════════════════════════════════════════════
+// HANDLERS — Clases
+// ════════════════════════════════════════════════════════════
+
+async function handleAttClassList(request, env, corsHeaders) {
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  try {
+    await env.MIRAI_AI_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS att_classes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_by TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        is_active INTEGER DEFAULT 1
+      )
+    `).run();
+    await env.MIRAI_AI_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS att_class_students (
+        id TEXT PRIMARY KEY,
+        class_id TEXT NOT NULL,
+        staff_id TEXT NOT NULL,
+        added_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(class_id, staff_id)
+      )
+    `).run();
+    const { results } = await env.MIRAI_AI_DB.prepare(
+      `SELECT c.id, c.name, c.description, c.created_at,
+              (SELECT COUNT(*) FROM att_class_students cs WHERE cs.class_id = c.id) AS student_count
+       FROM att_classes c WHERE c.is_active = 1 ORDER BY c.name`
+    ).all();
+    return jsonResponse({ classes: results }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+async function handleAttClassCreate(request, env, corsHeaders) {
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  const { name, description } = body;
+  if (!name || !name.trim()) return jsonResponse({ error: 'Nombre de clase requerido' }, 400, corsHeaders);
+  try {
+    await env.MIRAI_AI_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS att_classes (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+        created_by TEXT, created_at TEXT DEFAULT (datetime('now')), is_active INTEGER DEFAULT 1
+      )
+    `).run();
+    await env.MIRAI_AI_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS att_class_students (
+        id TEXT PRIMARY KEY, class_id TEXT NOT NULL, staff_id TEXT NOT NULL,
+        added_at TEXT DEFAULT (datetime('now')), UNIQUE(class_id, staff_id)
+      )
+    `).run();
+    const id = crypto.randomUUID();
+    await env.MIRAI_AI_DB.prepare(
+      'INSERT INTO att_classes (id, name, description, created_by) VALUES (?,?,?,?)'
+    ).bind(id, name.trim(), description || null, dni).run();
+    return jsonResponse({ success: true, id, name: name.trim() }, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
+
+async function handleAttClassUpdate(request, env, corsHeaders, classId) {
+  const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  const { name, description } = body;
+  if (!name) return jsonResponse({ error: 'Nombre requerido' }, 400, corsHeaders);
+  try {
+    await env.MIRAI_AI_DB.prepare('UPDATE att_classes SET name=?, description=? WHERE id=?')
+      .bind(name.trim(), description || null, classId).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassDelete(request, env, corsHeaders, classId) {
+  const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  try {
+    await env.MIRAI_AI_DB.prepare("UPDATE att_classes SET is_active=0 WHERE id=?").bind(classId).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassStudents(request, env, corsHeaders, classId) {
+  const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT s.id, s.name, s.dni, s.department, s.position
+      FROM att_class_students cs
+      JOIN att_staff s ON cs.staff_id = s.id
+      WHERE cs.class_id = ? AND s.is_active = 1
+      ORDER BY s.name
+    `).bind(classId).all();
+    return jsonResponse({ students: results }, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
+  const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  const { dni } = body;
+  if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
+  try {
+    const staff = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, name FROM att_staff WHERE dni = ? AND is_active = 1'
+    ).bind(dni.toUpperCase()).first();
+    if (!staff) return jsonResponse({ error: 'Personal no encontrado en el sistema de asistencia' }, 404, corsHeaders);
+    await env.MIRAI_AI_DB.prepare(
+      'INSERT OR IGNORE INTO att_class_students (id, class_id, staff_id) VALUES (?,?,?)'
+    ).bind(crypto.randomUUID(), classId, staff.id).run();
+    return jsonResponse({ success: true, name: staff.name }, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassRemoveStudent(request, env, corsHeaders, classId, studentDni) {
+  const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  try {
+    const staff = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM att_staff WHERE dni = ?'
+    ).bind(studentDni.toUpperCase()).first();
+    if (!staff) return jsonResponse({ error: 'Personal no encontrado' }, 404, corsHeaders);
+    await env.MIRAI_AI_DB.prepare(
+      'DELETE FROM att_class_students WHERE class_id = ? AND staff_id = ?'
+    ).bind(classId, staff.id).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassActiveQr(request, env, corsHeaders, classId) {
+  const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  const url = new URL(request.url);
+  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  try {
+    const session = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, token, date, expires_at, scan_count, class_id FROM att_qr_sessions WHERE date = ? AND class_id = ?'
+    ).bind(date, classId).first();
+    if (!session) return jsonResponse({ error: 'Sin QR activo para esta clase/fecha' }, 404, corsHeaders);
+    return jsonResponse(session, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassGenerateQr(request, env, corsHeaders, classId) {
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  const targetDate = body.date || new Date().toISOString().split('T')[0];
+  const token = crypto.randomUUID();
+  const expiresAt = `${targetDate} 23:59:59`;
+  try {
+    await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ? AND class_id = ?').bind(targetDate, classId).run();
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by, class_id)
+      VALUES (?, ?, ?, ?, 0, ?, ?)
+    `).bind(crypto.randomUUID(), token, targetDate, expiresAt, dni, classId).run();
+    return jsonResponse({ success: true, token, date: targetDate, expires_at: expiresAt, scan_count: 0, class_id: classId }, 200, corsHeaders);
+  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
 async function handleAttLookupUser(request, env, corsHeaders) {
   const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;

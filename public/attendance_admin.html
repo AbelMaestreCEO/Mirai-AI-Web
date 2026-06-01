@@ -371,6 +371,96 @@
                 flex-direction: column;
             }
         }
+
+        /* ── Tabs ── */
+        .att-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 0 20px 16px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .att-tab-btn {
+            padding: 9px 22px;
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-pill);
+            background: var(--glass-bg);
+            color: var(--text-secondary);
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            font-family: inherit;
+        }
+        .att-tab-btn.active {
+            background: var(--accent-gradient);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        /* ── Clase cards ── */
+        .classes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            padding: 0 20px 60px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .class-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-lg);
+            padding: 20px;
+            box-shadow: var(--glass-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .class-card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .class-icon {
+            font-size: 1.8rem;
+            flex-shrink: 0;
+        }
+        .class-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+        .class-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+        .class-meta {
+            font-size: 0.82rem;
+            color: var(--text-tertiary);
+        }
+        .class-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .class-actions .btn-export {
+            padding: 7px 12px;
+            font-size: 0.78rem;
+        }
+
+        /* ── Student item ── */
+        .student-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .student-item:last-child { border-bottom: none; }
     </style>
 </head>
 
@@ -621,116 +711,139 @@
     <div class="courses-container">
         <div class="courses-hero">
             <h1>Admin — Control de Asistencia</h1>
-            <p>Genera QRs diarios únicos, gestiona el personal y exporta los registros de entrada y salida.</p>
+            <p>Gestiona clases, genera QRs por clase, administra el personal y exporta los registros.</p>
         </div>
 
         <!-- Stats rápidas -->
         <div class="att-stats" id="att-stats">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
-                <div class="stat-content"><span class="stat-label">Personal Registrado</span><span class="stat-value"
-                        id="st-staff">—</span></div>
+                <div class="stat-content"><span class="stat-label">Personal Registrado</span><span class="stat-value" id="st-staff">—</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">📅</div>
-                <div class="stat-content"><span class="stat-label">Registros Hoy</span><span class="stat-value"
-                        id="st-today">—</span></div>
+                <div class="stat-content"><span class="stat-label">Registros Hoy</span><span class="stat-value" id="st-today">—</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⬆️</div>
-                <div class="stat-content"><span class="stat-label">Entradas Hoy</span><span class="stat-value"
-                        id="st-entries">—</span></div>
+                <div class="stat-content"><span class="stat-label">Entradas Hoy</span><span class="stat-value" id="st-entries">—</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⬇️</div>
-                <div class="stat-content"><span class="stat-label">Salidas Hoy</span><span class="stat-value"
-                        id="st-exits">—</span></div>
+                <div class="stat-content"><span class="stat-label">Salidas Hoy</span><span class="stat-value" id="st-exits">—</span></div>
             </div>
         </div>
 
-        <!-- QR del día -->
-        <div class="qr-admin-card" id="qr-admin-card">
-            <h3 style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:20px;">🔑 QR activo del
-                día</h3>
-            <div class="qr-display-wrap">
-                <div class="qr-img-box" id="qr-img-box">
-                    <div class="att-spinner"></div>
-                </div>
-                <div class="qr-info">
-                    <h3 id="qr-session-label">Sesión del día</h3>
-                    <p class="qr-meta-row">📅 Fecha: <strong id="qr-date">—</strong></p>
-                    <p class="qr-meta-row">⏰ Válido hasta: <strong id="qr-expires">—</strong></p>
-                    <p class="qr-meta-row">🔢 Escaneos: <strong id="qr-scans">0</strong></p>
-                    <div class="qr-token-box" id="qr-token-box">Generando token...</div>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-                        <button class="course-start-btn" id="btn-gen-qr" style="flex:1;max-width:180px;">
-                            🔄 Nuevo QR
-                        </button>
-                        <button class="btn-export" id="btn-download-qr">
-                            📥 Descargar QR
-                        </button>
+        <!-- Tabs -->
+        <div class="att-tabs">
+            <button class="att-tab-btn active" id="tab-btn-records">📋 Registros</button>
+            <button class="att-tab-btn" id="tab-btn-classes">🏫 Clases</button>
+        </div>
+
+        <!-- ══════════ TAB: REGISTROS ══════════ -->
+        <div id="tab-pane-records">
+
+            <!-- QR del día (general) -->
+            <div class="qr-admin-card" id="qr-admin-card">
+                <h3 style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:20px;">🔑 QR General del día</h3>
+                <div class="qr-display-wrap">
+                    <div class="qr-img-box" id="qr-img-box">
+                        <div class="att-spinner"></div>
+                    </div>
+                    <div class="qr-info">
+                        <h3 id="qr-session-label">Sesión del día</h3>
+                        <p class="qr-meta-row">📅 Fecha: <strong id="qr-date">—</strong></p>
+                        <p class="qr-meta-row">⏰ Válido hasta: <strong id="qr-expires">—</strong></p>
+                        <p class="qr-meta-row">🔢 Escaneos: <strong id="qr-scans">0</strong></p>
+                        <div class="qr-token-box" id="qr-token-box">Generando token...</div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+                            <button class="course-start-btn" id="btn-gen-qr" style="flex:1;max-width:180px;">🔄 Nuevo QR</button>
+                            <button class="btn-export" id="btn-download-qr">📥 Descargar QR</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Filtros de la tabla -->
-        <div class="att-filters">
-            <!-- En móvil: fecha y tipo van juntos en la misma fila, búsqueda abajo -->
-            <div style="display:flex;gap:12px;flex:1;min-width:0;">
-                <div class="form-group" style="flex:1;min-width:120px;margin-bottom:0;">
-                    <label for="f-date">Fecha</label>
-                    <input type="date" id="f-date">
+            <!-- Filtros de la tabla -->
+            <div class="att-filters">
+                <div style="display:flex;gap:12px;flex:1;min-width:0;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+                        <label for="f-date">Fecha exacta</label>
+                        <input type="date" id="f-date">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+                        <label for="f-date-from">Desde</label>
+                        <input type="date" id="f-date-from">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+                        <label for="f-date-to">Hasta</label>
+                        <input type="date" id="f-date-to">
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+                        <label for="f-type">Tipo</label>
+                        <select id="f-type">
+                            <option value="todos">Todos</option>
+                            <option value="entrada">Entradas</option>
+                            <option value="salida">Salidas</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0;">
+                        <label for="f-class">Clase</label>
+                        <select id="f-class">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
-                    <label for="f-type">Tipo</label>
-                    <select id="f-type">
-                        <option value="todos">Todos</option>
-                        <option value="entrada">Entradas</option>
-                        <option value="salida">Salidas</option>
-                    </select>
+                <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
+                    <label for="f-search">Buscar personal</label>
+                    <div class="courses-search" style="min-width:unset;">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="f-search" placeholder="Nombre o DNI..." autocomplete="off">
+                    </div>
                 </div>
             </div>
-            <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
-                <label for="f-search">Buscar personal</label>
-                <div class="courses-search" style="min-width:unset;">
-                    <svg viewBox="0 0 24 24">
-                        <path
-                            d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                    </svg>
-                    <input type="text" id="f-search" placeholder="Nombre o DNI..." autocomplete="off">
+
+            <!-- Contador + acciones de exportación -->
+            <div class="courses-count" id="att-count">Mostrando 0 registros</div>
+            <div class="att-actions">
+                <button class="btn-export primary" id="btn-excel">📊 Excel</button>
+                <button class="btn-export" id="btn-csv">📄 CSV</button>
+                <button class="btn-export" id="btn-pdf">🖨️ PDF</button>
+                <button class="btn-export" id="btn-add-staff" style="margin-left:auto;">➕ Agregar personal</button>
+            </div>
+
+            <!-- Tabla de registros -->
+            <div class="att-table-wrap">
+                <table class="att-table" id="att-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Personal</th>
+                            <th>DNI</th>
+                            <th>Tipo</th>
+                            <th>Hora</th>
+                            <th>Fecha</th>
+                            <th>Departamento</th>
+                            <th>Clase</th>
+                            <th>QR sesión</th>
+                        </tr>
+                    </thead>
+                    <tbody id="att-tbody"></tbody>
+                </table>
+                <div class="att-empty hidden" id="att-empty">
+                    <div class="att-empty-icon">📋</div>
+                    <p>No hay registros para este filtro.</p>
                 </div>
             </div>
         </div>
 
-        <!-- Contador + acciones de exportación -->
-        <div class="courses-count" id="att-count">Mostrando 0 registros</div>
-        <div class="att-actions">
-            <button class="btn-export primary" id="btn-excel">📊 Exportar Excel</button>
-            <button class="btn-export" id="btn-csv">📄 Exportar CSV</button>
-            <button class="btn-export" id="btn-add-staff" style="margin-left:auto;">➕ Agregar personal</button>
-        </div>
-
-        <!-- Tabla de registros -->
-        <div class="att-table-wrap">
-            <table class="att-table" id="att-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Personal</th>
-                        <th>DNI</th>
-                        <th>Tipo</th>
-                        <th>Hora</th>
-                        <th>Fecha</th>
-                        <th>Departamento</th>
-                        <th>QR sesión</th>
-                    </tr>
-                </thead>
-                <tbody id="att-tbody"></tbody>
-            </table>
-            <div class="att-empty hidden" id="att-empty">
-                <div class="att-empty-icon">📋</div>
-                <p>No hay registros para este filtro.</p>
+        <!-- ══════════ TAB: CLASES ══════════ -->
+        <div id="tab-pane-classes" style="display:none;">
+            <div style="padding:0 20px 16px;max-width:1200px;margin:0 auto;display:flex;justify-content:flex-end;">
+                <button class="course-start-btn" id="btn-new-class" style="max-width:200px;">🏫 Nueva Clase</button>
+            </div>
+            <div class="classes-grid" id="classes-grid">
+                <div class="att-empty"><div class="att-spinner"></div><p>Cargando clases...</p></div>
             </div>
         </div>
     </div>
@@ -744,26 +857,19 @@
                 <h2 id="staff-modal-title">👤 Agregar Personal</h2>
                 <p class="modal-subtitle">Ingresa el DNI del usuario registrado en el sistema.</p>
             </div>
-
-            <!-- Paso 1: buscar por DNI -->
             <div id="staff-step-1">
                 <div class="form-group">
                     <label for="sf-dni">DNI del usuario *</label>
                     <div style="display:flex;gap:10px;">
                         <input type="text" id="sf-dni" placeholder="Ej: 12345678" style="flex:1;">
-                        <button class="btn-primary" id="sf-lookup-btn"
-                            style="white-space:nowrap;padding:12px 18px;">Buscar</button>
+                        <button class="btn-primary" id="sf-lookup-btn" style="white-space:nowrap;padding:12px 18px;">Buscar</button>
                     </div>
                 </div>
-                <div id="sf-user-preview"
-                    style="display:none;background:var(--secondary-container);border-radius:var(--border-radius-md);padding:14px 16px;margin-bottom:16px;">
-                    <p style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin:0 0 4px;"
-                        id="sf-preview-name">—</p>
+                <div id="sf-user-preview" style="display:none;background:var(--secondary-container);border-radius:var(--border-radius-md);padding:14px 16px;margin-bottom:16px;">
+                    <p style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin:0 0 4px;" id="sf-preview-name">—</p>
                     <p style="font-size:0.82rem;color:var(--text-secondary);margin:0;" id="sf-preview-email">—</p>
                 </div>
             </div>
-
-            <!-- Paso 2: campos adicionales (visibles tras confirmar usuario) -->
             <div id="staff-step-2" style="display:none;">
                 <div class="form-row">
                     <div class="form-group">
@@ -776,12 +882,83 @@
                     </div>
                 </div>
             </div>
-
             <div class="modal-actions">
                 <button class="btn-secondary" id="staff-cancel">Cancelar</button>
                 <button class="btn-primary" id="staff-save" style="display:none;">Registrar Personal</button>
             </div>
             <div id="staff-status" class="status-message"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: Nueva / Editar Clase -->
+    <div id="class-modal" class="modal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content slide-up">
+            <button class="modal-close" id="class-modal-close">&times;</button>
+            <div class="modal-header">
+                <h2 id="class-modal-title">🏫 Nueva Clase</h2>
+            </div>
+            <div class="form-group">
+                <label for="cls-name">Nombre de la clase *</label>
+                <input type="text" id="cls-name" placeholder="Ej: Matemáticas 3°A">
+            </div>
+            <div class="form-group">
+                <label for="cls-desc">Descripción (opcional)</label>
+                <input type="text" id="cls-desc" placeholder="Ej: Turno mañana">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="cls-cancel-btn">Cancelar</button>
+                <button class="btn-primary" id="cls-save-btn">Guardar</button>
+            </div>
+            <div id="cls-status" class="status-message"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: QR de clase -->
+    <div id="class-qr-modal" class="modal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content slide-up">
+            <button class="modal-close" id="class-qr-modal-close">&times;</button>
+            <div class="modal-header">
+                <h2 id="class-qr-modal-title">📷 QR de Clase</h2>
+            </div>
+            <div class="qr-display-wrap">
+                <div class="qr-img-box" id="class-qr-img-box" style="min-width:160px;min-height:160px;">
+                    <div class="att-spinner"></div>
+                </div>
+                <div class="qr-info">
+                    <p class="qr-meta-row">📅 Fecha: <strong id="class-qr-date">—</strong></p>
+                    <p class="qr-meta-row">⏰ Válido hasta: <strong id="class-qr-expires">—</strong></p>
+                    <p class="qr-meta-row">🔢 Escaneos: <strong id="class-qr-scans">0</strong></p>
+                    <div class="qr-token-box" id="class-qr-token">—</div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+                        <button class="course-start-btn" id="btn-gen-class-qr" style="flex:1;max-width:180px;">🔄 Nuevo QR</button>
+                        <button class="btn-export" id="btn-download-class-qr">📥 Descargar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Estudiantes de clase -->
+    <div id="class-students-modal" class="modal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content slide-up">
+            <button class="modal-close" id="class-students-modal-close">&times;</button>
+            <div class="modal-header">
+                <h2 id="class-students-title">👥 Estudiantes</h2>
+            </div>
+            <!-- Agregar estudiante -->
+            <div class="form-group" style="margin-bottom:8px;">
+                <label for="add-student-dni">Agregar por DNI</label>
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="add-student-dni" placeholder="DNI del personal" style="flex:1;">
+                    <button class="btn-primary" id="add-student-btn" style="white-space:nowrap;padding:12px 18px;">Agregar</button>
+                </div>
+            </div>
+            <div id="add-student-status" class="status-message" style="margin-bottom:12px;font-size:0.83rem;"></div>
+            <!-- Lista de estudiantes -->
+            <div id="class-students-list" style="max-height:300px;overflow-y:auto;"></div>
         </div>
     </div>
 
