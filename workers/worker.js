@@ -5423,23 +5423,28 @@ REGLAS OBLIGATORIAS:
 5. NO escribas una conclusión. El texto termina con el último párrafo de desarrollo, sin cierre ni síntesis final.
 6. Parafrasea completamente todo el contenido. NUNCA copies frases textuales de las fuentes.
 7. Descarta: publicidad, menús de navegación, pies de página, cookies, suscripciones y contenido sin relevancia a la pregunta.
-8. Cita las fuentes integradas en el texto usando la notación (Autor, Año) según el número de fuente indicado al inicio de cada bloque. Si el bloque no tiene autor usa el nombre del sitio. Si no tiene año usa "s.f.". Ejemplo: (Springer Nature, 2023) o (García, 2021).
-9. Si una fuente no tiene información relevante para la pregunta, ignórala por completo.
-10. El texto debe tener entre 300 y 550 palabras.
-11. Estructura obligatoria:
+8. Cita las fuentes al FINAL de cada PÁRRAFO (no al final de cada oración). Coloca todas las fuentes usadas en ese párrafo en una sola cita agrupada al final, antes del punto final. Formato: (Título de la fuente, Año). Si hay varias, sepáralas con punto y coma: (Fuente A, 2020; Fuente B, s.f.). NUNCA repitas citas dentro del mismo párrafo.
+9. Para el título de la cita: usa el título del documento tal como aparece en el contexto, abreviado a las primeras 4-6 palabras significativas si es largo. Si no hay título usa el hostname de la URL sin "www." ni rutas. NUNCA uses la URL completa ni el hostname solo como cita.
+10. Si una fuente no tiene información relevante para la pregunta, ignórala por completo.
+11. El texto debe tener entre 300 y 550 palabras.
+12. Estructura obligatoria:
     - Introducción (1 párrafo): presenta el tema, su contexto y su relevancia académica.
-    - Desarrollo (2-3 párrafos): expone los hallazgos, conceptos y datos clave con citas integradas.
-12. NO incluyas lista de referencias al final; las citas van únicamente integradas en el texto.
-13. NO inventes información que no esté en las fuentes proporcionadas.
-14. Cuando debas incluir fórmulas o expresiones matemáticas, escríbelas en Unicode matemático legible, NO en LaTeX. Ejemplo: e ≈ 1.6 × 10⁻¹⁹ C, F = k·q₁·q₂/r², E = mc².`;
+    - Desarrollo (2-3 párrafos): expone los hallazgos, conceptos y datos clave con citas al final de cada párrafo.
+13. NO incluyas lista de referencias al final; las citas van únicamente al final de cada párrafo.
+14. NO inventes información que no esté en las fuentes proporcionadas.
+15. Cuando debas incluir fórmulas o expresiones matemáticas, escríbelas en Unicode matemático legible, NO en LaTeX. Ejemplo: e ≈ 1.6 × 10⁻¹⁹ C, F = k·q₁·q₂/r², E = mc².`;
 
   const userPrompt =
     `Mapa de citas (usa EXACTAMENTE este formato al citar): "${citationMap}"` +
     `A continuación están las fuentes que debes analizar:\n\n` + contextBlocks +
     `\n\nPregunta de investigación: "${question}"`;
 
+  // Nota: los títulos de cada fuente ya aparecen en el encabezado de cada bloque
+  // del contextBlocks con el formato: --- [N] Tipo: Título --- URL: ...
+  // DeepSeek usará esos títulos para construir las citas (regla 9 del systemPrompt).
+
   const summary = await callAI(
-    AI_MODEL_NORMAL,
+    AI_MODEL_PRO,
     [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
     { temperature: 0.4, max_tokens: 1200 },
     env
