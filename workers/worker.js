@@ -5426,7 +5426,7 @@ REGLAS OBLIGATORIAS:
 8. Cita las fuentes al FINAL de cada PÁRRAFO (no al final de cada oración). Coloca todas las fuentes usadas en ese párrafo en una sola cita agrupada al final, antes del punto final. Formato: (Título de la fuente, Año). Si hay varias, sepáralas con punto y coma: (Fuente A, 2020; Fuente B, s.f.). NUNCA repitas citas dentro del mismo párrafo.
 9. Para el título de la cita: usa el título del documento tal como aparece en el contexto, abreviado a las primeras 4-6 palabras significativas si es largo. Si no hay título usa el hostname de la URL sin "www." ni rutas. NUNCA uses la URL completa ni el hostname solo como cita.
 10. Si una fuente no tiene información relevante para la pregunta, ignórala por completo.
-11. El texto debe tener entre 300 y 550 palabras.
+11. El texto debe tener entre 400 y 700 palabras. Es OBLIGATORIO terminar todas las oraciones y párrafos completos. NUNCA dejes una oración a medias.
 12. Estructura obligatoria:
     - Introducción (1 párrafo): presenta el tema, su contexto y su relevancia académica.
     - Desarrollo (2-3 párrafos): expone los hallazgos, conceptos y datos clave con citas al final de cada párrafo.
@@ -5446,7 +5446,7 @@ REGLAS OBLIGATORIAS:
   const summary = await callAI(
     AI_MODEL_PRO,
     [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-    { temperature: 0.4, max_tokens: 1200 },
+    { temperature: 0.4, max_tokens: 3000 },
     env
   );
 
