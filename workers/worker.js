@@ -7509,22 +7509,13 @@ function extractSuggestions(aiResponse) {
 
 // --- GENERAR MÚSICA CON MINIMAX 2.6 ---
 async function handleMusicGeneration(prompt, conversationId, userDni, env, corsHeaders) {
-  const isAvailable = await checkModelAvailability('minimax/music-2.6', env);
-  if (!isAvailable) {
-    const fallbackMessage = "🎵 El servicio de generación de música está temporalmente no disponible. ¡Prueba en unos minutos!";
-    await saveMessage(conversationId, 'assistant', fallbackMessage, env, null, null, null, userDni);
-    return jsonResponse({
-      type: 'music',
-      response: fallbackMessage,
-      status: 'service_unavailable'
-    }, 200, corsHeaders);
-  }
+  console.log('🎵 Iniciando handleMusicGeneration...');
   try {
     console.log('🎵 Iniciando generación de música con MiniMax 2.6');
     console.log('🎵 Prompt original:', prompt);
 
     // PASAR userDni
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, model = AI_MODEL_NORMAL);
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     // 2. Limpiar y simplificar el prompt para MiniMax
@@ -7653,25 +7644,6 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
       error: 'Error generando música',
       details: error.message
     }, 500, corsHeaders);
-  }
-}
-
-// Agrega esta función para verificar si el modelo está disponible
-async function checkModelAvailability(modelName, env) {
-  try {
-    // Intenta una llamada mínima
-    const testResponse = await env.AI.run(modelName, {
-      prompt: 'test',
-      is_instrumental: true
-    }, {
-      gateway: { id: 'default' },
-    });
-
-    // Si llega aquí, el modelo está disponible
-    return true;
-  } catch (error) {
-    console.warn(`⚠️ Modelo ${modelName} no disponible:`, error.message);
-    return false;
   }
 }
 
