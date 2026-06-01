@@ -254,7 +254,7 @@
 
         // Texto
         if (tab === 'texto') {
-            const text = data.reply || data.text || data.content || '';
+            const text = data.response || data.reply || data.text || data.content || '';
             const escaped = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
             showResult({
                 title: '✍️ Texto generado',
