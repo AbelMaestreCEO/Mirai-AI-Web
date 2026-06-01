@@ -21,7 +21,6 @@
         musicGenre: 'pop',
         isLoading: false
     };
-    let _lastUserText = '';
 
     // ============================================
     // MAPAS DE ETIQUETAS
