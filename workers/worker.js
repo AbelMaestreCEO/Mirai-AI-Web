@@ -2912,103 +2912,103 @@ async function handleTaskDelete(request, env, corsHeaders, taskId) {
 async function handleDietGetState(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   const today = new Date().toISOString().split('T')[0];
- 
+
   const { results } = await env.MIRAI_AI_DB.prepare(
     `SELECT data_key, data_json FROM diet_data WHERE user_dni = ?`
   ).bind(userDni).all();
- 
+
   const map = {};
   results.forEach(r => {
     try { map[r.data_key] = JSON.parse(r.data_json); }
     catch { map[r.data_key] = {}; }
   });
- 
+
   return jsonResponse({
-    goals:    map['goals']        || { kcal: 2000, prot: 150, carb: 220, fat: 65 },
-    planner:  map['planner']      || {},
-    shopping: map['shopping']     || {},
-    log:      map[`log_${today}`] || []
+    goals: map['goals'] || { kcal: 2000, prot: 150, carb: 220, fat: 65 },
+    planner: map['planner'] || {},
+    shopping: map['shopping'] || {},
+    log: map[`log_${today}`] || []
   }, 200, corsHeaders);
 }
- 
+
 // ── PUT /api/diet/:key (goals | planner | shopping) ─────────────────────────
 // Guarda un blob JSON asociado a la clave dada para el usuario.
 async function handleDietPutKey(request, env, corsHeaders, key) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   let body;
   try { body = await request.json(); }
   catch { return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders); }
- 
+
   await env.MIRAI_AI_DB.prepare(`
     INSERT INTO diet_data (user_dni, data_key, data_json, updated_at)
     VALUES (?, ?, ?, datetime('now'))
     ON CONFLICT(user_dni, data_key)
     DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
   `).bind(userDni, key, JSON.stringify(body)).run();
- 
+
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }
- 
+
 // ── DELETE /api/diet/:key (planner) ─────────────────────────────────────────
 async function handleDietDeleteKey(request, env, corsHeaders, key) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   await env.MIRAI_AI_DB.prepare(
     `DELETE FROM diet_data WHERE user_dni = ? AND data_key = ?`
   ).bind(userDni, key).run();
- 
+
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }
- 
+
 // ── PUT /api/diet/log ────────────────────────────────────────────────────────
 // Guarda el log del día actual (clave dinámica log_YYYY-MM-DD).
 async function handleDietPutLog(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   let body;
   try { body = await request.json(); }
   catch { return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders); }
- 
+
   const today = new Date().toISOString().split('T')[0];
-  const key   = `log_${today}`;
- 
+  const key = `log_${today}`;
+
   await env.MIRAI_AI_DB.prepare(`
     INSERT INTO diet_data (user_dni, data_key, data_json, updated_at)
     VALUES (?, ?, ?, datetime('now'))
     ON CONFLICT(user_dni, data_key)
     DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
   `).bind(userDni, key, JSON.stringify(body)).run();
- 
+
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }
- 
+
 // ── DELETE /api/diet/log ─────────────────────────────────────────────────────
 // Borra el log del día actual del usuario.
 async function handleDietDeleteLog(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   const today = new Date().toISOString().split('T')[0];
- 
+
   await env.MIRAI_AI_DB.prepare(
     `DELETE FROM diet_data WHERE user_dni = ? AND data_key = ?`
   ).bind(userDni, `log_${today}`).run();
- 
+
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }
- 
+
 // ── GET /api/diet/history ────────────────────────────────────────────────────
 // Lista los últimos 60 días archivados del usuario.
 async function handleDietGetHistory(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   const { results } = await env.MIRAI_AI_DB.prepare(`
     SELECT date, total_kcal, total_prot, total_carb, total_fat, entries_json
     FROM diet_history
@@ -3016,33 +3016,33 @@ async function handleDietGetHistory(request, env, corsHeaders) {
     ORDER BY date DESC
     LIMIT 60
   `).bind(userDni).all();
- 
+
   return jsonResponse(results.map(r => ({
-    date:      r.date,
+    date: r.date,
     totalKcal: r.total_kcal,
-    prot:      r.total_prot,
-    carb:      r.total_carb,
-    fat:       r.total_fat,
-    meals:     (() => { try { return JSON.parse(r.entries_json); } catch { return []; } })()
+    prot: r.total_prot,
+    carb: r.total_carb,
+    fat: r.total_fat,
+    meals: (() => { try { return JSON.parse(r.entries_json); } catch { return []; } })()
   })), 200, corsHeaders);
 }
- 
+
 // ── POST /api/diet/history ───────────────────────────────────────────────────
 // Archiva el log del día como entrada de historial.
 // Body: { date, totalKcal, prot, carb, fat, meals[] }
 async function handleDietPostHistory(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
- 
+
   let body;
   try { body = await request.json(); }
   catch { return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders); }
- 
+
   const { date, totalKcal, prot, carb, fat, meals } = body;
   if (!date) return jsonResponse({ error: 'Falta el campo date' }, 400, corsHeaders);
- 
+
   const id = crypto.randomUUID();
- 
+
   // ON CONFLICT DO NOTHING: no duplica si ya existe ese día
   await env.MIRAI_AI_DB.prepare(`
     INSERT INTO diet_history (id, user_dni, date, total_kcal, total_prot, total_carb, total_fat, entries_json, created_at)
@@ -3053,7 +3053,7 @@ async function handleDietPostHistory(request, env, corsHeaders) {
     totalKcal || 0, prot || 0, carb || 0, fat || 0,
     JSON.stringify(meals || [])
   ).run();
- 
+
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }
 
@@ -5180,7 +5180,7 @@ async function handleInvestigationSearch(request, env, corsHeaders) {
   // ── 6. Generar resumen con DeepSeek ──
   let summary;
   try {
-    summary = await generateResearchSummary(question, contextBlocks, env);
+    summary = await generateResearchSummary(question, contextBlocks, exaResults, env);
     console.log(`✅ [Investigation] Resumen generado (${summary.length} caracteres)`);
   } catch (err) {
     console.error('❌ [Investigation] Error en DeepSeek:', err.message);
@@ -5396,7 +5396,21 @@ function buildContextBlocks(exaResults, scrapedContents) {
  * Llama a DeepSeek para generar un resumen académico
  * parafraseado en tercera persona.
  */
-async function generateResearchSummary(question, contextBlocks, env) {
+async function generateResearchSummary(question, contextBlocks, exaResults, env) {
+  const citationMap = exaResults.map((r, i) => {
+    let author = '';
+    if (r.author) {
+      const parts = r.author.trim().split(' ');
+      author = parts[parts.length - 1]; // apellido
+    } else {
+      try { author = new URL(r.url).hostname.replace('www.', ''); } catch (_) { author = 'Fuente'; }
+    }
+    let year = 's.f.';
+    if (r.publishedDate) {
+      try { year = new Date(r.publishedDate).getFullYear(); } catch (_) { }
+    }
+    return `[${i + 1}] → (${author}, ${year})`;
+  }).join('\n');
 
   const systemPrompt = `Eres un asistente de investigación académica experto.
 Tu tarea es leer múltiples fuentes web y generar un resumen de investigación riguroso y útil.
@@ -5409,19 +5423,20 @@ REGLAS OBLIGATORIAS:
 5. NO escribas una conclusión. El texto termina con el último párrafo de desarrollo, sin cierre ni síntesis final.
 6. Parafrasea completamente todo el contenido. NUNCA copies frases textuales de las fuentes.
 7. Descarta: publicidad, menús de navegación, pies de página, cookies, suscripciones y contenido sin relevancia a la pregunta.
-8. Cita las fuentes integradas en el texto usando [1], [2], etc., según el número de fuente en el contexto.
+8. Cita las fuentes integradas en el texto usando la notación (Autor, Año) según el número de fuente indicado al inicio de cada bloque. Si el bloque no tiene autor usa el nombre del sitio. Si no tiene año usa "s.f.". Ejemplo: (Springer Nature, 2023) o (García, 2021).
 9. Si una fuente no tiene información relevante para la pregunta, ignórala por completo.
 10. El texto debe tener entre 300 y 550 palabras.
 11. Estructura obligatoria:
     - Introducción (1 párrafo): presenta el tema, su contexto y su relevancia académica.
     - Desarrollo (2-3 párrafos): expone los hallazgos, conceptos y datos clave con citas integradas.
 12. NO incluyas lista de referencias al final; las citas van únicamente integradas en el texto.
-13. NO inventes información que no esté en las fuentes proporcionadas.`;
+13. NO inventes información que no esté en las fuentes proporcionadas.
+14. Cuando debas incluir fórmulas o expresiones matemáticas, escríbelas en Unicode matemático legible, NO en LaTeX. Ejemplo: e ≈ 1.6 × 10⁻¹⁹ C, F = k·q₁·q₂/r², E = mc².`;
 
   const userPrompt =
-    `Pregunta de investigación: "${question}"\n\n` +
-    `A continuación están las fuentes que debes analizar:\n\n` +
-    contextBlocks;
+    `Mapa de citas (usa EXACTAMENTE este formato al citar): "${citationMap}"` +
+    `A continuación están las fuentes que debes analizar:\n\n` + contextBlocks +
+    `\n\nPregunta de investigación: "${question}"`;
 
   const summary = await callAI(
     AI_MODEL_NORMAL,
