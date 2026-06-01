@@ -6231,7 +6231,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
 
 async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false) {
   try {
-    await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, model = AI_MODEL_NORMAL);
+    await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', originalMessage, env, null, null, null, userDni);
 
     let imageUrl;
@@ -6316,7 +6316,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     console.log('🎬 Prompt original:', prompt);
 
     // 1. Guardar traza inicial en la base de datos
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, model = AI_MODEL_NORMAL);
+    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, AI_MODEL_NORMAL);
     await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
 
     const videoPrompt = simplifyVideoPrompt(prompt);
