@@ -16,8 +16,8 @@ if (!document.getElementById('inv-input')) {
 // ════════════════════════════════════════════════════════════
 
 const INV_CONFIG = {
-    API_ENDPOINT:   '/api/investigation/search',
-    STEP_INTERVAL:  2200,
+    API_ENDPOINT: '/api/investigation/search',
+    STEP_INTERVAL: 2200,
     MAX_COPY_RESET: 2500,
 };
 
@@ -26,21 +26,21 @@ const INV_CONFIG = {
 // ════════════════════════════════════════════════════════════
 
 const LOADING_STEPS = [
-    { text: 'Buscando en la web...',                   chip: 'chip-search' },
-    { text: 'Buscando noticias recientes...',          chip: 'chip-search' },
-    { text: 'Buscando artículos académicos...',        chip: 'chip-search' },
-    { text: 'Consultando fuentes especializadas...',   chip: 'chip-search' },
-    { text: 'Leyendo las páginas encontradas...',      chip: 'chip-read'   },
-    { text: 'Extrayendo el contenido relevante...',    chip: 'chip-read'   },
-    { text: 'Analizando cada fuente en detalle...',    chip: 'chip-read'   },
+    { text: 'Buscando en la web...', chip: 'chip-search' },
+    { text: 'Buscando noticias recientes...', chip: 'chip-search' },
+    { text: 'Buscando artículos académicos...', chip: 'chip-search' },
+    { text: 'Consultando fuentes especializadas...', chip: 'chip-search' },
+    { text: 'Leyendo las páginas encontradas...', chip: 'chip-read' },
+    { text: 'Extrayendo el contenido relevante...', chip: 'chip-read' },
+    { text: 'Analizando cada fuente en detalle...', chip: 'chip-read' },
     { text: 'Preparando la investigación para ti...', chip: 'chip-filter' },
-    { text: 'Filtrando información innecesaria...',    chip: 'chip-filter' },
+    { text: 'Filtrando información innecesaria...', chip: 'chip-filter' },
     { text: 'Descartando contenido sin relevancia...', chip: 'chip-filter' },
-    { text: 'La IA está redactando el resumen...',     chip: 'chip-write'  },
-    { text: 'Parafraseando en tercera persona...',     chip: 'chip-write'  },
-    { text: 'Organizando las fuentes citadas...',      chip: 'chip-write'  },
-    { text: 'Revisando coherencia del texto...',       chip: 'chip-write'  },
-    { text: 'Casi listo, últimos ajustes...',          chip: 'chip-write'  },
+    { text: 'La IA está redactando el resumen...', chip: 'chip-write' },
+    { text: 'Parafraseando en tercera persona...', chip: 'chip-write' },
+    { text: 'Organizando las fuentes citadas...', chip: 'chip-write' },
+    { text: 'Revisando coherencia del texto...', chip: 'chip-write' },
+    { text: 'Casi listo, últimos ajustes...', chip: 'chip-write' },
 ];
 
 const CHIP_IDS = ['chip-search', 'chip-read', 'chip-filter', 'chip-write'];
@@ -50,11 +50,11 @@ const CHIP_IDS = ['chip-search', 'chip-read', 'chip-filter', 'chip-write'];
 // ════════════════════════════════════════════════════════════
 
 const invState = {
-    isBusy:       false,
+    isBusy: false,
     loadingTimer: null,
-    stepIndex:    0,
+    stepIndex: 0,
     lastQuestion: '',
-    sources:      [],   // guardamos las fuentes para el botón APA
+    sources: [],   // guardamos las fuentes para el botón APA
 };
 
 // ════════════════════════════════════════════════════════════
@@ -62,18 +62,18 @@ const invState = {
 // ════════════════════════════════════════════════════════════
 
 const invEl = {
-    input:        document.getElementById('inv-input'),
-    sendBtn:      document.getElementById('inv-send-btn'),
-    loading:      document.getElementById('inv-loading'),
-    stepText:     document.getElementById('inv-step-text'),
-    error:        document.getElementById('inv-error'),
-    result:       document.getElementById('inv-result'),
-    summaryBox:   document.getElementById('inv-summary-text'),
+    input: document.getElementById('inv-input'),
+    sendBtn: document.getElementById('inv-send-btn'),
+    loading: document.getElementById('inv-loading'),
+    stepText: document.getElementById('inv-step-text'),
+    error: document.getElementById('inv-error'),
+    result: document.getElementById('inv-result'),
+    summaryBox: document.getElementById('inv-summary-text'),
     sourcesCount: document.getElementById('inv-sources-count'),
-    sourcesGrid:  document.getElementById('inv-sources-grid'),
-    copyBtn:      document.getElementById('inv-copy-btn'),
-    copyApaBtn:   document.getElementById('inv-copy-apa-btn'),
-    apaBox:       document.getElementById('inv-apa-box'),
+    sourcesGrid: document.getElementById('inv-sources-grid'),
+    copyBtn: document.getElementById('inv-copy-btn'),
+    copyApaBtn: document.getElementById('inv-copy-apa-btn'),
+    apaBox: document.getElementById('inv-apa-box'),
 };
 
 // ════════════════════════════════════════════════════════════
@@ -86,7 +86,7 @@ function setChipState(activeChipId) {
         const el = document.getElementById(id);
         if (!el) return;
         el.classList.remove('active', 'done');
-        if (i < activePos)   el.classList.add('done');
+        if (i < activePos) el.classList.add('done');
         if (i === activePos) el.classList.add('active');
     });
 }
@@ -137,8 +137,8 @@ function setLoadingVisible(visible) {
 }
 
 function setControlsDisabled(disabled) {
-    invEl.sendBtn.disabled     = disabled;
-    invEl.input.disabled       = disabled;
+    invEl.sendBtn.disabled = disabled;
+    invEl.input.disabled = disabled;
     invEl.sendBtn.style.opacity = disabled ? '0.5' : '1';
 }
 
@@ -174,8 +174,14 @@ function escHtml(text) {
  * Si no hay autor: Título del artículo. (Año). Nombre del sitio. URL
  */
 function buildApaReference(src, index) {
-    const url   = src.url   || '';
-    const title = src.title || url || `Fuente ${index + 1}`;
+    const url = src.url || '';
+    // Si no hay título real, usamos el hostname limpio (ej: "uned.es")
+    // para evitar que una URL larga aparezca como título del documento
+    let siteName = '';
+    try {
+        siteName = new URL(url).hostname.replace('www.', '');
+    } catch (_) { siteName = ''; }
+    const title = src.title || siteName || `Fuente ${index + 1}`;
 
     // ── Autor ──
     // Exa devuelve author como string libre (ej: "John Doe" o "John Doe, Jane Smith")
@@ -189,7 +195,7 @@ function buildApaReference(src, index) {
             authorPart = names.map(n => {
                 const parts = n.split(' ').filter(Boolean);
                 if (parts.length < 2) return n;
-                const last  = parts[parts.length - 1];
+                const last = parts[parts.length - 1];
                 const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
                 return `${last}, ${initials}`;
             }).join(', & ');
@@ -197,7 +203,7 @@ function buildApaReference(src, index) {
             // Un solo nombre: "Juan Pérez" → "Pérez, J."
             const parts = src.author.trim().split(' ').filter(Boolean);
             if (parts.length >= 2) {
-                const last     = parts[parts.length - 1];
+                const last = parts[parts.length - 1];
                 const initials = parts.slice(0, -1).map(p => p[0] + '.').join(' ');
                 authorPart = `${last}, ${initials}`;
             } else {
@@ -215,22 +221,15 @@ function buildApaReference(src, index) {
             const d = new Date(src.publishedDate);
             if (!isNaN(d.getTime())) {
                 const year = d.getFullYear();
-                const months = ['enero','febrero','marzo','abril','mayo','junio',
-                                'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+                const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
                 const month = months[d.getMonth()];
-                const day   = d.getDate();
-                yearPart     = String(year);
+                const day = d.getDate();
+                yearPart = String(year);
                 fullDatePart = `${year}, ${day} de ${month}`;
             }
         } catch (_) { /* dejar s.f. */ }
     }
-
-    // ── Nombre del sitio ──
-    // Extraemos el hostname de la URL como nombre del sitio
-    let siteName = '';
-    try {
-        siteName = new URL(url).hostname.replace('www.', '');
-    } catch (_) { siteName = ''; }
 
     // ── Construir la referencia ──
     // APA 7 página web con autor:
@@ -262,7 +261,7 @@ function buildApaReference(src, index) {
 function buildApaBlock(sources) {
     if (!sources || sources.length === 0) return '';
     const refs = sources.map((src, i) => buildApaReference(src, i));
-    return 'Referencias\n\n' + refs.map((r, i) => `[${i + 1}] ${r}`).join('\n\n');
+    return 'Referencias\n\n' + refs.join('\n\n');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -286,21 +285,21 @@ function renderResult(data) {
     // ── Contador de fuentes ──
     invEl.sourcesCount.textContent =
         sources.length === 0 ? 'sin fuentes' :
-        sources.length === 1 ? '1 fuente'    :
-        `${sources.length} fuentes`;
+            sources.length === 1 ? '1 fuente' :
+                `${sources.length} fuentes`;
 
     // ── Tarjetas de fuentes ──
     invEl.sourcesGrid.innerHTML = '';
     sources.forEach((src, i) => {
-        const typeKey   = src.type || 'web';
+        const typeKey = src.type || 'web';
         const typeLabel = typeKey === 'academic' ? 'Académico'
-                        : typeKey === 'news'     ? 'Noticia'
-                        :                          'Web';
+            : typeKey === 'news' ? 'Noticia'
+                : 'Web';
 
         const card = document.createElement('a');
-        card.href      = src.url || '#';
-        card.target    = '_blank';
-        card.rel       = 'noopener noreferrer';
+        card.href = src.url || '#';
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
         card.className = 'inv-source-card';
         card.innerHTML = `
             <span class="inv-source-type ${escHtml(typeKey)}">${escHtml(typeLabel)}</span>
@@ -336,7 +335,7 @@ async function startInvestigation() {
     hideError();
     invEl.result.classList.remove('visible');
     invEl.summaryBox.textContent = '';
-    invEl.sourcesGrid.innerHTML  = '';
+    invEl.sourcesGrid.innerHTML = '';
     if (invEl.apaBox) invEl.apaBox.textContent = '';
     invState.sources = [];
     resetChips();
@@ -349,10 +348,10 @@ async function startInvestigation() {
 
     try {
         const response = await fetch(INV_CONFIG.API_ENDPOINT, {
-            method:      'POST',
+            method: 'POST',
             credentials: 'same-origin',
-            headers:     { 'Content-Type': 'application/json' },
-            body:        JSON.stringify({ question }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question }),
         });
 
         stopLoadingAnimation();
@@ -362,7 +361,7 @@ async function startInvestigation() {
             try {
                 const errBody = await response.json();
                 if (errBody.error) serverError = errBody.error;
-            } catch (_) {}
+            } catch (_) { }
             throw new Error(serverError);
         }
 
@@ -439,7 +438,7 @@ async function handleCopyApa() {
     const text = invEl.apaBox ? invEl.apaBox.textContent : buildApaBlock(invState.sources);
     if (!text) return;
 
-    const btn          = invEl.copyApaBtn;
+    const btn = invEl.copyApaBtn;
     const originalHTML = btn.innerHTML;
 
     const onSuccess = () => {
@@ -488,12 +487,12 @@ function autoResizeTextarea() {
 // ════════════════════════════════════════════════════════════
 
 function setupEventListeners() {
-    invEl.input.addEventListener('input',   autoResizeTextarea);
+    invEl.input.addEventListener('input', autoResizeTextarea);
     invEl.input.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startInvestigation(); }
     });
-    invEl.sendBtn.addEventListener('click',    startInvestigation);
-    invEl.copyBtn.addEventListener('click',    handleCopy);
+    invEl.sendBtn.addEventListener('click', startInvestigation);
+    invEl.copyBtn.addEventListener('click', handleCopy);
     if (invEl.copyApaBtn) {
         invEl.copyApaBtn.addEventListener('click', handleCopyApa);
     }
