@@ -2782,7 +2782,7 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const url = new URL(request.url);
-  const id   = url.searchParams.get('id');    // DELETE /api/gen-history?id=5   → borra uno
+  const id = url.searchParams.get('id');    // DELETE /api/gen-history?id=5   → borra uno
   const type = url.searchParams.get('type'); // DELETE /api/gen-history?type=imagen → borra categoría
   // Sin parámetros → borra TODO el historial del usuario
 
@@ -7549,10 +7549,23 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
       audioBuffer = aiResponse.buffer;
       console.log('✅ Audio recibido como Uint8Array:', audioBuffer.byteLength, 'bytes');
     }
-    else if (aiResponse?.success && aiResponse?.result?.audio) {
+    else if (aiResponse?.result?.audio && typeof aiResponse.result.audio === 'string') {
       const audioData = aiResponse.result.audio;
 
-      if (typeof audioData === 'string') {
+      // CASO A: URL directa (formato nuevo de AI Gateway: state=Completed)
+      if (audioData.startsWith('http')) {
+        console.log('🔗 Audio como URL directa de AI Gateway:', audioData.substring(0, 80));
+        try {
+          const audioFetch = await fetch(audioData);
+          if (!audioFetch.ok) throw new Error(`HTTP ${audioFetch.status} al descargar audio`);
+          audioBuffer = await audioFetch.arrayBuffer();
+          console.log('✅ Audio descargado desde URL:', audioBuffer.byteLength, 'bytes');
+        } catch (fetchErr) {
+          throw new Error('No se pudo descargar el audio: ' + fetchErr.message);
+        }
+      }
+      // CASO B: Base64
+      else {
         const binaryString = atob(audioData);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -7560,9 +7573,6 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
         }
         audioBuffer = bytes.buffer;
         console.log('✅ Audio decodificado de base64:', audioBuffer.byteLength, 'bytes');
-      } else if (audioData instanceof ArrayBuffer) {
-        audioBuffer = audioData;
-        console.log('✅ Audio como ArrayBuffer en result.audio');
       }
     }
     else if (aiResponse?.error) {
