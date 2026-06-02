@@ -4336,7 +4336,7 @@ async function handleAttRecord(request, env, corsHeaders) {
   try {
     // 1. Validar sesión QR (no expirada)
     const session = await env.MIRAI_AI_DB.prepare(`
-            SELECT id, date FROM att_qr_sessions
+            SELECT id, date, class_id FROM att_qr_sessions
             WHERE token = ? AND expires_at > datetime('now')
         `).bind(qr_token).first();
     if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
@@ -4346,6 +4346,14 @@ async function handleAttRecord(request, env, corsHeaders) {
       'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
     ).bind(userDni.toUpperCase()).first();
     if (!staff) return jsonResponse({ error: 'No estás registrado como personal activo' }, 403, corsHeaders);
+
+    // 2b. Si el QR es de una clase, verificar que el empleado esté inscrito
+    if (session.class_id) {
+      const enrolled = await env.MIRAI_AI_DB.prepare(
+        'SELECT 1 FROM att_class_students WHERE class_id = ? AND staff_id = ?'
+      ).bind(session.class_id, staff.id).first();
+      if (!enrolled) return jsonResponse({ error: 'No estás inscrito en esta clase' }, 403, corsHeaders);
+    }
 
     // 3. Determinar si es entrada o salida
     const lastRecord = await env.MIRAI_AI_DB.prepare(`
