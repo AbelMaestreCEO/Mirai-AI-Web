@@ -5435,7 +5435,7 @@ async function handleAttLookupUser(request, env, corsHeaders) {
 
   try {
     const user = await env.MIRAI_AI_DB.prepare(
-      'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
+      'SELECT first_name, last_name, email FROM users WHERE dni = ?'
     ).bind(dni).first();
 
     if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
@@ -5471,7 +5471,7 @@ async function handleAttStaffCreate(request, env, corsHeaders) {
   try {
     // Obtener nombre y email reales desde users
     const user = await env.MIRAI_AI_DB.prepare(
-      'SELECT first_name, last_name, email FROM users WHERE dni = ? AND is_verified = 1'
+      'SELECT first_name, last_name, email FROM users WHERE dni = ?'
     ).bind(dni.toUpperCase()).first();
     if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
 
