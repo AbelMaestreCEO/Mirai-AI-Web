@@ -5143,8 +5143,6 @@ async function handleAttGenerateQr(request, env, corsHeaders) {
   try {
     // Reemplazar sesión previa del mismo día (solo QR general, sin clase)
     await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ? AND class_id IS NULL').bind(targetDate).run();
-    // Asegurar columna class_id existe (por si la tabla fue creada antes)
-    try { await env.MIRAI_AI_DB.prepare('ALTER TABLE att_qr_sessions ADD COLUMN class_id TEXT').run(); } catch (_) {}
     await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_qr_sessions (id, token, date, expires_at, scan_count, created_by, class_id)
             VALUES (?, ?, ?, ?, 0, ?, NULL)
