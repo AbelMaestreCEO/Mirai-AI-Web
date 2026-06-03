@@ -47,7 +47,7 @@
         })();
     </script>
     <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="transitions.css">
+    <link rel="stylesheet" href="transitions.css">
     <!-- SheetJS para exportar Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- QRCode.js para generar QRs -->
@@ -380,6 +380,7 @@
             max-width: 1200px;
             margin: 0 auto;
         }
+
         .att-tab-btn {
             padding: 9px 22px;
             border: 1px solid var(--glass-border);
@@ -392,6 +393,7 @@
             transition: all var(--transition-fast);
             font-family: inherit;
         }
+
         .att-tab-btn.active {
             background: var(--accent-gradient);
             color: white;
@@ -408,6 +410,7 @@
             max-width: 1200px;
             margin: 0 auto;
         }
+
         .class-card {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
@@ -418,35 +421,42 @@
             flex-direction: column;
             gap: 12px;
         }
+
         .class-card-header {
             display: flex;
             align-items: flex-start;
             gap: 12px;
         }
+
         .class-icon {
             font-size: 1.8rem;
             flex-shrink: 0;
         }
+
         .class-name {
             font-size: 1rem;
             font-weight: 700;
             color: var(--text-primary);
             word-break: break-word;
         }
+
         .class-desc {
             font-size: 0.8rem;
             color: var(--text-secondary);
             margin-top: 3px;
         }
+
         .class-meta {
             font-size: 0.82rem;
             color: var(--text-tertiary);
         }
+
         .class-actions {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
         }
+
         .class-actions .btn-export {
             padding: 7px 12px;
             font-size: 0.78rem;
@@ -460,7 +470,10 @@
             padding: 10px 0;
             border-bottom: 1px solid var(--glass-border);
         }
-        .student-item:last-child { border-bottom: none; }
+
+        .student-item:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 
@@ -718,19 +731,23 @@
         <div class="att-stats" id="att-stats">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
-                <div class="stat-content"><span class="stat-label">Personal Registrado</span><span class="stat-value" id="st-staff">—</span></div>
+                <div class="stat-content"><span class="stat-label">Personal Registrado</span><span class="stat-value"
+                        id="st-staff">—</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">📅</div>
-                <div class="stat-content"><span class="stat-label">Registros Hoy</span><span class="stat-value" id="st-today">—</span></div>
+                <div class="stat-content"><span class="stat-label">Registros Hoy</span><span class="stat-value"
+                        id="st-today">—</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⬆️</div>
-                <div class="stat-content"><span class="stat-label">Entradas Hoy</span><span class="stat-value" id="st-entries">—</span></div>
+                <div class="stat-content"><span class="stat-label">Entradas Hoy</span><span class="stat-value"
+                        id="st-entries">—</span></div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">⬇️</div>
-                <div class="stat-content"><span class="stat-label">Salidas Hoy</span><span class="stat-value" id="st-exits">—</span></div>
+                <div class="stat-content"><span class="stat-label">Salidas Hoy</span><span class="stat-value"
+                        id="st-exits">—</span></div>
             </div>
         </div>
 
@@ -745,7 +762,8 @@
 
             <!-- QR del día (general) -->
             <div class="qr-admin-card" id="qr-admin-card">
-                <h3 style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:20px;">🔑 QR General del día</h3>
+                <h3 style="font-size:1rem;font-weight:700;color:var(--text-primary);margin-bottom:20px;">🔑 QR General
+                    del día</h3>
                 <div class="qr-display-wrap">
                     <div class="qr-img-box" id="qr-img-box">
                         <div class="att-spinner"></div>
@@ -757,7 +775,8 @@
                         <p class="qr-meta-row">🔢 Escaneos: <strong id="qr-scans">0</strong></p>
                         <div class="qr-token-box" id="qr-token-box">Generando token...</div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-                            <button class="course-start-btn" id="btn-gen-qr" style="flex:1;max-width:180px;">🔄 Nuevo QR</button>
+                            <button class="course-start-btn" id="btn-gen-qr" style="flex:1;max-width:180px;">🔄 Nuevo
+                                QR</button>
                             <button class="btn-export" id="btn-download-qr">📥 Descargar QR</button>
                         </div>
                     </div>
@@ -797,7 +816,10 @@
                 <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
                     <label for="f-search">Buscar personal</label>
                     <div class="courses-search" style="min-width:unset;">
-                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                        </svg>
                         <input type="text" id="f-search" placeholder="Nombre o DNI..." autocomplete="off">
                     </div>
                 </div>
@@ -843,7 +865,10 @@
                 <button class="course-start-btn" id="btn-new-class" style="max-width:200px;">🏫 Nueva Clase</button>
             </div>
             <div class="classes-grid" id="classes-grid">
-                <div class="att-empty"><div class="att-spinner"></div><p>Cargando clases...</p></div>
+                <div class="att-empty">
+                    <div class="att-spinner"></div>
+                    <p>Cargando clases...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -862,11 +887,14 @@
                     <label for="sf-dni">DNI del usuario *</label>
                     <div style="display:flex;gap:10px;">
                         <input type="text" id="sf-dni" placeholder="Ej: 12345678" style="flex:1;">
-                        <button class="btn-primary" id="sf-lookup-btn" style="white-space:nowrap;padding:12px 18px;">Buscar</button>
+                        <button class="btn-primary" id="sf-lookup-btn"
+                            style="white-space:nowrap;padding:12px 18px;">Buscar</button>
                     </div>
                 </div>
-                <div id="sf-user-preview" style="display:none;background:var(--secondary-container);border-radius:var(--border-radius-md);padding:14px 16px;margin-bottom:16px;">
-                    <p style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin:0 0 4px;" id="sf-preview-name">—</p>
+                <div id="sf-user-preview"
+                    style="display:none;background:var(--secondary-container);border-radius:var(--border-radius-md);padding:14px 16px;margin-bottom:16px;">
+                    <p style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin:0 0 4px;"
+                        id="sf-preview-name">—</p>
                     <p style="font-size:0.82rem;color:var(--text-secondary);margin:0;" id="sf-preview-email">—</p>
                 </div>
             </div>
@@ -932,7 +960,8 @@
                     <p class="qr-meta-row">🔢 Escaneos: <strong id="class-qr-scans">0</strong></p>
                     <div class="qr-token-box" id="class-qr-token">—</div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-                        <button class="course-start-btn" id="btn-gen-class-qr" style="flex:1;max-width:180px;">🔄 Nuevo QR</button>
+                        <button class="course-start-btn" id="btn-gen-class-qr" style="flex:1;max-width:180px;">🔄 Nuevo
+                            QR</button>
                         <button class="btn-export" id="btn-download-class-qr">📥 Descargar</button>
                     </div>
                 </div>
@@ -948,14 +977,39 @@
             <div class="modal-header">
                 <h2 id="class-students-title">👥 Estudiantes</h2>
             </div>
-            <!-- Agregar estudiante -->
-            <div class="form-group" style="margin-bottom:8px;">
-                <label for="add-student-dni">Agregar por DNI</label>
-                <div style="display:flex;gap:10px;">
-                    <input type="text" id="add-student-dni" placeholder="DNI del personal" style="flex:1;">
-                    <button class="btn-primary" id="add-student-btn" style="white-space:nowrap;padding:12px 18px;">Agregar</button>
+
+            <!-- Tabs internas: DNI individual / Sección completa -->
+            <div style="display:flex;gap:6px;margin-bottom:14px;">
+                <button class="att-tab-btn active" id="add-mode-btn-dni" style="font-size:0.8rem;padding:7px 16px;">👤
+                    Por DNI</button>
+                <button class="att-tab-btn" id="add-mode-btn-section" style="font-size:0.8rem;padding:7px 16px;">📚 Por
+                    Sección</button>
+            </div>
+
+            <!-- Panel: agregar por DNI -->
+            <div id="add-mode-pane-dni">
+                <div class="form-group" style="margin-bottom:8px;">
+                    <label for="add-student-dni">Agregar por DNI</label>
+                    <div style="display:flex;gap:10px;">
+                        <input type="text" id="add-student-dni" placeholder="DNI del personal" style="flex:1;">
+                        <button class="btn-primary" id="add-student-btn"
+                            style="white-space:nowrap;padding:12px 18px;">Agregar</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- Panel: agregar sección completa -->
+            <div id="add-mode-pane-section" style="display:none;">
+                <div class="form-group" style="margin-bottom:8px;">
+                    <label for="add-section-select">Seleccionar Sección del Aula</label>
+                    <div style="display:flex;gap:10px;">
+                        <select id="add-section-select" style="flex:1;"></select>
+                        <button class="btn-primary" id="add-section-btn"
+                            style="white-space:nowrap;padding:12px 18px;">Agregar</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="add-student-status" class="status-message" style="margin-bottom:12px;font-size:0.83rem;"></div>
             <!-- Lista de estudiantes -->
             <div id="class-students-list" style="max-height:300px;overflow-y:auto;"></div>
@@ -966,7 +1020,7 @@
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
     <script src="attendance_admin.js" defer></script>
-<script src="transitions.js"></script>
+    <script src="transitions.js"></script>
 </body>
 
 </html>

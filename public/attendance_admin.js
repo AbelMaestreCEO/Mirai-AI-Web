@@ -6,13 +6,14 @@
 'use strict';
 
 const API = {
-    activeQr:    '/api/attendance/admin/active-qr',
-    generateQr:  '/api/attendance/admin/generate-qr',
-    records:     '/api/attendance/admin/records',
-    stats:       '/api/attendance/admin/stats',
-    staff:       '/api/attendance/admin/staff',
-    addStaff:    '/api/attendance/admin/staff',
-    classes:     '/api/attendance/admin/classes',
+    activeQr: '/api/attendance/admin/active-qr',
+    generateQr: '/api/attendance/admin/generate-qr',
+    records: '/api/attendance/admin/records',
+    stats: '/api/attendance/admin/stats',
+    staff: '/api/attendance/admin/staff',
+    addStaff: '/api/attendance/admin/staff',
+    classes: '/api/attendance/admin/classes',
+    sections: '/api/sections',
 };
 
 function authHeaders() {
@@ -32,18 +33,18 @@ function el(id) { return document.getElementById(id); }
 
 // ── Estado global ─────────────────────────────────────────────
 const state = {
-    records:     [],
-    staff:       [],
-    classes:     [],
-    activeQr:    null,
-    editStaff:   null,
-    editClass:   null,
-    date:        todayISO(),
-    typeFilter:  'todos',
-    query:       '',
+    records: [],
+    staff: [],
+    classes: [],
+    activeQr: null,
+    editStaff: null,
+    editClass: null,
+    date: todayISO(),
+    typeFilter: 'todos',
+    query: '',
     classFilter: '',
-    dateFrom:    '',
-    dateTo:      '',
+    dateFrom: '',
+    dateTo: '',
     activeClassId: null,   // clase actualmente abierta para ver estudiantes/QR
 };
 
@@ -51,9 +52,9 @@ const state = {
 // TABS (Records / Classes)
 // ═══════════════════════════════════════════════════════════════
 function switchTab(tab) {
-    const tabs   = ['records', 'classes'];
+    const tabs = ['records', 'classes'];
     tabs.forEach(t => {
-        const btn  = el(`tab-btn-${t}`);
+        const btn = el(`tab-btn-${t}`);
         const pane = el(`tab-pane-${t}`);
         if (!btn || !pane) return;
         if (t === tab) {
@@ -73,7 +74,7 @@ async function loadActiveQr() {
     const box = el('qr-img-box');
     if (!box) return;
     try {
-        const res  = await fetch(API.activeQr, { credentials: 'same-origin', headers: authHeaders() });
+        const res = await fetch(API.activeQr, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
         if (res.ok && data.token) {
             state.activeQr = data;
@@ -87,13 +88,13 @@ async function loadActiveQr() {
 }
 
 async function generateQr() {
-    const box    = el('qr-img-box');
+    const box = el('qr-img-box');
     const genBtn = el('btn-gen-qr');
     if (!box) return;
     box.innerHTML = '<div class="att-spinner"></div>';
     if (genBtn) genBtn.disabled = true;
     try {
-        const res  = await fetch(API.generateQr, {
+        const res = await fetch(API.generateQr, {
             method: 'POST', credentials: 'same-origin', headers: authHeaders(),
             body: JSON.stringify({ date: state.date }),
         });
@@ -112,7 +113,7 @@ async function generateQr() {
 }
 
 function renderQr(data, wrapperId = 'qr-img-box', labelId = 'qr-session-label',
-                   dateId = 'qr-date', expiresId = 'qr-expires', scansId = 'qr-scans', tokenId = 'qr-token-box') {
+    dateId = 'qr-date', expiresId = 'qr-expires', scansId = 'qr-scans', tokenId = 'qr-token-box') {
     const box = el(wrapperId);
     if (!box) return;
     box.innerHTML = '<div id="qr-canvas-wrap"></div>';
@@ -127,11 +128,11 @@ function renderQr(data, wrapperId = 'qr-img-box', labelId = 'qr-session-label',
     } else if (wrap) {
         wrap.innerHTML = `<p style="font-size:0.75rem;word-break:break-all;color:var(--text-tertiary);">${esc(qrPayload)}</p>`;
     }
-    if (el(labelId))   el(labelId).textContent   = `Sesión ${esc(data.date || state.date)}`;
-    if (el(dateId))    el(dateId).textContent     = esc(data.date || state.date);
-    if (el(expiresId)) el(expiresId).textContent  = esc(data.expires_at || '23:59');
-    if (el(scansId))   el(scansId).textContent    = data.scan_count ?? 0;
-    if (el(tokenId))   el(tokenId).textContent    = data.token;
+    if (el(labelId)) el(labelId).textContent = `Sesión ${esc(data.date || state.date)}`;
+    if (el(dateId)) el(dateId).textContent = esc(data.date || state.date);
+    if (el(expiresId)) el(expiresId).textContent = esc(data.expires_at || '23:59');
+    if (el(scansId)) el(scansId).textContent = data.scan_count ?? 0;
+    if (el(tokenId)) el(tokenId).textContent = data.token;
 }
 
 function downloadQr(canvasWrapId = 'qr-canvas-wrap', label = state.date) {
@@ -150,12 +151,12 @@ function downloadQr(canvasWrapId = 'qr-canvas-wrap', label = state.date) {
 // ═══════════════════════════════════════════════════════════════
 async function loadStats() {
     try {
-        const res  = await fetch(`${API.stats}?date=${state.date}`, { credentials: 'same-origin', headers: authHeaders() });
+        const res = await fetch(`${API.stats}?date=${state.date}`, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
-        if (el('st-staff'))   el('st-staff').textContent   = data.total_staff   ?? '—';
-        if (el('st-today'))   el('st-today').textContent   = data.total_today   ?? '—';
+        if (el('st-staff')) el('st-staff').textContent = data.total_staff ?? '—';
+        if (el('st-today')) el('st-today').textContent = data.total_today ?? '—';
         if (el('st-entries')) el('st-entries').textContent = data.total_entries ?? '—';
-        if (el('st-exits'))   el('st-exits').textContent   = data.total_exits   ?? '—';
+        if (el('st-exits')) el('st-exits').textContent = data.total_exits ?? '—';
     } catch (_) { /* offline */ }
 }
 
@@ -167,14 +168,14 @@ async function loadRecords() {
         const params = new URLSearchParams();
         if (state.dateFrom && state.dateTo) {
             params.set('date_from', state.dateFrom);
-            params.set('date_to',   state.dateTo);
+            params.set('date_to', state.dateTo);
         } else {
             params.set('date', state.date);
         }
         if (state.typeFilter !== 'todos') params.set('type', state.typeFilter);
         if (state.classFilter) params.set('class_id', state.classFilter);
 
-        const res  = await fetch(`${API.records}?${params}`, { credentials: 'same-origin', headers: authHeaders() });
+        const res = await fetch(`${API.records}?${params}`, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
         state.records = data.records || [];
         renderTable();
@@ -189,7 +190,7 @@ function filteredRecords() {
     return state.records.filter(r => {
         if (state.typeFilter !== 'todos' && r.type !== state.typeFilter) return false;
         if (q && !String(r.staff_name || '').toLowerCase().includes(q) &&
-            !String(r.staff_dni  || '').includes(q)) return false;
+            !String(r.staff_dni || '').includes(q)) return false;
         return true;
     });
 }
@@ -199,7 +200,7 @@ function renderTable() {
     const table = el('att-table');
     const empty = el('att-empty');
     const count = el('att-count');
-    const rows  = filteredRecords();
+    const rows = filteredRecords();
 
     if (count) count.textContent = `Mostrando ${rows.length} registro${rows.length !== 1 ? 's' : ''}`;
     if (!tbody) return;
@@ -214,7 +215,7 @@ function renderTable() {
     if (empty) empty.classList.add('hidden');
 
     rows.forEach((r, i) => {
-        const tr  = document.createElement('tr');
+        const tr = document.createElement('tr');
         const ini = (r.staff_name || r.staff_dni || '?').trim().split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
         tr.innerHTML = `
             <td style="color:var(--text-tertiary);font-size:0.8rem;">${i + 1}</td>
@@ -248,10 +249,10 @@ function exportCSV() {
         i + 1, r.staff_name || '', r.staff_dni || '', r.type || '',
         r.time || '', r.date || '', r.department || '', r.position || '', r.class_name || '', r.session_id || ''
     ])];
-    const csv  = lines.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const csv = lines.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     const label = state.dateFrom && state.dateTo ? `${state.dateFrom}_${state.dateTo}` : state.date;
     a.href = url; a.download = `asistencia_${label}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -260,7 +261,7 @@ function exportCSV() {
 
 function exportExcel() {
     if (typeof XLSX === 'undefined') { alert('Librería de Excel cargando, reintenta.'); return; }
-    const rows  = filteredRecords();
+    const rows = filteredRecords();
     const label = state.dateFrom && state.dateTo ? `${state.dateFrom} al ${state.dateTo}` : state.date;
     const wsData = [
         [`Reporte de Asistencia — ${label}`], [],
@@ -277,7 +278,7 @@ function exportExcel() {
 }
 
 function exportPDF() {
-    const rows  = filteredRecords();
+    const rows = filteredRecords();
     const label = state.dateFrom && state.dateTo ? `${state.dateFrom} al ${state.dateTo}` : state.date;
 
     // Construir HTML para imprimir como PDF
@@ -328,7 +329,7 @@ async function loadClasses() {
     if (!grid) return;
     grid.innerHTML = '<div class="att-empty"><div class="att-spinner"></div><p>Cargando clases...</p></div>';
     try {
-        const res  = await fetch(API.classes, { credentials: 'same-origin', headers: authHeaders() });
+        const res = await fetch(API.classes, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
         state.classes = data.classes || [];
         renderClassesGrid();
@@ -361,7 +362,7 @@ function renderClassesGrid() {
             <div class="class-actions">
                 <button class="btn-export" onclick="openClassQr('${c.id}','${esc(c.name)}')">📷 QR</button>
                 <button class="btn-export" onclick="openClassStudents('${c.id}','${esc(c.name)}')">👥 Estudiantes</button>
-                <button class="btn-export" onclick="openEditClass('${c.id}','${esc(c.name)}','${esc(c.description||'')}')">✏️</button>
+                <button class="btn-export" onclick="openEditClass('${c.id}','${esc(c.name)}','${esc(c.description || '')}')">✏️</button>
                 <button class="btn-export" onclick="deleteClass('${c.id}','${esc(c.name)}')" style="color:#D00000;">🗑️</button>
             </div>
         </div>
@@ -379,9 +380,9 @@ function populateClassFilter() {
 // ── Modal nueva/editar clase ──
 function openNewClassModal() {
     state.editClass = null;
-    if (el('cls-name'))    el('cls-name').value    = '';
-    if (el('cls-desc'))    el('cls-desc').value    = '';
-    if (el('cls-status'))  el('cls-status').textContent = '';
+    if (el('cls-name')) el('cls-name').value = '';
+    if (el('cls-desc')) el('cls-desc').value = '';
+    if (el('cls-status')) el('cls-status').textContent = '';
     if (el('class-modal-title')) el('class-modal-title').textContent = '🏫 Nueva Clase';
     const m = el('class-modal');
     if (m) m.style.display = 'flex';
@@ -389,9 +390,9 @@ function openNewClassModal() {
 
 function openEditClass(id, name, desc) {
     state.editClass = id;
-    if (el('cls-name'))    el('cls-name').value    = name;
-    if (el('cls-desc'))    el('cls-desc').value    = desc;
-    if (el('cls-status'))  el('cls-status').textContent = '';
+    if (el('cls-name')) el('cls-name').value = name;
+    if (el('cls-desc')) el('cls-desc').value = desc;
+    if (el('cls-status')) el('cls-status').textContent = '';
     if (el('class-modal-title')) el('class-modal-title').textContent = '✏️ Editar Clase';
     const m = el('class-modal');
     if (m) m.style.display = 'flex';
@@ -413,9 +414,9 @@ async function saveClass() {
     const btn = el('cls-save-btn');
     if (btn) btn.disabled = true;
     try {
-        const url    = state.editClass ? `${API.classes}/${state.editClass}` : API.classes;
+        const url = state.editClass ? `${API.classes}/${state.editClass}` : API.classes;
         const method = state.editClass ? 'PUT' : 'POST';
-        const res    = await fetch(url, {
+        const res = await fetch(url, {
             method, credentials: 'same-origin', headers: authHeaders(),
             body: JSON.stringify({ name, description: desc }),
         });
@@ -452,7 +453,7 @@ async function openClassQr(classId, className) {
     m.style.display = 'flex';
 
     try {
-        const res  = await fetch(`${API.classes}/${classId}/qr?date=${state.date}`, { credentials: 'same-origin', headers: authHeaders() });
+        const res = await fetch(`${API.classes}/${classId}/qr?date=${state.date}`, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
         if (res.ok && data.token) {
             renderClassQr(data);
@@ -467,11 +468,11 @@ async function openClassQr(classId, className) {
 
 async function generateClassQr(classId, showConfirm = true) {
     if (showConfirm && !state.activeClassId) return;
-    const id  = classId || state.activeClassId;
+    const id = classId || state.activeClassId;
     const box = el('class-qr-img-box');
     if (box) box.innerHTML = '<div class="att-spinner"></div>';
     try {
-        const res  = await fetch(`${API.classes}/${id}/qr`, {
+        const res = await fetch(`${API.classes}/${id}/qr`, {
             method: 'POST', credentials: 'same-origin', headers: authHeaders(),
             body: JSON.stringify({ date: state.date }),
         });
@@ -499,10 +500,10 @@ function renderClassQr(data) {
             correctLevel: QRCode.CorrectLevel.H,
         });
     }
-    if (el('class-qr-date'))    el('class-qr-date').textContent    = esc(data.date || state.date);
+    if (el('class-qr-date')) el('class-qr-date').textContent = esc(data.date || state.date);
     if (el('class-qr-expires')) el('class-qr-expires').textContent = esc(data.expires_at || '23:59');
-    if (el('class-qr-scans'))   el('class-qr-scans').textContent   = data.scan_count ?? 0;
-    if (el('class-qr-token'))   el('class-qr-token').textContent   = data.token;
+    if (el('class-qr-scans')) el('class-qr-scans').textContent = data.scan_count ?? 0;
+    if (el('class-qr-token')) el('class-qr-token').textContent = data.token;
 }
 
 function downloadClassQr() {
@@ -528,7 +529,40 @@ async function openClassStudents(classId, className) {
     if (!m) return;
     if (el('class-students-title')) el('class-students-title').textContent = `👥 Estudiantes — ${className}`;
     m.style.display = 'flex';
+    // Activar tab DNI por defecto
+    switchAddMode('dni');
     await loadClassStudents(classId);
+    await loadSectionsForSelect();
+}
+
+function switchAddMode(mode) {
+    ['dni', 'section'].forEach(m => {
+        const btn = el(`add-mode-btn-${m}`);
+        const pane = el(`add-mode-pane-${m}`);
+        if (btn) btn.classList.toggle('active', m === mode);
+        if (pane) pane.style.display = m === mode ? 'block' : 'none';
+    });
+    const status = el('add-student-status');
+    if (status) status.textContent = '';
+}
+
+async function loadSectionsForSelect() {
+    const sel = el('add-section-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Cargando secciones...</option>';
+    try {
+        const res = await fetch(API.sections, { credentials: 'same-origin', headers: authHeaders() });
+        const data = await res.json();
+        const sections = data.sections || [];
+        if (!sections.length) {
+            sel.innerHTML = '<option value="">Sin secciones disponibles</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">— Elige una sección —</option>' +
+            sections.map(s => `<option value="${s.id}">${esc(s.name)} (${s.student_count ?? 0} est.)</option>`).join('');
+    } catch (_) {
+        sel.innerHTML = '<option value="">Error al cargar</option>';
+    }
 }
 
 async function loadClassStudents(classId) {
@@ -536,7 +570,7 @@ async function loadClassStudents(classId) {
     if (!list) return;
     list.innerHTML = '<div style="text-align:center;padding:20px;"><div class="att-spinner" style="margin:0 auto;"></div></div>';
     try {
-        const res  = await fetch(`${API.classes}/${classId}/students`, { credentials: 'same-origin', headers: authHeaders() });
+        const res = await fetch(`${API.classes}/${classId}/students`, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
         const students = data.students || [];
         if (!students.length) {
@@ -545,7 +579,7 @@ async function loadClassStudents(classId) {
         }
         list.innerHTML = students.map(s => `
             <div class="student-item">
-                <div class="tbl-av-circle" style="width:36px;height:36px;font-size:0.82rem;">${esc((s.name || '?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase())}</div>
+                <div class="tbl-av-circle" style="width:36px;height:36px;font-size:0.82rem;">${esc((s.name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);">${esc(s.name)}</div>
                     <div style="font-size:0.78rem;color:var(--text-secondary);">${esc(s.dni)} · ${esc(s.department || '—')}</div>
@@ -559,7 +593,7 @@ async function loadClassStudents(classId) {
 }
 
 async function addStudentToClass() {
-    const dni    = (el('add-student-dni')?.value || '').trim().toUpperCase();
+    const dni = (el('add-student-dni')?.value || '').trim().toUpperCase();
     const status = el('add-student-status');
     if (!dni) {
         if (status) { status.textContent = '⚠️ Ingresa un DNI'; status.style.color = '#D00000'; }
@@ -569,7 +603,7 @@ async function addStudentToClass() {
     const btn = el('add-student-btn');
     if (btn) btn.disabled = true;
     try {
-        const res  = await fetch(`${API.classes}/${state.activeClassId}/students`, {
+        const res = await fetch(`${API.classes}/${state.activeClassId}/students`, {
             method: 'POST', credentials: 'same-origin', headers: authHeaders(),
             body: JSON.stringify({ dni }),
         });
@@ -588,7 +622,37 @@ async function addStudentToClass() {
         if (btn) btn.disabled = false;
     }
 }
-
+async function addSectionToClass() {
+    const sectionId = (el('add-section-select')?.value || '').trim();
+    const status = el('add-student-status');
+    if (!sectionId) {
+        if (status) { status.textContent = '⚠️ Selecciona una sección'; status.style.color = '#D00000'; }
+        return;
+    }
+    if (!state.activeClassId) return;
+    const btn = el('add-section-btn');
+    if (btn) btn.disabled = true;
+    if (status) { status.textContent = '⏳ Agregando estudiantes...'; status.style.color = 'var(--text-secondary)'; }
+    try {
+        const res = await fetch(`${API.classes}/${state.activeClassId}/students`, {
+            method: 'POST', credentials: 'same-origin', headers: authHeaders(),
+            body: JSON.stringify({ section_id: sectionId }),
+        });
+        const data = await res.json();
+        if (res.ok && (data.success || data.added !== undefined)) {
+            const added = data.added ?? '?';
+            if (status) { status.textContent = `✅ ${added} estudiante(s) agregados desde la sección`; status.style.color = '#2E7D32'; }
+            await loadClassStudents(state.activeClassId);
+            loadClasses();
+        } else {
+            if (status) { status.textContent = `❌ ${esc(data.error || 'Error al agregar sección')}`; status.style.color = '#D00000'; }
+        }
+    } catch (_) {
+        if (status) { status.textContent = '❌ Sin conexión'; status.style.color = '#D00000'; }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
 async function removeStudentFromClass(classId, dni) {
     if (!confirm(`¿Quitar a ${dni} de esta clase?`)) return;
     try {
@@ -610,11 +674,11 @@ function closeClassStudentsModal() {
 // ═══════════════════════════════════════════════════════════════
 function openStaffModal() {
     state.editStaff = null;
-    if (el('sf-dni'))          el('sf-dni').value = '';
+    if (el('sf-dni')) el('sf-dni').value = '';
     if (el('sf-user-preview')) el('sf-user-preview').style.display = 'none';
-    if (el('staff-step-2'))    el('staff-step-2').style.display = 'none';
-    if (el('staff-save'))      el('staff-save').style.display = 'none';
-    if (el('staff-status'))    el('staff-status').textContent = '';
+    if (el('staff-step-2')) el('staff-step-2').style.display = 'none';
+    if (el('staff-save')) el('staff-save').style.display = 'none';
+    if (el('staff-status')) el('staff-status').textContent = '';
     const modal = el('staff-modal');
     if (modal) modal.classList.remove('hidden');
 }
@@ -626,27 +690,27 @@ function closeStaffModal() {
 }
 
 async function lookupStaffDni() {
-    const dni    = (el('sf-dni')?.value || '').trim();
+    const dni = (el('sf-dni')?.value || '').trim();
     const status = el('staff-status');
     if (!dni) { if (status) { status.textContent = '⚠️ Ingresa un DNI'; status.style.color = '#D00000'; } return; }
     const btn = el('sf-lookup-btn');
     if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
     try {
-        const res  = await fetch(`/api/attendance/admin/lookup-user?dni=${encodeURIComponent(dni)}`, {
+        const res = await fetch(`/api/attendance/admin/lookup-user?dni=${encodeURIComponent(dni)}`, {
             credentials: 'same-origin', headers: authHeaders()
         });
         const data = await res.json();
         if (res.ok && data.found) {
-            if (el('sf-preview-name'))  el('sf-preview-name').textContent  = data.full_name;
+            if (el('sf-preview-name')) el('sf-preview-name').textContent = data.full_name;
             if (el('sf-preview-email')) el('sf-preview-email').textContent = data.email_hint;
-            if (el('sf-user-preview'))  el('sf-user-preview').style.display  = 'block';
-            if (el('staff-step-2'))     el('staff-step-2').style.display     = 'block';
-            if (el('staff-save'))       el('staff-save').style.display       = 'inline-flex';
+            if (el('sf-user-preview')) el('sf-user-preview').style.display = 'block';
+            if (el('staff-step-2')) el('staff-step-2').style.display = 'block';
+            if (el('staff-save')) el('staff-save').style.display = 'inline-flex';
             if (status) status.textContent = '';
         } else {
-            if (el('sf-user-preview'))  el('sf-user-preview').style.display  = 'none';
-            if (el('staff-step-2'))     el('staff-step-2').style.display     = 'none';
-            if (el('staff-save'))       el('staff-save').style.display       = 'none';
+            if (el('sf-user-preview')) el('sf-user-preview').style.display = 'none';
+            if (el('staff-step-2')) el('staff-step-2').style.display = 'none';
+            if (el('staff-save')) el('staff-save').style.display = 'none';
             if (status) { status.textContent = `❌ ${esc(data.error || 'No encontrado')}`; status.style.color = '#D00000'; }
         }
     } catch (_) {
@@ -657,13 +721,13 @@ async function lookupStaffDni() {
 }
 
 async function saveStaff() {
-    const dni      = (el('sf-dni')?.value      || '').trim();
-    const dept     = (el('sf-dept')?.value     || '').trim();
+    const dni = (el('sf-dni')?.value || '').trim();
+    const dept = (el('sf-dept')?.value || '').trim();
     const position = (el('sf-position')?.value || '').trim();
-    const status   = el('staff-status');
+    const status = el('staff-status');
     if (!dni) return;
     try {
-        const res  = await fetch(API.addStaff, {
+        const res = await fetch(API.addStaff, {
             method: 'POST', credentials: 'same-origin', headers: authHeaders(),
             body: JSON.stringify({ dni, department: dept, position }),
         });
@@ -700,7 +764,7 @@ function init() {
     if (fDate) fDate.addEventListener('change', e => {
         state.date = e.target.value;
         if (el('f-date-from')) el('f-date-from').value = '';
-        if (el('f-date-to'))   el('f-date-to').value   = '';
+        if (el('f-date-to')) el('f-date-to').value = '';
         state.dateFrom = ''; state.dateTo = '';
         loadRecords(); loadStats(); loadActiveQr();
     });
@@ -729,8 +793,8 @@ function init() {
 
     // Exportar
     el('btn-excel')?.addEventListener('click', exportExcel);
-    el('btn-csv')?.addEventListener('click',   exportCSV);
-    el('btn-pdf')?.addEventListener('click',   exportPDF);
+    el('btn-csv')?.addEventListener('click', exportCSV);
+    el('btn-pdf')?.addEventListener('click', exportPDF);
 
     // Personal
     el('btn-add-staff')?.addEventListener('click', openStaffModal);
@@ -754,21 +818,24 @@ function init() {
     el('btn-download-class-qr')?.addEventListener('click', downloadClassQr);
     document.querySelector('#class-qr-modal .modal-overlay')?.addEventListener('click', closeClassQrModal);
 
-    // Estudiantes de clase
     el('class-students-modal-close')?.addEventListener('click', closeClassStudentsModal);
     el('add-student-btn')?.addEventListener('click', addStudentToClass);
     el('add-student-dni')?.addEventListener('keydown', e => { if (e.key === 'Enter') addStudentToClass(); });
+    el('add-section-btn')?.addEventListener('click', addSectionToClass);
+    el('add-mode-btn-dni')?.addEventListener('click', () => switchAddMode('dni'));
+    el('add-mode-btn-section')?.addEventListener('click', () => switchAddMode('section'));
     document.querySelector('#class-students-modal .modal-overlay')?.addEventListener('click', closeClassStudentsModal);
 
     // Auto-refresh
     setInterval(() => {
         loadStats();
         loadRecords();
+        loadClasses();
         if (state.activeQr) {
             fetch(API.activeQr, { credentials: 'same-origin', headers: authHeaders() })
                 .then(r => r.json())
                 .then(d => { if (d.scan_count !== undefined && el('qr-scans')) el('qr-scans').textContent = d.scan_count; })
-                .catch(() => {});
+                .catch(() => { });
         }
     }, 30_000);
 }
