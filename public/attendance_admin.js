@@ -751,7 +751,6 @@ function init() {
     if (fDate) fDate.value = state.date;
 
     // Cargar datos iniciales
-    loadActiveQr();
     loadStats();
     loadRecords();
     loadClasses();
@@ -787,23 +786,10 @@ function init() {
         debounce = setTimeout(() => { state.query = e.target.value.trim().toLowerCase(); renderTable(); }, 200);
     });
 
-    // QR general
-    el('btn-gen-qr')?.addEventListener('click', generateQr);
-    el('btn-download-qr')?.addEventListener('click', () => downloadQr('qr-canvas-wrap', state.date));
-
     // Exportar
     el('btn-excel')?.addEventListener('click', exportExcel);
     el('btn-csv')?.addEventListener('click', exportCSV);
     el('btn-pdf')?.addEventListener('click', exportPDF);
-
-    // Personal
-    el('btn-add-staff')?.addEventListener('click', openStaffModal);
-    el('staff-modal-close')?.addEventListener('click', closeStaffModal);
-    el('staff-cancel')?.addEventListener('click', closeStaffModal);
-    el('staff-save')?.addEventListener('click', saveStaff);
-    el('sf-lookup-btn')?.addEventListener('click', lookupStaffDni);
-    el('sf-dni')?.addEventListener('keydown', e => { if (e.key === 'Enter') lookupStaffDni(); });
-    document.querySelector('#staff-modal .modal-overlay')?.addEventListener('click', closeStaffModal);
 
     // Clases
     el('btn-new-class')?.addEventListener('click', openNewClassModal);
@@ -831,12 +817,6 @@ function init() {
         loadStats();
         loadRecords();
         loadClasses();
-        if (state.activeQr) {
-            fetch(API.activeQr, { credentials: 'same-origin', headers: authHeaders() })
-                .then(r => r.json())
-                .then(d => { if (d.scan_count !== undefined && el('qr-scans')) el('qr-scans').textContent = d.scan_count; })
-                .catch(() => { });
-        }
     }, 30_000);
 }
 
