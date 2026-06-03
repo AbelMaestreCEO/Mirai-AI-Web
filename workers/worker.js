@@ -5361,6 +5361,28 @@ async function handleAttClassStudents(request, env, corsHeaders, classId) {
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
+// Helper: garantiza que un DNI exista en att_staff (lo crea si no está)
+async function ensureAttStaff(env, dni) {
+  const upper = dni.toUpperCase();
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id, name FROM att_staff WHERE dni = ?'
+  ).bind(upper).first();
+  if (existing) return existing;
+
+  // Buscar en users
+  const user = await env.MIRAI_AI_DB.prepare(
+    'SELECT full_name, email FROM users WHERE dni = ?'
+  ).bind(upper).first();
+  if (!user) return null;
+
+  const newId = crypto.randomUUID();
+  await env.MIRAI_AI_DB.prepare(
+    'INSERT OR IGNORE INTO att_staff (id, dni, name, email, is_active) VALUES (?,?,?,?,1)'
+  ).bind(newId, upper, user.full_name, user.email || '').run();
+
+  return { id: newId, name: user.full_name };
+}
+
 async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
@@ -5370,7 +5392,6 @@ async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
   // ── Modo sección: agregar todos los estudiantes de una sección ──
   if (section_id) {
     try {
-      // Obtener los DNIs de la sección del aula
       const { results: sectionMembers } = await env.MIRAI_AI_DB.prepare(
         'SELECT user_dni FROM section_students WHERE section_id = ?'
       ).bind(section_id).all();
@@ -5378,10 +5399,8 @@ async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
 
       let added = 0;
       for (const member of sectionMembers) {
-        const staff = await env.MIRAI_AI_DB.prepare(
-          'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
-        ).bind(member.user_dni).first();
-        if (!staff) continue; // si no está en att_staff, se omite
+        const staff = await ensureAttStaff(env, member.user_dni);
+        if (!staff) continue;
         const { meta } = await env.MIRAI_AI_DB.prepare(
           'INSERT OR IGNORE INTO att_class_students (id, class_id, staff_id) VALUES (?,?,?)'
         ).bind(crypto.randomUUID(), classId, staff.id).run();
@@ -5391,13 +5410,11 @@ async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
     } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
   }
 
-  // ── Modo DNI individual (comportamiento original) ──
+  // ── Modo DNI individual ──
   if (!dni) return jsonResponse({ error: 'DNI o section_id requerido' }, 400, corsHeaders);
   try {
-    const staff = await env.MIRAI_AI_DB.prepare(
-      'SELECT id, name FROM att_staff WHERE dni = ? AND is_active = 1'
-    ).bind(dni.toUpperCase()).first();
-    if (!staff) return jsonResponse({ error: 'Personal no encontrado en el sistema de asistencia' }, 404, corsHeaders);
+    const staff = await ensureAttStaff(env, dni);
+    if (!staff) return jsonResponse({ error: 'Usuario no encontrado en el sistema' }, 404, corsHeaders);
     await env.MIRAI_AI_DB.prepare(
       'INSERT OR IGNORE INTO att_class_students (id, class_id, staff_id) VALUES (?,?,?)'
     ).bind(crypto.randomUUID(), classId, staff.id).run();
