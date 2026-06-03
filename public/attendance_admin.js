@@ -553,7 +553,7 @@ async function loadSectionsForSelect() {
     try {
         const res = await fetch(API.sections, { credentials: 'same-origin', headers: authHeaders() });
         const data = await res.json();
-        const sections = data.sections || [];
+        const sections = Array.isArray(data) ? data : (data.sections || []);
         if (!sections.length) {
             sel.innerHTML = '<option value="">Sin secciones disponibles</option>';
             return;
