@@ -2922,7 +2922,8 @@ async function handleTaskList(request, env, corsHeaders) {
       SELECT
         id, title, description, status, priority,
         assignee, tag, due_date, estimated_time, progress,
-        project, done, created_at, updated_at
+        project, done, created_at, updated_at,
+        lat, lng, location_label
       FROM tasks
       WHERE user_dni = ?
       ORDER BY created_at DESC
