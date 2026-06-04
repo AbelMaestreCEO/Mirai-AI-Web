@@ -1105,7 +1105,7 @@
             }
         }
 
-        /* ── Campo de ubicación en el modal ── */
+        /* ── Ubicación en modal ── */
         .loc-pick-row {
             display: flex;
             align-items: center;
@@ -1131,19 +1131,13 @@
             transition: all .2s;
         }
 
-        .btn-pick-loc:hover {
-            background: var(--accent-gradient);
-            color: #fff;
-            border-color: transparent;
-        }
-
+        .btn-pick-loc:hover,
         .btn-pick-loc.active {
             background: var(--accent-gradient);
             color: #fff;
             border-color: transparent;
         }
 
-        /* Mini-mapa dentro del modal */
         #modal-map-container {
             height: 200px;
             border-radius: 10px;
@@ -1151,7 +1145,6 @@
             border: 1px solid var(--glass-border);
             margin-top: .5rem;
             display: none;
-            /* oculto hasta activar */
         }
     </style>
 </head>
@@ -1646,6 +1639,7 @@
     </div>
 
     <!-- ===== MODAL ===== -->
+    <!-- ===== MODAL ===== -->
     <div class="task-modal-overlay" id="task-modal-overlay">
         <div class="task-modal">
             <div class="task-modal-header">
@@ -1706,7 +1700,8 @@
                     <option value="curso">Curso Web</option>
                     <option value="evento">Evento Anual</option>
                 </select></div>
-            <!-- Ubicación -->
+
+            <!-- ── UBICACIÓN ── -->
             <div class="modal-form-group" style="margin-top:.75rem;">
                 <label>📍 Ubicación (opcional)</label>
                 <div class="loc-pick-row">
@@ -1721,6 +1716,7 @@
                 <input type="hidden" id="modal-lat">
                 <input type="hidden" id="modal-lng">
             </div>
+
             <div class="modal-form-group" style="margin-top:.5rem;">
                 <label>Subtareas / Checklist</label>
                 <div id="modal-checklist">
@@ -1738,13 +1734,13 @@
     </div>
 
     <!-- ===== SCRIPTS ===== -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <script src="transitions.js"></script>
     <script src="task.js" defer></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 </body>
 
 </html>
