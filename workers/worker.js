@@ -2162,6 +2162,17 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return await handleServeAudio(path, env);
     }
 
+    if (path === '/api/locations' && request.method === 'GET')
+      return handleLocList(request, env, corsHeaders);
+
+    if (path === '/api/locations' && request.method === 'POST')
+      return handleLocCreate(request, env, corsHeaders);
+
+    if (path.startsWith('/api/locations/') && request.method === 'DELETE') {
+      const markerId = path.replace('/api/locations/', '');
+      return handleLocDelete(markerId, request, env, corsHeaders);
+    }
+
     // ── REPORTES (profesor) ───────────────────────────────────
     if (path === '/api/reports' && request.method === 'GET')
       return handleReportList(request, env, corsHeaders);
@@ -8879,5 +8890,73 @@ async function handleApaDelete(fileId, env, corsHeaders) {
   } catch (error) {
     console.error('[APA Delete] Error:', error);
     return jsonResponse({ error: 'Delete failed', message: error.message }, 500, corsHeaders);
+  }
+}
+
+async function handleLocList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, title, description, lat, lng, created_at
+      FROM location_markers
+      WHERE user_dni = ?
+      ORDER BY created_at DESC
+    `).bind(userDni).all();
+
+    return jsonResponse({ markers: results }, 200, corsHeaders);
+  } catch (err) {
+    console.error('[Locations] List error:', err);
+    return jsonResponse({ error: 'Error al obtener marcadores' }, 500, corsHeaders);
+  }
+}
+
+async function handleLocCreate(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const { title, description, lat, lng } = await request.json();
+
+    if (!title || lat == null || lng == null) {
+      return jsonResponse({ error: 'Faltan campos: title, lat, lng' }, 400, corsHeaders);
+    }
+
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO location_markers (id, user_dni, title, description, lat, lng, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, userDni, title.slice(0, 60), (description || '').slice(0, 120), lat, lng, createdAt).run();
+
+    return jsonResponse({ success: true, marker: { id, title, description, lat, lng, created_at: createdAt } }, 201, corsHeaders);
+  } catch (err) {
+    console.error('[Locations] Create error:', err);
+    return jsonResponse({ error: 'Error al guardar marcador' }, 500, corsHeaders);
+  }
+}
+
+async function handleLocDelete(markerId, request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  if (!markerId) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+
+  try {
+    // Solo puede eliminar sus propios marcadores
+    const result = await env.MIRAI_AI_DB.prepare(`
+      DELETE FROM location_markers WHERE id = ? AND user_dni = ?
+    `).bind(markerId, userDni).run();
+
+    if (result.rowsAffected === 0) {
+      return jsonResponse({ error: 'Marcador no encontrado o no autorizado' }, 404, corsHeaders);
+    }
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (err) {
+    console.error('[Locations] Delete error:', err);
+    return jsonResponse({ error: 'Error al eliminar marcador' }, 500, corsHeaders);
   }
 }

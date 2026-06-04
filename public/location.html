@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Mapa de Ubicaciones">
-
     <title>Mirai AI - Ubicaciones</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,39 +52,86 @@
     </script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+
     <style>
-        /* ── Layout principal ── */
-        .loc-container {
+        /* ── Wrapper que ocupa el espacio restante bajo el header ── */
+        .loc-wrapper {
+            /* El header tiene ~56px; calculamos el resto */
+            height: calc(100dvh - 56px);
             display: flex;
             flex-direction: column;
-            height: calc(100dvh - 56px);
-            padding: 0;
             overflow: hidden;
+            position: relative;
         }
 
-        /* ── Mapa ── */
+        /* ── El mapa necesita altura fija en píxeles — Leaflet no acepta % ni flex ── */
         #loc-map {
-            flex: 1;
-            min-height: 0;
+            /* Panel inferior ~72px */
+            height: calc(100dvh - 56px - 72px);
             width: 100%;
             z-index: 0;
+            display: block;
         }
 
-        /* Ocultar atribución de Leaflet en móvil si ocupa mucho */
-        .leaflet-control-attribution {
-            font-size: 10px;
+        /* ── Panel inferior ── */
+        .loc-panel {
+            height: 72px;
+            background: var(--glass-bg);
+            border-top: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            z-index: 100;
+            flex-shrink: 0;
         }
 
-        /* ── FAB: botón de ubicación real ── */
+        .loc-panel input {
+            flex: 1;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 0.875rem;
+            color: var(--text-primary, inherit);
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            min-width: 0;
+        }
+
+        .loc-panel input:focus { border-color: var(--accent-color); }
+        #loc-desc { flex: 1.5; }
+
+        .loc-save-btn {
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: opacity 0.18s, transform 0.18s;
+        }
+
+        .loc-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .loc-save-btn:not(:disabled):hover { opacity: 0.88; transform: scale(1.03); }
+
+        /* ── FAB GPS ── */
         #loc-gps-btn {
             position: absolute;
-            bottom: 96px;
-            right: 16px;
-            z-index: 1000;
-            width: 48px;
-            height: 48px;
+            /* sobre el panel: 72px panel + 12px margen */
+            bottom: calc(72px + 12px);
+            right: 14px;
+            z-index: 500;
+            width: 46px;
+            height: 46px;
             border-radius: 50%;
             background: var(--accent-gradient);
             color: #fff;
@@ -95,154 +141,30 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 4px 16px var(--accent-glow);
-            transition: transform 0.18s, box-shadow 0.18s;
+            transition: transform 0.18s;
         }
 
         #loc-gps-btn:hover { transform: scale(1.08); }
-        #loc-gps-btn.locating { animation: loc-pulse 1s infinite; }
+
+        #loc-gps-btn.locating {
+            animation: loc-pulse 1s infinite;
+        }
 
         @keyframes loc-pulse {
             0%, 100% { box-shadow: 0 4px 16px var(--accent-glow); }
-            50%       { box-shadow: 0 4px 28px var(--accent-glow), 0 0 0 8px var(--accent-glow); }
+            50%       { box-shadow: 0 0 0 10px transparent, 0 4px 24px var(--accent-glow); }
         }
 
-        /* ── Panel inferior ── */
-        .loc-panel {
-            background: var(--glass-bg);
-            border-top: 1px solid var(--glass-border);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            padding: 12px 16px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 100;
-        }
-
-        .loc-panel-hint {
-            font-size: 0.8rem;
-            color: var(--text-secondary, #888);
-            text-align: center;
-            margin: 0;
-        }
-
-        .loc-fields {
-            display: flex;
-            gap: 8px;
-        }
-
-        .loc-fields input {
-            flex: 1;
-            background: var(--secondary-container);
-            border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            padding: 9px 12px;
-            font-size: 0.875rem;
-            color: var(--text-primary, inherit);
-            outline: none;
-            transition: border-color 0.2s;
-            font-family: inherit;
-        }
-
-        .loc-fields input:focus {
-            border-color: var(--accent-color);
-        }
-
-        .loc-fields input#loc-desc {
-            flex: 1.6;
-        }
-
-        .loc-save-btn {
-            background: var(--accent-gradient);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            padding: 10px 18px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.18s, transform 0.18s;
-            white-space: nowrap;
-        }
-
-        .loc-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .loc-save-btn:not(:disabled):hover { opacity: 0.88; transform: scale(1.03); }
-
-        /* ── Lista de marcadores guardados (sidebar secundario) ── */
-        .loc-markers-list {
-            position: absolute;
-            top: 64px;
-            right: 12px;
-            z-index: 900;
-            width: 220px;
-            max-height: calc(100dvh - 200px);
-            overflow-y: auto;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-        }
-
-        .loc-markers-list.hidden { display: none; }
-
-        .loc-marker-item {
-            background: var(--secondary-container);
-            border-radius: 10px;
-            padding: 8px 10px;
-            cursor: pointer;
-            transition: background 0.15s;
-            border: 1px solid transparent;
-        }
-
-        .loc-marker-item:hover { border-color: var(--accent-color); }
-
-        .loc-marker-item strong {
-            display: block;
-            font-size: 0.8rem;
-            color: var(--text-primary, inherit);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .loc-marker-item span {
-            display: block;
-            font-size: 0.72rem;
-            color: var(--text-secondary, #888);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .loc-marker-item .loc-item-del {
-            float: right;
-            background: none;
-            border: none;
-            color: var(--text-secondary, #888);
-            cursor: pointer;
-            padding: 0 2px;
-            font-size: 0.85rem;
-            line-height: 1;
-        }
-
-        .loc-marker-item .loc-item-del:hover { color: #e53935; }
-
-        /* ── Toggle lista ── */
+        /* ── Botón lista ── */
         #loc-list-btn {
             position: absolute;
-            top: 64px;
-            right: 12px;
-            z-index: 1000;
+            top: 10px;
+            right: 10px;
+            z-index: 500;
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: 10px;
-            padding: 8px 12px;
+            padding: 7px 11px;
             font-size: 0.78rem;
             font-weight: 600;
             cursor: pointer;
@@ -255,69 +177,143 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.10);
         }
 
-        #loc-list-btn.list-open { background: var(--accent-gradient); color: #fff; border-color: transparent; }
+        #loc-list-btn.open { background: var(--accent-gradient); color: #fff; border-color: transparent; }
+
+        /* ── Lista lateral ── */
+        #loc-markers-list {
+            position: absolute;
+            top: 46px;
+            right: 10px;
+            z-index: 490;
+            width: 210px;
+            max-height: 320px;
+            overflow-y: auto;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+
+        #loc-markers-list.hidden { display: none; }
+
+        .loc-item {
+            background: var(--secondary-container);
+            border-radius: 9px;
+            padding: 7px 9px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: border-color 0.15s;
+        }
+
+        .loc-item:hover { border-color: var(--accent-color); }
+
+        .loc-item strong {
+            display: block;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .loc-item span {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-secondary, #888);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .loc-item-del {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--text-secondary, #888);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0 2px;
+            line-height: 1;
+        }
+
+        .loc-item-del:hover { color: #e53935; }
+
+        /* ── Crosshair ── */
+        #loc-crosshair {
+            position: absolute;
+            /* centrado sobre el mapa, encima del panel */
+            top: calc((100dvh - 56px - 72px) / 2);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 400;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
 
         /* ── Toast ── */
         #loc-toast {
             position: absolute;
-            bottom: 180px;
+            bottom: calc(72px + 52px);
             left: 50%;
-            transform: translateX(-50%) translateY(10px);
+            transform: translateX(-50%) translateY(6px);
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-radius: 20px;
-            padding: 8px 18px;
+            padding: 7px 16px;
             font-size: 0.82rem;
-            color: var(--text-primary, inherit);
             opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
             pointer-events: none;
-            z-index: 2000;
+            z-index: 600;
             white-space: nowrap;
+            transition: opacity 0.3s, transform 0.3s;
         }
 
-        #loc-toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
+        #loc-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        /* ── Crosshair central ── */
-        #loc-crosshair {
+        /* ── Hint sobre el panel ── */
+        #loc-hint {
             position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
+            bottom: calc(72px + 2px);
+            left: 0; right: 0;
+            text-align: center;
+            font-size: 0.72rem;
+            color: var(--text-secondary, #888);
+            background: var(--glass-bg);
+            padding: 3px 0;
             pointer-events: none;
-            z-index: 500;
-            transition: opacity 0.2s;
+            z-index: 300;
+            border-top: 1px solid var(--glass-border);
         }
 
-        #loc-crosshair svg { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
-
-        /* ── Popup Leaflet personalizado ── */
+        /* Popup Leaflet con tema */
         .leaflet-popup-content-wrapper {
             background: var(--glass-bg) !important;
             border: 1px solid var(--glass-border) !important;
-            backdrop-filter: blur(16px) !important;
-            -webkit-backdrop-filter: blur(16px) !important;
             border-radius: 12px !important;
             color: var(--text-primary, inherit) !important;
             box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
         }
-
         .leaflet-popup-tip { background: var(--glass-bg) !important; }
-
-        .loc-popup-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 2px; }
-        .loc-popup-desc  { font-size: 0.8rem; color: var(--text-secondary, #888); }
-        .loc-popup-coords { font-size: 0.72rem; color: var(--text-secondary, #888); margin-top: 4px; }
-
-        /* ── Posición relativa para los controles flotantes ── */
-        .loc-map-wrapper {
-            flex: 1;
-            position: relative;
-            min-height: 0;
+        .loc-pop-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 2px; }
+        .loc-pop-desc  { font-size: 0.78rem; color: var(--text-secondary, #888); }
+        .loc-pop-coords { font-size: 0.7rem; color: var(--text-secondary, #888); margin-top: 3px; }
+        .loc-pop-del {
+            margin-top: 7px;
+            font-size: 0.73rem;
+            background: none;
+            border: 1px solid #e53935;
+            color: #e53935;
+            border-radius: 6px;
+            padding: 3px 8px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -572,66 +568,56 @@
     </header>
 
     <!-- ══ CONTENEDOR PRINCIPAL ══ -->
-    <div class="loc-container">
+    <div class="loc-wrapper">
 
-        <!-- Wrapper para mapa + controles flotantes -->
-        <div class="loc-map-wrapper">
+        <!-- Mapa -->
+        <div id="loc-map"></div>
 
-            <!-- Mapa Leaflet -->
-            <div id="loc-map"></div>
+        <!-- Hint sobre el panel -->
+        <div id="loc-hint">Toca el mapa para colocar un marcador</div>
 
-            <!-- Crosshair central (modo añadir marcador) -->
-            <div id="loc-crosshair">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="16" cy="16" r="12" stroke="white" stroke-width="2" stroke-dasharray="4 2" opacity="0.7"/>
-                    <line x1="16" y1="4" x2="16" y2="10" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                    <line x1="16" y1="22" x2="16" y2="28" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                    <line x1="4"  y1="16" x2="10" y2="16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                    <line x1="22" y1="16" x2="28" y2="16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-                    <circle cx="16" cy="16" r="3" fill="var(--accent-color)" stroke="white" stroke-width="1.5"/>
-                </svg>
-            </div>
-
-            <!-- Botón toggle lista de marcadores -->
-            <button id="loc-list-btn" title="Ver marcadores guardados">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
-                </svg>
-                <span id="loc-list-count">0</span>
-            </button>
-
-            <!-- Lista de marcadores guardados -->
-            <div id="loc-markers-list" class="loc-markers-list hidden"></div>
-
-            <!-- FAB: ir a mi ubicación -->
-            <button id="loc-gps-btn" title="Mi ubicación actual">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                    <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-                </svg>
-            </button>
-
-            <!-- Toast -->
-            <div id="loc-toast"></div>
-
+        <!-- Crosshair -->
+        <div id="loc-crosshair">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                <circle cx="15" cy="15" r="11" stroke="white" stroke-width="1.8" stroke-dasharray="4 2" opacity="0.7"/>
+                <line x1="15" y1="3"  x2="15" y2="9"  stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                <line x1="15" y1="21" x2="15" y2="27" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                <line x1="3"  y1="15" x2="9"  y2="15" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                <line x1="21" y1="15" x2="27" y2="15" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+                <circle cx="15" cy="15" r="2.8" fill="var(--accent-color)" stroke="white" stroke-width="1.3"/>
+            </svg>
         </div>
 
-        <!-- Panel inferior: título, descripción, guardar -->
+        <!-- Botón lista -->
+        <button id="loc-list-btn" title="Marcadores guardados">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>
+            <span id="loc-count">0</span>
+        </button>
+
+        <!-- Lista marcadores -->
+        <div id="loc-markers-list" class="hidden"></div>
+
+        <!-- FAB GPS -->
+        <button id="loc-gps-btn" title="Mi ubicación actual">
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+        </button>
+
+        <!-- Toast -->
+        <div id="loc-toast"></div>
+
+        <!-- Panel inferior -->
         <div class="loc-panel">
-            <p class="loc-panel-hint" id="loc-hint">Toca el mapa para colocar un marcador</p>
-            <div class="loc-fields">
-                <input type="text" id="loc-title" placeholder="Título" maxlength="60" autocomplete="off">
-                <input type="text" id="loc-desc"  placeholder="Descripción (opcional)" maxlength="120" autocomplete="off">
-                <button class="loc-save-btn" id="loc-save-btn" disabled>Guardar</button>
-            </div>
+            <input type="text" id="loc-title" placeholder="Título" maxlength="60" autocomplete="off">
+            <input type="text" id="loc-desc"  placeholder="Descripción (opcional)" maxlength="120" autocomplete="off">
+            <button class="loc-save-btn" id="loc-save-btn" disabled>Guardar</button>
         </div>
 
-    </div><!-- /loc-container -->
+    </div><!-- /loc-wrapper -->
 
     <!-- ══ SCRIPTS ══ -->
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
-    <!-- Leaflet JS -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <script src="location.js"></script>
     <script src="transitions.js"></script>
