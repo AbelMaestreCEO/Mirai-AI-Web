@@ -605,6 +605,7 @@
         </div>
 
         <div class="sidebar-content">
+            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
             <section class="sidebar-section collapsible-section active">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Navegación</h4>
@@ -615,57 +616,72 @@
                 <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
                     <div class="nav-grid">
                         <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
-                            <span class="nav-icon">🏠</span><span class="nav-label">Hogar</span>
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-label">Hogar</span>
                         </a>
                         <a href="chat" class="nav-grid-item" data-tooltip="Chat">
-                            <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
+                            <span class="nav-icon">💬</span>
+                            <span class="nav-label">Chat</span>
                         </a>
                         <a href="projects" class="nav-grid-item" data-tooltip="Proyectos">
-                            <span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span>
+                            <span class="nav-icon">🗂️</span>
+                            <span class="nav-label">Proyectos</span>
+                        </a>
+                        <a href="generation" class="nav-grid-item" data-tooltip="Generación con IA">
+                            <span class="nav-icon">🖌️</span>
+                            <span class="nav-label">Generación con IA</span>
                         </a>
                         <a href="course_category" class="nav-grid-item" data-tooltip="Cursos">
-                            <span class="nav-icon">📚</span><span class="nav-label">Cursos</span>
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">Cursos</span>
                         </a>
                         <a href="classroom" class="nav-grid-item" data-tooltip="Aula">
-                            <span class="nav-icon">🏫</span><span class="nav-label">Aula</span>
+                            <span class="nav-icon">🏫</span>
+                            <span class="nav-label">Aula</span>
                         </a>
                         <a href="inventory" class="nav-grid-item" data-tooltip="Inventario">
-                            <span class="nav-icon">📦</span><span class="nav-label">Inventario</span>
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-label">Inventario</span>
                         </a>
                         <a href="mirror" class="nav-grid-item" data-tooltip="Organizador">
-                            <span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span>
+                            <span class="nav-icon">🖼️</span>
+                            <span class="nav-label">Fotos</span>
                         </a>
                         <a href="format" class="nav-grid-item" data-tooltip="Formato">
-                            <span class="nav-icon">📝</span><span class="nav-label">Formato</span>
+                            <span class="nav-icon">📝</span>
+                            <span class="nav-label">Formato</span>
                         </a>
-                        <a href="apa" class="nav-grid-item" data-tooltip="APA 7">
-                            <span class="nav-icon">📄</span><span class="nav-label">APA 7</span>
+                        <a href="apa" class="nav-grid-item" data-tooltip="Formato">
+                            <span class="nav-icon">📄</span>
+                            <span class="nav-label">APA 7</span>
                         </a>
                         <a href="attendance" class="nav-grid-item" data-tooltip="Asistencia">
-                            <span class="nav-icon">✅</span><span class="nav-label">Asistencia</span>
+                            <span class="nav-icon">✅</span>
+                            <span class="nav-label">Asistencia</span>
                         </a>
-                        <a href="investigation" class="nav-grid-item" data-tooltip="Investigador">
+                        <a href="investigation" class="nav-grid-item active-link" data-tooltip="Investigador">
                             <span class="nav-icon">🔭</span><span class="nav-label">Investigar</span>
                         </a>
-                        <a href="generation" class="nav-grid-item active-link" data-tooltip="Generación IA">
-                            <span class="nav-icon">✨</span><span class="nav-label">Generar</span>
-                        </a>
-                        <a href="report" class="nav-grid-item" data-tooltip="Reportes">
+                        <a href="report" class="nav-grid-item active-link" data-tooltip="Reportes">
                             <span class="nav-icon">📋</span><span class="nav-label">Reportes</span>
                         </a>
-                        <a href="task" class="nav-grid-item" data-tooltip="Tareas">
+                        <a href="task" class="nav-grid-item active-link" data-tooltip="Tareas">
                             <span class="nav-icon">🗒️</span><span class="nav-label">Tareas</span>
                         </a>
-                        <a href="diet" class="nav-grid-item" data-tooltip="Dieta">
+                        <a href="diet" class="nav-grid-item active-link" data-tooltip="Dieta">
                             <span class="nav-icon">🥗</span><span class="nav-label">Dieta</span>
                         </a>
-                        <a href="panel" class="nav-grid-item" data-tooltip="Panel">
+                        <a href="location" class="nav-grid-item active-link" data-tooltip="Ubicación">
+                            <span class="nav-icon">📍</span><span class="nav-label">Ubicación</span>
+                        </a>
+                        <a href="panel" class="nav-grid-item active-link" data-tooltip="Panel">
                             <span class="nav-icon">🔑</span><span class="nav-label">Panel</span>
                         </a>
                     </div>
                 </div>
             </section>
 
+            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                 <div class="conversations-header">
                     <h4>Conversaciones</h4>
@@ -675,9 +691,12 @@
                         </svg>
                     </button>
                 </div>
-                <ul id="conversations-list" class="conversations-list"></ul>
+                <ul id="conversations-list" class="conversations-list">
+                    <!-- Se llenará dinámicamente -->
+                </ul>
             </section>
 
+            <!-- Sección 3: Explorar (Desplegable Maestro) -->
             <section class="sidebar-section collapsible-section">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Explorar</h4>
@@ -686,6 +705,8 @@
                     </svg>
                 </div>
                 <div class="collapsible-content">
+
+                    <!-- Submenú: Servicios -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Servicios</h5>
@@ -703,6 +724,8 @@
                             </ul>
                         </div>
                     </div>
+
+                    <!-- Submenú: Empresa -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Empresa</h5>
@@ -720,6 +743,8 @@
                             </ul>
                         </div>
                     </div>
+
+                    <!-- Submenú: Enlaces Externos -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Enlaces Externos</h5>
@@ -736,9 +761,11 @@
                             </ul>
                         </div>
                     </div>
+
                 </div>
             </section>
 
+            <!-- Sección 4: Redes Sociales -->
             <section class="sidebar-section">
                 <h4>Síguenos</h4>
                 <div class="sidebar-social">
@@ -759,7 +786,6 @@
                     </a>
                 </div>
             </section>
-
             <a href="settings" class="settings-sidebar-btn" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58
@@ -792,6 +818,7 @@
             </div>
         </div>
 
+        <!-- Footer del sidebar -->
         <div class="sidebar-footer">
             <p>&copy;
                 <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company

@@ -5,14 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#ffffff">
-    <meta name="description" content="Mirai AI - Cursos de Programación">
+    <meta name="description" content="Mirai AI - Mapa de Ubicaciones">
 
-    <title>Mirai AI - Cursos</title>
+    <title>Mirai AI - Ubicaciones</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <script>
-        // Restaura el color de acento completo (incluye fondo de página)
-        // — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
         (function () {
             var COLORS = {
                 purple: { c: '#6750A4', cD: '#D0BCFF', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD: 'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', glowD: 'rgba(208,188,255,0.15)', sc: '#E8DEF8', scD: '#2A2438', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,27,36,0.96)', bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)' },
@@ -26,16 +24,12 @@
                 yellow: { c: '#F57F17', cD: '#FFF176', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD: 'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow: 'rgba(245,127,23,0.18)', glowD: 'rgba(255,238,88,0.15)', sc: '#FFFDE7', scD: '#1F1C08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(29,28,16,0.96)', bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)' },
                 slate: { c: '#37474F', cD: '#B0BEC5', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD: 'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow: 'rgba(55,71,79,0.18)', glowD: 'rgba(176,190,197,0.15)', sc: '#ECEFF1', scD: '#131618', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(25,28,30,0.96)', bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)' }
             };
-
             var s = {};
             try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
             var theme = localStorage.getItem('mirai-ai-theme') ||
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             var isDark = theme === 'dark';
-
-            // Aplicar data-theme inmediatamente para que CSS [data-theme="dark"] funcione
             document.documentElement.setAttribute('data-theme', theme);
-
             if (s.accentColor && COLORS[s.accentColor]) {
                 var c = COLORS[s.accentColor];
                 var r = document.documentElement;
@@ -52,23 +46,285 @@
                 r.style.background = isDark ? c.bgD : c.bg;
                 r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
             }
-            if (s.fontFamily) {
-                document.documentElement.style.setProperty('--font-family', s.fontFamily);
-            }
-            if (s.fontSize) {
-                document.documentElement.style.fontSize = s.fontSize + 'px';
-            }
-            if (s.reducedMotion) {
-                document.documentElement.classList.add('reduce-motion');
-            }
+            if (s.fontFamily) document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            if (s.fontSize) document.documentElement.style.fontSize = s.fontSize + 'px';
+            if (s.reducedMotion) document.documentElement.classList.add('reduce-motion');
         })();
     </script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+    <style>
+        /* ── Layout principal ── */
+        .loc-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100dvh - 56px);
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* ── Mapa ── */
+        #loc-map {
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+            z-index: 0;
+        }
+
+        /* Ocultar atribución de Leaflet en móvil si ocupa mucho */
+        .leaflet-control-attribution {
+            font-size: 10px;
+        }
+
+        /* ── FAB: botón de ubicación real ── */
+        #loc-gps-btn {
+            position: absolute;
+            bottom: 96px;
+            right: 16px;
+            z-index: 1000;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px var(--accent-glow);
+            transition: transform 0.18s, box-shadow 0.18s;
+        }
+
+        #loc-gps-btn:hover { transform: scale(1.08); }
+        #loc-gps-btn.locating { animation: loc-pulse 1s infinite; }
+
+        @keyframes loc-pulse {
+            0%, 100% { box-shadow: 0 4px 16px var(--accent-glow); }
+            50%       { box-shadow: 0 4px 28px var(--accent-glow), 0 0 0 8px var(--accent-glow); }
+        }
+
+        /* ── Panel inferior ── */
+        .loc-panel {
+            background: var(--glass-bg);
+            border-top: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 12px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .loc-panel-hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary, #888);
+            text-align: center;
+            margin: 0;
+        }
+
+        .loc-fields {
+            display: flex;
+            gap: 8px;
+        }
+
+        .loc-fields input {
+            flex: 1;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 9px 12px;
+            font-size: 0.875rem;
+            color: var(--text-primary, inherit);
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .loc-fields input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .loc-fields input#loc-desc {
+            flex: 1.6;
+        }
+
+        .loc-save-btn {
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.18s, transform 0.18s;
+            white-space: nowrap;
+        }
+
+        .loc-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .loc-save-btn:not(:disabled):hover { opacity: 0.88; transform: scale(1.03); }
+
+        /* ── Lista de marcadores guardados (sidebar secundario) ── */
+        .loc-markers-list {
+            position: absolute;
+            top: 64px;
+            right: 12px;
+            z-index: 900;
+            width: 220px;
+            max-height: calc(100dvh - 200px);
+            overflow-y: auto;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+
+        .loc-markers-list.hidden { display: none; }
+
+        .loc-marker-item {
+            background: var(--secondary-container);
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border: 1px solid transparent;
+        }
+
+        .loc-marker-item:hover { border-color: var(--accent-color); }
+
+        .loc-marker-item strong {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-primary, inherit);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .loc-marker-item span {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--text-secondary, #888);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .loc-marker-item .loc-item-del {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--text-secondary, #888);
+            cursor: pointer;
+            padding: 0 2px;
+            font-size: 0.85rem;
+            line-height: 1;
+        }
+
+        .loc-marker-item .loc-item-del:hover { color: #e53935; }
+
+        /* ── Toggle lista ── */
+        #loc-list-btn {
+            position: absolute;
+            top: 64px;
+            right: 12px;
+            z-index: 1000;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--accent-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+        }
+
+        #loc-list-btn.list-open { background: var(--accent-gradient); color: #fff; border-color: transparent; }
+
+        /* ── Toast ── */
+        #loc-toast {
+            position: absolute;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            padding: 8px 18px;
+            font-size: 0.82rem;
+            color: var(--text-primary, inherit);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            z-index: 2000;
+            white-space: nowrap;
+        }
+
+        #loc-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Crosshair central ── */
+        #loc-crosshair {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 500;
+            transition: opacity 0.2s;
+        }
+
+        #loc-crosshair svg { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
+
+        /* ── Popup Leaflet personalizado ── */
+        .leaflet-popup-content-wrapper {
+            background: var(--glass-bg) !important;
+            border: 1px solid var(--glass-border) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border-radius: 12px !important;
+            color: var(--text-primary, inherit) !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+        }
+
+        .leaflet-popup-tip { background: var(--glass-bg) !important; }
+
+        .loc-popup-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 2px; }
+        .loc-popup-desc  { font-size: 0.8rem; color: var(--text-secondary, #888); }
+        .loc-popup-coords { font-size: 0.72rem; color: var(--text-secondary, #888); margin-top: 4px; }
+
+        /* ── Posición relativa para los controles flotantes ── */
+        .loc-map-wrapper {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+    </style>
 </head>
 
 <body>
 
+    <!-- ══ SIDEBAR ══ -->
     <nav class="mobile-sidebar">
         <div class="sidebar-header">
             <h3>Mirai AI</h3>
@@ -100,14 +356,6 @@
                         <a href="chat" class="nav-grid-item" data-tooltip="Chat">
                             <span class="nav-icon">💬</span>
                             <span class="nav-label">Chat</span>
-                        </a>
-                        <a href="projects" class="nav-grid-item" data-tooltip="Proyectos">
-                            <span class="nav-icon">🗂️</span>
-                            <span class="nav-label">Proyectos</span>
-                        </a>
-                        <a href="generation" class="nav-grid-item" data-tooltip="Generación con IA">
-                            <span class="nav-icon">🖌️</span>
-                            <span class="nav-label">Generación con IA</span>
                         </a>
                         <a href="projects" class="nav-grid-item" data-tooltip="Proyectos">
                             <span class="nav-icon">🗂️</span>
@@ -313,289 +561,80 @@
     </nav>
     <div class="mobile-overlay"></div>
 
-    <!-- Header -->
+    <!-- ══ HEADER ══ -->
     <header class="header">
         <button class="mobile-menu-toggle" aria-label="Abrir menú">
             <span class="hamburger-line"></span>
             <span class="hamburger-line"></span>
             <span class="hamburger-line"></span>
         </button>
-
-        <div class="header-title">Lecciones</div>
-
+        <div class="header-title">Ubicaciones</div>
     </header>
 
-    <!-- Contenedor Principal -->
-    <div class=" courses-container">
+    <!-- ══ CONTENEDOR PRINCIPAL ══ -->
+    <div class="loc-container">
 
-        <!-- Hero -->
-        <!-- Hero -->
-        <div class="courses-hero">
-            <h1>Cursos</h1>
-            <p>Explora junto a Mirai AI nuestro catálogo completo de cursos.</p>
-        </div>
-        <!-- Barra de Búsqueda y Filtros -->
-        <div class="courses-toolbar">
-            <div class="courses-search">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+        <!-- Wrapper para mapa + controles flotantes -->
+        <div class="loc-map-wrapper">
+
+            <!-- Mapa Leaflet -->
+            <div id="loc-map"></div>
+
+            <!-- Crosshair central (modo añadir marcador) -->
+            <div id="loc-crosshair">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="12" stroke="white" stroke-width="2" stroke-dasharray="4 2" opacity="0.7"/>
+                    <line x1="16" y1="4" x2="16" y2="10" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="16" y1="22" x2="16" y2="28" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="4"  y1="16" x2="10" y2="16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="22" y1="16" x2="28" y2="16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="16" cy="16" r="3" fill="var(--accent-color)" stroke="white" stroke-width="1.5"/>
                 </svg>
-                <input type="text" id="course-search" placeholder="Buscar cursos..." autocomplete="off">
             </div>
-            <div class="filter-pills" id="filter-pills">
-                <button class="filter-pill active" data-category="todos">Todos</button>
-                <button class="filter-pill" data-category="web">🌐 Web</button>
-                <button class="filter-pill" data-category="backend">⚙️ Backend</button>
-                <button class="filter-pill" data-category="datos">📊 Datos</button>
-                <button class="filter-pill" data-category="movil">📱 Móvil</button>
-                <button class="filter-pill" data-category="devops">🚀 DevOps</button>
-                <button class="filter-pill" data-category="cloudflare">☁️ Cloudflare</button>
+
+            <!-- Botón toggle lista de marcadores -->
+            <button id="loc-list-btn" title="Ver marcadores guardados">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+                </svg>
+                <span id="loc-list-count">0</span>
+            </button>
+
+            <!-- Lista de marcadores guardados -->
+            <div id="loc-markers-list" class="loc-markers-list hidden"></div>
+
+            <!-- FAB: ir a mi ubicación -->
+            <button id="loc-gps-btn" title="Mi ubicación actual">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+                </svg>
+            </button>
+
+            <!-- Toast -->
+            <div id="loc-toast"></div>
+
+        </div>
+
+        <!-- Panel inferior: título, descripción, guardar -->
+        <div class="loc-panel">
+            <p class="loc-panel-hint" id="loc-hint">Toca el mapa para colocar un marcador</p>
+            <div class="loc-fields">
+                <input type="text" id="loc-title" placeholder="Título" maxlength="60" autocomplete="off">
+                <input type="text" id="loc-desc"  placeholder="Descripción (opcional)" maxlength="120" autocomplete="off">
+                <button class="loc-save-btn" id="loc-save-btn" disabled>Guardar</button>
             </div>
         </div>
 
-        <!-- Contador -->
-        <div class="courses-count" id="courses-count">Mostrando 12 cursos</div>
+    </div><!-- /loc-container -->
 
-        <!-- Grid de Cursos -->
-        <div class="courses-grid" id="courses-grid">
-
-            <!-- ===== WEB ===== -->
-
-            <div class="course-card" data-category="web" data-level="principiante"
-                style="--card-accent: linear-gradient(135deg, #e44d26, #f16529);">
-                <span class="course-level principiante">Principiante</span>
-                <div class="course-icon">🟧</div>
-                <h3 class="course-title">HTML5 desde Cero</h3>
-                <p class="course-description">Aprende la estructura fundamental de toda página web:
-                    semántica, formularios, multimedia y accesibilidad.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 14 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 6 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="html5">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="web" data-level="principiante"
-                style="--card-accent: linear-gradient(135deg, #264de4, #2965f1);">
-                <span class="course-level principiante">Principiante</span>
-                <div class="course-icon">🟦</div>
-                <h3 class="course-title">CSS3 & Diseño Responsivo</h3>
-                <p class="course-description">Domina Flexbox, Grid, animaciones, variables CSS y diseño
-                    liquid glass para interfaces modernas.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 18 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 8 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="css3">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="web" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #f7df1e, #e8d44d);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">🟨</div>
-                <h3 class="course-title">JavaScript Moderno</h3>
-                <p class="course-description">ES6+, async/await, DOM, APIs del navegador, módulos y patrones
-                    de diseño en JS.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 24 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 14 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="javascript">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="web" data-level="avanzado"
-                style="--card-accent: linear-gradient(135deg, #61dafb, #3178c6);">
-                <span class="course-level avanzado">Avanzado</span>
-                <div class="course-icon">⚛️</div>
-                <h3 class="course-title">TypeScript Avanzado</h3>
-                <p class="course-description">Tipos genéricos, decorators, utility types, configuración
-                    tsconfig y migración desde JS.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 16 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 10 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="typescript">Comenzar</button>
-            </div>
-
-            <!-- ===== BACKEND ===== -->
-
-            <div class="course-card" data-category="backend" data-level="principiante"
-                style="--card-accent: linear-gradient(135deg, #3776ab, #ffd43b);">
-                <span class="course-level principiante">Principiante</span>
-                <div class="course-icon">🐍</div>
-                <h3 class="course-title">Python Fundamentos</h3>
-                <p class="course-description">Variables, funciones, listas, diccionarios, archivos y
-                    programación orientada a objetos.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 20 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 12 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="python">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="backend" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #009688, #4caf50);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">🌶️</div>
-                <h3 class="course-title">Node.js & Express</h3>
-                <p class="course-description">Servidores HTTP, middleware, rutas REST, autenticación JWT y
-                    WebSockets en tiempo real.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 16 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 10 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="nodejs">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="backend" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #336791, #5ba0d0);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">🐘</div>
-                <h3 class="course-title">SQL & Bases de Datos</h3>
-                <p class="course-description">Consultas SQL, joins, índices, normalización, transacciones y
-                    diseño de esquemas relacionales.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 14 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 8 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="sql">Comenzar</button>
-            </div>
-
-            <!-- ===== DATOS ===== -->
-
-            <div class="course-card" data-category="datos" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #150458, #ff6600);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">🐼</div>
-                <h3 class="course-title">Pandas & Análisis de Datos</h3>
-                <p class="course-description">DataFrames, limpieza de datos, agrupaciones, visualizaciones
-                    con Matplotlib y Seaborn.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 12 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 8 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="pandas">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="datos" data-level="avanzado"
-                style="--card-accent: linear-gradient(135deg, #ff6f00, #ff9100);">
-                <span class="course-level avanzado">Avanzado</span>
-                <div class="course-icon">🧠</div>
-                <h3 class="course-title">Machine Learning Práctico</h3>
-                <p class="course-description">Scikit-learn, regresión, clasificación, clustering, pipelines
-                    y evaluación de modelos.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 18 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 16 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="ml">Comenzar</button>
-            </div>
-
-            <!-- ===== MÓVIL ===== -->
-
-            <div class="course-card" data-category="movil" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #fa7343, #f5a623);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">📱</div>
-                <h3 class="course-title">React Native</h3>
-                <p class="course-description">Apps móviles multiplataforma con componentes nativos, navegación, estado
-                    global y publicación en stores.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 16 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 12 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="react-native">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="movil" data-level="avanzado"
-                style="--card-accent: linear-gradient(135deg, #05a5d1, #34c759);">
-                <span class="course-level avanzado">Avanzado</span>
-                <div class="course-icon">🍎</div>
-                <h3 class="course-title">Swift & iOS</h3>
-                <p class="course-description">SwiftUI, Combine, Core Data, ARKit y publicación en App Store con
-                    estándares Apple.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 20 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 16 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="swift">Comenzar</button>
-            </div>
-
-            <!-- ===== DEVOPS ===== -->
-
-            <div class="course-card" data-category="devops" data-level="principiante"
-                style="--card-accent: linear-gradient(135deg, #f05032, #de4c36);">
-                <span class="course-level principiante">Principiante</span>
-                <div class="course-icon">📦</div>
-                <h3 class="course-title">Git & GitHub</h3>
-                <p class="course-description">Control de versiones, branching, merge, pull requests, CI/CD básico y
-                    colaboración en equipo.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 10 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 5 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="git">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="devops" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #2496ed, #1d63ed);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">🐳</div>
-                <h3 class="course-title">Docker & Contenedores</h3>
-                <p class="course-description">Imágenes, Dockerfiles, docker-compose, volúmenes, redes y orquestación con
-                    Kubernetes básico.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 14 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 10 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="docker">Comenzar</button>
-            </div>
-
-            <!-- ===== CLOUDFLARE ===== -->
-
-            <div class="course-card" data-category="cloudflare" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #f48120, #fbad41);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">⚡</div>
-                <h3 class="course-title">Cloudflare Workers</h3>
-                <p class="course-description">Edge computing, rutas, middleware, KV store, API REST y despliegue
-                    serverless a escala global.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 12 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 8 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="workers">Comenzar</button>
-            </div>
-
-            <div class="course-card" data-category="cloudflare" data-level="intermedio"
-                style="--card-accent: linear-gradient(135deg, #f48120, #da4a27);">
-                <span class="course-level intermedio">Intermedio</span>
-                <div class="course-icon">🗄️</div>
-                <h3 class="course-title">D1 & R2 en Profundidad</h3>
-                <p class="course-description">Bases de datos SQL en el edge, almacenamiento de objetos, migraciones y
-                    patrones de uso con Workers.</p>
-                <div class="course-meta">
-                    <span class="course-meta-item"><span>📚</span> 10 lecciones</span>
-                    <span class="course-meta-item"><span>⏱️</span> 6 horas</span>
-                </div>
-                <button class="course-start-btn" data-course="d1-r2">Comenzar</button>
-            </div>
-
-            <!-- Sin resultados (oculto por defecto) -->
-            <div class="no-results" id="no-results" style="display: none;">
-                <div class="no-results-icon">🔍</div>
-                <p>No se encontraron cursos con ese filtro</p>
-            </div>
-
-        </div><!-- /courses-grid -->
-
-    </div><!-- /courses-container -->
+    <!-- ══ SCRIPTS ══ -->
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
-    <script type="module" src="courses.js" defer></script>
+    <!-- Leaflet JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <script src="location.js"></script>
     <script src="transitions.js"></script>
-</body>
 
+</body>
 </html>
