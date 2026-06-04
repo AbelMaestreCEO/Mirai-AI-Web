@@ -49,174 +49,1109 @@
     <link rel="stylesheet" href="transitions.css">
     <style>
         /* ===== TASKS MODULE — estilos mínimos no cubiertos por styles.css ===== */
-        .tasks-container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
-        .tasks-hero { text-align: center; padding: 2rem 1rem 1.5rem; }
-        .tasks-hero h1 { font-size: clamp(1.8rem,4vw,2.8rem); font-weight: 700; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: .4rem; }
-        .tasks-hero p { color: var(--text-secondary); font-size: 1rem; }
+        .tasks-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 1.25rem 3rem;
+        }
+
+        .tasks-hero {
+            text-align: center;
+            padding: 2rem 1rem 1.5rem;
+        }
+
+        .tasks-hero h1 {
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: .4rem;
+        }
+
+        .tasks-hero p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
 
         /* Toolbar */
-        .tasks-toolbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
-        .tasks-toolbar .courses-search { flex: 1; min-width: 180px; }
+        .tasks-toolbar {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+
+        .tasks-toolbar .courses-search {
+            flex: 1;
+            min-width: 180px;
+        }
 
         /* View tabs */
-        .view-tabs { display: flex; gap: .25rem; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 10px; padding: 3px; }
-        .view-tab { display: flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 8px; border: none; background: transparent; color: var(--text-secondary); font-size: .82rem; font-weight: 500; cursor: pointer; transition: all .2s; white-space: nowrap; }
-        .view-tab.active { background: var(--accent-gradient); color: #fff; box-shadow: 0 2px 8px var(--accent-glow); }
-        .view-tab:not(.active):hover { background: var(--secondary-container); color: var(--text-primary); }
+        .view-tabs {
+            display: flex;
+            gap: .25rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 3px;
+        }
+
+        .view-tab {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: .82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap;
+        }
+
+        .view-tab.active {
+            background: var(--accent-gradient);
+            color: #fff;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        .view-tab:not(.active):hover {
+            background: var(--secondary-container);
+            color: var(--text-primary);
+        }
 
         /* Buttons */
-        .btn-new-task { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--accent-gradient); color: #fff; border: none; border-radius: 10px; font-size: .88rem; font-weight: 600; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 10px var(--accent-glow); transition: opacity .2s, transform .15s; }
-        .btn-new-task:hover { opacity: .9; transform: translateY(-1px); }
-        .btn-ai-task { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--secondary-container); color: var(--accent-color); border: 1px solid var(--glass-border); border-radius: 10px; font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .2s; }
-        .btn-ai-task:hover { background: var(--accent-gradient); color: #fff; border-color: transparent; }
-        .btn-secondary { padding: 8px 18px; border: 1px solid var(--glass-border); background: var(--secondary-container); color: var(--text-primary); border-radius: 9px; font-size: .87rem; font-weight: 600; cursor: pointer; transition: all .2s; }
-        .btn-secondary:hover { border-color: var(--accent-color); }
+        .btn-new-task {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: .88rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 2px 10px var(--accent-glow);
+            transition: opacity .2s, transform .15s;
+        }
+
+        .btn-new-task:hover {
+            opacity: .9;
+            transform: translateY(-1px);
+        }
+
+        .btn-ai-task {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--secondary-container);
+            color: var(--accent-color);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all .2s;
+        }
+
+        .btn-ai-task:hover {
+            background: var(--accent-gradient);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .btn-secondary {
+            padding: 8px 18px;
+            border: 1px solid var(--glass-border);
+            background: var(--secondary-container);
+            color: var(--text-primary);
+            border-radius: 9px;
+            font-size: .87rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-color);
+        }
 
         /* Stats */
-        .tasks-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: .75rem; margin-bottom: 1.25rem; }
-        .stat-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem; text-align: center; }
-        .stat-card-value { font-size: 1.8rem; font-weight: 800; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; line-height: 1.1; }
-        .stat-card-label { font-size: .75rem; color: var(--text-secondary); margin-top: .2rem; font-weight: 500; }
+        .tasks-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: .75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-card-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+
+        .stat-card-label {
+            font-size: .75rem;
+            color: var(--text-secondary);
+            margin-top: .2rem;
+            font-weight: 500;
+        }
 
         /* Project selector */
-        .project-selector { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
-        .project-chip { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--glass-border); background: var(--glass-bg); font-size: .8rem; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all .2s; }
-        .project-chip.active { border-color: var(--accent-color); background: var(--secondary-container); color: var(--accent-color); }
-        .project-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .project-selector {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .project-chip {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1.5px solid var(--glass-border);
+            background: var(--glass-bg);
+            font-size: .8rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all .2s;
+        }
+
+        .project-chip.active {
+            border-color: var(--accent-color);
+            background: var(--secondary-container);
+            color: var(--accent-color);
+        }
+
+        .project-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
 
         /* Layout */
-        .tasks-main-layout { display: grid; grid-template-columns: 1fr 260px; gap: 1rem; align-items: start; }
+        .tasks-main-layout {
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            gap: 1rem;
+            align-items: start;
+        }
 
         /* ── KANBAN ── */
-        .kanban-board { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 1rem; }
-        .kanban-col { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; padding: 1rem; min-height: 420px; display: flex; flex-direction: column; gap: .75rem; }
-        .kanban-col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .25rem; }
-        .kanban-col-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: .9rem; color: var(--text-primary); }
-        .kanban-col-badge { background: var(--secondary-container); color: var(--accent-color); border-radius: 20px; padding: 1px 9px; font-size: .75rem; font-weight: 700; }
-        .kanban-add-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 2px; border-radius: 6px; font-size: 1.1rem; transition: color .2s; }
-        .kanban-add-btn:hover { color: var(--accent-color); }
-        .task-card { background: var(--surface); border: 1px solid var(--glass-border); border-radius: 10px; padding: .85rem; cursor: pointer; transition: transform .18s, box-shadow .18s; }
-        .task-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
-        .task-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: .5rem; }
-        .task-card-title { font-size: .875rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
-        .task-priority { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-        .task-priority.critica { background: #ef4444; }
-        .task-priority.alta    { background: #f97316; }
-        .task-priority.media   { background: #eab308; }
-        .task-priority.baja    { background: #22c55e; }
-        .task-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .75rem; color: var(--text-secondary); margin-bottom: .5rem; }
-        .task-tag { padding: 2px 8px; border-radius: 20px; font-size: .7rem; font-weight: 600; }
-        .task-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: .5rem; }
-        .task-assignee { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 700; color: #fff; flex-shrink: 0; }
-        .task-due { font-size: .72rem; color: var(--text-secondary); }
-        .task-due.vencida { color: #ef4444; font-weight: 600; }
-        .task-checklist-bar { height: 3px; background: var(--glass-border); border-radius: 99px; margin-top: .5rem; overflow: hidden; }
-        .task-checklist-fill { height: 100%; background: var(--accent-gradient); border-radius: 99px; transition: width .4s; }
-        .kanban-drop-zone { border: 2px dashed var(--glass-border); border-radius: 10px; height: 60px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: .8rem; cursor: pointer; transition: border-color .2s, background .2s; margin-top: auto; }
-        .kanban-drop-zone:hover { border-color: var(--accent-color); background: var(--secondary-container); color: var(--accent-color); }
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+
+        .kanban-col {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem;
+            min-height: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+        }
+
+        .kanban-col-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: .25rem;
+        }
+
+        .kanban-col-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: .9rem;
+            color: var(--text-primary);
+        }
+
+        .kanban-col-badge {
+            background: var(--secondary-container);
+            color: var(--accent-color);
+            border-radius: 20px;
+            padding: 1px 9px;
+            font-size: .75rem;
+            font-weight: 700;
+        }
+
+        .kanban-add-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            transition: color .2s;
+        }
+
+        .kanban-add-btn:hover {
+            color: var(--accent-color);
+        }
+
+        .task-card {
+            background: var(--surface);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: .85rem;
+            cursor: pointer;
+            transition: transform .18s, box-shadow .18s;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        .task-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: .5rem;
+        }
+
+        .task-card-title {
+            font-size: .875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+
+        .task-priority {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        .task-priority.critica {
+            background: #ef4444;
+        }
+
+        .task-priority.alta {
+            background: #f97316;
+        }
+
+        .task-priority.media {
+            background: #eab308;
+        }
+
+        .task-priority.baja {
+            background: #22c55e;
+        }
+
+        .task-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: .75rem;
+            color: var(--text-secondary);
+            margin-bottom: .5rem;
+        }
+
+        .task-tag {
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: .7rem;
+            font-weight: 600;
+        }
+
+        .task-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: .5rem;
+        }
+
+        .task-assignee {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .65rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .task-due {
+            font-size: .72rem;
+            color: var(--text-secondary);
+        }
+
+        .task-due.vencida {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .task-checklist-bar {
+            height: 3px;
+            background: var(--glass-border);
+            border-radius: 99px;
+            margin-top: .5rem;
+            overflow: hidden;
+        }
+
+        .task-checklist-fill {
+            height: 100%;
+            background: var(--accent-gradient);
+            border-radius: 99px;
+            transition: width .4s;
+        }
+
+        .kanban-drop-zone {
+            border: 2px dashed var(--glass-border);
+            border-radius: 10px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: .8rem;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+            margin-top: auto;
+        }
+
+        .kanban-drop-zone:hover {
+            border-color: var(--accent-color);
+            background: var(--secondary-container);
+            color: var(--accent-color);
+        }
 
         /* ── LISTA ── */
-        .list-view { display: flex; flex-direction: column; gap: 0; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden; }
-        .list-view-header { display: grid; grid-template-columns: 32px 1fr 100px 90px 90px 80px 80px; align-items: center; gap: .5rem; padding: .75rem 1rem; background: var(--secondary-container); font-size: .75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
-        .list-task-row { display: grid; grid-template-columns: 32px 1fr 100px 90px 90px 80px 80px; align-items: center; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--glass-border); transition: background .15s; cursor: pointer; font-size: .85rem; }
-        .list-task-row:hover { background: var(--secondary-container); }
-        .list-task-check { width: 18px; height: 18px; border: 2px solid var(--glass-border); border-radius: 5px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s; flex-shrink: 0; }
-        .list-task-check.done { background: var(--accent-gradient); border-color: transparent; color: #fff; }
-        .list-task-name { font-weight: 500; color: var(--text-primary); }
-        .list-task-name.done { text-decoration: line-through; color: var(--text-secondary); }
-        .priority-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: .72rem; font-weight: 700; }
-        .priority-badge.critica { background: rgba(239,68,68,.12); color: #ef4444; }
-        .priority-badge.alta    { background: rgba(249,115,22,.12); color: #f97316; }
-        .priority-badge.media   { background: rgba(234,179,8,.12);  color: #ca8a04; }
-        .priority-badge.baja    { background: rgba(34,197,94,.12);  color: #16a34a; }
+        .list-view {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .list-view-header {
+            display: grid;
+            grid-template-columns: 32px 1fr 100px 90px 90px 80px 80px;
+            align-items: center;
+            gap: .5rem;
+            padding: .75rem 1rem;
+            background: var(--secondary-container);
+            font-size: .75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .list-task-row {
+            display: grid;
+            grid-template-columns: 32px 1fr 100px 90px 90px 80px 80px;
+            align-items: center;
+            gap: .5rem;
+            padding: .75rem 1rem;
+            border-top: 1px solid var(--glass-border);
+            transition: background .15s;
+            cursor: pointer;
+            font-size: .85rem;
+        }
+
+        .list-task-row:hover {
+            background: var(--secondary-container);
+        }
+
+        .list-task-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--glass-border);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .2s;
+            flex-shrink: 0;
+        }
+
+        .list-task-check.done {
+            background: var(--accent-gradient);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .list-task-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .list-task-name.done {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .priority-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: .72rem;
+            font-weight: 700;
+        }
+
+        .priority-badge.critica {
+            background: rgba(239, 68, 68, .12);
+            color: #ef4444;
+        }
+
+        .priority-badge.alta {
+            background: rgba(249, 115, 22, .12);
+            color: #f97316;
+        }
+
+        .priority-badge.media {
+            background: rgba(234, 179, 8, .12);
+            color: #ca8a04;
+        }
+
+        .priority-badge.baja {
+            background: rgba(34, 197, 94, .12);
+            color: #16a34a;
+        }
 
         /* ── GANTT ── */
-        .gantt-wrapper { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden; }
+        .gantt-wrapper {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
         /* Scroll horizontal del Gantt — funciona en móvil y PC */
-        .gantt-scroll-area { overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; border-radius: 14px; }
-        .gantt-scroll-area::-webkit-scrollbar { height: 5px; }
-        .gantt-scroll-area::-webkit-scrollbar-track { background: var(--glass-border); border-radius: 99px; }
-        .gantt-scroll-area::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 99px; opacity: .6; }
-        .gantt-inner { min-width: 720px; }
-        .gantt-header-row { display: flex; background: var(--secondary-container); border-bottom: 1px solid var(--glass-border); }
-        .gantt-label-col { width: 200px; flex-shrink: 0; padding: .65rem 1rem; font-size: .75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--glass-border); }
-        .gantt-timeline-header { flex: 1; display: flex; overflow: hidden; }
-        .gantt-day { flex: 1; text-align: center; padding: .65rem 0; font-size: .7rem; color: var(--text-secondary); border-right: 1px solid var(--glass-border); min-width: 40px; }
-        .gantt-day.today { background: var(--secondary-container); color: var(--accent-color); font-weight: 700; }
-        .gantt-row { display: flex; border-bottom: 1px solid var(--glass-border); align-items: center; min-height: 48px; }
-        .gantt-row:last-child { border-bottom: none; }
-        .gantt-task-label { width: 200px; flex-shrink: 0; padding: .5rem 1rem; font-size: .82rem; font-weight: 500; color: var(--text-primary); border-right: 1px solid var(--glass-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .gantt-timeline-row { flex: 1; position: relative; height: 48px; display: flex; align-items: center; }
-        .gantt-bar-wrap { position: absolute; height: 22px; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; font-size: .68rem; font-weight: 600; color: #fff; overflow: hidden; white-space: nowrap; cursor: pointer; transition: opacity .2s; }
-        .gantt-bar-wrap:hover { opacity: .85; }
-        .gantt-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent-color); opacity: .6; pointer-events: none; }
+        .gantt-scroll-area {
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 14px;
+        }
+
+        .gantt-scroll-area::-webkit-scrollbar {
+            height: 5px;
+        }
+
+        .gantt-scroll-area::-webkit-scrollbar-track {
+            background: var(--glass-border);
+            border-radius: 99px;
+        }
+
+        .gantt-scroll-area::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 99px;
+            opacity: .6;
+        }
+
+        .gantt-inner {
+            min-width: 720px;
+        }
+
+        .gantt-header-row {
+            display: flex;
+            background: var(--secondary-container);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .gantt-label-col {
+            width: 200px;
+            flex-shrink: 0;
+            padding: .65rem 1rem;
+            font-size: .75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            border-right: 1px solid var(--glass-border);
+        }
+
+        .gantt-timeline-header {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .gantt-day {
+            flex: 1;
+            text-align: center;
+            padding: .65rem 0;
+            font-size: .7rem;
+            color: var(--text-secondary);
+            border-right: 1px solid var(--glass-border);
+            min-width: 40px;
+        }
+
+        .gantt-day.today {
+            background: var(--secondary-container);
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+
+        .gantt-row {
+            display: flex;
+            border-bottom: 1px solid var(--glass-border);
+            align-items: center;
+            min-height: 48px;
+        }
+
+        .gantt-row:last-child {
+            border-bottom: none;
+        }
+
+        .gantt-task-label {
+            width: 200px;
+            flex-shrink: 0;
+            padding: .5rem 1rem;
+            font-size: .82rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            border-right: 1px solid var(--glass-border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .gantt-timeline-row {
+            flex: 1;
+            position: relative;
+            height: 48px;
+            display: flex;
+            align-items: center;
+        }
+
+        .gantt-bar-wrap {
+            position: absolute;
+            height: 22px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: .68rem;
+            font-weight: 600;
+            color: #fff;
+            overflow: hidden;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: opacity .2s;
+        }
+
+        .gantt-bar-wrap:hover {
+            opacity: .85;
+        }
+
+        .gantt-today-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--accent-color);
+            opacity: .6;
+            pointer-events: none;
+        }
 
         /* ── CALENDARIO ── */
-        .calendar-wrapper { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden; }
-        .calendar-nav { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--glass-border); }
-        .calendar-nav h3 { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
-        .cal-nav-btn { background: var(--secondary-container); border: 1px solid var(--glass-border); border-radius: 8px; padding: 5px 10px; cursor: pointer; color: var(--text-primary); font-size: .85rem; transition: all .2s; }
-        .cal-nav-btn:hover { background: var(--accent-gradient); color: #fff; border-color: transparent; }
-        .calendar-grid-header { display: grid; grid-template-columns: repeat(7,1fr); background: var(--secondary-container); }
-        .cal-day-name { text-align: center; padding: .5rem; font-size: .72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .05em; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7,1fr); }
-        .cal-cell { border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); min-height: 80px; padding: .4rem; cursor: pointer; transition: background .15s; }
-        .cal-cell:hover { background: var(--secondary-container); }
-        .cal-cell:nth-child(7n) { border-right: none; }
-        .cal-date { font-size: .78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: .3rem; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-        .cal-cell.today .cal-date { background: var(--accent-gradient); color: #fff; }
-        .cal-cell.other-month { opacity: .4; }
-        .cal-task-pill { display: block; padding: 1px 6px; border-radius: 4px; font-size: .67rem; font-weight: 600; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .calendar-wrapper {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .calendar-nav h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .cal-nav-btn {
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 5px 10px;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: .85rem;
+            transition: all .2s;
+        }
+
+        .cal-nav-btn:hover {
+            background: var(--accent-gradient);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .calendar-grid-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: var(--secondary-container);
+        }
+
+        .cal-day-name {
+            text-align: center;
+            padding: .5rem;
+            font-size: .72rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .cal-cell {
+            border-right: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+            min-height: 80px;
+            padding: .4rem;
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .cal-cell:hover {
+            background: var(--secondary-container);
+        }
+
+        .cal-cell:nth-child(7n) {
+            border-right: none;
+        }
+
+        .cal-date {
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: .3rem;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .cal-cell.today .cal-date {
+            background: var(--accent-gradient);
+            color: #fff;
+        }
+
+        .cal-cell.other-month {
+            opacity: .4;
+        }
+
+        .cal-task-pill {
+            display: block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: .67rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
         /* ── MODAL ── */
-        .task-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; opacity: 0; pointer-events: none; transition: opacity .25s; }
-        .task-modal-overlay.open { opacity: 1; pointer-events: all; }
-        .task-modal { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 18px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; padding: 1.5rem; transform: translateY(20px); transition: transform .25s; }
-        .task-modal-overlay.open .task-modal { transform: translateY(0); }
-        .task-modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
-        .task-modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-        .modal-close-btn { background: var(--secondary-container); border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-secondary); transition: all .2s; }
-        .modal-close-btn:hover { background: var(--accent-gradient); color: #fff; }
-        .modal-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .75rem; }
-        .modal-form-group { display: flex; flex-direction: column; gap: .3rem; margin-bottom: .75rem; }
-        .modal-form-group label { font-size: .78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
-        .modal-form-group input,.modal-form-group select,.modal-form-group textarea { background: var(--surface); border: 1px solid var(--glass-border); border-radius: 9px; padding: .55rem .75rem; font-size: .88rem; color: var(--text-primary); font-family: inherit; transition: border-color .2s; width: 100%; }
-        .modal-form-group input:focus,.modal-form-group select:focus,.modal-form-group textarea:focus { outline: none; border-color: var(--accent-color); }
-        .modal-form-group textarea { resize: vertical; min-height: 80px; }
-        .modal-actions { display: flex; gap: .75rem; justify-content: flex-end; margin-top: 1rem; }
-        .checklist-item { display: flex; align-items: center; gap: .5rem; padding: .45rem 0; border-bottom: 1px solid var(--glass-border); font-size: .85rem; color: var(--text-primary); }
-        .checklist-item:last-child { border-bottom: none; }
-        .checklist-checkbox { width: 16px; height: 16px; accent-color: var(--accent-color); }
+        .task-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s;
+        }
+
+        .task-modal-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .task-modal {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            width: 100%;
+            max-width: 620px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            transform: translateY(20px);
+            transition: transform .25s;
+        }
+
+        .task-modal-overlay.open .task-modal {
+            transform: translateY(0);
+        }
+
+        .task-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+        }
+
+        .task-modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .modal-close-btn {
+            background: var(--secondary-container);
+            border: none;
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            transition: all .2s;
+        }
+
+        .modal-close-btn:hover {
+            background: var(--accent-gradient);
+            color: #fff;
+        }
+
+        .modal-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: .75rem;
+            margin-bottom: .75rem;
+        }
+
+        .modal-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: .3rem;
+            margin-bottom: .75rem;
+        }
+
+        .modal-form-group label {
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .modal-form-group input,
+        .modal-form-group select,
+        .modal-form-group textarea {
+            background: var(--surface);
+            border: 1px solid var(--glass-border);
+            border-radius: 9px;
+            padding: .55rem .75rem;
+            font-size: .88rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: border-color .2s;
+            width: 100%;
+        }
+
+        .modal-form-group input:focus,
+        .modal-form-group select:focus,
+        .modal-form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .modal-form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: .75rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+        }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .45rem 0;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: .85rem;
+            color: var(--text-primary);
+        }
+
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+
+        .checklist-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-color);
+        }
 
         /* ── PANEL LATERAL ── */
-        .side-panel { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; }
-        .side-panel-title { font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); margin-bottom: .75rem; }
-        .automation-rule { display: flex; align-items: flex-start; gap: .6rem; padding: .6rem 0; border-bottom: 1px solid var(--glass-border); font-size: .8rem; color: var(--text-primary); }
-        .automation-rule:last-child { border-bottom: none; }
-        .automation-rule-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
-        .automation-toggle { margin-left: auto; width: 32px; height: 18px; background: var(--accent-gradient); border-radius: 99px; cursor: pointer; position: relative; flex-shrink: 0; }
-        .automation-toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 50%; top: 2px; right: 2px; transition: right .2s; }
-        .template-card { display: flex; align-items: center; gap: .6rem; padding: .6rem; border-radius: 9px; border: 1px solid var(--glass-border); cursor: pointer; transition: all .2s; margin-bottom: .5rem; }
-        .template-card:last-child { margin-bottom: 0; }
-        .template-card:hover { border-color: var(--accent-color); background: var(--secondary-container); }
-        .template-icon { font-size: 1.2rem; }
-        .template-info h5 { font-size: .82rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1px; }
-        .template-info p { font-size: .72rem; color: var(--text-secondary); }
-        .ai-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: linear-gradient(135deg,#8b5cf6,#ec4899); color: #fff; border-radius: 20px; font-size: .7rem; font-weight: 700; }
+        .side-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .side-panel-title {
+            font-size: .82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--text-secondary);
+            margin-bottom: .75rem;
+        }
+
+        .automation-rule {
+            display: flex;
+            align-items: flex-start;
+            gap: .6rem;
+            padding: .6rem 0;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: .8rem;
+            color: var(--text-primary);
+        }
+
+        .automation-rule:last-child {
+            border-bottom: none;
+        }
+
+        .automation-rule-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .automation-toggle {
+            margin-left: auto;
+            width: 32px;
+            height: 18px;
+            background: var(--accent-gradient);
+            border-radius: 99px;
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .automation-toggle::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            right: 2px;
+            transition: right .2s;
+        }
+
+        .template-card {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            padding: .6rem;
+            border-radius: 9px;
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            transition: all .2s;
+            margin-bottom: .5rem;
+        }
+
+        .template-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .template-card:hover {
+            border-color: var(--accent-color);
+            background: var(--secondary-container);
+        }
+
+        .template-icon {
+            font-size: 1.2rem;
+        }
+
+        .template-info h5 {
+            font-size: .82rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1px;
+        }
+
+        .template-info p {
+            font-size: .72rem;
+            color: var(--text-secondary);
+        }
+
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            color: #fff;
+            border-radius: 20px;
+            font-size: .7rem;
+            font-weight: 700;
+        }
 
         /* Responsive */
         @media (max-width: 900px) {
-            .tasks-main-layout { grid-template-columns: 1fr; }
-            .list-view-header { grid-template-columns: 32px 1fr 90px 80px; }
-            .list-view-header span:nth-child(n+5) { display: none; }
-            .list-task-row { grid-template-columns: 32px 1fr 90px 80px; }
-            .list-task-row > *:nth-child(n+5) { display: none; }
-            .kanban-board { grid-template-columns: repeat(2,1fr); }
-            .modal-form-row { grid-template-columns: 1fr; }
+            .tasks-main-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .list-view-header {
+                grid-template-columns: 32px 1fr 90px 80px;
+            }
+
+            .list-view-header span:nth-child(n+5) {
+                display: none;
+            }
+
+            .list-task-row {
+                grid-template-columns: 32px 1fr 90px 80px;
+            }
+
+            .list-task-row>*:nth-child(n+5) {
+                display: none;
+            }
+
+            .kanban-board {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal-form-row {
+                grid-template-columns: 1fr;
+            }
         }
+
         @media (max-width: 560px) {
-            .kanban-board { grid-template-columns: 1fr; }
-            .view-tab .tab-label { display: none; }
+            .kanban-board {
+                grid-template-columns: 1fr;
+            }
+
+            .view-tab .tab-label {
+                display: none;
+            }
+        }
+
+        /* ── Campo de ubicación en el modal ── */
+        .loc-pick-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .loc-pick-row input[type="text"] {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .btn-pick-loc {
+            flex-shrink: 0;
+            padding: 9px 12px;
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 9px;
+            color: var(--accent-color);
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all .2s;
+        }
+
+        .btn-pick-loc:hover {
+            background: var(--accent-gradient);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .btn-pick-loc.active {
+            background: var(--accent-gradient);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        /* Mini-mapa dentro del modal */
+        #modal-map-container {
+            height: 200px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            margin-top: .5rem;
+            display: none;
+            /* oculto hasta activar */
         }
     </style>
 </head>
@@ -469,7 +1404,9 @@
         <div class="header-actions" style="display:flex;gap:8px;align-items:center;">
             <button class="btn-ai-task" id="ai-suggest-btn">✨ <span>IA</span></button>
             <button class="btn-new-task" id="open-modal-btn">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
                 Nueva Tarea
             </button>
         </div>
@@ -485,27 +1422,48 @@
 
         <!-- Estadísticas -->
         <div class="tasks-stats">
-            <div class="stat-card"><div class="stat-card-value" id="stat-total">…</div><div class="stat-card-label">Total de Tareas</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-done">…</div><div class="stat-card-label">Completadas</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-progress">…</div><div class="stat-card-label">En Progreso</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-overdue">…</div><div class="stat-card-label">Vencidas</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="stat-time">…</div><div class="stat-card-label">Tiempo Estimado</div></div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="stat-total">…</div>
+                <div class="stat-card-label">Total de Tareas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="stat-done">…</div>
+                <div class="stat-card-label">Completadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="stat-progress">…</div>
+                <div class="stat-card-label">En Progreso</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="stat-overdue">…</div>
+                <div class="stat-card-label">Vencidas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-value" id="stat-time">…</div>
+                <div class="stat-card-label">Tiempo Estimado</div>
+            </div>
         </div>
 
         <!-- Proyectos -->
         <div class="project-selector">
             <span style="font-size:.78rem;font-weight:700;color:var(--text-secondary);">PROYECTO:</span>
             <button class="project-chip active" data-project="todos">Todos</button>
-            <button class="project-chip" data-project="sprint"><span class="project-dot" style="background:#6750A4;"></span> Sprint Q3</button>
-            <button class="project-chip" data-project="curso"><span class="project-dot" style="background:#1565C0;"></span> Curso Web</button>
-            <button class="project-chip" data-project="evento"><span class="project-dot" style="background:#2E7D32;"></span> Evento Anual</button>
+            <button class="project-chip" data-project="sprint"><span class="project-dot"
+                    style="background:#6750A4;"></span> Sprint Q3</button>
+            <button class="project-chip" data-project="curso"><span class="project-dot"
+                    style="background:#1565C0;"></span> Curso Web</button>
+            <button class="project-chip" data-project="evento"><span class="project-dot"
+                    style="background:#2E7D32;"></span> Evento Anual</button>
             <button class="project-chip" style="border-style:dashed;">+ Proyecto</button>
         </div>
 
         <!-- Toolbar -->
         <div class="tasks-toolbar">
             <div class="courses-search">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                </svg>
                 <input type="text" id="task-search" placeholder="Buscar tareas..." autocomplete="off">
             </div>
             <div class="filter-pills" id="priority-pills">
@@ -541,7 +1499,8 @@
                         <!-- En Progreso -->
                         <div class="kanban-col" data-col="progreso">
                             <div class="kanban-col-header">
-                                <div class="kanban-col-title">🔵 En Progreso <span class="kanban-col-badge">0</span></div>
+                                <div class="kanban-col-title">🔵 En Progreso <span class="kanban-col-badge">0</span>
+                                </div>
                                 <button class="kanban-add-btn" data-col="progreso">＋</button>
                             </div>
                             <div class="kanban-drop-zone" data-col="progreso">＋ Agregar tarea</div>
@@ -599,8 +1558,13 @@
                             <button class="cal-nav-btn" id="cal-next">Siguiente ›</button>
                         </div>
                         <div class="calendar-grid-header">
-                            <div class="cal-day-name">Lun</div><div class="cal-day-name">Mar</div><div class="cal-day-name">Mié</div>
-                            <div class="cal-day-name">Jue</div><div class="cal-day-name">Vie</div><div class="cal-day-name">Sáb</div><div class="cal-day-name">Dom</div>
+                            <div class="cal-day-name">Lun</div>
+                            <div class="cal-day-name">Mar</div>
+                            <div class="cal-day-name">Mié</div>
+                            <div class="cal-day-name">Jue</div>
+                            <div class="cal-day-name">Vie</div>
+                            <div class="cal-day-name">Sáb</div>
+                            <div class="cal-day-name">Dom</div>
                         </div>
                         <div class="calendar-grid" id="cal-grid"></div>
                     </div>
@@ -614,34 +1578,68 @@
                     <div class="side-panel-title">⚡ Automatizaciones</div>
                     <div class="automation-rule">
                         <span class="automation-rule-icon">🔔</span>
-                        <div><div style="font-weight:600;margin-bottom:2px;">Revisión → Notificar</div><div style="font-size:.72rem;color:var(--text-secondary);">Al pasar a Revisión notifica al supervisor</div></div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:2px;">Revisión → Notificar</div>
+                            <div style="font-size:.72rem;color:var(--text-secondary);">Al pasar a Revisión notifica al
+                                supervisor</div>
+                        </div>
                         <div class="automation-toggle"></div>
                     </div>
                     <div class="automation-rule">
                         <span class="automation-rule-icon">⏰</span>
-                        <div><div style="font-weight:600;margin-bottom:2px;">Alerta 24h</div><div style="font-size:.72rem;color:var(--text-secondary);">Si vence en 24h sin completar, envía alerta</div></div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:2px;">Alerta 24h</div>
+                            <div style="font-size:.72rem;color:var(--text-secondary);">Si vence en 24h sin completar,
+                                envía alerta</div>
+                        </div>
                         <div class="automation-toggle"></div>
                     </div>
                     <div class="automation-rule">
                         <span class="automation-rule-icon">🤖</span>
-                        <div><div style="font-weight:600;margin-bottom:2px;">Resumen semanal IA</div><div style="font-size:.72rem;color:var(--text-secondary);">Genera resumen automático cada lunes</div></div>
+                        <div>
+                            <div style="font-weight:600;margin-bottom:2px;">Resumen semanal IA</div>
+                            <div style="font-size:.72rem;color:var(--text-secondary);">Genera resumen automático cada
+                                lunes</div>
+                        </div>
                         <div class="automation-toggle" style="background:var(--glass-border);"></div>
                     </div>
                 </div>
                 <div class="side-panel">
                     <div class="side-panel-title">📄 Plantillas</div>
-                    <div class="template-card"><div class="template-icon">🏃</div><div class="template-info"><h5>Sprint Ágil</h5><p>Backlog, desarrollo, QA y deploy</p></div></div>
-                    <div class="template-card"><div class="template-icon">📚</div><div class="template-info"><h5>Plantilla de Curso</h5><p>Planificación de módulos y evaluaciones</p></div></div>
-                    <div class="template-card"><div class="template-icon">🎉</div><div class="template-info"><h5>Evento Corporativo</h5><p>Logística, comunicación y seguimiento</p></div></div>
+                    <div class="template-card">
+                        <div class="template-icon">🏃</div>
+                        <div class="template-info">
+                            <h5>Sprint Ágil</h5>
+                            <p>Backlog, desarrollo, QA y deploy</p>
+                        </div>
+                    </div>
+                    <div class="template-card">
+                        <div class="template-icon">📚</div>
+                        <div class="template-info">
+                            <h5>Plantilla de Curso</h5>
+                            <p>Planificación de módulos y evaluaciones</p>
+                        </div>
+                    </div>
+                    <div class="template-card">
+                        <div class="template-icon">🎉</div>
+                        <div class="template-info">
+                            <h5>Evento Corporativo</h5>
+                            <p>Logística, comunicación y seguimiento</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="side-panel">
                     <div class="side-panel-title">✨ Asistente IA <span class="ai-badge">Beta</span></div>
-                    <div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:.75rem;">Escribe el título de una tarea y la IA generará descripción, prioridad y subtareas.</div>
+                    <div style="font-size:.8rem;color:var(--text-secondary);margin-bottom:.75rem;">Escribe el título de
+                        una tarea y la IA generará descripción, prioridad y subtareas.</div>
                     <div class="modal-form-group" style="margin-bottom:.5rem;">
                         <input type="text" id="ai-task-input" placeholder="Ej: Migrar base de datos a PostgreSQL">
                     </div>
-                    <button class="btn-new-task" style="width:100%;justify-content:center;" id="ai-generate-btn">✨ Generar con IA</button>
-                    <div id="ai-result" style="display:none;margin-top:.75rem;padding:.75rem;background:var(--secondary-container);border-radius:9px;font-size:.8rem;color:var(--text-primary);line-height:1.5;white-space:pre-wrap;"></div>
+                    <button class="btn-new-task" style="width:100%;justify-content:center;" id="ai-generate-btn">✨
+                        Generar con IA</button>
+                    <div id="ai-result"
+                        style="display:none;margin-top:.75rem;padding:.75rem;background:var(--secondary-container);border-radius:9px;font-size:.8rem;color:var(--text-primary);line-height:1.5;white-space:pre-wrap;">
+                    </div>
                 </div>
             </aside>
         </div>
@@ -654,25 +1652,83 @@
                 <span class="task-modal-title">Nueva Tarea</span>
                 <button class="modal-close-btn" id="close-modal-btn">✕</button>
             </div>
-            <div class="modal-form-group"><label>Título *</label><input type="text" id="modal-title" placeholder="Descripción breve de la tarea"></div>
-            <div class="modal-form-group"><label>Descripción</label><textarea id="modal-desc" placeholder="Detalles, criterios de aceptación..."></textarea></div>
+            <div class="modal-form-group"><label>Título *</label><input type="text" id="modal-title"
+                    placeholder="Descripción breve de la tarea"></div>
+            <div class="modal-form-group"><label>Descripción</label><textarea id="modal-desc"
+                    placeholder="Detalles, criterios de aceptación..."></textarea></div>
             <div class="modal-form-row">
-                <div class="modal-form-group" style="margin-bottom:0;"><label>Prioridad</label><select id="modal-priority"><option value="baja">🟢 Baja</option><option value="media" selected>🟡 Media</option><option value="alta">🟠 Alta</option><option value="critica">🔴 Crítica</option></select></div>
-                <div class="modal-form-group" style="margin-bottom:0;"><label>Estado</label><select id="modal-status"><option value="pendiente">⬜ Pendiente</option><option value="progreso">🔵 En Progreso</option><option value="revision">🟡 Revisión</option><option value="completado">✅ Completado</option></select></div>
+                <div class="modal-form-group" style="margin-bottom:0;"><label>Prioridad</label><select
+                        id="modal-priority">
+                        <option value="baja">🟢 Baja</option>
+                        <option value="media" selected>🟡 Media</option>
+                        <option value="alta">🟠 Alta</option>
+                        <option value="critica">🔴 Crítica</option>
+                    </select></div>
+                <div class="modal-form-group" style="margin-bottom:0;"><label>Estado</label><select id="modal-status">
+                        <option value="pendiente">⬜ Pendiente</option>
+                        <option value="progreso">🔵 En Progreso</option>
+                        <option value="revision">🟡 Revisión</option>
+                        <option value="completado">✅ Completado</option>
+                    </select></div>
             </div>
             <div class="modal-form-row" style="margin-top:.75rem;">
-                <div class="modal-form-group" style="margin-bottom:0;"><label>Fecha de vencimiento</label><input type="date" id="modal-date"></div>
-                <div class="modal-form-group" style="margin-bottom:0;"><label>Tiempo estimado (h)</label><input type="number" id="modal-time" placeholder="0" min="0" step="0.5"></div>
+                <div class="modal-form-group" style="margin-bottom:0;"><label>Fecha de vencimiento</label><input
+                        type="date" id="modal-date"></div>
+                <div class="modal-form-group" style="margin-bottom:0;"><label>Tiempo estimado (h)</label><input
+                        type="number" id="modal-time" placeholder="0" min="0" step="0.5"></div>
             </div>
             <div class="modal-form-row" style="margin-top:.75rem;">
-                <div class="modal-form-group" style="margin-bottom:0;"><label>Asignado a</label><select id="modal-assignee"><option value="">Sin asignar</option><option value="AL">Ana López</option><option value="CR">Carlos R.</option><option value="DM">Diego M.</option><option value="LP">Luis P.</option><option value="SR">Sofia R.</option><option value="MB">Mirai Bot</option></select></div>
-                <div class="modal-form-group" style="margin-bottom:0;"><label>Etiqueta</label><select id="modal-tag"><option value="">Sin etiqueta</option><option>UI/UX</option><option>Backend</option><option>Testing</option><option>DevOps</option><option>Docs</option><option>Feature</option><option>Legal</option><option>Performance</option></select></div>
+                <div class="modal-form-group" style="margin-bottom:0;"><label>Asignado a</label><select
+                        id="modal-assignee">
+                        <option value="">Sin asignar</option>
+                        <option value="AL">Ana López</option>
+                        <option value="CR">Carlos R.</option>
+                        <option value="DM">Diego M.</option>
+                        <option value="LP">Luis P.</option>
+                        <option value="SR">Sofia R.</option>
+                        <option value="MB">Mirai Bot</option>
+                    </select></div>
+                <div class="modal-form-group" style="margin-bottom:0;"><label>Etiqueta</label><select id="modal-tag">
+                        <option value="">Sin etiqueta</option>
+                        <option>UI/UX</option>
+                        <option>Backend</option>
+                        <option>Testing</option>
+                        <option>DevOps</option>
+                        <option>Docs</option>
+                        <option>Feature</option>
+                        <option>Legal</option>
+                        <option>Performance</option>
+                    </select></div>
             </div>
-            <div class="modal-form-group" style="margin-top:.75rem;"><label>Proyecto</label><select id="modal-project"><option value="">Sin proyecto</option><option value="sprint">Sprint Q3</option><option value="curso">Curso Web</option><option value="evento">Evento Anual</option></select></div>
+            <div class="modal-form-group" style="margin-top:.75rem;"><label>Proyecto</label><select id="modal-project">
+                    <option value="">Sin proyecto</option>
+                    <option value="sprint">Sprint Q3</option>
+                    <option value="curso">Curso Web</option>
+                    <option value="evento">Evento Anual</option>
+                </select></div>
+            <!-- Ubicación -->
+            <div class="modal-form-group" style="margin-top:.75rem;">
+                <label>📍 Ubicación (opcional)</label>
+                <div class="loc-pick-row">
+                    <input type="text" id="modal-location-label" placeholder="Nombre del lugar" maxlength="80"
+                        autocomplete="off" readonly>
+                    <button type="button" class="btn-pick-loc" id="modal-pick-loc-btn">📍 Elegir</button>
+                    <button type="button" class="btn-pick-loc" id="modal-clear-loc-btn"
+                        style="display:none;background:none;border-color:#e53935;color:#e53935;"
+                        title="Quitar ubicación">✕</button>
+                </div>
+                <div id="modal-map-container"></div>
+                <input type="hidden" id="modal-lat">
+                <input type="hidden" id="modal-lng">
+            </div>
             <div class="modal-form-group" style="margin-top:.5rem;">
                 <label>Subtareas / Checklist</label>
-                <div id="modal-checklist"><div class="checklist-item"><input class="checklist-checkbox" type="checkbox"> <span>Subtarea de ejemplo</span></div></div>
-                <button class="btn-secondary" style="margin-top:.5rem;width:100%;font-size:.8rem;" id="add-subtask-btn">＋ Agregar subtarea</button>
+                <div id="modal-checklist">
+                    <div class="checklist-item"><input class="checklist-checkbox" type="checkbox"> <span>Subtarea de
+                            ejemplo</span></div>
+                </div>
+                <button class="btn-secondary" style="margin-top:.5rem;width:100%;font-size:.8rem;"
+                    id="add-subtask-btn">＋ Agregar subtarea</button>
             </div>
             <div class="modal-actions">
                 <button class="btn-secondary" id="cancel-modal-btn">Cancelar</button>
@@ -687,5 +1743,8 @@
     <script type="module" src="app.js" defer></script>
     <script src="transitions.js"></script>
     <script src="task.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 </body>
+
 </html>

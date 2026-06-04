@@ -2950,7 +2950,9 @@ async function handleTaskCreate(request, env, corsHeaders) {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
-  const { title, description, status, priority, assignee, tag, due_date, estimated_time, project } = body;
+  const { title, description, status, priority, assignee, tag,
+    due_date, estimated_time, project,
+    lat, lng, location_label } = body;
 
   if (!title || !title.trim()) {
     return jsonResponse({ error: 'El título es obligatorio' }, 400, corsHeaders);
@@ -2989,7 +2991,10 @@ async function handleTaskCreate(request, env, corsHeaders) {
       parseFloat(estimated_time) || 0,
       (project || '').trim(),
       now,
-      now
+      now,
+      lat != null ? parseFloat(lat) : null,   // ← nuevo
+      lng != null ? parseFloat(lng) : null,   // ← nuevo
+      (location_label || '').trim() || null     // ← nuevo
     ).run();
 
     return jsonResponse({ success: true, id }, 201, corsHeaders);
@@ -3041,6 +3046,9 @@ async function handleTaskUpdate(request, env, corsHeaders, taskId) {
   if (body.project !== undefined) addField('project', (body.project || '').trim());
   if (body.progress !== undefined) addField('progress', parseInt(body.progress, 10) || 0);
   if (body.done !== undefined) addField('done', body.done ? 1 : 0);
+  if (body.lat !== undefined) addField('lat', body.lat != null ? parseFloat(body.lat) : null);
+  if (body.lng !== undefined) addField('lng', body.lng != null ? parseFloat(body.lng) : null);
+  if (body.location_label !== undefined) addField('location_label', body.location_label || null);
 
   if (fields.length === 0) {
     return jsonResponse({ error: 'Sin campos para actualizar' }, 400, corsHeaders);
