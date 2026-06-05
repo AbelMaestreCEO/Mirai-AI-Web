@@ -1608,8 +1608,8 @@ function initAvatarSyncListener() {
     }
     // Re-renderizar avatares ya en pantalla
     document.querySelectorAll('.message.user .message-avatar').forEach(el => {
-      el.style.padding   = '';
-      el.style.overflow  = 'hidden';
+      el.style.padding = '';
+      el.style.overflow = 'hidden';
       el.innerHTML = getUserAvatarHTML();
     });
   });
@@ -1752,10 +1752,10 @@ async function syncAvatarFromAPI() {
     const res = await fetch('/api/user/profile');
     if (!res.ok) return;
     const { profile } = await res.json();
- 
-    if (profile.firstName) localStorage.setItem('mirai-user-nombre',   profile.firstName);
-    if (profile.lastName)  localStorage.setItem('mirai-user-apellido', profile.lastName);
- 
+
+    if (profile.firstName) localStorage.setItem('mirai-user-nombre', profile.firstName);
+    if (profile.lastName) localStorage.setItem('mirai-user-apellido', profile.lastName);
+
     if (profile.hasAvatar && profile.avatarUrl) {
       localStorage.setItem('mirai-user-avatar-url', profile.avatarUrl);
     } else {
@@ -2376,6 +2376,43 @@ function formatMessageContent(content) {
   formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
   formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
 
+  // ⭐ TABLAS MARKDOWN
+  formatted = formatted.replace(/((?:^\|.+\|\n?)+)/gm, (tableBlock) => {
+    const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+    if (rows.length < 2) return tableBlock;
+
+    // Detectar fila separadora (e.g. |---|---|)
+    const sepIdx = rows.findIndex(r => /^\|[\s\-:|]+\|$/.test(r.trim()));
+    if (sepIdx === -1) return tableBlock;
+
+    const headerRow = rows[0];
+    const bodyRows = rows.slice(sepIdx + 1);
+
+    const parseRow = (row) =>
+      row.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim());
+
+    const headers = parseRow(headerRow);
+    const thHTML = headers.map(h => `<th>${h}</th>`).join('');
+
+    const tbodyHTML = bodyRows.map(row => {
+      const cells = parseRow(row);
+      const tdHTML = cells.map(c => `<td>${c}</td>`).join('');
+      return `<tr>${tdHTML}</tr>`;
+    }).join('');
+
+    return `
+      <div class="md-table-wrapper">
+        <table class="md-table">
+          <thead><tr>${thHTML}</tr></thead>
+          <tbody>${tbodyHTML}</tbody>
+        </table>
+        <button class="copy-table-btn" title="Copiar tabla para Word">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          Copiar tabla
+        </button>
+      </div>`;
+  });
+
   // Saltos de línea
   formatted = formatted.replace(/\n/g, '<br>');
 
@@ -2433,6 +2470,57 @@ function addCopyButtons() {
           btn.innerHTML = originalHTML;
           btn.classList.remove('error');
         }, 2000);
+      }
+    });
+  });
+  // ⭐ BOTONES COPIAR TABLA (para pegar en Word con formato)
+  document.querySelectorAll('.copy-table-btn').forEach(btn => {
+    if (btn.dataset.initialized === 'true') return;
+    btn.dataset.initialized = 'true';
+
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const table = btn.closest('.md-table-wrapper').querySelector('.md-table');
+      const originalHTML = btn.innerHTML;
+
+      // Construir HTML de tabla limpio para Word
+      const tableHTML = `
+        <html><body>
+        <style>
+          table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+          th { background: #5c4a9e; color: white; padding: 6px 12px; border: 1px solid #999; font-weight: bold; }
+          td { padding: 5px 12px; border: 1px solid #ccc; }
+          tr:nth-child(even) td { background: #f5f2ff; }
+        </style>
+        ${table.outerHTML}
+        </body></html>`;
+
+      try {
+        // Copiar como HTML rico (compatible con Word)
+        const blob = new Blob([tableHTML], { type: 'text/html' });
+        const clipItem = new ClipboardItem({ 'text/html': blob });
+        await navigator.clipboard.write([clipItem]);
+
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> ¡Copiado!`;
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('copied');
+        }, 2500);
+      } catch (err) {
+        // Fallback: copiar como texto plano tabulado
+        const rows = Array.from(table.querySelectorAll('tr'));
+        const text = rows.map(r =>
+          Array.from(r.querySelectorAll('th,td')).map(c => c.innerText).join('\t')
+        ).join('\n');
+        await navigator.clipboard.writeText(text);
+
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copiado (texto)`;
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('copied');
+        }, 2500);
       }
     });
   });
