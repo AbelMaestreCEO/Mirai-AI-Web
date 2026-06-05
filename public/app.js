@@ -2376,12 +2376,12 @@ function formatMessageContent(content) {
   formatted = formatted.replace(/(<li class="md-list-item">.*<\/li>\n?)+/g, '<ul class="md-list">$&</ul>');
   formatted = formatted.replace(/^> (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>');
 
-  // ⭐ TABLAS MARKDOWN
-  formatted = formatted.replace(/((?:^\|.+\|\n?)+)/gm, (tableBlock) => {
+  // ⭐ TABLAS MARKDOWN — proteger antes de que \n se convierta en <br>
+  const tableBlocks = [];
+  formatted = formatted.replace(/((?:^\|[^\n]+\|\n?)+)/gm, (tableBlock) => {
     const rows = tableBlock.trim().split('\n').filter(r => r.trim());
     if (rows.length < 2) return tableBlock;
 
-    // Detectar fila separadora (e.g. |---|---|)
     const sepIdx = rows.findIndex(r => /^\|[\s\-:|]+\|$/.test(r.trim()));
     if (sepIdx === -1) return tableBlock;
 
@@ -2400,21 +2400,30 @@ function formatMessageContent(content) {
       return `<tr>${tdHTML}</tr>`;
     }).join('');
 
-    return `
-      <div class="md-table-wrapper">
-        <table class="md-table">
-          <thead><tr>${thHTML}</tr></thead>
-          <tbody>${tbodyHTML}</tbody>
-        </table>
-        <button class="copy-table-btn" title="Copiar tabla para Word">
-          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-          Copiar tabla
-        </button>
-      </div>`;
+    const html = `<div class="md-table-wrapper">
+      <table class="md-table">
+        <thead><tr>${thHTML}</tr></thead>
+        <tbody>${tbodyHTML}</tbody>
+      </table>
+      <button class="copy-table-btn" title="Copiar tabla para Word">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        Copiar tabla
+      </button>
+    </div>`;
+
+    const id = `__TABLE_BLOCK_${tableBlocks.length}__`;
+    tableBlocks.push(html);
+    return id;
   });
 
   // Saltos de línea
   formatted = formatted.replace(/\n/g, '<br>');
+
+  // Restaurar tablas (sin <br> alrededor)
+  tableBlocks.forEach((html, i) => {
+    formatted = formatted.replace(`<br>__TABLE_BLOCK_${i}__<br>`, html);
+    formatted = formatted.replace(`__TABLE_BLOCK_${i}__`, html);
+  });
 
   // Limpieza final de <br> duplicados
   formatted = formatted.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|div)>[ ]*<br>/g, '</$1>');
