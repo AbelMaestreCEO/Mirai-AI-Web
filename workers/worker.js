@@ -2427,23 +2427,32 @@ NO agregues texto adicional fuera del JSON.`;
 
         const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`; // Limitar tamaño
 
-        // 5. Llamar a la IA (DeepSeek)
         const aiContent = await callAI(
           AI_MODEL_NORMAL,
           [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-          { temperature: 0.3, max_tokens: 800 },
+          { temperature: 0.3, max_tokens: 2000 },
           env
         );
 
         // 6. Parsear la respuesta JSON
         let evaluation;
         try {
-          const jsonMatch = aiContent.match(/\{[\s\S]*"score"[\s\S]*\}/);
-          evaluation = JSON.parse(jsonMatch ? jsonMatch[0] : aiContent);
+          // Limpiar posibles bloques de código markdown que envuelvan el JSON
+          const cleaned = aiContent
+            .replace(/^```json\s*/i, '')
+            .replace(/^```\s*/i, '')
+            .replace(/```\s*$/i, '')
+            .trim();
+
+          // Extraer el primer objeto JSON válido
+          const start = cleaned.indexOf('{');
+          const end = cleaned.lastIndexOf('}');
+          if (start === -1 || end === -1) throw new Error('No se encontró JSON en la respuesta');
+          evaluation = JSON.parse(cleaned.slice(start, end + 1));
         } catch (parseError) {
           console.error('Error parseando respuesta de IA:', parseError);
           evaluation = {
-            score: Math.floor(submissionData.max_score * 0.8), // Fallback conservador
+            score: Math.floor(submissionData.max_score * 0.8),
             feedback: { general: 'Error al evaluar automáticamente. Se asignó una puntuación provisional.' },
             reasoning: 'Error de parseo'
           };
