@@ -2307,21 +2307,21 @@ function formatMessageContent(content) {
   formatted = escapeHtml(formatted);
 
   // Restaurar bloques de código (ahora seguros)
+  const codeBlocksHTML = [];
   codeBlocks.forEach(block => {
     const encodedCode = encodeURIComponent(block.code);
-    const replacement = `
-      <div class="code-block-wrapper">
-        <div class="code-header">
-          <span class="code-lang">${block.lang || 'plaintext'}</span>
-          <button class="copy-code-btn" data-code="${encodedCode}" title="Copiar código">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-            <span>Copiar</span>
-          </button>
-        </div>
-        <pre class="code-block"><code class="language-${block.lang}">${block.code}</code></pre>
+    const html = `<div class="code-block-wrapper">
+      <pre class="code-block"><code class="language-${block.lang}">${block.code}</code></pre>
+      <div class="code-header">
+        <span class="code-lang">${block.lang || 'plaintext'}</span>
+        <button class="copy-code-btn" data-code="${encodedCode}" title="Copiar código">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          <span>Copiar</span>
+        </button>
       </div>
-    `;
-    formatted = formatted.replace(`__CODE_BLOCK_${block.id}__`, replacement);
+    </div>`;
+    codeBlocksHTML.push({ placeholder: `__CODE_BLOCK_${block.id}__`, html });
+    formatted = formatted.replace(`__CODE_BLOCK_${block.id}__`, `__CODEHTML_${codeBlocksHTML.length - 1}__`);
   });
 
   // ⭐ IMÁGENES CON TOOLBAR DE DESCARGA (BOTÓN FUERA DE LA IMAGEN)
@@ -2423,6 +2423,12 @@ function formatMessageContent(content) {
   tableBlocks.forEach((html, i) => {
     formatted = formatted.replace(`<br>__TABLE_BLOCK_${i}__<br>`, html);
     formatted = formatted.replace(`__TABLE_BLOCK_${i}__`, html);
+  });
+
+  // Restaurar bloques de código (sin <br> alrededor)
+  codeBlocksHTML.forEach(({ html }, i) => {
+    formatted = formatted.replace(`<br>__CODEHTML_${i}__<br>`, html);
+    formatted = formatted.replace(`__CODEHTML_${i}__`, html);
   });
 
   // Limpieza final de <br> duplicados

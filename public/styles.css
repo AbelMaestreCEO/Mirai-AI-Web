@@ -1635,6 +1635,12 @@ footer.footer {
   word-break: break-word;
 }
 
+/* code-header como footer */
+.code-block-wrapper .code-header {
+  border-bottom: none;
+  border-top: 1px solid var(--glass-border);
+}
+
 /* Asegurar que el texto sea seleccionable */
 .message-content {
   user-select: text;
