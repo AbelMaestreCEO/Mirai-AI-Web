@@ -327,19 +327,16 @@ function renderUploadForm(container, assignmentId) {
                 throw new Error('No se encontró el archivo');
             }
 
-            // 🔴 NUEVO: Extraer texto del documento en el frontend
+            // Extraer texto del documento en el frontend
             console.log('🔍 [FRONTEND] Iniciando extracción de texto...');
             const extractedText = await extractDocumentText(file);
             console.log(`🔍 [FRONTEND] Texto extraído: ${extractedText.length} caracteres`);
-
-            // Enviar el texto extraído junto con el archivo en el mismo request
-            formData.append('extracted_text', extractedText);
-            // NO guardar en localStorage — el texto puede ser sensible
 
             // Subir el archivo original a R2 (para almacenamiento)
             const formData = new FormData();
             formData.append('assignment_id', assignmentId);
             formData.append('file', file);
+            formData.append('extracted_text', extractedText);
 
             const uploadResponse = await fetch('/api/submit-assignment', {
                 method: 'POST',
