@@ -5,7 +5,7 @@
  * Maneja: texto (correo, tono), imagen, vídeo, música
  * ============================================
  */
-import { MiraiRealtime, flashElement, showToast } from 'mirai-realtime.js';
+import { MiraiRealtime, flashElement, showToast } from './mirai-realtime.js';
 (function () {
     'use strict';
 
