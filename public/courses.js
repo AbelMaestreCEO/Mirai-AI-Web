@@ -722,6 +722,11 @@
     };
 
     function initRealtimeCourses() {
+        if (!window.MiraiRealtime) {
+            console.warn('⚠️ MiraiRealtime no disponible aún, reintentando...');
+            setTimeout(initRealtimeCourses, 500);
+            return;
+        }
         const rt = window.MiraiRealtime.getInstance();
 
         rt.subscribe('courses', ({ courses, lessons }) => {
