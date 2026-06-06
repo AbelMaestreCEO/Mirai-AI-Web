@@ -2428,11 +2428,12 @@ NO agregues texto adicional fuera del JSON.`;
         const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`; // Limitar tamaño
 
         const aiContent = await callAI(
-          AI_MODEL_NORMAL,
+          AI_MODEL_PRO,
           [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
           { temperature: 0.3, max_tokens: 2000 },
           env
         );
+        console.log('🤖 [DEBUG] aiContent raw:', aiContent?.substring(0, 300));
 
         // 6. Parsear la respuesta JSON
         let evaluation;
@@ -2451,6 +2452,7 @@ NO agregues texto adicional fuera del JSON.`;
           evaluation = JSON.parse(cleaned.slice(start, end + 1));
         } catch (parseError) {
           console.error('Error parseando respuesta de IA:', parseError);
+          console.error('🤖 [DEBUG] aiContent completo:', aiContent); 
           evaluation = {
             score: Math.floor(submissionData.max_score * 0.8),
             feedback: { general: 'Error al evaluar automáticamente. Se asignó una puntuación provisional.' },
