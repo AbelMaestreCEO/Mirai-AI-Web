@@ -2238,26 +2238,38 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/code-chat/message' && request.method === 'POST')
       return handleCodeChatMessage(request, env, corsHeaders);
 
-    // Ruta: GET /api/my-submissions (CORREGIDA - para ESTUDIANTES)
+    // Ruta: GET /api/my-submissions (para ESTUDIANTES)
     if (path === '/api/my-submissions' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
       if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
       try {
-        // ✨ Obtener SOLO las tareas donde el estudiante está asignado
+        // Obtener tareas de las secciones donde el estudiante está inscrito
+        // UNION con tareas asignadas individualmente (assignment_students)
         const { results: assignments } = await env.MIRAI_AI_DB.prepare(`
     SELECT DISTINCT
         a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
         a.section_id,
-        uc.title as course_title,
-        s.name   as section_name
+        c.title as course_title,
+        s.name  as section_name
     FROM assignments a
-    INNER JOIN assignment_students ast ON a.id = ast.assignment_id
-    LEFT JOIN user_courses uc ON a.course_id = uc.id
-    LEFT JOIN sections     s  ON a.section_id = s.id
+    JOIN section_students ss ON ss.section_id = a.section_id
+    LEFT JOIN courses c ON c.id = a.course_id
+    LEFT JOIN sections s ON s.id = a.section_id
+    WHERE ss.user_dni = ?
+    UNION
+    SELECT DISTINCT
+        a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
+        a.section_id,
+        c.title as course_title,
+        s.name  as section_name
+    FROM assignments a
+    JOIN assignment_students ast ON ast.assignment_id = a.id
+    LEFT JOIN courses c ON c.id = a.course_id
+    LEFT JOIN sections s ON s.id = a.section_id
     WHERE ast.user_dni = ?
-    ORDER BY a.created_at DESC
-`).bind(userDni.toUpperCase()).all();
+    ORDER BY created_at DESC
+`).bind(userDni.toUpperCase(), userDni.toUpperCase()).all();
 
         // Obtener entregas del estudiante
         const { results: submissions } = await env.MIRAI_AI_DB.prepare(`
