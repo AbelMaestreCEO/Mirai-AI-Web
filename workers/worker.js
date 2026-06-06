@@ -2753,15 +2753,15 @@ async function handleSyncPoll(request, env, corsHeaders) {
     if (!userDni) {
       return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
     }
-
-    const url = new URL(request.url);
-    const since = url.searchParams.get('since') || new Date(0).toISOString();
+ 
+    const url     = new URL(request.url);
+    const since   = url.searchParams.get('since') || new Date(0).toISOString();
     const modules = (url.searchParams.get('modules') || '').split(',').filter(Boolean);
-    const role = url.searchParams.get('role') || 'student';
-    const newTs = new Date().toISOString();
-
+    const role    = url.searchParams.get('role') || 'student';
+    const newTs   = new Date().toISOString();
+ 
     const changes = {};
-
+ 
     // ── INVENTORY ──────────────────────────────────────────────
     // Tablas: inventory_products, inventory_logs
     // updated_at existe en inventory_products ✓
@@ -2776,7 +2776,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY updated_at DESC
         LIMIT  50
       `).bind(since, userDni).all();
-
+ 
       // Logs recientes de inventario
       const logs = await env.MIRAI_AI_DB.prepare(`
         SELECT il.id, il.product_id, il.type, il.quantity_change,
@@ -2787,19 +2787,19 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY il.created_at DESC
         LIMIT  20
       `).bind(since, userDni).all();
-
+ 
       changes.inventory = {
         products: products.results || [],
-        logs: logs.results || []
+        logs:     logs.results     || []
       };
     }
-
+ 
     // ── CLASSROOM ──────────────────────────────────────────────
     // Tablas: sections (sin updated_at → usar created_at),
     //         section_students, assignments, submissions
     if (modules.includes('classroom')) {
       const isTeacherOrAdmin = role === 'teacher' || role === 'admin';
-
+ 
       if (isTeacherOrAdmin) {
         // Profesor: secciones que creó
         const sections = await env.MIRAI_AI_DB.prepare(`
@@ -2813,7 +2813,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY s.created_at DESC
           LIMIT  30
         `).bind(userDni, since).all();
-
+ 
         // Tareas nuevas/modificadas
         const assignments = await env.MIRAI_AI_DB.prepare(`
           SELECT a.id, a.course_id, a.title, a.description,
@@ -2825,7 +2825,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY a.created_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
-
+ 
         // Entregas nuevas para calificar
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT sub.id, sub.assignment_id, sub.user_dni,
@@ -2839,13 +2839,13 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY sub.submitted_at DESC
           LIMIT  30
         `).bind(userDni, since).all();
-
+ 
         changes.classroom = {
-          sections: sections.results || [],
+          sections:    sections.results    || [],
           assignments: assignments.results || [],
           submissions: submissions.results || []
         };
-
+ 
       } else {
         // Estudiante: secciones donde está inscrito
         const sections = await env.MIRAI_AI_DB.prepare(`
@@ -2858,18 +2858,19 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY s.created_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
-
-        // Tareas asignadas al estudiante
+ 
+        // Tareas nuevas en las secciones donde el estudiante está inscrito
+        // (via section_students, que es como /api/my-submissions las encuentra)
         const assignments = await env.MIRAI_AI_DB.prepare(`
           SELECT a.id, a.title, a.description, a.file_url,
                  a.due_date, a.max_score, a.created_at, a.section_id
           FROM   assignments a
-          JOIN   assignment_students ast ON ast.assignment_id = a.id
-          WHERE  ast.user_dni = ? AND a.created_at > ?
+          JOIN   section_students ss ON ss.section_id = a.section_id
+          WHERE  ss.user_dni = ? AND a.created_at > ?
           ORDER  BY a.created_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
-
+ 
         // Estado de sus propias entregas (ej. calificada/disputada)
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT sub.id, sub.assignment_id, sub.status,
@@ -2882,20 +2883,20 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY sub.submitted_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
-
+ 
         changes.classroom = {
-          sections: sections.results || [],
+          sections:    sections.results    || [],
           assignments: assignments.results || [],
           submissions: submissions.results || []
         };
       }
     }
-
+ 
     // ── ATTENDANCE ─────────────────────────────────────────────
     // Tablas: att_records, att_qr_sessions, att_classes, att_staff
     if (modules.includes('attendance')) {
       const isAdmin = role === 'admin' || role === 'teacher';
-
+ 
       if (isAdmin) {
         // Admin/profesor: todos los registros de sus clases
         const records = await env.MIRAI_AI_DB.prepare(`
@@ -2911,7 +2912,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY ar.created_at DESC
           LIMIT  100
         `).bind(since, userDni).all();
-
+ 
         // Sesiones QR activas
         const sessions = await env.MIRAI_AI_DB.prepare(`
           SELECT qs.id, qs.token, qs.date, qs.expires_at,
@@ -2923,19 +2924,19 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY qs.created_at DESC
           LIMIT  20
         `).bind(since, userDni).all();
-
+ 
         changes.attendance = {
-          records: records.results || [],
+          records:  records.results  || [],
           sessions: sessions.results || []
         };
-
+ 
       } else {
         // Estudiante/staff: sus propios registros
         // Buscar por DNI en att_staff
         const staffRow = await env.MIRAI_AI_DB.prepare(
           `SELECT id FROM att_staff WHERE dni = ? LIMIT 1`
         ).bind(userDni).first();
-
+ 
         if (staffRow) {
           const records = await env.MIRAI_AI_DB.prepare(`
             SELECT ar.id, ar.session_id, ar.type, ar.date,
@@ -2953,7 +2954,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
         }
       }
     }
-
+ 
     // ── DIET ───────────────────────────────────────────────────
     // Tablas: diet_data (kv), diet_history
     if (modules.includes('diet')) {
@@ -2964,7 +2965,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  user_dni = ? AND updated_at > ?
         ORDER  BY updated_at DESC
       `).bind(userDni, since).all();
-
+ 
       // diet_history: entradas de días recientes
       const history = await env.MIRAI_AI_DB.prepare(`
         SELECT id, date, total_kcal, total_prot,
@@ -2974,13 +2975,13 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY created_at DESC
         LIMIT  7
       `).bind(userDni, since).all();
-
+ 
       changes.diet = {
-        data: data.results || [],
+        data:    data.results    || [],
         history: history.results || []
       };
     }
-
+ 
     // ── TASKS ──────────────────────────────────────────────────
     // Tabla: tasks (tiene updated_at ✓, lat/lng para mapa)
     if (modules.includes('tasks')) {
@@ -2995,16 +2996,16 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY updated_at DESC
         LIMIT  50
       `).bind(userDni, since).all();
-
+ 
       changes.tasks = tasks.results || [];
     }
-
+ 
     // ── LOCATION ───────────────────────────────────────────────
     // Tabla: location_markers
     if (modules.includes('location')) {
       const isAdmin = role === 'admin';
       let markers;
-
+ 
       if (isAdmin) {
         // Admin ve todos los marcadores
         markers = await env.MIRAI_AI_DB.prepare(`
@@ -3027,10 +3028,10 @@ async function handleSyncPoll(request, env, corsHeaders) {
           LIMIT  50
         `).bind(userDni, since).all();
       }
-
+ 
       changes.location = markers.results || [];
     }
-
+ 
     // ── COURSES ────────────────────────────────────────────────
     // Tablas: courses, lessons, categories, subcategories
     if (modules.includes('courses')) {
@@ -3043,7 +3044,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY updated_at DESC
         LIMIT  30
       `).bind(since).all();
-
+ 
       const lessons = await env.MIRAI_AI_DB.prepare(`
         SELECT l.id, l.course_id, l.title, l.order_index, l.created_at
         FROM   lessons l
@@ -3051,18 +3052,18 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY l.created_at DESC
         LIMIT  30
       `).bind(since).all();
-
+ 
       changes.courses = {
         courses: courses.results || [],
         lessons: lessons.results || []
       };
     }
-
+ 
     // ── REPORTS ────────────────────────────────────────────────
     // Tablas: reports, report_submissions
     if (modules.includes('reports')) {
       const isTeacher = role === 'teacher' || role === 'admin';
-
+ 
       if (isTeacher) {
         // Profesor: reportes que creó + nuevas entregas
         const reports = await env.MIRAI_AI_DB.prepare(`
@@ -3073,7 +3074,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY updated_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
-
+ 
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT rs.id, rs.report_id, rs.student_dni,
                  rs.submitted_at, r.title AS report_title
@@ -3083,12 +3084,12 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY rs.submitted_at DESC
           LIMIT  30
         `).bind(userDni, since).all();
-
+ 
         changes.reports = {
-          reports: reports.results || [],
+          reports:     reports.results     || [],
           submissions: submissions.results || []
         };
-
+ 
       } else {
         // Estudiante: reportes activos con acceso, y sus propias entregas
         const submissions = await env.MIRAI_AI_DB.prepare(`
@@ -3100,14 +3101,14 @@ async function handleSyncPoll(request, env, corsHeaders) {
           ORDER  BY rs.submitted_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
-
+ 
         changes.reports = {
-          reports: [],
+          reports:     [],
           submissions: submissions.results || []
         };
       }
     }
-
+ 
     // ── CHAT ───────────────────────────────────────────────────
     // Tablas: conversations, messages
     if (modules.includes('chat')) {
@@ -3119,7 +3120,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY updated_at DESC
         LIMIT  20
       `).bind(userDni, since).all();
-
+ 
       // Mensajes nuevos en conversaciones activas
       const messages = await env.MIRAI_AI_DB.prepare(`
         SELECT m.id, m.conversation_id, m.role,
@@ -3131,13 +3132,13 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY m.created_at DESC
         LIMIT  30
       `).bind(userDni, since).all();
-
+ 
       changes.chat = {
         conversations: conversations.results || [],
-        messages: messages.results || []
+        messages:      messages.results      || []
       };
     }
-
+ 
     // ── GENERATION ─────────────────────────────────────────────
     // Tabla: gen_history (images, videos, music)
     if (modules.includes('generation')) {
@@ -3148,16 +3149,16 @@ async function handleSyncPoll(request, env, corsHeaders) {
         ORDER  BY created_at DESC
         LIMIT  20
       `).bind(userDni, since).all();
-
+ 
       changes.generation = gen.results || [];
     }
-
+ 
     return jsonResponse(
       { ts: newTs, changes },
       200,
       { ...corsHeaders, 'Cache-Control': 'no-store, no-cache' }
     );
-
+ 
   } catch (error) {
     console.error('[SyncPoll] Error:', error);
     return jsonResponse(
