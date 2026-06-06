@@ -253,49 +253,92 @@
         return div.innerHTML;
     }
 
+    // ── UTILIDADES REALTIME ───────────────────────────────────────────────────
+    function flashElement(el) {
+        if (!el) return;
+        el.classList.remove('rt-updated');
+        void el.offsetWidth;
+        el.classList.add('rt-updated');
+        setTimeout(() => el.classList.remove('rt-updated'), 2000);
+    }
+
+    function showToast(message, duration = 4000) {
+        if (typeof window.showNotification === 'function') { window.showNotification(message); return; }
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position:fixed;bottom:3.5rem;right:1.2rem;
+            background:var(--glass-bg,rgba(30,30,40,0.95));
+            border:1px solid var(--glass-border,rgba(255,255,255,0.1));
+            color:var(--text-primary,#fff);padding:0.6rem 1rem;
+            border-radius:0.6rem;font-size:0.82rem;z-index:10000;
+            backdrop-filter:blur(12px);max-width:280px;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), duration);
+    }
+
     function initRealtimeClassroom() {
-        const rt = window.MiraiRealtime.getInstance();
+        if (!window.MiraiRealtime) {
+            let attempts = 0;
+            const wait = setInterval(() => {
+                attempts++;
+                if (window.MiraiRealtime) { clearInterval(wait); _startRealtimeClassroom(); }
+                else if (attempts > 50) { clearInterval(wait); console.warn('[Classroom] mirai-realtime.js no disponible.'); }
+            }, 100);
+            return;
+        }
+        _startRealtimeClassroom();
+    }
 
-        rt.subscribe('classroom', ({ sections, assignments, submissions }) => {
+    function _startRealtimeClassroom() {
+        const rt  = window.MiraiRealtime.getInstance();
+        const dni = localStorage.getItem('mirai_user_dni');
 
-            // Nuevas secciones inscritas
-            if (sections.length > 0 && typeof loadMySections === 'function') {
-                loadMySections();
+        rt.subscribe('classroom', (payload) => {
+            const sections    = payload.sections    || [];
+            const assignments = payload.assignments || [];
+            const submissions = payload.submissions || [];
+
+            // — Tareas nuevas: recargar lista completa —
+            if (assignments.length > 0 && dni) {
+                loadTasks(dni);
+                return;
             }
 
-            // Tareas nuevas asignadas
-            if (assignments.length > 0) {
-                assignments.forEach(a => {
-                    const exists = document.querySelector(`[data-assignment-id="${a.id}"]`);
-                    if (!exists && typeof prependAssignment === 'function') {
-                        prependAssignment(a);
-                    } else if (!exists && typeof loadAssignments === 'function') {
-                        loadAssignments();
-                        return;
+            // — Secciones nuevas —
+            if (sections.length > 0 && dni) {
+                loadTasks(dni);
+                return;
+            }
+
+            // — Calificaciones actualizadas —
+            if (submissions.length > 0) {
+                submissions.forEach(sub => {
+                    if (sub.status === 'graded' || sub.status === 'reviewed') {
+                        const cards = document.querySelectorAll('.task-card');
+                        let found = false;
+                        cards.forEach(card => {
+                            const link = card.querySelector(`a[href*="${sub.assignment_id}"]`);
+                            if (link) {
+                                found = true;
+                                const badge = card.querySelector('.status-badge');
+                                if (badge) {
+                                    badge.textContent = `Calificado: ${sub.score ?? '—'}`;
+                                    badge.className = 'status-badge status-completed';
+                                }
+                                flashElement(card);
+                                showToast(`✅ "${sub.assignment_title}" calificada: ${sub.score ?? 'Sin nota'} pts`);
+                            }
+                        });
+                        if (!found && dni) loadTasks(dni);
+                    }
+                    if (sub.dispute_status === 'resolved') {
+                        showToast(`📋 Disputa resuelta para "${sub.assignment_title}"`);
+                        if (dni) loadTasks(dni);
                     }
                 });
             }
-
-            // Calificaciones recibidas
-            submissions.forEach(sub => {
-                if (sub.status === 'graded' || sub.status === 'reviewed') {
-                    const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
-                    if (row) {
-                        const scoreEl = row.querySelector('[data-field="score"]');
-                        const statusEl = row.querySelector('[data-field="status"]');
-                        if (scoreEl) scoreEl.textContent = sub.score ?? '—';
-                        if (statusEl) statusEl.textContent = sub.status;
-                        flashElement(row);
-                        // Mostrar notificación in-app
-                        showToast(`✅ Tarea "${sub.assignment_title}" calificada: ${sub.score ?? 'Sin nota'}`);
-                    }
-                }
-                // Actualización de disputa
-                if (sub.dispute_status) {
-                    const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
-                    if (row) flashElement(row);
-                }
-            });
         });
 
         rt.start();
