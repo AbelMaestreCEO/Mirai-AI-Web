@@ -5,7 +5,7 @@
 
 // --- CONSTANTES Y CONFIGURACIÓN ---
 
-import { MiraiRealtime, flashElement, showToast } from './mirai-realtime.js';
+
 const INV_CONFIG = {
     API_ENDPOINT: '/api/inventory',
     UPLOAD_ENDPOINT: '/api/inventory/upload',
