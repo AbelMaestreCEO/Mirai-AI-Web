@@ -640,7 +640,7 @@
     });
 
     function initRealtimeGeneration() {
-        const rt = MiraiRealtime.getInstance();
+        const rt = window.MiraiRealtime.getInstance();
 
         rt.subscribe('generation', (items) => {
             items.forEach(item => {
