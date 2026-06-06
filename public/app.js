@@ -3279,3 +3279,32 @@ if (_logoutBtn) {
     }
   });
 }
+
+function initRealtimeChat() {
+  const rt = window.MiraiRealtime.getInstance();
+ 
+  rt.subscribe('chat', ({ conversations, messages }) => {
+ 
+    // Conversaciones nuevas desde otro dispositivo
+    conversations.forEach(conv => {
+      const item = document.querySelector(`[data-conv-id="${conv.id}"]`);
+      if (item) {
+        const titleEl = item.querySelector('.conv-title');
+        if (titleEl) titleEl.textContent = conv.title;
+        flashElement(item);
+      } else if (typeof prependConversation === 'function') {
+        prependConversation(conv);
+      }
+    });
+ 
+    // Mensajes nuevos (útil si la misma conv está abierta en dos dispositivos)
+    messages.forEach(msg => {
+      const exists = document.querySelector(`[data-msg-id="${msg.id}"]`);
+      if (!exists && typeof appendMessage === 'function') {
+        appendMessage(msg);
+      }
+    });
+  });
+ 
+  rt.start();
+}

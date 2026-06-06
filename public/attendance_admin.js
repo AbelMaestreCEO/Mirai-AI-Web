@@ -818,6 +818,52 @@ function init() {
         loadRecords();
         loadClasses();
     }, 30_000);
+    initRealtimeAttendanceAdmin();
+}
+
+function initRealtimeAttendanceAdmin() {
+  const rt = window.MiraiRealtime.getInstance();
+ 
+  rt.subscribe('attendance', ({ records, sessions }) => {
+ 
+    // — Nuevos registros de asistencia (escaneos QR) —
+    records.forEach(rec => {
+      const exists = document.querySelector(`[data-att-id="${rec.id}"]`);
+      if (!exists) {
+        if (typeof prependAttendanceRow === 'function') {
+          prependAttendanceRow(rec);
+        } else if (typeof loadAttendance === 'function') {
+          loadAttendance();
+          return;
+        }
+        // Actualizar contador de scans en la sesión activa
+        const scanCount = document.getElementById('scan-count');
+        if (scanCount) {
+          scanCount.textContent = parseInt(scanCount.textContent || '0') + 1;
+          flashElement(scanCount);
+        }
+      }
+    });
+ 
+    // — Nuevas sesiones QR —
+    sessions.forEach(sess => {
+      const exists = document.querySelector(`[data-session-id="${sess.id}"]`);
+      if (!exists && typeof appendSessionCard === 'function') {
+        appendSessionCard(sess);
+      } else if (!exists && typeof loadSessions === 'function') {
+        loadSessions();
+        return;
+      }
+      // Actualizar scan_count de sesión existente
+      if (exists) {
+        const countEl = exists.querySelector('[data-field="scan_count"]');
+        if (countEl) countEl.textContent = sess.scan_count;
+        flashElement(exists);
+      }
+    });
+  });
+ 
+  rt.start();
 }
 
 document.readyState === 'loading'

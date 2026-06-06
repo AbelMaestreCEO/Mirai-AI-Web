@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadStats();
     await loadDisputedAssignments();
     await loadSections();
+    initRealtimeClassroomAdmin();
 });
 
 // --- RESTO DE FUNCIONES (Sin cambios funcionales, solo limpieza) ---
@@ -771,4 +772,50 @@ function selectSectionForStudents(sectionId) {
 
 function setupTabs() {
     console.log('Tabs system initialized');
+}
+
+function initRealtimeClassroomAdmin() {
+  // classroom_admin.js no tiene type="module" → usar window global
+  const rt = window.MiraiRealtime.getInstance();
+ 
+  rt.subscribe('classroom', ({ sections, assignments, submissions }) => {
+ 
+    // — Secciones nuevas —
+    sections.forEach(s => {
+      const card = document.querySelector(`[data-section-id="${s.id}"]`);
+      if (card) {
+        const countEl = card.querySelector('[data-field="student_count"]');
+        if (countEl) countEl.textContent = s.student_count ?? countEl.textContent;
+        flashElement(card);
+      } else {
+        if (typeof loadSections === 'function') loadSections();
+      }
+    });
+ 
+    // — Tareas nuevas —
+    if (assignments.length > 0) {
+      if (typeof loadAssignments === 'function') loadAssignments();
+    }
+ 
+    // — Entregas nuevas para calificar —
+    if (submissions.length > 0) {
+      submissions.forEach(sub => {
+        const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
+        if (!row && typeof appendSubmissionRow === 'function') {
+          appendSubmissionRow(sub);
+        } else if (!row && typeof loadSubmissions === 'function') {
+          loadSubmissions();
+          return;
+        }
+        // Si ya existe → actualizar badge de estado
+        if (row) {
+          const badge = row.querySelector('[data-field="status"]');
+          if (badge) badge.textContent = sub.status;
+          flashElement(row);
+        }
+      });
+    }
+  });
+ 
+  rt.start();
 }

@@ -4,6 +4,8 @@
    ============================================ */
 
 // --- CONSTANTES Y CONFIGURACIÓN ---
+
+import { MiraiRealtime, flashElement, showToast } from './mirai-realtime.js';
 const INV_CONFIG = {
     API_ENDPOINT: '/api/inventory',
     UPLOAD_ENDPOINT: '/api/inventory/upload',
@@ -62,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupEventListeners();
         await loadInventory();
         updateStats();
+        initRealtimeInventory();
     });
 function initLocalTheme() {
     const savedTheme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -1197,5 +1200,36 @@ function urlBase64ToUint8Array(base64String) {
     }
     return outputArray;
 }
-
+function initRealtimeInventory() {
+  const rt = MiraiRealtime.getInstance();
+ 
+  rt.subscribe('inventory', ({ products, logs }) => {
+ 
+    // — Productos nuevos o modificados —
+    products.forEach(p => {
+      const row = document.querySelector(`[data-product-id="${p.id}"]`);
+      if (row) {
+        // Actualización quirúrgica: solo los campos que cambiaron
+        const qty   = row.querySelector('[data-field="quantity"]');
+        const price = row.querySelector('[data-field="unit_price"]');
+        const name  = row.querySelector('[data-field="name"]');
+        if (qty)   qty.textContent   = p.quantity;
+        if (price) price.textContent = p.unit_price != null ? `$${Number(p.unit_price).toFixed(2)}` : '—';
+        if (name)  name.textContent  = p.name;
+        flashElement(row);
+      } else {
+        // Producto nuevo: recargar lista completa (una sola vez)
+        if (typeof loadProducts === 'function') { loadProducts(); return; }
+        if (typeof renderInventory === 'function') { renderInventory(); return; }
+      }
+    });
+ 
+    // — Logs de movimiento de inventario —
+    if (logs.length > 0 && typeof appendInventoryLog === 'function') {
+      logs.forEach(log => appendInventoryLog(log));
+    }
+  });
+ 
+  rt.start();
+}
 console.log('✅ Módulo de Inventario Inteligente inicializado');

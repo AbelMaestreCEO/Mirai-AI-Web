@@ -13,27 +13,27 @@
     'use strict';
 
     const DEFAULT_CENTER = [9.0, -66.0];
-    const DEFAULT_ZOOM   = 6;
+    const DEFAULT_ZOOM = 6;
 
     const PRIORITY_COLOR = { critica: '#ef4444', alta: '#f97316', media: '#eab308', baja: '#22c55e' };
-    const STATUS_LABEL   = { pendiente: 'Pendiente', progreso: 'En Progreso', revision: 'Revisión', completado: 'Completado' };
+    const STATUS_LABEL = { pendiente: 'Pendiente', progreso: 'En Progreso', revision: 'Revisión', completado: 'Completado' };
     const PRIORITY_LABEL = { critica: '🔴 Crítica', alta: '🟠 Alta', media: '🟡 Media', baja: '🟢 Baja' };
 
-    let map            = null;
-    let pendingLatlng  = null;
-    let pendingMarker  = null;   // pin provisional (antes de guardar)
-    let locMarkers     = {};     // id → L.Marker (ubicaciones guardadas)
-    let taskMarkers    = [];     // L.Marker[] (tareas con ubicación)
+    let map = null;
+    let pendingLatlng = null;
+    let pendingMarker = null;   // pin provisional (antes de guardar)
+    let locMarkers = {};     // id → L.Marker (ubicaciones guardadas)
+    let taskMarkers = [];     // L.Marker[] (tareas con ubicación)
 
-    const elGpsBtn  = document.getElementById('loc-gps-btn');
+    const elGpsBtn = document.getElementById('loc-gps-btn');
     const elListBtn = document.getElementById('loc-list-btn');
-    const elList    = document.getElementById('loc-markers-list');
-    const elCount   = document.getElementById('loc-count');
-    const elHint    = document.getElementById('loc-hint');
-    const elTitle   = document.getElementById('loc-title');
-    const elDesc    = document.getElementById('loc-desc');
+    const elList = document.getElementById('loc-markers-list');
+    const elCount = document.getElementById('loc-count');
+    const elHint = document.getElementById('loc-hint');
+    const elTitle = document.getElementById('loc-title');
+    const elDesc = document.getElementById('loc-desc');
     const elSaveBtn = document.getElementById('loc-save-btn');
-    const elToast   = document.getElementById('loc-toast');
+    const elToast = document.getElementById('loc-toast');
 
     /* ── API ─────────────────────────────────────────────────────────────── */
 
@@ -85,6 +85,7 @@
 
         loadLocMarkers();
         loadTaskMarkers();
+        initRealtimeLocation();
     }
 
     /* ── Clic en mapa — pin provisional exactamente donde se hizo clic ───── */
@@ -116,11 +117,11 @@
 
     function clearPending() {
         if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
-        pendingLatlng     = null;
+        pendingLatlng = null;
         elSaveBtn.disabled = true;
         elHint.textContent = 'Toca el mapa para colocar un marcador';
         elTitle.value = '';
-        elDesc.value  = '';
+        elDesc.value = '';
     }
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && pendingLatlng) clearPending(); });
@@ -133,10 +134,10 @@
         elSaveBtn.textContent = '...';
         try {
             const marker = await apiLocCreate({
-                title:       elTitle.value.trim() || 'Sin título',
+                title: elTitle.value.trim() || 'Sin título',
                 description: elDesc.value.trim(),
-                lat:         pendingLatlng.lat,
-                lng:         pendingLatlng.lng,
+                lat: pendingLatlng.lat,
+                lng: pendingLatlng.lng,
             });
             // Quitar provisional → poner permanente
             if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
@@ -146,9 +147,9 @@
             renderList(all);
             updateCount(all.length);
 
-            pendingLatlng     = null;
-            elTitle.value     = '';
-            elDesc.value      = '';
+            pendingLatlng = null;
+            elTitle.value = '';
+            elDesc.value = '';
             elSaveBtn.disabled = true;
             elHint.textContent = 'Toca el mapa para colocar un marcador';
             showToast('✅ Marcador guardado');
@@ -359,6 +360,29 @@
         return String(s || '')
             .replace(/&/g, '&amp;').replace(/</g, '&lt;')
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function initRealtimeLocation() {
+        const rt = window.MiraiRealtime.getInstance();
+
+        rt.subscribe('location', (markers) => {
+            markers.forEach(marker => {
+                // Si hay un mapa Leaflet/Google Maps activo, agregar el marcador
+                if (typeof addMarkerToMap === 'function') {
+                    addMarkerToMap(marker);
+                } else if (typeof loadMarkers === 'function') {
+                    loadMarkers();
+                    return;
+                }
+                // Actualizar lista lateral si existe
+                const item = document.querySelector(`[data-marker-id="${marker.id}"]`);
+                if (!item && typeof appendMarkerListItem === 'function') {
+                    appendMarkerListItem(marker);
+                }
+            });
+        });
+
+        rt.start();
     }
 
     /* ── Arranque ────────────────────────────────────────────────────────── */

@@ -5,7 +5,7 @@
  * Maneja: courses, course_details, course_category
  * ============================================
  */
-
+import { MiraiRealtime, flashElement, showToast } from './mirai-realtime.js';
 (function () {
     'use strict';
 
@@ -62,7 +62,7 @@
                     const newTheme = current === 'light' ? 'dark' : 'light';
                     document.documentElement.setAttribute('data-theme', newTheme);
                     localStorage.setItem('mirai-ai-theme', newTheme);
-                    
+
                     // Actualizar iconos
                     const sun = document.querySelector('.sun-icon');
                     const moon = document.querySelector('.moon-icon');
@@ -80,10 +80,10 @@
             }
         } else {
             // Fallback si MiraiApp no carga
-            const savedTheme = localStorage.getItem('mirai-ai-theme') || 
+            const savedTheme = localStorage.getItem('mirai-ai-theme') ||
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', savedTheme);
-            
+
             const sun = document.querySelector('.sun-icon');
             const moon = document.querySelector('.moon-icon');
             if (sun && moon) {
@@ -522,7 +522,7 @@
 
     function initCourseDetailsPage() {
         console.log('📖 Inicializando página de detalles...');
-        
+
         const els = {
             loading: document.getElementById('loading-state'),
             content: document.getElementById('course-content'),
@@ -667,24 +667,24 @@
     // ============================================
 
     function setupLogout() {
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                try {
-                    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-                } catch (e) {}
-                localStorage.removeItem('mirai_user_dni');
-                localStorage.removeItem('mirai_user_name');
-                localStorage.getItem('mirai_user_role');
-                localStorage.removeItem('mirai-ai-conversation-id');
-                localStorage.removeItem('mirai-ai-course-id');
-                localStorage.removeItem('mirai-ai-lesson-id');
-                window.location.href = 'login';
-            }
-        });
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                    try {
+                        await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+                    } catch (e) { }
+                    localStorage.removeItem('mirai_user_dni');
+                    localStorage.removeItem('mirai_user_name');
+                    localStorage.getItem('mirai_user_role');
+                    localStorage.removeItem('mirai-ai-conversation-id');
+                    localStorage.removeItem('mirai-ai-course-id');
+                    localStorage.removeItem('mirai-ai-lesson-id');
+                    window.location.href = 'login';
+                }
+            });
+        }
     }
-}
 
     // ============================================
     // INICIALIZACIÓN PRINCIPAL
@@ -692,12 +692,12 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         console.log('🚀 courses.js iniciado');
- 
+
         // Tema y Sidebar → manejados por mirai-boot.js + app.js. No tocar aquí.
- 
+
         // 1. Configurar Logout
         setupLogout();
- 
+
         // 2. Cargar página específica
         if (currentPage === 'categories') {
             initCategoriesPage();
@@ -706,6 +706,7 @@
         } else if (currentPage === 'details') {
             initCourseDetailsPage();
         }
+        initRealtimeCourses();
     });
 
     // ============================================
@@ -719,5 +720,31 @@
     window.selectCourse = (courseId) => {
         window.location.href = `course_details?id=${courseId}`;
     };
+
+    function initRealtimeCourses() {
+        const rt = MiraiRealtime.getInstance();
+
+        rt.subscribe('courses', ({ courses, lessons }) => {
+
+            courses.forEach(course => {
+                const card = document.querySelector(`[data-course-id="${course.id}"]`);
+                if (card) {
+                    const titleEl = card.querySelector('.course-title');
+                    const lessEl = card.querySelector('[data-field="lessons"]');
+                    if (titleEl) titleEl.textContent = course.title;
+                    if (lessEl) lessEl.textContent = course.lessons;
+                    flashElement(card);
+                } else {
+                    if (typeof loadCourses === 'function') loadCourses();
+                }
+            });
+
+            if (lessons.length > 0 && typeof loadLessons === 'function') {
+                loadLessons();
+            }
+        });
+
+        rt.start();
+    }
 
 })();

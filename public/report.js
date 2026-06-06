@@ -850,6 +850,8 @@ async function init() {
 
     // Arrancar en la pestaña pendiente
     switchTab('pending');
+
+    initRealtimeReports();
 }
 
 // ── Arrancar cuando el DOM esté listo ────────────────────────────────────────
@@ -857,4 +859,34 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
+}
+
+function initRealtimeReports() {
+  const rt = window.MiraiRealtime.getInstance();
+ 
+  rt.subscribe('reports', ({ reports, submissions }) => {
+ 
+    // Nuevos reportes publicados
+    reports.forEach(r => {
+      const card = document.querySelector(`[data-report-id="${r.id}"]`);
+      if (card) {
+        flashElement(card);
+      } else if (typeof loadReports === 'function') {
+        loadReports();
+        return;
+      }
+    });
+ 
+    // Nuevas entregas recibidas (vista profesor)
+    submissions.forEach(sub => {
+      const exists = document.querySelector(`[data-sub-id="${sub.id}"]`);
+      if (!exists) {
+        if (typeof appendSubmission === 'function') appendSubmission(sub);
+        else if (typeof loadSubmissions === 'function') { loadSubmissions(); return; }
+        showToast(`📩 Nueva entrega de ${sub.student_dni} en "${sub.report_title}"`);
+      }
+    });
+  });
+ 
+  rt.start();
 }

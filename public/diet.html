@@ -9,6 +9,7 @@
     <title>Mirai AI - Dieta</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script src="mirai-realtime.js"></script>
     <script>
         (function () {
             var COLORS = {
@@ -2339,6 +2340,34 @@
       renderFoodLog();
       renderShoppingList();
     });
+
+    function initRealtimeDiet() {
+  const rt = window.MiraiRealtime.getInstance();
+ 
+  rt.subscribe('diet', ({ data, history }) => {
+ 
+    // diet_data actualizado (planner, recetas guardadas, etc.)
+    if (data.length > 0) {
+      data.forEach(kv => {
+        if (kv.data_key === 'planner') {
+          // Recargar planner del día
+          if (typeof renderPlanner === 'function') renderPlanner();
+        }
+        if (kv.data_key === 'state') {
+          // Re-aplicar estado global (macros objetivo, etc.)
+          if (typeof initDietState === 'function') initDietState();
+        }
+      });
+    }
+ 
+    // Historial de días actualizado
+    if (history.length > 0 && typeof loadHistory === 'function') {
+      loadHistory();
+    }
+  });
+ 
+  rt.start();
+}
 
     })(); // IIFE
     </script>

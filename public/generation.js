@@ -5,7 +5,7 @@
  * Maneja: texto (correo, tono), imagen, vídeo, música
  * ============================================
  */
-
+import { MiraiRealtime, flashElement, showToast } from './mirai-realtime.js';
 (function () {
     'use strict';
 
@@ -636,6 +636,25 @@
                 generate(input.value.trim());
             }
         });
+        initRealtimeGeneration();
     });
+
+    function initRealtimeGeneration() {
+        const rt = MiraiRealtime.getInstance();
+
+        rt.subscribe('generation', (items) => {
+            items.forEach(item => {
+                const exists = document.querySelector(`[data-gen-id="${item.id}"]`);
+                if (!exists && typeof prependGenItem === 'function') {
+                    prependGenItem(item);
+                } else if (!exists && typeof loadHistory === 'function') {
+                    loadHistory();
+                    return;
+                }
+            });
+        });
+
+        rt.start();
+    }
 
 })();

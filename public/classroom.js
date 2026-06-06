@@ -19,12 +19,13 @@
         if (typeof MiraiApp !== 'undefined') {
             MiraiApp.setActiveNavByURL();
         }
+        initRealtimeClassroom();
     });
 
     // ── CARGAR TAREAS ─────────────────────────────────────────────────────────
     async function loadTasks(userDni) {
         const container = document.getElementById('tasks-container');
-        const greeting  = document.getElementById('user-greeting');
+        const greeting = document.getElementById('user-greeting');
 
         if (greeting) greeting.textContent = `Hola, ${userDni}`;
 
@@ -99,34 +100,34 @@
 
             if (submission) {
                 if (submission.score !== null) {
-                    statusText  = `Calificado: ${submission.score}`;
+                    statusText = `Calificado: ${submission.score}`;
                     statusClass = 'status-completed';
-                    cardAccent  = 'linear-gradient(135deg, #4caf50, #81c784)';
-                    taskIcon    = '✅';
-                    actionText  = 'Ver Calificación';
+                    cardAccent = 'linear-gradient(135deg, #4caf50, #81c784)';
+                    taskIcon = '✅';
+                    actionText = 'Ver Calificación';
                     completed++;
                     totalScore += submission.score;
                     scoredCount++;
                 } else {
-                    statusText  = 'Entregado';
+                    statusText = 'Entregado';
                     statusClass = 'status-completed';
-                    cardAccent  = 'linear-gradient(135deg, #4caf50, #81c784)';
-                    taskIcon    = '✅';
-                    actionText  = 'Ver Entrega';
+                    cardAccent = 'linear-gradient(135deg, #4caf50, #81c784)';
+                    taskIcon = '✅';
+                    actionText = 'Ver Entrega';
                     completed++;
                 }
             } else {
                 const isLate = assignment.due_date && new Date(assignment.due_date) < new Date();
                 if (isLate) {
-                    statusText  = 'Atrasada';
+                    statusText = 'Atrasada';
                     statusClass = 'status-late';
-                    cardAccent  = 'linear-gradient(135deg, #e53935, #ef9a9a)';
-                    taskIcon    = '🚨';
+                    cardAccent = 'linear-gradient(135deg, #e53935, #ef9a9a)';
+                    taskIcon = '🚨';
                 } else {
-                    statusText  = 'Pendiente';
+                    statusText = 'Pendiente';
                     statusClass = 'status-pending';
-                    cardAccent  = 'linear-gradient(135deg, #6750A4, #9A82DB)';
-                    taskIcon    = '🧠';
+                    cardAccent = 'linear-gradient(135deg, #6750A4, #9A82DB)';
+                    taskIcon = '🧠';
                 }
                 actionText = 'Ver Tarea';
                 pending++;
@@ -156,8 +157,8 @@
                 <div class="task-meta">
                     <span class="task-meta-item"><span>📅</span> ${dueDate}</span>
                     ${submission && submission.score !== null
-                        ? `<span class="task-meta-item"><span>⭐</span> ${submission.score} pts</span>`
-                        : ''}
+                    ? `<span class="task-meta-item"><span>⭐</span> ${submission.score} pts</span>`
+                    : ''}
                 </div>
 
                 <div class="task-actions">
@@ -175,7 +176,7 @@
         // Eventos del botón Aprender
         container.querySelectorAll('.btn-learn').forEach(btn => {
             btn.addEventListener('click', e => {
-                const id    = e.currentTarget.dataset.id;
+                const id = e.currentTarget.dataset.id;
                 const title = e.currentTarget.dataset.title;
                 window.location.href = `learning_hub?task_id=${id}&task_title=${encodeURIComponent(title)}`;
             });
@@ -190,10 +191,10 @@
     function updateStatsDOM(pending, completed, avg) {
         const pendEl = document.getElementById('pending-count');
         const compEl = document.getElementById('completed-count');
-        const avgEl  = document.getElementById('avg-score');
+        const avgEl = document.getElementById('avg-score');
         if (pendEl) pendEl.textContent = pending;
         if (compEl) compEl.textContent = completed;
-        if (avgEl)  avgEl.textContent  = avg;
+        if (avgEl) avgEl.textContent = avg;
     }
 
     function updateCountLabel(count) {
@@ -214,7 +215,7 @@
                 const token = localStorage.getItem('mirai_auth_token');
                 if (token) headers['Authorization'] = `Bearer ${token}`;
 
-                const res  = await fetch('/api/check-professor-role', { credentials: 'same-origin', headers });
+                const res = await fetch('/api/check-professor-role', { credentials: 'same-origin', headers });
                 const data = await res.json();
 
                 if (data.is_professor) {
@@ -237,9 +238,9 @@
             if (!confirm('¿Estás seguro de que deseas cerrar sesión?')) return;
             try {
                 await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-            } catch (_) {}
+            } catch (_) { }
             ['mirai_user_dni', 'mirai_user_name', 'mirai_user_role', 'mirai-ai-conversation-id',
-             'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
+                'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
             window.location.href = 'login';
         });
     }
@@ -250,6 +251,54 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function initRealtimeClassroom() {
+        const rt = window.MiraiRealtime.getInstance();
+
+        rt.subscribe('classroom', ({ sections, assignments, submissions }) => {
+
+            // Nuevas secciones inscritas
+            if (sections.length > 0 && typeof loadMySections === 'function') {
+                loadMySections();
+            }
+
+            // Tareas nuevas asignadas
+            if (assignments.length > 0) {
+                assignments.forEach(a => {
+                    const exists = document.querySelector(`[data-assignment-id="${a.id}"]`);
+                    if (!exists && typeof prependAssignment === 'function') {
+                        prependAssignment(a);
+                    } else if (!exists && typeof loadAssignments === 'function') {
+                        loadAssignments();
+                        return;
+                    }
+                });
+            }
+
+            // Calificaciones recibidas
+            submissions.forEach(sub => {
+                if (sub.status === 'graded' || sub.status === 'reviewed') {
+                    const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
+                    if (row) {
+                        const scoreEl = row.querySelector('[data-field="score"]');
+                        const statusEl = row.querySelector('[data-field="status"]');
+                        if (scoreEl) scoreEl.textContent = sub.score ?? '—';
+                        if (statusEl) statusEl.textContent = sub.status;
+                        flashElement(row);
+                        // Mostrar notificación in-app
+                        showToast(`✅ Tarea "${sub.assignment_title}" calificada: ${sub.score ?? 'Sin nota'}`);
+                    }
+                }
+                // Actualización de disputa
+                if (sub.dispute_status) {
+                    const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
+                    if (row) flashElement(row);
+                }
+            });
+        });
+
+        rt.start();
     }
 
 })();

@@ -7137,3 +7137,49 @@ body::before {
   /* Asegura que flote por encima del contenido */
   box-shadow: 0 4px 16px var(--accent-glow) !important;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   MIRAI REALTIME — Estilos visuales
+   Añadir al final de styles.css
+   ════════════════════════════════════════════════════════════════ */
+
+/* — Flash en elemento actualizado — */
+@keyframes rt-flash {
+  0%   { box-shadow: 0 0 0 2px var(--accent-color, #6c63ff); opacity: 1; }
+  100% { box-shadow: 0 0 0 8px transparent; opacity: 0; }
+}
+
+.rt-updated {
+  position: relative;
+  animation: rt-flash 1.6s ease-out forwards;
+}
+
+/* Para elementos que no admiten box-shadow (tr, td) */
+.rt-updated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent-color, #6c63ff);
+  opacity: 0;
+  animation: rt-bg-flash 1.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes rt-bg-flash {
+  0%   { opacity: 0.15; }
+  100% { opacity: 0; }
+}
+
+/* — Dot pulsante del indicador — */
+@keyframes rt-pulse {
+  from { opacity: 1;   transform: scale(1); }
+  to   { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* — Toast de entrada — */
+@keyframes rt-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
