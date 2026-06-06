@@ -169,7 +169,14 @@ class MiraiRealtimeEngine {
       if (changes) {
         for (const [module, data] of Object.entries(changes)) {
           const subs = this.#subscribers.get(module);
-          if (subs && Array.isArray(data) && data.length > 0) {
+          if (!subs) continue;
+
+          // data puede ser array (ej. tasks, location) u objeto (ej. classroom, diet)
+          const isEmpty = Array.isArray(data)
+            ? data.length === 0
+            : Object.values(data).every(v => Array.isArray(v) ? v.length === 0 : !v);
+
+          if (!isEmpty) {
             hasChanges = true;
             subs.forEach(cb => {
               try { cb(data); }
