@@ -302,7 +302,12 @@
 
             // — Tareas nuevas: recargar lista completa —
             if (assignments.length > 0 && dni) {
-                loadTasks(dni);
+                console.log('[RT] Tarea nueva detectada, llamando loadTasks con dni:', dni);
+                loadTasks(dni).then(() => {
+                    console.log('[RT] loadTasks completado');
+                }).catch(err => {
+                    console.error('[RT] loadTasks falló:', err);
+                });
                 return;
             }
 
