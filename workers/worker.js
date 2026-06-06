@@ -2760,11 +2760,22 @@ async function handleSyncPoll(request, env, corsHeaders) {
     // El cliente envía ISO 8601 con T y Z — la T rompe la comparación de strings en SQLite.
     const since = sinceRaw.replace('T', ' ').replace('Z', '').split('.')[0];
     const modules = (url.searchParams.get('modules') || '').split(',').filter(Boolean);
-    const role    = url.searchParams.get('role') || 'student';
     const newTs   = new Date().toISOString();
- 
+
+    // Leer el rol real desde la DB (no confiar en el cliente)
+    const userRow = await env.MIRAI_AI_DB.prepare(
+      "SELECT role FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+    const role = userRow?.role || 'student';
+
+    // También verificar si es profesor aunque su rol sea 'student'
+    const isProfRow = await env.MIRAI_AI_DB.prepare(
+      "SELECT dni FROM professors WHERE dni = ? AND is_active = 1"
+    ).bind(userDni).first();
+    const effectiveRole = isProfRow ? 'teacher' : role;
+
     const changes = {};
- 
+
     // ── INVENTORY ──────────────────────────────────────────────
     // Tablas: inventory_products, inventory_logs
     // updated_at existe en inventory_products ✓
@@ -2801,7 +2812,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
     // Tablas: sections (sin updated_at → usar created_at),
     //         section_students, assignments, submissions
     if (modules.includes('classroom')) {
-      const isTeacherOrAdmin = role === 'teacher' || role === 'admin';
+      const isTeacherOrAdmin = effectiveRole === 'teacher' || effectiveRole === 'admin';
  
       if (isTeacherOrAdmin) {
         // Profesor: secciones que creó
@@ -2898,7 +2909,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
     // ── ATTENDANCE ─────────────────────────────────────────────
     // Tablas: att_records, att_qr_sessions, att_classes, att_staff
     if (modules.includes('attendance')) {
-      const isAdmin = role === 'admin' || role === 'teacher';
+      const isAdmin = effectiveRole === 'admin' || effectiveRole === 'teacher';
  
       if (isAdmin) {
         // Admin/profesor: todos los registros de sus clases
@@ -3006,7 +3017,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
     // ── LOCATION ───────────────────────────────────────────────
     // Tabla: location_markers
     if (modules.includes('location')) {
-      const isAdmin = role === 'admin';
+      const isAdmin = effectiveRole === 'admin';
       let markers;
  
       if (isAdmin) {
@@ -3065,7 +3076,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
     // ── REPORTS ────────────────────────────────────────────────
     // Tablas: reports, report_submissions
     if (modules.includes('reports')) {
-      const isTeacher = role === 'teacher' || role === 'admin';
+      const isTeacher = effectiveRole === 'teacher' || effectiveRole === 'admin';
  
       if (isTeacher) {
         // Profesor: reportes que creó + nuevas entregas
