@@ -17,7 +17,7 @@
  *   'generation'  → gen_history
  *
  * USO EN JS CON type="module" (inventory.js, classroom_admin.js, etc.):
- *   import { MiraiRealtime, flashElement, showToast } from './mirai-realtime.js';
+ *   import { MiraiRealtime } from './mirai-realtime.js';
  *   const rt = MiraiRealtime.getInstance();
  *   rt.subscribe('inventory', (changes) => handleChanges(changes));
  *   rt.start();
@@ -240,7 +240,7 @@ class MiraiRealtimeEngine {
   }
 }
 
-// ── Singleton + export dual (ES module Y window global) ───────────
+// ── Singleton ─────────────────────────────────────────────────────
 const _getInstance = (() => {
   let _instance = null;
   return () => {
@@ -249,9 +249,7 @@ const _getInstance = (() => {
   };
 })();
 
-export const MiraiRealtime = { getInstance: _getInstance };
-
-export function flashElement(el) {
+function flashElement(el) {
   if (!el) return;
   el.classList.remove('rt-updated');
   void el.offsetWidth;
@@ -259,38 +257,34 @@ export function flashElement(el) {
   setTimeout(() => el.classList.remove('rt-updated'), 2000);
 }
 
-export function showToast(message, duration = 4000) {
-  if (typeof window.showNotification === 'function') {
-    window.showNotification(message); return;
-  }
-  if (typeof window.showToast === 'function') {
-    window.showToast(message); return;
-  }
+function showToast(message, duration = 4000) {
+  if (typeof window.showNotification === 'function') { window.showNotification(message); return; }
+  if (typeof window.showToast === 'function') { window.showToast(message); return; }
   const toast = document.createElement('div');
   toast.textContent = message;
   toast.style.cssText = `
-    position:fixed; bottom:3.5rem; right:1.2rem;
+    position:fixed;bottom:3.5rem;right:1.2rem;
     background:var(--glass-bg,rgba(30,30,40,0.95));
     border:1px solid var(--glass-border,rgba(255,255,255,0.1));
-    color:var(--text-primary,#fff);
-    padding:0.6rem 1rem; border-radius:0.6rem;
-    font-size:0.82rem; z-index:10000;
-    backdrop-filter:blur(12px);
-    animation:rt-toast-in 0.3s ease;
-    max-width:280px;
+    color:var(--text-primary,#fff);padding:0.6rem 1rem;
+    border-radius:0.6rem;font-size:0.82rem;z-index:10000;
+    backdrop-filter:blur(12px);animation:rt-toast-in 0.3s ease;max-width:280px;
   `;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), duration);
 }
 
-// Exponer también como globales para scripts sin type="module"
-if (typeof window !== 'undefined') {
-  window.MiraiRealtime = { getInstance: _getInstance };
-  window.flashElement  = flashElement;
-  window.showToast     = showToast;
-}
+// Siempre exponer como global (funciona tanto con como sin type="module")
+window.MiraiRealtime = { getInstance: _getInstance };
+window.flashElement  = flashElement;
+window.showToast     = showToast;
 
-// También exponer como global para scripts sin type="module"
-if (typeof window !== 'undefined') {
-  window.MiraiRealtime = { getInstance: _getInstance };
-}
+// Export para cuando se use como ES module (type="module")
+// Wrapped en try/catch para no romper cuando se carga como script normal
+try {
+  if (typeof exports !== 'undefined') {
+    exports.MiraiRealtime = window.MiraiRealtime;
+    exports.flashElement  = flashElement;
+    exports.showToast     = showToast;
+  }
+} catch(e) { /* no es CommonJS, ignorar */ }
