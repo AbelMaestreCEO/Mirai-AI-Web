@@ -2247,27 +2247,29 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         // Obtener tareas de las secciones donde el estudiante está inscrito
         // UNION con tareas asignadas individualmente (assignment_students)
         const { results: assignments } = await env.MIRAI_AI_DB.prepare(`
-    SELECT DISTINCT
-        a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-        a.section_id,
-        c.title as course_title,
-        s.name  as section_name
-    FROM assignments a
-    JOIN section_students ss ON ss.section_id = a.section_id
-    LEFT JOIN courses c ON c.id = a.course_id
-    LEFT JOIN sections s ON s.id = a.section_id
-    WHERE ss.user_dni = ?
-    UNION
-    SELECT DISTINCT
-        a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-        a.section_id,
-        c.title as course_title,
-        s.name  as section_name
-    FROM assignments a
-    JOIN assignment_students ast ON ast.assignment_id = a.id
-    LEFT JOIN courses c ON c.id = a.course_id
-    LEFT JOIN sections s ON s.id = a.section_id
-    WHERE ast.user_dni = ?
+    SELECT * FROM (
+        SELECT DISTINCT
+            a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
+            a.section_id, a.created_at,
+            c.title as course_title,
+            s.name  as section_name
+        FROM assignments a
+        JOIN section_students ss ON ss.section_id = a.section_id
+        LEFT JOIN courses c ON c.id = a.course_id
+        LEFT JOIN sections s ON s.id = a.section_id
+        WHERE ss.user_dni = ?
+        UNION
+        SELECT DISTINCT
+            a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
+            a.section_id, a.created_at,
+            c.title as course_title,
+            s.name  as section_name
+        FROM assignments a
+        JOIN assignment_students ast ON ast.assignment_id = a.id
+        LEFT JOIN courses c ON c.id = a.course_id
+        LEFT JOIN sections s ON s.id = a.section_id
+        WHERE ast.user_dni = ?
+    )
     ORDER BY created_at DESC
 `).bind(userDni.toUpperCase(), userDni.toUpperCase()).all();
 
