@@ -2755,7 +2755,10 @@ async function handleSyncPoll(request, env, corsHeaders) {
     }
  
     const url     = new URL(request.url);
-    const since   = url.searchParams.get('since') || new Date(0).toISOString();
+    const sinceRaw = url.searchParams.get('since') || new Date(0).toISOString();
+    // D1/SQLite guarda fechas sin T ni Z ("2026-06-06 03:56:28").
+    // El cliente envía ISO 8601 con T y Z — la T rompe la comparación de strings en SQLite.
+    const since = sinceRaw.replace('T', ' ').replace('Z', '').split('.')[0];
     const modules = (url.searchParams.get('modules') || '').split(',').filter(Boolean);
     const role    = url.searchParams.get('role') || 'student';
     const newTs   = new Date().toISOString();
