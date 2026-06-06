@@ -722,7 +722,7 @@
     };
 
     function initRealtimeCourses() {
-        const rt = MiraiRealtime.getInstance();
+        const rt = window.MiraiRealtime.getInstance();
 
         rt.subscribe('courses', ({ courses, lessons }) => {
 

@@ -1201,7 +1201,7 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 function initRealtimeInventory() {
-  const rt = MiraiRealtime.getInstance();
+  const rt = window.MiraiRealtime.getInstance();
  
   rt.subscribe('inventory', ({ products, logs }) => {
  
