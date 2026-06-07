@@ -28,6 +28,12 @@
     var THEME_KEY = 'mirai-ai-theme';
 
     // ── 1. TEMA INMEDIATO (evita flash blanco/negro al cargar) ───────────────
+    // Resolver modo automático: si el usuario eligió 'auto', seguir al sistema
+    var _savedMode = localStorage.getItem('mirai-ai-theme-mode') || 'auto';
+    if (_savedMode === 'auto') {
+        var _prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        localStorage.setItem(THEME_KEY, _prefersDark ? 'dark' : 'light');
+    }
     var savedTheme = localStorage.getItem(THEME_KEY)
         || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', savedTheme);

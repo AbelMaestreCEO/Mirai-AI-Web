@@ -2712,6 +2712,13 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/user/avatar' && request.method === 'DELETE')
       return await handleDeleteAvatar(request, env, corsHeaders);
 
+    // Configuraciones del usuario (sincronización cross-device)
+    if (path === '/api/user/settings' && request.method === 'GET')
+      return await handleGetUserSettings(request, env, corsHeaders);
+
+    if (path === '/api/user/settings' && request.method === 'PUT')
+      return await handleSaveUserSettings(request, env, corsHeaders);
+
     // Servir avatar desde R2 (URL pública sin auth, para usar en <img>)
     if (path.startsWith('/api/user/avatar/') && request.method === 'GET')
       return await handleServeAvatar(request, env, corsHeaders);
@@ -6796,6 +6803,50 @@ async function handleGetProfile(request, env, corsHeaders) {
 
   } catch (error) {
     console.error('Error getProfile:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// ── Settings cross-device: GET ─────────────────────────────────
+async function handleGetUserSettings(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const row = await env.MIRAI_AI_DB.prepare(
+      "SELECT settings_json FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+
+    const settings = row?.settings_json ? JSON.parse(row.settings_json) : {};
+    return jsonResponse({ success: true, settings }, 200, corsHeaders);
+  } catch (error) {
+    console.error('Error getUserSettings:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// ── Settings cross-device: PUT ─────────────────────────────────
+async function handleSaveUserSettings(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const body = await request.json();
+
+    // Solo guardamos campos permitidos (whitelist)
+    const allowed = ['accentColor', 'fontFamily', 'fontSize', 'reducedMotion', 'themeMode', 'aiModel', 'notifications'];
+    const clean = {};
+    for (const key of allowed) {
+      if (body[key] !== undefined) clean[key] = body[key];
+    }
+
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET settings_json = ? WHERE dni = ?"
+    ).bind(JSON.stringify(clean), userDni).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('Error saveUserSettings:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }

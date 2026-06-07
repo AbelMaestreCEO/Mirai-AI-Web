@@ -1617,14 +1617,23 @@
                 </div>
             </div>
             <div class="settings-section-body">
-                <div class="settings-row">
+                <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:12px;">
                     <div class="settings-row-info">
-                        <h3>Modo oscuro</h3>
-                        <p>Usa colores oscuros para reducir el cansancio visual</p>
+                        <h3>Tema de color</h3>
+                        <p>Elige entre claro, oscuro o seguir automáticamente el sistema (Android, iOS, Windows, macOS)
+                        </p>
                     </div>
-                    <button class="theme-toggle-inline" id="dark-mode-toggle" aria-label="Activar modo oscuro"
-                        style="background:var(--secondary-container);border:1px solid var(--glass-border);border-radius:20px;padding:6px 14px;cursor:pointer;font-size:0.85rem;color:var(--text-primary);transition:all 0.25s;font-weight:500;">🌙
-                        Activar</button>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="theme-mode-btn" id="theme-btn-light" data-theme-mode="light"
+                            style="padding:8px 18px;border-radius:20px;border:2px solid var(--glass-border);background:var(--secondary-container);color:var(--text-primary);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.25s;">☀️
+                            Claro</button>
+                        <button class="theme-mode-btn" id="theme-btn-dark" data-theme-mode="dark"
+                            style="padding:8px 18px;border-radius:20px;border:2px solid var(--glass-border);background:var(--secondary-container);color:var(--text-primary);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.25s;">🌙
+                            Oscuro</button>
+                        <button class="theme-mode-btn" id="theme-btn-auto" data-theme-mode="auto"
+                            style="padding:8px 18px;border-radius:20px;border:2px solid var(--glass-border);background:var(--secondary-container);color:var(--text-primary);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.25s;">🖥️
+                            Automático</button>
+                    </div>
                 </div>
                 <div class="settings-row">
                     <div class="settings-row-info">
@@ -1641,14 +1650,14 @@
                 </div>
                 <div class="settings-row">
                     <div class="settings-row-info">
-                        <h3>Activar alertas</h3>
-                        <p>Recibe notificaciones sobre stock bajo o crítico</p>
+                        <h3>Notificaciones</h3>
+                        <p>Recibe alertas de inventario, aula virtual y tareas</p>
                     </div>
                     <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
                         <input type="checkbox" id="btn-enable-notifications" style="opacity:0;width:0;height:0;">
-                        <span
+                        <span id="notif-track"
                             style="position:absolute;inset:0;background:var(--glass-border);border-radius:12px;transition:background 0.3s;"></span>
-                        <span
+                        <span id="notif-thumb"
                             style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:white;border-radius:50%;transition:transform 0.3s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
                     </label>
                 </div>
@@ -1714,6 +1723,28 @@
                 /* ── HELPERS GENERALES ────────────────────────────────── */
                 function loadSettings() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
                 function saveSettings(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...loadSettings(), ...d })); }
+
+                async function loadSettingsFromDB() {
+                    try {
+                        const res = await fetch('/api/user/settings', { credentials: 'same-origin' });
+                        if (!res.ok) return null;
+                        const { settings } = await res.json();
+                        return settings;
+                    } catch { return null; }
+                }
+
+                async function saveSettingsToDB(data) {
+                    try {
+                        await fetch('/api/user/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify(data)
+                        });
+                    } catch (err) {
+                        console.warn('[Settings] No se pudo guardar en DB:', err.message);
+                    }
+                }
 
                 let _toastTimer;
                 function showToast(msg, icon = '✅') {
@@ -1984,11 +2015,51 @@
                     document.getElementById('reduced-motion-thumb').style.transform = checked ? 'translateX(20px)' : 'translateX(0)';
                 }
 
-                function updateDarkBtn(isDark) {
-                    const btn = document.getElementById('dark-mode-toggle');
-                    if (btn) btn.textContent = isDark ? '☀️ Desactivar' : '🌙 Activar';
+                let _systemThemeListener = null;
+
+                function getEffectiveTheme(mode) {
+                    if (mode === 'auto') {
+                        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                    }
+                    return mode;
                 }
 
+                function applyThemeMode(mode) {
+                    // Quitar listener anterior si existía
+                    if (_systemThemeListener) {
+                        window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', _systemThemeListener);
+                        _systemThemeListener = null;
+                    }
+
+                    const effectiveTheme = getEffectiveTheme(mode);
+                    document.documentElement.setAttribute('data-theme', effectiveTheme);
+                    localStorage.setItem('mirai-ai-theme', effectiveTheme);
+                    localStorage.setItem('mirai-ai-theme-mode', mode);
+
+                    if (mode === 'auto') {
+                        _systemThemeListener = (e) => {
+                            const t = e.matches ? 'dark' : 'light';
+                            document.documentElement.setAttribute('data-theme', t);
+                            localStorage.setItem('mirai-ai-theme', t);
+                            const activeColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
+                            applyAccentColor(activeColor);
+                        };
+                        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', _systemThemeListener);
+                    }
+
+                    const activeColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
+                    applyAccentColor(activeColor);
+                    updateThemeBtns(mode);
+                }
+
+                function updateThemeBtns(activeMode) {
+                    document.querySelectorAll('.theme-mode-btn').forEach(btn => {
+                        const isActive = btn.dataset.themeMode === activeMode;
+                        btn.style.borderColor = isActive ? 'var(--accent-color)' : 'var(--glass-border)';
+                        btn.style.background = isActive ? 'var(--accent-gradient)' : 'var(--secondary-container)';
+                        btn.style.color = isActive ? 'white' : 'var(--text-primary)';
+                    });
+                }
                 /* ── INIT ─────────────────────────────────────────────── */
                 function init() {
                     const saved = loadSettings();
@@ -2019,16 +2090,57 @@
                         document.documentElement.classList.add('reduce-motion');
                     }
 
-                    const savedTheme = localStorage.getItem('mirai-ai-theme') ||
-                        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-                    document.documentElement.setAttribute('data-theme', savedTheme);
-                    applyAccentColor(sc);
-                    updateDarkBtn(savedTheme === 'dark');
+                    const savedMode = localStorage.getItem('mirai-ai-theme-mode') || 'auto';
+                    applyThemeMode(savedMode);
 
                     loadModel();
 
                     // Cargar perfil desde la API (async, no bloquea el resto)
                     loadProfileFromAPI();
+
+                    // Inicializar toggle de notificaciones
+                    initNotifToggle();
+
+                    // Cargar settings desde DB (sobrescribe localStorage si hay datos más recientes)
+                    loadSettingsFromDB().then(dbSettings => {
+                        if (!dbSettings || !Object.keys(dbSettings).length) return;
+
+                        // Aplicar color
+                        if (dbSettings.accentColor) {
+                            applyAccentColor(dbSettings.accentColor);
+                            document.querySelectorAll('.color-option').forEach(o => {
+                                o.classList.toggle('active', o.dataset.color === dbSettings.accentColor);
+                                if (o.dataset.color === dbSettings.accentColor) o.querySelector('input').checked = true;
+                            });
+                        }
+                        // Aplicar fuente
+                        if (dbSettings.fontFamily) {
+                            applyFont(dbSettings.fontFamily);
+                            document.querySelectorAll('.font-card').forEach(card => {
+                                const match = card.dataset.font.replace(/'/g, '').trim() === dbSettings.fontFamily || card.dataset.font === dbSettings.fontFamily;
+                                card.classList.toggle('active', match);
+                                if (match) card.querySelector('input').checked = true;
+                            });
+                        }
+                        // Aplicar tamaño
+                        if (dbSettings.fontSize) {
+                            const sz = dbSettings.fontSize;
+                            document.getElementById('font-size-slider').value = sz;
+                            document.getElementById('font-size-display').textContent = sz + 'px';
+                            applyFontSize(sz); updateSliderTrack(sz);
+                        }
+                        // Aplicar tema
+                        if (dbSettings.themeMode) {
+                            applyThemeMode(dbSettings.themeMode);
+                        }
+                        // Aplicar modelo IA
+                        if (dbSettings.aiModel) {
+                            localStorage.setItem(MODEL_KEY, dbSettings.aiModel);
+                            loadModel();
+                        }
+                        // Sincronizar localStorage
+                        saveSettings(dbSettings);
+                    });
                 }
 
                 /* ── EVENTOS APARIENCIA ───────────────────────────────── */
@@ -2058,27 +2170,117 @@
                     applyFontSize(v); updateSliderTrack(v);
                 });
 
-                document.getElementById('dark-mode-toggle').addEventListener('click', () => {
-                    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                    const newTheme = isDark ? 'light' : 'dark';
-                    document.documentElement.setAttribute('data-theme', newTheme);
-                    localStorage.setItem('mirai-ai-theme', newTheme);
-                    updateDarkBtn(!isDark);
-                    const activeColor = document.querySelector('.color-option.active')?.dataset.color || 'purple';
-                    applyAccentColor(activeColor);
+                document.querySelectorAll('.theme-mode-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        applyThemeMode(btn.dataset.themeMode);
+                    });
                 });
 
                 document.getElementById('reduced-motion').addEventListener('change', function () {
                     updateToggle(this.checked);
                     document.documentElement.classList.toggle('reduce-motion', this.checked);
                 });
+/* ── NOTIFICACIONES ───────────────────────────────────── */
+                function urlBase64ToUint8Array(base64String) {
+                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                    const raw = atob(base64);
+                    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                }
 
-                document.getElementById('settings-save').addEventListener('click', () => {
+                async function subscribeUserToPush() {
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+                    try {
+                        const reg = await navigator.serviceWorker.ready;
+                        const keyRes = await fetch('/api/vapid-key', { credentials: 'same-origin' });
+                        const { publicKey } = await keyRes.json();
+                        const sub = await reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(publicKey)
+                        });
+                        const res = await fetch('/api/notifications/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({ subscription: sub })
+                        });
+                        return res.ok;
+                    } catch (err) {
+                        console.error('[Notif] Error al suscribir:', err);
+                        return false;
+                    }
+                }
+
+                function syncNotifToggle(active) {
+                    const track = document.getElementById('notif-track');
+                    const thumb = document.getElementById('notif-thumb');
+                    if (track) track.style.background = active ? 'var(--accent-color)' : 'var(--glass-border)';
+                    if (thumb) thumb.style.transform = active ? 'translateX(20px)' : 'translateX(0)';
+                }
+
+                function initNotifToggle() {
+                    const checkbox = document.getElementById('btn-enable-notifications');
+                    if (!checkbox) return;
+
+                    // Reflejar estado real del permiso del navegador
+                    const alreadyGranted = ('Notification' in window) && Notification.permission === 'granted';
+                    checkbox.checked = alreadyGranted;
+                    syncNotifToggle(alreadyGranted);
+
+                    checkbox.addEventListener('change', async function () {
+                        if (!this.checked) {
+                            // No se puede revocar el permiso desde JS — informar al usuario
+                            this.checked = true;
+                            syncNotifToggle(true);
+                            showToast('Para desactivar, ve a los ajustes del navegador/sistema', 'ℹ️');
+                            return;
+                        }
+
+                        if (!('Notification' in window)) {
+                            this.checked = false;
+                            syncNotifToggle(false);
+                            showToast('Tu navegador no soporta notificaciones', '❌');
+                            return;
+                        }
+
+                        if (Notification.permission === 'granted') {
+                            await subscribeUserToPush();
+                            syncNotifToggle(true);
+                            showToast('Notificaciones activadas', '✅');
+                            return;
+                        }
+
+                        if (Notification.permission === 'denied') {
+                            this.checked = false;
+                            syncNotifToggle(false);
+                            showToast('Permiso bloqueado — actívalo en los ajustes del navegador', '⚠️');
+                            return;
+                        }
+
+                        // Estado 'default': pedir permiso
+                        const perm = await Notification.requestPermission();
+                        if (perm === 'granted') {
+                            const ok = await subscribeUserToPush();
+                            syncNotifToggle(true);
+                            showToast(ok ? 'Notificaciones activadas para todos los módulos' : 'Permiso concedido pero fallo al registrar', ok ? '✅' : '⚠️');
+                        } else {
+                            this.checked = false;
+                            syncNotifToggle(false);
+                            showToast('Permiso denegado', '❌');
+                        }
+                    });
+                }
+                document.getElementById('settings-save').addEventListener('click', async () => {
                     const sc = document.querySelector('.color-option.active')?.dataset.color || 'purple';
                     const sf = document.querySelector('.font-card.active')?.dataset.font || 'Inter';
                     const sz = parseInt(document.getElementById('font-size-slider').value);
                     const rm = document.getElementById('reduced-motion').checked;
-                    saveSettings({ accentColor: sc, fontFamily: sf.replace(/'/g, '').trim(), fontSize: sz, reducedMotion: rm });
+                    const tm = localStorage.getItem('mirai-ai-theme-mode') || 'auto';
+                    const am = localStorage.getItem(MODEL_KEY) || 'deepseek';
+                    const notifGranted = ('Notification' in window) && Notification.permission === 'granted';
+                    const payload = { accentColor: sc, fontFamily: sf.replace(/'/g, '').trim(), fontSize: sz, reducedMotion: rm, themeMode: tm, aiModel: am, notifications: notifGranted };
+                    saveSettings(payload);
+                    await saveSettingsToDB(payload);
                     showToast('¡Configuración guardada correctamente!', '✅');
                 });
 
@@ -2114,7 +2316,6 @@
 
             })();
     </script>
-    <script type="module" src="inventory.js" defer></script>
     <script src="transitions.js"></script>
 </body>
 
