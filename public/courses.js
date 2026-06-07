@@ -723,11 +723,14 @@
 
     function initRealtimeCourses() {
         if (!window.MiraiRealtime) {
-            console.warn('⚠️ MiraiRealtime no disponible aún, reintentando...');
+            initRealtimeCourses._retries = (initRealtimeCourses._retries || 0) + 1;
+            if (initRealtimeCourses._retries > 5) {
+                console.warn('⚠️ MiraiRealtime no disponible, omitiendo realtime en courses.');
+                return;
+            }
             setTimeout(initRealtimeCourses, 500);
             return;
         }
-        const rt = window.MiraiRealtime.getInstance();
 
         rt.subscribe('courses', ({ courses, lessons }) => {
 
