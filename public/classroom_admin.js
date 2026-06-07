@@ -692,14 +692,48 @@ async function loadSectionStudents() {
 
         students.forEach(s => {
             const fullName = [s.first_name, s.last_name].filter(Boolean).join(' ');
+            const initials = [s.first_name, s.last_name]
+                .filter(Boolean).map(n => n[0].toUpperCase()).join('').slice(0, 2) || s.user_dni.slice(0, 2).toUpperCase();
+
+            // Avatar HTML
+            const avatarHtml = s.avatar_r2_key
+                ? `<img src="/api/user/avatar/${encodeURIComponent(s.user_dni)}" alt="${escapeHtml(initials)}"
+                        style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+                        onerror="this.outerHTML='<div style=\'width:38px;height:38px;border-radius:50%;background:var(--primary-color);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;\'>${escapeHtml(initials)}</div>'">`
+                : `<div style="width:38px;height:38px;border-radius:50%;background:var(--primary-color);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">${escapeHtml(initials)}</div>`;
+
+            // Email censurado
+            function censorEmail(email) {
+                if (!email) return null;
+                const [local, domain] = email.split('@');
+                if (!domain) return null;
+                const cLocal = local[0] + '*****' + local[local.length - 1];
+                const [dName, dExt] = domain.split('.');
+                const cDomain = dName[0] + '****';
+                return `${cLocal}@${cDomain}${dExt ? '.' + dExt : ''}`;
+            }
+            const emailDisplay = censorEmail(s.email);
+
+            // Badge de registro
+            const badgeHtml = s.is_registered
+                ? `<span style="background:#16a34a22;color:#16a34a;font-size:.72rem;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;">✓ Registrado</span>`
+                : `<span style="background:#dc262622;color:#dc2626;font-size:.72rem;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;">✗ Sin cuenta</span>`;
+
             const div = document.createElement('div');
-            div.style.cssText = 'background: var(--bg-color); padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color);';
+            div.style.cssText = 'background: var(--bg-color); padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--primary-color); gap: 10px;';
             div.innerHTML = `
-                <div>
-                    <strong>${escapeHtml(s.user_dni)}</strong>
-                    ${fullName ? `<span style="color: var(--text-secondary); font-size: 0.88rem; margin-left: 8px;">${escapeHtml(fullName)}</span>` : ''}
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">
+                    ${avatarHtml}
+                    <div style="min-width:0;">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <strong style="font-size:.9rem;">${escapeHtml(s.user_dni)}</strong>
+                            ${badgeHtml}
+                        </div>
+                        ${fullName ? `<div style="color:var(--text-secondary);font-size:.85rem;margin-top:1px;">${escapeHtml(fullName)}</div>` : ''}
+                        ${emailDisplay ? `<div style="color:var(--text-secondary);font-size:.78rem;margin-top:1px;font-family:monospace;">${escapeHtml(emailDisplay)}</div>` : ''}
+                    </div>
                 </div>
-                <button class="action-btn btn-delete" style="flex-shrink:0; max-width:100px;" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">🗑️ Eliminar</button>
+                <button class="action-btn btn-delete" style="flex-shrink:0;max-width:100px;" onclick="removeStudentFromSection('${sectionId}', '${s.user_dni}')">🗑️ Eliminar</button>
             `;
             list.appendChild(div);
         });
