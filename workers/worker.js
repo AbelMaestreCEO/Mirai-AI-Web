@@ -5889,7 +5889,7 @@ async function ensureAttStaff(env, dni) {
 
   // Buscar en users
   const user = await env.MIRAI_AI_DB.prepare(
-    'SELECT full_name, email FROM users WHERE dni = ?'
+    'SELECT first_name, last_name, email FROM users WHERE dni = ?'
   ).bind(upper).first();
   if (!user) return null;
 
@@ -6036,7 +6036,7 @@ async function handleAttStaffCreate(request, env, corsHeaders) {
     ).bind(dni.toUpperCase()).first();
     if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
 
-    const name = `${user.first_name} ${user.last_name}`;
+    const name = `${user.first_name} ${user.last_name}`.trim();
 
     await env.MIRAI_AI_DB.prepare(`
             INSERT INTO att_staff (id, name, dni, department, position, email)
