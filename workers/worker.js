@@ -2911,14 +2911,12 @@ async function handleSyncPoll(request, env, corsHeaders) {
                  p.full_name AS professor_name
           FROM   sections s
           JOIN   section_students ss ON ss.section_id = s.id
-          JOIN   professors p        ON p.dni = s.professor_dni
+          LEFT JOIN professors p     ON p.dni = s.professor_dni
           WHERE  ss.user_dni = ? AND s.created_at > ?
           ORDER  BY s.created_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
 
-        // Tareas nuevas en las secciones donde el estudiante está inscrito
-        // (via section_students, que es como /api/my-submissions las encuentra)
         const assignments = await env.MIRAI_AI_DB.prepare(`
           SELECT a.id, a.title, a.description, a.file_url,
                  a.due_date, a.max_score, a.created_at, a.section_id
@@ -2929,15 +2927,14 @@ async function handleSyncPoll(request, env, corsHeaders) {
           LIMIT  20
         `).bind(userDni, since).all();
 
-        // Estado de sus propias entregas (ej. calificada/disputada)
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT sub.id, sub.assignment_id, sub.status,
-                 sub.submitted_at, sub.graded_at, sub.score,
+                 sub.submitted_at, sub.score,
                  sub.feedback, sub.dispute_status,
                  a.title AS assignment_title
           FROM   submissions sub
           JOIN   assignments a ON a.id = sub.assignment_id
-          WHERE  sub.user_dni = ? AND (sub.submitted_at > ? OR (sub.graded_at IS NOT NULL AND sub.graded_at > ?))
+          WHERE  sub.user_dni = ? AND sub.submitted_at > ?
           ORDER  BY sub.submitted_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
