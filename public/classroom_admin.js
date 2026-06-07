@@ -885,3 +885,116 @@ function initRealtimeClassroomAdmin() {
 
     rt.start();
 }
+
+// ── IMPORTACIÓN POR LOTE ──────────────────────────────────────────────────────
+
+let batchValidDnis = [];
+
+function openBatchModal() {
+    const sectionId = document.getElementById('section-student-select').value;
+    if (!sectionId) {
+        alert('Selecciona una sección primero');
+        return;
+    }
+    batchValidDnis = [];
+    document.getElementById('batch-file-input').value = '';
+    document.getElementById('batch-preview').style.display = 'none';
+    document.getElementById('batch-error').style.display = 'none';
+    document.getElementById('batch-confirm-btn').disabled = true;
+
+    const modal = document.getElementById('modal-batch-students');
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('show'));
+
+    // Leer archivo al seleccionarlo
+    document.getElementById('batch-file-input').onchange = parseBatchFile;
+}
+
+function closeBatchModal() {
+    const modal = document.getElementById('modal-batch-students');
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+}
+
+function parseBatchFile() {
+    const file = this.files[0];
+    const errorEl = document.getElementById('batch-error');
+    const previewEl = document.getElementById('batch-preview');
+    const previewValid = document.getElementById('batch-preview-valid');
+    const countEl = document.getElementById('batch-preview-count');
+    const confirmBtn = document.getElementById('batch-confirm-btn');
+
+    errorEl.style.display = 'none';
+    previewEl.style.display = 'none';
+    confirmBtn.disabled = true;
+    batchValidDnis = [];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+
+        // Separar por comas, tabulaciones y saltos de línea
+        const tokens = text.split(/[\n\r,\t]+/).map(t => t.trim()).filter(Boolean);
+
+        // Validar que cada token sea solo dígitos
+        const invalid = tokens.filter(t => !/^\d+$/.test(t));
+
+        if (invalid.length > 0) {
+            errorEl.textContent = `❌ El archivo contiene valores no numéricos: ${invalid.slice(0, 5).join(', ')}${invalid.length > 5 ? '...' : ''}. Corrige el archivo e intenta de nuevo.`;
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        if (tokens.length === 0) {
+            errorEl.textContent = '❌ El archivo está vacío o no contiene DNIs válidos.';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // Deduplicar
+        batchValidDnis = [...new Set(tokens)];
+
+        previewValid.textContent = batchValidDnis.join('  ·  ');
+        countEl.textContent = `${batchValidDnis.length} DNI${batchValidDnis.length !== 1 ? 's' : ''} detectado${batchValidDnis.length !== 1 ? 's' : ''} (sin duplicados)`;
+        previewEl.style.display = 'block';
+        confirmBtn.disabled = false;
+    };
+    reader.readAsText(file);
+}
+
+async function confirmBatchImport() {
+    const sectionId = document.getElementById('section-student-select').value;
+    if (!sectionId || !batchValidDnis.length) return;
+
+    const confirmBtn = document.getElementById('batch-confirm-btn');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Importando...';
+
+    try {
+        const res = await fetch('/api/section-add-students-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ section_id: sectionId, dnis: batchValidDnis })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            closeBatchModal();
+            await loadSections();
+            await loadSectionStudents();
+            alert(`✅ Importación completa: ${data.inserted} agregado${data.inserted !== 1 ? 's' : ''}, ${data.skipped} ya existía${data.skipped !== 1 ? 'n' : ''}.`);
+        } else {
+            alert('❌ Error: ' + (data.error || 'Error desconocido'));
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Importar';
+        }
+    } catch (error) {
+        alert('Error de conexión');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Importar';
+    }
+}

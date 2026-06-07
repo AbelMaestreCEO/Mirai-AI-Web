@@ -575,9 +575,14 @@
                             <input type="text" id="section-student-dni" placeholder="Ej: 30840119">
                         </div>
                     </div>
-                    <button onclick="addStudentToSection()" class="btn-primary" style="margin-bottom: 24px;">
-                        Agregar a Sección
-                    </button>
+                    <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+                        <button onclick="addStudentToSection()" class="btn-primary">
+                            Agregar a Sección
+                        </button>
+                        <button onclick="openBatchModal()" class="btn-secondary">
+                            📂 Importar desde archivo
+                        </button>
+                    </div>
                     <div id="section-students-list" style="max-height: 400px; overflow-y: auto;">
                         <p style="color: var(--text-secondary);">Selecciona una sección primero</p>
                     </div>
@@ -610,6 +615,30 @@
                     <button type="submit" class="btn-primary">Crear Curso</button>
                 </div>
             </form>
+        </div>
+    </div>
+    <!-- MODAL: Importar estudiantes por lote -->
+    <div id="modal-batch-students" class="modal" style="display:none;">
+        <div class="modal-overlay" onclick="closeBatchModal()"></div>
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeBatchModal()">&times;</button>
+            <div class="modal-header">
+                <h2>Importar Estudiantes</h2>
+                <p class="modal-subtitle">Sube un archivo .txt o .csv con un DNI por línea (o separados por comas/tabulaciones)</p>
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+                <label>Archivo (.txt o .csv)</label>
+                <input type="file" id="batch-file-input" accept=".txt,.csv" style="margin-top:6px;">
+            </div>
+            <div id="batch-preview" style="display:none;margin-top:16px;">
+                <div id="batch-preview-valid" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:8px;padding:12px;max-height:180px;overflow-y:auto;font-family:monospace;font-size:.82rem;"></div>
+                <p id="batch-preview-count" style="margin-top:8px;font-size:.85rem;color:var(--text-secondary);"></p>
+            </div>
+            <div id="batch-error" style="display:none;margin-top:12px;color:#dc2626;font-size:.85rem;"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                <button type="button" onclick="closeBatchModal()" class="btn-secondary">Cancelar</button>
+                <button type="button" id="batch-confirm-btn" onclick="confirmBatchImport()" class="btn-primary" disabled>Importar</button>
+            </div>
         </div>
     </div>
 

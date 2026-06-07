@@ -2071,6 +2071,36 @@ ORDER BY u.last_name, u.first_name
       return jsonResponse(results, 200, corsHeaders);
     }
 
+    // POST /api/section-add-students-batch
+    if (path === '/api/section-add-students-batch' && request.method === 'POST') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const { section_id, dnis } = await request.json();
+      if (!section_id || !Array.isArray(dnis) || dnis.length === 0)
+        return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
+
+      // Validar que todos sean numéricos (segunda capa de seguridad)
+      if (dnis.some(d => !/^\d+$/.test(d)))
+        return jsonResponse({ error: 'DNIs inválidos detectados' }, 400, corsHeaders);
+
+      const sec = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+      ).bind(section_id, userDni).first();
+      if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
+
+      let inserted = 0, skipped = 0;
+      for (const dni of dnis) {
+        const result = await env.MIRAI_AI_DB.prepare(
+          'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
+        ).bind(section_id, dni.toUpperCase()).run();
+        if (result.meta?.changes > 0) inserted++;
+        else skipped++;
+      }
+
+      return jsonResponse({ success: true, inserted, skipped }, 200, corsHeaders);
+    }
+
     // POST /api/section-add-student
     if (path === '/api/section-add-student' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
