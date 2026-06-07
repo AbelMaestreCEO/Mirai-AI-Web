@@ -99,14 +99,6 @@
 
             <form id="verify-form" class="auth-form">
                 <div class="input-group">
-                    <label for="dni">DNI</label>
-                    <div class="input-field">
-                        <input type="text" id="dni" name="dni" required placeholder="Tu DNI" autocomplete="off">
-                        <span class="input-icon">🆔</span>
-                    </div>
-                </div>
-
-                <div class="input-group">
                     <label for="otp">Código de Verificación</label>
                     <div class="input-field">
                         <input type="text" id="otp" name="otp" required placeholder="123456" maxlength="6" pattern="[0-9]{6}" class="otp-input">
@@ -125,17 +117,6 @@
             </div>
         </div>
     </div>
-    <script>
-  // Intentar pre-rellenar el DNI si viene del login
-  window.addEventListener('DOMContentLoaded', () => {
-    const pendingDni = localStorage.getItem('pending_dni');
-    if (pendingDni) {
-      document.getElementById('dni').value = pendingDni;
-      // Opcional: limpiar después de usarlo
-      // localStorage.removeItem('pending_dni'); 
-    }
-  });
-</script>
     <script src="verify.js"></script>
 <script src="transitions.js"></script>
 </body>

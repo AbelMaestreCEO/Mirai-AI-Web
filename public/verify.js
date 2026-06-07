@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const successMsg = document.getElementById('success-msg');
     const verifyBtn = document.getElementById('verify-btn');
     const resendLink = document.getElementById('resend-link');
-    const dniInput = document.getElementById('dni');
 
     // Opcional: Pre-rellenar DNI si viene de la sesión anterior (si lo guardaste)
     // const savedDni = localStorage.getItem('pending_dni');
@@ -20,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     verifyForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const dni = document.getElementById('dni').value;
+        const dni = localStorage.getItem('pending_dni') || '';
         const code = document.getElementById('otp').value;
 
         if (code.length !== 6) {
@@ -83,9 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     resendLink.addEventListener('click', async (e) => {
         e.preventDefault();
 
-        const dni = dniInput.value;
+        const dni = localStorage.getItem('pending_dni') || '';
         if (!dni) {
-            showError(errorMsg, 'Por favor, ingresa tu DNI primero para reenviar el código.');
+            showError(errorMsg, 'No se encontró tu sesión. Vuelve a iniciar sesión.');
             return;
         }
 
