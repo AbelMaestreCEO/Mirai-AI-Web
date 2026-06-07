@@ -81,8 +81,73 @@
         }
     }
 
-    // ── RENDERIZADO ───────────────────────────────────────────────────────────
+    // ── COURSE TABS ───────────────────────────────────────────────────────────
+    let _allAssignments = [];
+    let _allSubmissions = [];
+    let _activeCourse   = 'all';
+
+    function buildCourseTabs(assignments) {
+        const tabsEl = document.getElementById('course-tabs');
+        if (!tabsEl) return;
+
+        // Collect unique courses preserving order
+        const seen = new Map();
+        assignments.forEach(a => {
+            const id    = a.course_id  || '__none__';
+            const title = a.course_title || 'Sin curso';
+            if (!seen.has(id)) seen.set(id, title);
+        });
+
+        // Only show tabs when there is more than one course
+        if (seen.size <= 1) { tabsEl.style.display = 'none'; return; }
+        tabsEl.style.display = 'flex';
+        tabsEl.innerHTML = '';
+
+        // "All" pill
+        const allBtn = document.createElement('button');
+        allBtn.className = 'filter-pill' + (_activeCourse === 'all' ? ' active' : '');
+        allBtn.textContent = '📚 Todos';
+        allBtn.addEventListener('click', () => { _activeCourse = 'all'; applyFilter(); });
+        tabsEl.appendChild(allBtn);
+
+        seen.forEach((title, id) => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-pill' + (_activeCourse === id ? ' active' : '');
+            btn.textContent = title;
+            btn.dataset.course = id;
+            btn.addEventListener('click', () => { _activeCourse = id; applyFilter(); });
+            tabsEl.appendChild(btn);
+        });
+    }
+
+    function applyFilter() {
+        // Update active pill
+        const tabsEl = document.getElementById('course-tabs');
+        if (tabsEl) {
+            tabsEl.querySelectorAll('.filter-pill').forEach(btn => {
+                const isAll    = !btn.dataset.course;
+                const isActive = isAll ? _activeCourse === 'all' : btn.dataset.course === _activeCourse;
+                btn.classList.toggle('active', isActive);
+            });
+        }
+
+        const filtered = _activeCourse === 'all'
+            ? _allAssignments
+            : _allAssignments.filter(a => (a.course_id || '__none__') === _activeCourse);
+
+        renderCards(document.getElementById('tasks-container'), filtered, _allSubmissions);
+    }
+
     function renderTasks(container, assignments, submissions) {
+        _allAssignments = assignments;
+        _allSubmissions = submissions;
+        _activeCourse   = 'all';
+
+        buildCourseTabs(assignments);
+        renderCards(container, assignments, submissions);
+    }
+
+    function renderCards(container, assignments, submissions) {
         container.innerHTML = '';
 
         // Mapa de submissions por assignment_id para búsqueda O(1)
@@ -94,7 +159,6 @@
         assignments.forEach(assignment => {
             const submission = subMap[assignment.id];
 
-            // Determinar estado y acento
             let statusText, statusClass, cardAccent, taskIcon, actionText, actionHref;
             actionHref = `classroom_details?id=${assignment.id}`;
 
@@ -150,7 +214,7 @@
                 <h3 class="task-title">${escapeHtml(assignment.title)}</h3>
 
                 <p class="task-course-name">
-                    📚 ${escapeHtml(assignment.course_title || 'Curso general')}
+                    📚 ${escapeHtml(assignment.course_title || 'Sin curso')}
                     ${assignment.section_name ? `<span style="margin-left:8px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🗂️ ${escapeHtml(assignment.section_name)}</span>` : ''}
                 </p>
 
@@ -182,12 +246,10 @@
             });
         });
 
-        // Estadísticas
         const avg = scoredCount > 0 ? (totalScore / scoredCount).toFixed(1) : '-';
         updateStatsDOM(pending, completed, avg);
         updateCountLabel(assignments.length);
     }
-
     function updateStatsDOM(pending, completed, avg) {
         const pendEl = document.getElementById('pending-count');
         const compEl = document.getElementById('completed-count');
@@ -292,11 +354,11 @@
     }
 
     function _startRealtimeClassroom() {
-        const rt  = window.MiraiRealtime.getInstance();
+        const rt = window.MiraiRealtime.getInstance();
         const dni = localStorage.getItem('mirai_user_dni');
 
         rt.subscribe('classroom', (payload) => {
-            const sections    = payload.sections    || [];
+            const sections = payload.sections || [];
             const assignments = payload.assignments || [];
             const submissions = payload.submissions || [];
 

@@ -2255,7 +2255,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
             s.name  as section_name
         FROM assignments a
         JOIN section_students ss ON ss.section_id = a.section_id
-        LEFT JOIN courses c ON c.id = a.course_id
+        LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
         WHERE ss.user_dni = ?
         UNION
@@ -2266,7 +2266,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
             s.name  as section_name
         FROM assignments a
         JOIN assignment_students ast ON ast.assignment_id = a.id
-        LEFT JOIN courses c ON c.id = a.course_id
+        LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
         WHERE ast.user_dni = ?
     )
