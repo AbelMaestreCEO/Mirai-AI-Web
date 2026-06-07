@@ -653,7 +653,7 @@ async function handleLogin(request, env, corsHeaders) {
       error: 'Credenciales correctas. Se ha enviado un código de verificación a tu correo.',
       needs_verification: true,
       message_sent: true,
-      // No devolvemos token aún
+      dni: user.dni,
     }, 403, corsHeaders);
 
   } catch (error) {
