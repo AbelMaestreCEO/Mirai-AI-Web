@@ -708,7 +708,7 @@ async function loadSectionStudents() {
                 img.src = '/api/user/avatar/' + encodeURIComponent(s.user_dni);
                 img.alt = initials;
                 img.style.cssText = 'width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;';
-                img.onerror = function() {
+                img.onerror = function () {
                     const fb = makeInitialsCircle(initials);
                     img.replaceWith(fb);
                 };
@@ -719,8 +719,8 @@ async function loadSectionStudents() {
 
         function makeInitialsCircle(initials) {
             const circle = document.createElement('div');
-            circle.textContent = initials;
-            circle.style.cssText = 'width:38px;height:38px;border-radius:50%;background:var(--primary-color);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;';
+            circle.style.cssText = 'width:38px;height:38px;border-radius:50%;background:var(--glass-bg);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+            circle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>';
             return circle;
         }
 
@@ -841,47 +841,47 @@ function setupTabs() {
 }
 
 function initRealtimeClassroomAdmin() {
-  // classroom_admin.js no tiene type="module" → usar window global
-  const rt = window.MiraiRealtime.getInstance();
- 
-  rt.subscribe('classroom', ({ sections, assignments, submissions }) => {
- 
-    // — Secciones nuevas —
-    sections.forEach(s => {
-      const card = document.querySelector(`[data-section-id="${s.id}"]`);
-      if (card) {
-        const countEl = card.querySelector('[data-field="student_count"]');
-        if (countEl) countEl.textContent = s.student_count ?? countEl.textContent;
-        flashElement(card);
-      } else {
-        if (typeof loadSections === 'function') loadSections();
-      }
+    // classroom_admin.js no tiene type="module" → usar window global
+    const rt = window.MiraiRealtime.getInstance();
+
+    rt.subscribe('classroom', ({ sections, assignments, submissions }) => {
+
+        // — Secciones nuevas —
+        sections.forEach(s => {
+            const card = document.querySelector(`[data-section-id="${s.id}"]`);
+            if (card) {
+                const countEl = card.querySelector('[data-field="student_count"]');
+                if (countEl) countEl.textContent = s.student_count ?? countEl.textContent;
+                flashElement(card);
+            } else {
+                if (typeof loadSections === 'function') loadSections();
+            }
+        });
+
+        // — Tareas nuevas —
+        if (assignments.length > 0) {
+            if (typeof loadAssignments === 'function') loadAssignments();
+        }
+
+        // — Entregas nuevas para calificar —
+        if (submissions.length > 0) {
+            submissions.forEach(sub => {
+                const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
+                if (!row && typeof appendSubmissionRow === 'function') {
+                    appendSubmissionRow(sub);
+                } else if (!row && typeof loadSubmissions === 'function') {
+                    loadSubmissions();
+                    return;
+                }
+                // Si ya existe → actualizar badge de estado
+                if (row) {
+                    const badge = row.querySelector('[data-field="status"]');
+                    if (badge) badge.textContent = sub.status;
+                    flashElement(row);
+                }
+            });
+        }
     });
- 
-    // — Tareas nuevas —
-    if (assignments.length > 0) {
-      if (typeof loadAssignments === 'function') loadAssignments();
-    }
- 
-    // — Entregas nuevas para calificar —
-    if (submissions.length > 0) {
-      submissions.forEach(sub => {
-        const row = document.querySelector(`[data-submission-id="${sub.id}"]`);
-        if (!row && typeof appendSubmissionRow === 'function') {
-          appendSubmissionRow(sub);
-        } else if (!row && typeof loadSubmissions === 'function') {
-          loadSubmissions();
-          return;
-        }
-        // Si ya existe → actualizar badge de estado
-        if (row) {
-          const badge = row.querySelector('[data-field="status"]');
-          if (badge) badge.textContent = sub.status;
-          flashElement(row);
-        }
-      });
-    }
-  });
- 
-  rt.start();
+
+    rt.start();
 }
