@@ -2289,7 +2289,7 @@ ORDER BY u.last_name, u.first_name
         JOIN section_students ss ON ss.section_id = a.section_id
         LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
-        WHERE ss.user_dni = ?
+        WHERE UPPER(ss.user_dni) = UPPER(?)
         UNION
         SELECT DISTINCT
             a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
@@ -2300,7 +2300,7 @@ ORDER BY u.last_name, u.first_name
         JOIN assignment_students ast ON ast.assignment_id = a.id
         LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
-        WHERE ast.user_dni = ?
+        WHERE UPPER(ast.user_dni) = UPPER(?)
     )
     ORDER BY created_at DESC
 `).bind(userDni.toUpperCase(), userDni.toUpperCase()).all();
@@ -2939,7 +2939,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
                  a.title AS assignment_title
           FROM   submissions sub
           JOIN   assignments a ON a.id = sub.assignment_id
-          WHERE  sub.user_dni = ? AND sub.submitted_at > ?
+          WHERE  sub.user_dni = ? AND (sub.submitted_at > ? OR (sub.graded_at IS NOT NULL AND sub.graded_at > ?))
           ORDER  BY sub.submitted_at DESC
           LIMIT  20
         `).bind(userDni, since).all();

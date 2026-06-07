@@ -84,7 +84,7 @@
     // ── COURSE TABS ───────────────────────────────────────────────────────────
     let _allAssignments = [];
     let _allSubmissions = [];
-    let _activeCourse   = 'all';
+    let _activeCourse = 'all';
 
     function buildCourseTabs(assignments) {
         const tabsEl = document.getElementById('course-tabs');
@@ -93,7 +93,7 @@
         // Collect unique courses preserving order
         const seen = new Map();
         assignments.forEach(a => {
-            const id    = a.course_id  || '__none__';
+            const id = a.course_id || '__none__';
             const title = a.course_title || 'Sin curso';
             if (!seen.has(id)) seen.set(id, title);
         });
@@ -125,7 +125,7 @@
         const tabsEl = document.getElementById('course-tabs');
         if (tabsEl) {
             tabsEl.querySelectorAll('.filter-pill').forEach(btn => {
-                const isAll    = !btn.dataset.course;
+                const isAll = !btn.dataset.course;
                 const isActive = isAll ? _activeCourse === 'all' : btn.dataset.course === _activeCourse;
                 btn.classList.toggle('active', isActive);
             });
@@ -141,7 +141,7 @@
     function renderTasks(container, assignments, submissions) {
         _allAssignments = assignments;
         _allSubmissions = submissions;
-        _activeCourse   = 'all';
+        _activeCourse = 'all';
 
         buildCourseTabs(assignments);
         renderCards(container, assignments, submissions);
@@ -364,9 +364,10 @@
 
             // — Tareas nuevas: recargar lista completa —
             if (assignments.length > 0 && dni) {
-                console.log('[RT] Tarea nueva detectada, llamando loadTasks con dni:', dni);
+                console.log('[RT] Tarea nueva detectada, recargando. Payload:', assignments);
                 loadTasks(dni).then(() => {
-                    console.log('[RT] loadTasks completado');
+                    console.log('[RT] loadTasks completado, container:', document.getElementById('tasks-container')?.children?.length, 'hijos');
+                    flashElement(document.getElementById('tasks-container'));
                 }).catch(err => {
                     console.error('[RT] loadTasks falló:', err);
                 });

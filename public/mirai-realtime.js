@@ -30,7 +30,7 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const POLL_INTERVAL_ACTIVE = 10_000;   // 10s — tab visible
+const POLL_INTERVAL_ACTIVE = 5_000;   // 10s — tab visible
 const POLL_INTERVAL_HIDDEN = 60_000;   // 60s — tab en segundo plano
 const POLL_INTERVAL_FOCUS  = 2_000;    // 2s — burst al recuperar foco (3 veces)
 const POLL_ENDPOINT        = '/api/sync/poll';
