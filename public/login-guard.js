@@ -10,10 +10,9 @@
 (function () {
     'use strict';
 
-    var token = localStorage.getItem('mirai_auth_token');
-    var dni   = localStorage.getItem('mirai_user_dni');
+    var dni = localStorage.getItem('mirai_user_dni');
 
-    if (token && dni) {
+    if (dni) {
         window.location.replace('/');
     }
 })();

@@ -606,16 +606,15 @@ async function handleResetPassword(request, env, corsHeaders) {
 
 async function handleLogin(request, env, corsHeaders) {
   try {
-    const { dni, password } = await request.json();
+    const { email, password } = await request.json();
 
-    if (!dni || !password) {
-      return jsonResponse({ error: 'DNI y contraseña requeridos' }, 400, corsHeaders);
+    if (!email || !password) {
+      return jsonResponse({ error: 'Correo y contraseña son requeridos' }, 400, corsHeaders);
     }
 
-    // 1. Buscar usuario
     const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT password_hash, email, first_name, last_name FROM users WHERE dni = ?"
-    ).bind(dni.toUpperCase()).first();
+      "SELECT * FROM users WHERE email = ?"
+    ).bind(email.toLowerCase()).first();
 
     if (!user) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);

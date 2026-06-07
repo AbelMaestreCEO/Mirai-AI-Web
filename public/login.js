@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const dni = document.getElementById('dni').value;
+        const email = document.getElementById('email').value.trim().toLowerCase();
         const password = document.getElementById('password').value;
 
         setLoading(loginBtn, true);
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dni, password })
+                body: JSON.stringify({ email, password })
             });
 
             const data = await res.json();
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         showError(errorMsg, data.error);
                     }
 
-                    localStorage.setItem('pending_dni', dni);
+                    localStorage.setItem('pending_dni', data.dni || '');
 
                     setTimeout(() => {
                         window.location.href = 'verify';
