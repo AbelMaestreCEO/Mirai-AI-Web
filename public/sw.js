@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v229'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v230'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -59,7 +59,7 @@ const STATIC_ASSETS = [
   '/courses.js',
   '/js/processors/docxReader.js',
   '/js/processors/docxWriter.js',
-  '/js/apa/figure.js',
+  '/js/apa/figures.js',
   '/js/fileHandler.js',
   '/format.js',
   '/generation.js',
