@@ -722,17 +722,12 @@
     };
 
     function initRealtimeCourses() {
-        if (!window.MiraiRealtime) {
-            initRealtimeCourses._retries = (initRealtimeCourses._retries || 0) + 1;
-            if (initRealtimeCourses._retries > 5) {
-                console.warn('⚠️ MiraiRealtime no disponible, omitiendo realtime en courses.');
-                return;
-            }
-            setTimeout(initRealtimeCourses, 500);
-            return;
-        }
+        if (!window.MiraiRealtime) return;
+        const rt = window.MiraiRealtime.getInstance();
 
-        rt.subscribe('courses', ({ courses, lessons }) => {
+        rt.subscribe('courses', (data) => {
+            const courses = data?.courses || [];
+            const lessons = data?.lessons || [];
 
             courses.forEach(course => {
                 const card = document.querySelector(`[data-course-id="${course.id}"]`);
