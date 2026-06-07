@@ -636,7 +636,7 @@ async function handleLogin(request, env, corsHeaders) {
     // pero actualizar el usuario funciona bien para este caso)
     await env.MIRAI_AI_DB.prepare(
       "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
-    ).bind(newOtp, newExpires, dni.toUpperCase()).run();
+    ).bind(newOtp, newExpires, user.dni).run();
 
     // Enviar correo
     const emailSent = await sendVerificationEmail(user.email, newOtp, env);
