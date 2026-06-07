@@ -2863,15 +2863,14 @@ async function handleSyncPoll(request, env, corsHeaders) {
       if (isTeacherOrAdmin) {
         // Profesor: secciones que creó
         const sections = await env.MIRAI_AI_DB.prepare(`
-          SELECT s.id, s.professor_dni, s.course_id, s.name,
-                 s.description, s.created_at,
-                 COUNT(ss.user_dni) AS student_count
+          SELECT s.id, s.name, s.course_id, s.description, s.created_at,
+                 p.full_name AS professor_name
           FROM   sections s
-          LEFT JOIN section_students ss ON ss.section_id = s.id
-          WHERE  s.professor_dni = ? AND s.created_at > ?
-          GROUP  BY s.id
+          JOIN   section_students ss ON ss.section_id = s.id
+          LEFT JOIN professors p     ON p.dni = s.professor_dni
+          WHERE  ss.user_dni = ? AND s.created_at > ?
           ORDER  BY s.created_at DESC
-          LIMIT  30
+          LIMIT  20
         `).bind(userDni, since).all();
 
         // Tareas nuevas/modificadas
@@ -2888,16 +2887,15 @@ async function handleSyncPoll(request, env, corsHeaders) {
 
         // Entregas nuevas para calificar
         const submissions = await env.MIRAI_AI_DB.prepare(`
-          SELECT sub.id, sub.assignment_id, sub.user_dni,
-                 sub.file_url, sub.comment, sub.status,
-                 sub.submitted_at, sub.score, sub.feedback,
-                 sub.dispute_status, a.title AS assignment_title
+          SELECT sub.id, sub.assignment_id, sub.status,
+                 sub.submitted_at, sub.score,
+                 sub.feedback, sub.dispute_status,
+                 a.title AS assignment_title
           FROM   submissions sub
           JOIN   assignments a ON a.id = sub.assignment_id
-          JOIN   sections s   ON s.id = a.section_id
-          WHERE  s.professor_dni = ? AND sub.submitted_at > ?
+          WHERE  sub.user_dni = ? AND sub.submitted_at > ?
           ORDER  BY sub.submitted_at DESC
-          LIMIT  30
+          LIMIT  20
         `).bind(userDni, since).all();
 
         changes.classroom = {
