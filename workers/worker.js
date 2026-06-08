@@ -1370,6 +1370,9 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return handleAttLookupUser(request, env, corsHeaders);
 
     // ── ASISTENCIA: Clases ────────────────────────────────────
+    // GET /api/attendance/admin/sections — todas las secciones (para agregar a clase)
+    if (path === '/api/attendance/admin/sections' && request.method === 'GET')
+      return handleAttSectionList(request, env, corsHeaders);
     if (path === '/api/attendance/admin/classes' && request.method === 'GET')
       return handleAttClassList(request, env, corsHeaders);
     if (path === '/api/attendance/admin/classes' && request.method === 'POST')
@@ -5778,7 +5781,25 @@ async function handleAttStaffList(request, env, corsHeaders) {
 // ════════════════════════════════════════════════════════════
 // HANDLERS — Clases
 // ════════════════════════════════════════════════════════════
-
+async function handleAttSectionList(request, env, corsHeaders) {
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT s.id, s.name, s.description,
+             uc.title AS course_title,
+             COUNT(ss.user_dni) AS student_count
+      FROM sections s
+      LEFT JOIN user_courses uc ON s.course_id = uc.id
+      LEFT JOIN section_students ss ON s.id = ss.section_id
+      GROUP BY s.id
+      ORDER BY s.name
+    `).all();
+    return jsonResponse(results, 200, corsHeaders);
+  } catch (e) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
+}
 async function handleAttClassList(request, env, corsHeaders) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;

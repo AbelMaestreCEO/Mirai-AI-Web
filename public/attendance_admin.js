@@ -13,7 +13,7 @@ const API = {
     staff: '/api/attendance/admin/staff',
     addStaff: '/api/attendance/admin/staff',
     classes: '/api/attendance/admin/classes',
-    sections: '/api/sections',
+    sections: '/api/attendance/admin/sections',
 };
 
 function authHeaders() {
