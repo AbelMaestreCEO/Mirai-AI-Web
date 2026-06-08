@@ -5908,18 +5908,18 @@ async function ensureAttStaff(env, dni) {
   ).bind(upper).first();
   if (existing) return existing;
 
-  // Buscar en users
   const user = await env.MIRAI_AI_DB.prepare(
     'SELECT first_name, last_name, email FROM users WHERE dni = ?'
   ).bind(upper).first();
   if (!user) return null;
 
+  const fullName = `${user.first_name} ${user.last_name}`.trim();
   const newId = crypto.randomUUID();
   await env.MIRAI_AI_DB.prepare(
     'INSERT OR IGNORE INTO att_staff (id, dni, name, email, is_active) VALUES (?,?,?,?,1)'
-  ).bind(newId, upper, user.full_name, user.email || '').run();
+  ).bind(newId, upper, fullName, user.email || '').run();
 
-  return { id: newId, name: user.full_name };
+  return { id: newId, name: fullName };
 }
 
 async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
