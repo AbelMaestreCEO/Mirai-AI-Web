@@ -330,8 +330,18 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -100%);
-            z-index: 10;
+            z-index: 1000;
             pointer-events: none;
+        }
+
+        #loc-modal-map .leaflet-pane,
+        #loc-modal-map .leaflet-map-pane {
+            z-index: 1 !important;
+        }
+
+        #loc-modal-map .leaflet-top,
+        #loc-modal-map .leaflet-bottom {
+            z-index: 2 !important;
         }
 
         .loc-modal-coords-badge {
@@ -478,11 +488,13 @@
             color: var(--text-primary, inherit) !important;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
         }
-#loc-modal-minimap {
-    width: 100%;
-    height: 100%;
-    min-height: 160px;
-}
+
+        #loc-modal-minimap {
+            width: 100%;
+            height: 100%;
+            min-height: 160px;
+        }
+
         .leaflet-popup-tip {
             background: var(--glass-bg) !important;
         }
