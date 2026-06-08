@@ -115,36 +115,30 @@
     }
 
     function openModal(latlng) {
-        // Coordenadas en el badge
         elModalCoords.textContent = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
         elSaveBtn.disabled = false;
-
-        // Minimap Leaflet embebido en el modal
-        if (minimapInstance) {
-            minimapInstance.setView(latlng, 15);
-        } else {
-            minimapInstance = L.map('loc-modal-minimap', {
-                center: latlng,
-                zoom: 15,
-                zoomControl: false,
-                attributionControl: false,
-                dragging: false,
-                scrollWheelZoom: false,
-                doubleClickZoom: false,
-                touchZoom: false,
-            });
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(minimapInstance);
-        }
-
-        // Abrir overlay con animación
         elModalOverlay.classList.add('open');
-        setTimeout(() => {
-            minimapInstance.invalidateSize();
-            minimapInstance.setView(latlng, 15);
-        }, 30);
 
-        // Enfocar el título
-        setTimeout(() => elTitle.focus(), 250);
+        setTimeout(() => {
+            if (minimapInstance) {
+                minimapInstance.invalidateSize();
+                minimapInstance.setView(latlng, 15);
+            } else {
+                minimapInstance = L.map('loc-modal-minimap', {
+                    center: latlng,
+                    zoom: 15,
+                    zoomControl: false,
+                    attributionControl: false,
+                    dragging: false,
+                    scrollWheelZoom: false,
+                    doubleClickZoom: false,
+                    touchZoom: false,
+                });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(minimapInstance);
+                minimapInstance.invalidateSize();
+            }
+            elTitle.focus();
+        }, 80);
     }
 
     function clearPending() {
