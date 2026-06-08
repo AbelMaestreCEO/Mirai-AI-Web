@@ -34,7 +34,10 @@
     const elDesc = document.getElementById('loc-desc');
     const elSaveBtn = document.getElementById('loc-save-btn');
     const elToast = document.getElementById('loc-toast');
-
+    const elModalOverlay = document.getElementById('loc-modal-overlay');
+    const elModalCoords = document.getElementById('loc-modal-coords');
+    const elModalMinimap = document.getElementById('loc-modal-minimap');
+    let minimapInstance = null;
     /* ── API ─────────────────────────────────────────────────────────────── */
 
     async function apiLocations() {
@@ -88,16 +91,6 @@
         initRealtimeLocation();
     }
 
-    /* ── Clic en mapa — pin provisional exactamente donde se hizo clic ───── */
-
-    function onMapClick(e) {
-        pendingLatlng = e.latlng;
-        dropPendingPin(e.latlng);
-        elHint.textContent = `📍 ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)} — Agrega título y guarda`;
-        elSaveBtn.disabled = false;
-        elTitle.focus();
-    }
-
     function dropPendingPin(latlng) {
         if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
         const accent = getAccent();
@@ -115,6 +108,45 @@
         }).addTo(map);
     }
 
+    function onMapClick(e) {
+        pendingLatlng = e.latlng;
+        dropPendingPin(e.latlng);
+        openModal(e.latlng);
+    }
+
+    function openModal(latlng) {
+        // Coordenadas en el badge
+        elModalCoords.textContent = `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+        elSaveBtn.disabled = false;
+
+        // Minimap Leaflet embebido en el modal
+        if (minimapInstance) {
+            minimapInstance.setView(latlng, 15);
+        } else {
+            minimapInstance = L.map('loc-modal-minimap', {
+                center: latlng,
+                zoom: 15,
+                zoomControl: false,
+                attributionControl: false,
+                dragging: false,
+                scrollWheelZoom: false,
+                doubleClickZoom: false,
+                touchZoom: false,
+            });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(minimapInstance);
+        }
+
+        // Abrir overlay con animación
+        elModalOverlay.classList.add('open');
+        setTimeout(() => {
+            minimapInstance.invalidateSize();
+            minimapInstance.setView(latlng, 15);
+        }, 30);
+
+        // Enfocar el título
+        setTimeout(() => elTitle.focus(), 250);
+    }
+
     function clearPending() {
         if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
         pendingLatlng = null;
@@ -122,9 +154,15 @@
         elHint.textContent = 'Toca el mapa para colocar un marcador';
         elTitle.value = '';
         elDesc.value = '';
+        elModalOverlay.classList.remove('open');
     }
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && pendingLatlng) clearPending(); });
+    document.getElementById('loc-modal-close-btn').addEventListener('click', clearPending);
+    document.getElementById('loc-modal-cancel-btn').addEventListener('click', clearPending);
+    elModalOverlay.addEventListener('click', function(e) {
+        if (e.target === elModalOverlay) clearPending();
+    });
 
     /* ── Guardar ubicación ───────────────────────────────────────────────── */
 
@@ -153,6 +191,7 @@
             elSaveBtn.disabled = true;
             elHint.textContent = 'Toca el mapa para colocar un marcador';
             showToast('✅ Marcador guardado');
+            elModalOverlay.classList.remove('open');
         } catch (err) {
             console.error('[Locations] save:', err);
             showToast('⚠️ Error al guardar');
@@ -329,8 +368,7 @@
                 pendingLatlng = ll;
                 dropPendingPin(ll);
                 elHint.textContent = `📍 ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)} — Agrega título y guarda`;
-                elSaveBtn.disabled = false;
-                elTitle.focus();
+                openModal(ll);
                 showToast('📍 Ubicación encontrada');
             },
             function (err) {
