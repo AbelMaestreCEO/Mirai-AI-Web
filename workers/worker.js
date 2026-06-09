@@ -2482,9 +2482,9 @@ NO agregues texto adicional fuera del JSON.`;
         const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`; // Limitar tamaño
 
         const aiContent = await callAI(
-          AI_MODEL_PRO,
+          AI_MODEL_NORMAL,
           [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-          { temperature: 0.3, max_tokens: 2000 },
+          { temperature: 0.3, max_tokens: 5000 },
           env
         );
         console.log('🤖 [DEBUG] aiContent raw:', aiContent?.substring(0, 300));
