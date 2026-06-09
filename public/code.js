@@ -400,6 +400,12 @@ async function sendMessage() {
   showLangTypingIndicator(detectedLang);
   scrollToBottom();
 
+  let useReasonerModel = false;
+  document.getElementById('model-toggle')?.addEventListener('click', function () {
+    useReasonerModel = !useReasonerModel;
+    this.textContent = useReasonerModel ? '🧠 Razonador' : '⚡ Rápido';
+  });
+
   try {
     const res = await fetch(CODE_API.CHAT_MSG, {
       method: 'POST',
@@ -409,7 +415,7 @@ async function sendMessage() {
         message,
         conversation_id: currentChatId,
         project_id: projectId,
-        model: 'deepseek-reasoner',
+        model: useReasonerModel ? 'deepseek-reasoner' : 'deepseek-chat',
       }),
     });
 
@@ -653,7 +659,7 @@ function scrollToBottom() {
 document.addEventListener('DOMContentLoaded', () => {
   // Nuevo chat
   document.getElementById('new-chat-btn')
-    .addEventListener('click', createNewChat);
+    ?.addEventListener('click', createNewChat);
   // Acciones rápidas
   document.querySelectorAll('.quick-action-btn').forEach(btn => {
     btn.addEventListener('click', () => {

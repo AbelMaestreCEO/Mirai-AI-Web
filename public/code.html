@@ -595,17 +595,20 @@
 
             <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <!-- Proyecto activo en sidebar -->
+                <div id="sidebar-project-info" style="display:none" class="code-sidebar-project">
+                    <span id="sidebar-project-icon">💻</span>
+                    <span class="code-sidebar-project-name" id="sidebar-project-name">Proyecto</span>
+                </div>
+
+                <!-- Encabezado de chats + botón nuevo -->
                 <div class="conversations-header">
                     <h4>Conversaciones</h4>
-                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    </button>
+                    <button id="new-chat-btn" class="icon-btn" title="Nueva conversación"
+                        style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--accent-color)">＋</button>
                 </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
+
+                <ul id="code-chats-list" style="list-style:none;padding:0;margin:0"></ul>
             </section>
 
             <!-- Sección 3: Explorar (Desplegable Maestro) -->
@@ -821,9 +824,11 @@
                 Refactorizar</button>
         </div>
         <div class="input-wrapper">
+            <button id="model-toggle" class="quick-action-btn" title="Cambiar modelo" style="flex-shrink:0">
+                ⚡ Rápido
+            </button>
             <textarea id="code-input" class="message-input" placeholder="Pregunta sobre tu código..." rows="1"
                 autocomplete="off" spellcheck="false"></textarea>
-
             <button id="code-button" class="send-button" aria-label="Enviar mensaje">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -834,8 +839,8 @@
 
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
-    <script type="module" src="app.js" defer></script>
-    <script type="module" src="code.js" defer></script>
+    <script src="app.js" defer></script>
+    <script src="code.js" defer></script>
     <script src="transitions.js"></script>
 </body>
 
