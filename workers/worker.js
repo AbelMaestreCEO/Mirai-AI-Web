@@ -2398,12 +2398,9 @@ ORDER BY u.last_name, u.first_name
     a.max_score,
     a.title,
     a.description,
-    a.id as assignment_id_db,
-    c.name as course_name,
-    c.description as course_description
+    a.id as assignment_id_db
   FROM submissions s
   JOIN assignments a ON s.assignment_id = a.id
-  JOIN courses c ON a.course_id = c.id
   WHERE s.id = ?
 `).bind(submission_id).first();
 
@@ -2446,10 +2443,8 @@ ORDER BY u.last_name, u.first_name
         // 4. Construir prompt de evaluación con criterios específicos
         const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
 
-MATERIA: ${submissionData.course_name}
-DESCRIPCIÓN DE LA MATERIA: ${submissionData.course_description || 'No especificada'}
 TAREA: ${submissionData.title}
-DESCRIPCIÓN DE LA TAREA: ${submissionData.description}
+DESCRIPCIÓN Y PUNTOS A EVALUAR: ${submissionData.description}
 PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
 
 CRITERIOS DE EVALUACIÓN OBLIGATORIOS:
@@ -2460,15 +2455,14 @@ CRITERIOS DE EVALUACIÓN OBLIGATORIOS:
 5. Originalidad (no parece generado por IA).
 6. Coherencia y estructura lógica.
 7. Profundidad del análisis.
-8. Pertinencia temática: el contenido del trabajo debe corresponder directamente a la materia "${submissionData.course_name}" y a los puntos indicados en la descripción de la tarea.
+8. Pertinencia temática: el trabajo debe responder directamente a los puntos indicados en la descripción de la tarea ("${submissionData.title}"). Si el contenido es completamente ajeno al tema, la puntuación máxima es 20% independientemente del formato.
 
 INSTRUCCIONES:
 1. Analiza el contenido del trabajo.
-2. Verifica primero si el trabajo es pertinente a la materia y la tarea asignada. Si el trabajo trata un tema completamente diferente, la puntuación debe ser muy baja (máximo 20% de la nota) independientemente de la calidad del formato.
+2. Verifica primero si el trabajo responde a los puntos indicados en la descripción. Si no corresponde, penaliza fuertemente.
 3. Evalúa cada criterio (1-8) y asigna una puntuación parcial.
 4. Suma las puntuaciones parciales para obtener la nota final (0-${submissionData.max_score}).
-5. Proporciona retroalimentación detallada por cada criterio.
-6. Devuelve la respuesta EXACTAMENTE en este formato JSON:
+5. Devuelve la respuesta EXACTAMENTE en este formato JSON:
 {
   "score": <número entero>,
   "feedback": {
@@ -2479,10 +2473,10 @@ INSTRUCCIONES:
     "originalidad": "<texto>",
     "coherencia": "<texto>",
     "profundidad": "<texto>",
-    "pertinencia_tematica": "<texto indicando si el trabajo corresponde a la materia y tarea>",
+    "pertinencia_tematica": "<texto>",
     "general": "<resumen general>"
   },
-  "reasoning": "<razonamiento breve de la calificación total>"
+  "reasoning": "<razonamiento breve>"
 }
 
 NO agregues texto adicional fuera del JSON.`;
