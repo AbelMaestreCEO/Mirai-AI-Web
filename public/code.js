@@ -461,62 +461,23 @@ function appendMessage(role, content) {
     <div class="message-avatar">${role === 'user' ? 'Tú' : 'M'}</div>
     <div class="message-content">${renderMarkdown(content)}</div>`;
   messagesEl.appendChild(div);
+
+  // Activar botones de copiar (código y tablas) usando el sistema de app.js
+  if (typeof addCopyButtons === 'function') addCopyButtons();
 }
 
 /**
- * Renderizado básico de Markdown orientado a código.
- * Para bloques de código usa <pre><code>, con botón de copiar.
- * El resto (negrita, cursiva, inline code, links) también se procesa.
+ * Renderizado de Markdown — delega a formatMessageContent de app.js
+ * para mantener el mismo estilo visual que chat.html.
+ * formatMessageContent espera texto ya escapado con escapeHtml().
  */
 function renderMarkdown(text) {
   if (!text) return '';
-
-  let html = escHtml(text);
-
-  // Bloques de código (```lang\n...\n```)
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
-    const langLabel = lang || 'code';
-    const safeCode = code.trimEnd();
-    const id = 'cb-' + Math.random().toString(36).slice(2, 8);
-    return `<div class="code-block-wrap">
-      <div class="code-block-header">
-        <span class="code-lang">${escHtml(langLabel)}</span>
-        <button class="copy-code-btn" onclick="copyCode('${id}')" title="Copiar código">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-          </svg>
-          Copiar
-        </button>
-      </div>
-      <pre id="${id}"><code>${safeCode}</code></pre>
-    </div>`;
-  });
-
-  // Código inline (`code`)
-  html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-
-  // Negrita
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-
-  // Cursiva
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/_(.+?)_/g, '<em>$1</em>');
-
-  // Encabezados
-  html = html.replace(/^### (.+)$/gm, '<h4 style="margin:0.75rem 0 0.25rem;font-size:0.95rem;">$1</h4>');
-  html = html.replace(/^## (.+)$/gm, '<h3 style="margin:0.75rem 0 0.25rem;font-size:1rem;">$1</h3>');
-  html = html.replace(/^# (.+)$/gm, '<h2 style="margin:0.75rem 0 0.25rem;font-size:1.1rem;">$1</h2>');
-
-  // Listas
-  html = html.replace(/^\* (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>)/s, '<ul style="padding-left:1.2rem;margin:0.3rem 0;">$1</ul>');
-
-  // Saltos de línea (fuera de bloques de código)
-  html = html.replace(/\n/g, '<br>');
-
-  return html;
+  if (typeof formatMessageContent === 'function') {
+    return formatMessageContent(escHtml(text));
+  }
+  // Fallback minimo si app.js no cargó
+  return escHtml(text).replace(/\n/g, '<br>');
 }
 
 function escHtml(str) {
@@ -527,20 +488,6 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-window.copyCode = function (id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  navigator.clipboard.writeText(el.textContent).catch(() => { });
-  const btn = el.closest('.code-block-wrap')?.querySelector('.copy-code-btn');
-  if (btn) {
-    btn.textContent = '✓ Copiado';
-    setTimeout(() => {
-      btn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-      </svg> Copiar`;
-    }, 2000);
-  }
-};
 
 // ── WELCOME ──────────────────────────────────────────────────────
 function showWelcome() {
@@ -592,68 +539,6 @@ function scrollToBottom() {
   el.scrollTop = el.scrollHeight;
 }
 
-// ── ESTILOS DE BLOQUES DE CÓDIGO ──────────────────────────────────
-(function injectCodeStyles() {
-  const style = document.createElement('style');
-  style.textContent = `
-    .code-block-wrap {
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid var(--glass-border, rgba(103,80,164,0.15));
-      margin: 0.5rem 0;
-      font-size: 0.82rem;
-    }
-    .code-block-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.35rem 0.75rem;
-      background: var(--secondary-container, #E8DEF8);
-    }
-    .code-lang {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--accent-color, #6750A4);
-    }
-    .copy-code-btn {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-secondary, #888);
-      padding: 2px 6px;
-      border-radius: 6px;
-      transition: background 0.15s, color 0.15s;
-      font-family: inherit;
-    }
-    .copy-code-btn:hover { background: rgba(0,0,0,0.08); color: var(--accent-color); }
-    .code-block-wrap pre {
-      margin: 0;
-      padding: 0.85rem 1rem;
-      overflow-x: auto;
-      background: #0d1117;
-      color: #e6edf3;
-      line-height: 1.55;
-    }
-    html[data-theme="dark"] .code-block-wrap pre { background: #161b22; }
-    .code-block-wrap pre code { font-family: 'Fira Code', 'Consolas', 'Monaco', monospace; }
-    .inline-code {
-      background: var(--secondary-container, #E8DEF8);
-      color: var(--accent-color, #6750A4);
-      padding: 1px 5px;
-      border-radius: 5px;
-      font-size: 0.87em;
-      font-family: 'Fira Code', 'Consolas', monospace;
-    }
-  `;
-  document.head.appendChild(style);
-})();
 
 // ── EVENT LISTENERS ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
