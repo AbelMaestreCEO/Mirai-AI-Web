@@ -10,10 +10,93 @@
     <title>Mirai AI - Code</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-
+    <script src="mirai-realtime.js"></script>
     <style>
+        /* ── Tablas Markdown ── */
+        .md-table-wrapper {
+            overflow-x: auto;
+            margin: 12px 0;
+            border-radius: 10px;
+        }
+
+        .md-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.875rem;
+            min-width: 320px;
+        }
+
+        .md-table th {
+            background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
+            color: #fff;
+            font-weight: 600;
+            padding: 8px 14px;
+            text-align: left;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            white-space: nowrap;
+        }
+
+        .md-table td {
+            padding: 7px 14px;
+            border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
+            vertical-align: top;
+            line-height: 1.45;
+        }
+
+        .md-table tbody tr:nth-child(even) td {
+            background: var(--secondary-container, #E8DEF8);
+            opacity: 0.85;
+        }
+
+        .md-table tbody tr:hover td {
+            background: var(--accent-glow, rgba(103, 80, 164, 0.12));
+        }
+
+        html[data-theme="dark"] .md-table td {
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        html[data-theme="dark"] .md-table tbody tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.05);
+            opacity: 1;
+        }
+
+        .copy-table-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 6px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            color: var(--accent-color, #6750A4);
+            background: transparent;
+            border: 1px solid var(--accent-color, #6750A4);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            fill: currentColor;
+        }
+
+        .copy-table-btn svg path {
+            fill: currentColor;
+        }
+
+        .copy-table-btn:hover {
+            background: var(--accent-glow, rgba(103, 80, 164, 0.12));
+        }
+
+        .copy-table-btn.copied {
+            color: #2e7d32;
+            border-color: #2e7d32;
+            background: rgba(46, 125, 50, 0.08);
+        }
+
         svg {
             display: block;
+        }
+
+        .message-content {
+            counter-reset: list-item;
         }
 
         /* ── Mensajes: mismo estilo que chat ── */
@@ -486,6 +569,8 @@
                 r.style.setProperty('--secondary-container', isDark ? c.scD : c.sc);
                 r.style.setProperty('--glass-bg', isDark ? c.gbgD : c.gbg);
                 r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                r.style.setProperty('--message-user-bg', isDark ? c.glowD.replace('0.15', '0.10') : c.glow.replace('0.18', '0.08'));
+                r.style.setProperty('--message-user-border', isDark ? c.glowD : c.glow);
                 r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
                 r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
                 r.style.background = isDark ? c.bgD : c.bg;
@@ -496,6 +581,11 @@
             if (s.reducedMotion) document.documentElement.classList.add('reduce-motion');
         })();
     </script>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mirai AI">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
