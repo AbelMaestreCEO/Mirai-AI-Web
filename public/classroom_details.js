@@ -422,13 +422,14 @@ function renderFeedback(container, submission, maxScore) {
 // --- EVALUACIÓN CON IA ---
 function confirmEvaluation(submissionId) {
     const criteria = [
-        "Cumplimiento de normas APA 7ma edición",
-        "Escrito en tercera persona",
-        "Uso adecuado de conectores lógicos",
-        "Tablas y figuras etiquetadas correctamente",
-        "Originalidad del contenido",
-        "Coherencia y estructura lógica",
-        "Profundidad en el análisis"
+        { key: 'pertinencia_tematica', label: '🎯 Pertinencia Temática' },
+        { key: 'apa', label: '📚 Normas APA' },
+        { key: 'tercera_persona', label: '✍️ Tercera Persona' },
+        { key: 'conectores', label: '🔗 Conectores Lógicos' },
+        { key: 'tablas_figuras', label: '📊 Tablas y Figuras' },
+        { key: 'originalidad', label: '💡 Originalidad' },
+        { key: 'coherencia', label: '🧠 Coherencia' },
+        { key: 'profundidad', label: '🔬 Profundidad' },
     ];
 
     const message = "La IA evaluará tu trabajo basándose en los siguientes criterios:\n\n" +
