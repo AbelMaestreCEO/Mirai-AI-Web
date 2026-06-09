@@ -494,10 +494,6 @@ async function handleResendOTP(request, env, corsHeaders) {
       return jsonResponse({ success: true, message: 'Si la cuenta existe, se enviará un nuevo código.' }, 200, corsHeaders);
     }
 
-    if (user.is_verified) {
-      return jsonResponse({ error: 'Esta cuenta ya está verificada.' }, 400, corsHeaders);
-    }
-
     // Rate limiting básico: no reenviar si el OTP anterior tiene menos de 2 minutos
     if (user.otp_expires) {
       const elapsed = Date.now() - new Date(user.otp_expires).getTime() + (10 * 60 * 1000);
