@@ -1584,6 +1584,28 @@
                     </label>
                 </div>
                 <hr class="settings-divider">
+
+                <!-- Seguridad: Verificación en dos pasos -->
+                <div style="margin-bottom:8px;">
+                    <div class="settings-row-info">
+                        <h3 style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin:0 0 2px;">🔐
+                            Verificación en dos pasos</h3>
+                        <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;">Al iniciar sesión se te
+                            pedirá un código enviado a tu correo</p>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;padding:12px 0;">
+                    <div id="two-factor-track"
+                        style="width:44px;height:24px;border-radius:12px;background:var(--glass-border);cursor:pointer;position:relative;transition:background 0.25s;flex-shrink:0;"
+                        onclick="toggleTwoFactor()">
+                        <div id="two-factor-thumb"
+                            style="width:18px;height:18px;border-radius:50%;background:white;position:absolute;top:3px;left:3px;transition:transform 0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.2);">
+                        </div>
+                    </div>
+                    <span id="two-factor-label"
+                        style="font-size:0.85rem;color:var(--text-secondary);">Desactivada</span>
+                </div>
+                <hr class="settings-divider">
                 <div class="settings-row-info" style="margin-bottom:14px;">
                     <h3 style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin:0 0 2px;">Tamaño del
                         texto</h3>
@@ -2015,6 +2037,17 @@
                     document.getElementById('reduced-motion-thumb').style.transform = checked ? 'translateX(20px)' : 'translateX(0)';
                 }
 
+                let _twoFactor = true; // true por defecto
+                function updateTwoFactorToggle(checked) {
+                    document.getElementById('two-factor-track').style.background = checked ? 'var(--accent-color)' : 'var(--glass-border)';
+                    document.getElementById('two-factor-thumb').style.transform = checked ? 'translateX(20px)' : 'translateX(0)';
+                    document.getElementById('two-factor-label').textContent = checked ? 'Activada' : 'Desactivada';
+                    _twoFactor = checked;
+                }
+                function toggleTwoFactor() {
+                    updateTwoFactorToggle(!_twoFactor);
+                }
+
                 let _systemThemeListener = null;
 
                 function getEffectiveTheme(mode) {
@@ -2090,6 +2123,10 @@
                         document.documentElement.classList.add('reduce-motion');
                     }
 
+                    // Inicializar toggle 2FA (true por defecto si no existe)
+                    const twoFactor = saved.twoFactor !== false;
+                    updateTwoFactorToggle(twoFactor);
+
                     const savedMode = localStorage.getItem('mirai-ai-theme-mode') || 'auto';
                     applyThemeMode(savedMode);
 
@@ -2138,6 +2175,10 @@
                             localStorage.setItem(MODEL_KEY, dbSettings.aiModel);
                             loadModel();
                         }
+                        // Aplicar 2FA
+                        if (dbSettings.twoFactor !== undefined) {
+                            updateTwoFactorToggle(dbSettings.twoFactor);
+                        }
                         // Sincronizar localStorage
                         saveSettings(dbSettings);
                     });
@@ -2180,7 +2221,9 @@
                     updateToggle(this.checked);
                     document.documentElement.classList.toggle('reduce-motion', this.checked);
                 });
-/* ── NOTIFICACIONES ───────────────────────────────────── */
+                // No hay <input type="checkbox"> para 2FA, se maneja con onclick en el track
+                // (la función toggleTwoFactor() ya fue definida arriba)
+                /* ── NOTIFICACIONES ───────────────────────────────────── */
                 function urlBase64ToUint8Array(base64String) {
                     const padding = '='.repeat((4 - base64String.length % 4) % 4);
                     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -2278,7 +2321,7 @@
                     const tm = localStorage.getItem('mirai-ai-theme-mode') || 'auto';
                     const am = localStorage.getItem(MODEL_KEY) || 'deepseek';
                     const notifGranted = ('Notification' in window) && Notification.permission === 'granted';
-                    const payload = { accentColor: sc, fontFamily: sf.replace(/'/g, '').trim(), fontSize: sz, reducedMotion: rm, themeMode: tm, aiModel: am, notifications: notifGranted };
+                    const payload = { accentColor: sc, fontFamily: sf.replace(/'/g, '').trim(), fontSize: sz, reducedMotion: rm, themeMode: tm, aiModel: am, notifications: notifGranted, twoFactor: _twoFactor };
                     saveSettings(payload);
                     await saveSettingsToDB(payload);
                     showToast('¡Configuración guardada correctamente!', '✅');

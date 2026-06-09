@@ -624,17 +624,46 @@ async function handleLogin(request, env, corsHeaders) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
     }
 
-    // 🆕 CAMBIO CLAVE: Siempre generar OTP y enviar correo, sin importar el estado anterior
+    // Verificar si el usuario tiene 2FA habilitado (true por defecto si no hay preferencia)
+    const userSettings = user.settings_json ? JSON.parse(user.settings_json) : {};
+    const twoFactorEnabled = userSettings.twoFactor !== false;
+
+    if (!twoFactorEnabled) {
+      // 2FA desactivado — crear sesión directamente, igual que handleVerify
+      const token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      await env.MIRAI_AI_DB.prepare(
+        "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
+      ).bind(token, user.dni, expiresAt).run();
+
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
+      ).bind(user.dni).run();
+
+      return new Response(JSON.stringify({
+        success: true,
+        dni: user.dni,
+        first_name: user.first_name,
+        role: user.role,
+      }), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Set-Cookie': makeSessionCookie(token)
+        }
+      });
+    }
+
+    // 2FA activo — generar OTP y enviar correo
     const newOtp = generateOTP();
     const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-    // Guardar OTP temporal (podríamos usar una tabla separada 'temp_sessions' para mayor limpieza, 
-    // pero actualizar el usuario funciona bien para este caso)
     await env.MIRAI_AI_DB.prepare(
       "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
     ).bind(newOtp, newExpires, user.dni).run();
 
-    // Enviar correo
     const emailSent = await sendVerificationEmail(user.email, newOtp, env);
 
     if (!emailSent) {
@@ -644,7 +673,6 @@ async function handleLogin(request, env, corsHeaders) {
       }, 500, corsHeaders);
     }
 
-    // Responder indicando que se necesita verificación
     return jsonResponse({
       error: 'Credenciales correctas. Se ha enviado un código de verificación a tu correo.',
       needs_verification: true,
@@ -6855,7 +6883,7 @@ async function handleSaveUserSettings(request, env, corsHeaders) {
     const body = await request.json();
 
     // Solo guardamos campos permitidos (whitelist)
-    const allowed = ['accentColor', 'fontFamily', 'fontSize', 'reducedMotion', 'themeMode', 'aiModel', 'notifications'];
+    const allowed = ['accentColor', 'fontFamily', 'fontSize', 'reducedMotion', 'themeMode', 'aiModel', 'notifications', 'twoFactor'];
     const clean = {};
     for (const key of allowed) {
       if (body[key] !== undefined) clean[key] = body[key];
