@@ -1518,7 +1518,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/create-course' && request.method === 'POST') {
       // ✨ requireProfessorAuth en lugar de requireAuth
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { title, description } = await request.json();
 
@@ -1570,7 +1570,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // Ruta: GET /api/professor-disputes
     if (path === '/api/professor-disputes' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
@@ -1693,7 +1693,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     if (path === '/api/admin-tasks' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
@@ -1811,7 +1811,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 4. Eliminar Tarea: DELETE /api/delete-assignment
     if (path === '/api/delete-assignment' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const id = url.searchParams.get('id');
       if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
@@ -1832,7 +1832,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 5. Asignar Estudiante: POST /api/assign-student
     if (path === '/api/assign-student' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { assignment_id, user_dni } = await request.json();
 
@@ -1860,7 +1860,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 6. Listar Estudiantes de una Tarea: GET /api/task-students
     if (path === '/api/task-students' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const assignmentId = url.searchParams.get('assignment_id');
       if (!assignmentId) return jsonResponse({ error: 'Falta ID de tarea' }, 400, corsHeaders);
@@ -1888,7 +1888,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 7. Quitar Estudiante: DELETE /api/unassign-student
     if (path === '/api/unassign-student' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { assignment_id, user_dni } = await request.json();
 
@@ -1983,7 +1983,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // GET /api/sections — lista las secciones del profesor autenticado
     if (path === '/api/sections' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni || userDni instanceof Response) return userDni;
+      if (!userDni) return;
 
       const { results } = await env.MIRAI_AI_DB.prepare(`
     SELECT s.id, s.name, s.description, s.course_id, s.created_at,
@@ -2003,7 +2003,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // POST /api/create-section
     if (path === '/api/create-section' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { name, description, course_id } = await request.json();
       if (!name || !course_id) {
@@ -2028,7 +2028,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // DELETE /api/delete-section?id=xxx
     if (path === '/api/delete-section' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const id = url.searchParams.get('id');
       if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
@@ -2049,7 +2049,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // GET /api/section-students?section_id=xxx
     if (path === '/api/section-students' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const sectionId = url.searchParams.get('section_id');
       if (!sectionId) return jsonResponse({ error: 'section_id requerido' }, 400, corsHeaders);
@@ -2076,7 +2076,7 @@ ORDER BY u.last_name, u.first_name
     // POST /api/section-add-students-batch
     if (path === '/api/section-add-students-batch' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { section_id, dnis } = await request.json();
       if (!section_id || !Array.isArray(dnis) || dnis.length === 0)
@@ -2106,7 +2106,7 @@ ORDER BY u.last_name, u.first_name
     // POST /api/section-add-student
     if (path === '/api/section-add-student' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { section_id, user_dni } = await request.json();
       if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
@@ -2126,7 +2126,7 @@ ORDER BY u.last_name, u.first_name
     // DELETE /api/section-remove-student
     if (path === '/api/section-remove-student' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       const { section_id, user_dni } = await request.json();
       if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
@@ -2158,9 +2158,9 @@ ORDER BY u.last_name, u.first_name
     // 1. Crear Tarea: POST /api/create-assignment
     if (path === '/api/create-assignment' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
-      const { title, description, course_id, due_date, section_id } = await request.json();
+      const { title, description, course_id, due_date, section_id, max_score } = await request.json();
 
       if (!title || !course_id) {
         return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
@@ -2175,10 +2175,12 @@ ORDER BY u.last_name, u.first_name
       }
 
       const id = crypto.randomUUID();
+      const parsedMaxScore = parseFloat(max_score);
+      const safeMaxScore = (!isNaN(parsedMaxScore) && parsedMaxScore >= 1 && parsedMaxScore <= 100) ? parsedMaxScore : 100;
       await env.MIRAI_AI_DB.prepare(`
-    INSERT INTO assignments (id, course_id, title, description, due_date, section_id)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).bind(id, course_id, title, description || '', due_date || null, section_id || null).run();
+    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore).run();
 
       // Auto-asignar todos los estudiantes de la sección
       if (section_id) {
@@ -2576,7 +2578,7 @@ NO agregues texto adicional fuera del JSON.`;
     // Ruta: POST /api/professor-update-grade
     if (path === '/api/professor-update-grade' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return;
 
       try {
         const { submission_id, new_score, feedback } = await request.json();
@@ -8730,20 +8732,18 @@ async function requireAdminAuth(request, env, corsHeaders) {
   return userDni;
 }
 
-// DESPUÉS
 async function requireProfessorAuth(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) {
-    if (corsHeaders) jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders); // fallback log
-    return null;
+    return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
   }
 
   const isProfessor = await isAuthorizedProfessor(userDni, env);
   if (!isProfessor) {
-    return null;
+    return jsonResponse({ error: 'Acceso denegado. Requiere rol de profesor.' }, 403, corsHeaders);
   }
 
-  return userDni;
+  return userDni; // Retorna el DNI si todo OK
 }
 
 async function isAuthorizedProfessor(userDni, env) {
