@@ -400,12 +400,6 @@ async function sendMessage() {
   showLangTypingIndicator(detectedLang);
   scrollToBottom();
 
-  let useReasonerModel = false;
-  document.getElementById('model-toggle')?.addEventListener('click', function () {
-    useReasonerModel = !useReasonerModel;
-    this.textContent = useReasonerModel ? '🧠 Razonador' : '⚡ Rápido';
-  });
-
   try {
     const res = await fetch(CODE_API.CHAT_MSG, {
       method: 'POST',
@@ -415,7 +409,7 @@ async function sendMessage() {
         message,
         conversation_id: currentChatId,
         project_id: projectId,
-        model: useReasonerModel ? 'deepseek-reasoner' : 'deepseek-chat',
+        model: 'deepseek-reasoner',
       }),
     });
 
