@@ -507,21 +507,18 @@ async function removeStudent(assignmentId, userDni) {
 }
 
 function switchTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
 
-    const content = document.getElementById(`tab-${tabName}`);
-    const btn = event ? event.target : document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
+    const content = document.getElementById('tab-' + tabName);
+    if (content) content.style.display = 'block';
 
-    if (content) content.classList.add('active');
+    const btn = document.querySelector('.admin-tab-btn[data-tab="' + tabName + '"]');
     if (btn) btn.classList.add('active');
 
-    if (tabName === 'list') {
-        loadTasksList();
-    } else if (tabName === 'students') {
-        loadTasksList();
-        loadAssignedStudents();
-    }
+    if (tabName === 'list') loadTasksList();
+    else if (tabName === 'students') { loadTasksList(); loadAssignedStudents(); }
+    else if (tabName === 'submissions' && typeof loadSubmissionsTab === 'function') loadSubmissionsTab();
 }
 
 function updateStats() {

@@ -702,6 +702,8 @@
     <!-- Tab system y modal — debe ir ANTES de classroom_admin.js -->
     <script>
         // ── TABS ──────────────────────────────────────────────
+        // La lógica real está en classroom_admin.js (switchTab).
+        // Esta versión mínima inicializa el estado visual antes de que cargue el JS diferido.
         function switchTab(tabId) {
             document.querySelectorAll('.admin-tab-content').forEach(function (el) {
                 el.style.display = 'none';
@@ -713,10 +715,6 @@
             if (content) content.style.display = 'block';
             var btn = document.querySelector('.admin-tab-btn[data-tab="' + tabId + '"]');
             if (btn) btn.classList.add('active');
-
-            if (tabId === 'submissions' && typeof loadSubmissionsTab === 'function') {
-                loadSubmissionsTab();
-            }
         }
 
         // Inicializar tabs al cargar
