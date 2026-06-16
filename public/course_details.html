@@ -375,7 +375,170 @@
         </div>
 
     </div>
-<script src="mirai-boot.js"></script> 
+<!-- Modal selección de modo de aprendizaje -->
+<div class="mode-modal-overlay" id="mode-modal-overlay">
+    <div class="mode-modal">
+        <div class="mode-modal-header">
+            <div>
+                <p class="mode-modal-title" id="mode-modal-lesson-title">Elige cómo aprender</p>
+                <p class="mode-modal-subtitle">Selecciona un modo para esta lección</p>
+            </div>
+            <button class="mode-modal-close" id="mode-modal-close" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="mode-cards-grid">
+            <div class="mode-card" onclick="confirmMode('theory')">
+                <div class="mode-card-icon">📖</div>
+                <div class="mode-card-title">Teoría</div>
+                <div class="mode-card-desc">Mirai te explica los conceptos clave y fundamentos de esta lección.</div>
+                <button class="mode-card-btn">Comenzar con Teoría</button>
+            </div>
+            <div class="mode-card" onclick="confirmMode('quiz')">
+                <div class="mode-card-icon">❓</div>
+                <div class="mode-card-title">Quiz Interactivo</div>
+                <div class="mode-card-desc">Preguntas y respuestas para validar tu comprensión. ¡Aprende jugando!</div>
+                <button class="mode-card-btn">Comenzar Quiz</button>
+            </div>
+            <div class="mode-card" onclick="confirmMode('practice')">
+                <div class="mode-card-icon">💻</div>
+                <div class="mode-card-title">Práctica con Ejemplos</div>
+                <div class="mode-card-desc">Ejercicios guiados paso a paso sin darte la solución directa.</div>
+                <button class="mode-card-btn">Comenzar Práctica</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .mode-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+    }
+    .mode-modal-overlay.active {
+        opacity: 1;
+        pointer-events: all;
+    }
+    .mode-modal {
+        background: var(--glass-bg, #fff);
+        border: 1px solid var(--glass-border, rgba(0,0,0,0.1));
+        border-radius: 20px;
+        padding: 28px 24px;
+        max-width: 700px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        transform: translateY(20px) scale(0.97);
+        transition: transform 0.25s ease;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .mode-modal-overlay.active .mode-modal {
+        transform: translateY(0) scale(1);
+    }
+    .mode-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 4px;
+    }
+    .mode-modal-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 4px;
+    }
+    .mode-modal-subtitle {
+        font-size: 0.83rem;
+        color: var(--text-secondary);
+        margin: 0 0 20px;
+    }
+    .mode-modal-close {
+        background: none;
+        border: none;
+        font-size: 1.6rem;
+        cursor: pointer;
+        color: var(--text-secondary);
+        line-height: 1;
+        padding: 0 4px;
+        flex-shrink: 0;
+    }
+    .mode-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+    }
+    @media (max-width: 600px) {
+        .mode-cards-grid { grid-template-columns: 1fr; }
+    }
+    .mode-card {
+        border: 1.5px solid var(--glass-border, rgba(0,0,0,0.1));
+        border-radius: 14px;
+        padding: 20px 16px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background: var(--bg-secondary, rgba(255,255,255,0.6));
+        text-align: center;
+    }
+    .mode-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .mode-card-icon { font-size: 2rem; margin-bottom: 8px; }
+    .mode-card-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 6px; }
+    .mode-card-desc { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+    .mode-card-btn {
+        margin-top: 14px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+        color: #fff;
+        width: 100%;
+        transition: opacity 0.2s;
+    }
+    .mode-card-btn:hover { opacity: 0.88; }
+</style>
+
+<script>
+    window._pendingLesson = null;
+
+    window.openModeModal = function(courseId, lessonId, lessonTitle) {
+        window._pendingLesson = { courseId, lessonId, lessonTitle };
+        const overlay = document.getElementById('mode-modal-overlay');
+        const titleEl = document.getElementById('mode-modal-lesson-title');
+        if (titleEl) titleEl.textContent = lessonTitle || 'Elige cómo aprender';
+        if (overlay) overlay.classList.add('active');
+    };
+
+    window.confirmMode = function(mode) {
+        const { courseId, lessonId, lessonTitle } = window._pendingLesson || {};
+        if (!courseId || !lessonId) return;
+
+        const systemPrompt = `Eres un tutor experto en la lección: "${lessonTitle}". El usuario ha seleccionado el modo: "${mode.toUpperCase()}". Reglas según el modo: TEORÍA: Explica los conceptos fundamentales de forma clara y estructurada. Usa analogías. No des la solución directa, enseña el "por qué". QUIZ: Haz una pregunta a la vez. Espera la respuesta. Evalúa si es correcta, da feedback y pasa a la siguiente. Lleva un conteo de aciertos. PRÁCTICA: Proporciona un ejemplo resuelto paso a paso. Luego pide al usuario que intente algo similar. Mantén un tono alentador y pedagógico.`;
+
+        window.location.href = `chat?course=${courseId}&lesson=${lessonId}&mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const overlay = document.getElementById('mode-modal-overlay');
+        const closeBtn = document.getElementById('mode-modal-close');
+
+        if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.remove('active'));
+        if (overlay) overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.remove('active');
+        });
+    });
+</script>
+
+<script src="mirai-boot.js"></script>
 <script src="auth-guard.js"></script>
 <script type="module" src="app.js" defer></script>
     <script type="module" src="courses.js" defer></script>

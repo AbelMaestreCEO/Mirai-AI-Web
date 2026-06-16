@@ -594,11 +594,13 @@
                                 e.stopPropagation();
                                 const cid = btn.dataset.course;
                                 const lid = btn.dataset.lesson;
+                                const lessonTitle = btn.closest('.lesson-card')?.querySelector('.lesson-title')?.textContent || '';
                                 if (cid && lid) {
-                                    btn.textContent = 'Redirigiendo...';
-                                    setTimeout(() => {
+                                    if (typeof window.openModeModal === 'function') {
+                                        window.openModeModal(cid, lid, lessonTitle);
+                                    } else {
                                         window.location.href = `chat?course=${cid}&lesson=${lid}&mode=education`;
-                                    }, 300);
+                                    }
                                 }
                             }
                         });
@@ -713,8 +715,12 @@
     // FUNCIONES GLOBALES PARA COMPATIBILIDAD
     // ============================================
 
-    window.startLesson = (courseId, lessonId) => {
-        window.location.href = `chat?course=${courseId}&lesson=${lessonId}&mode=education`;
+    window.startLesson = (courseId, lessonId, lessonTitle) => {
+        if (typeof window.openModeModal === 'function') {
+            window.openModeModal(courseId, lessonId, lessonTitle || '');
+        } else {
+            window.location.href = `chat?course=${courseId}&lesson=${lessonId}&mode=education`;
+        }
     };
 
     window.selectCourse = (courseId) => {
