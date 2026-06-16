@@ -453,6 +453,25 @@ async function handleVerify(request, env, corsHeaders) {
       "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
     ).bind(dni.toUpperCase()).run();
 
+    // Asignar retroactivamente las tareas de secciones donde el DNI ya estaba registrado
+    // Cubre el caso: profesor agregó al estudiante antes de que tuviera cuenta
+    try {
+      const { results: pendingTasks } = await env.MIRAI_AI_DB.prepare(`
+        SELECT a.id AS assignment_id
+        FROM section_students ss
+        JOIN assignments a ON a.section_id = ss.section_id
+        WHERE ss.user_dni = ?
+      `).bind(dni.toUpperCase()).all();
+
+      for (const task of pendingTasks) {
+        await env.MIRAI_AI_DB.prepare(
+          'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+        ).bind(task.assignment_id, dni.toUpperCase()).run();
+      }
+    } catch (e) {
+      console.warn('No se pudieron asignar tareas retroactivas al verificar:', e.message);
+    }
+
     // DESPUÉS — pon esto:
     return new Response(JSON.stringify({
       success: true,
@@ -2168,13 +2187,27 @@ ORDER BY u.last_name, u.first_name
       ).bind(section_id, userDni).first();
       if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
+      // Obtener tareas existentes de la sección antes del loop
+      const { results: sectionTasks } = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM assignments WHERE section_id = ?'
+      ).bind(section_id).all();
+
       let inserted = 0, skipped = 0;
       for (const dni of dnis) {
         const result = await env.MIRAI_AI_DB.prepare(
           'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
         ).bind(section_id, dni.toUpperCase()).run();
-        if (result.meta?.changes > 0) inserted++;
-        else skipped++;
+        if (result.meta?.changes > 0) {
+          inserted++;
+          // Auto-asignar tareas existentes al nuevo estudiante
+          for (const task of sectionTasks) {
+            await env.MIRAI_AI_DB.prepare(
+              'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+            ).bind(task.id, dni.toUpperCase()).run();
+          }
+        } else {
+          skipped++;
+        }
       }
 
       return jsonResponse({ success: true, inserted, skipped }, 200, corsHeaders);
@@ -2196,6 +2229,16 @@ ORDER BY u.last_name, u.first_name
       await env.MIRAI_AI_DB.prepare(
         'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
       ).bind(section_id, user_dni.toUpperCase()).run();
+
+      // Auto-asignar tareas existentes de esta sección al nuevo estudiante
+      const { results: sectionTasks } = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM assignments WHERE section_id = ?'
+      ).bind(section_id).all();
+      for (const task of sectionTasks) {
+        await env.MIRAI_AI_DB.prepare(
+          'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+        ).bind(task.id, user_dni.toUpperCase()).run();
+      }
 
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
