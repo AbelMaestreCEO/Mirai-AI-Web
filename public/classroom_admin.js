@@ -964,6 +964,207 @@ function parseBatchFile() {
     reader.readAsText(file);
 }
 
+// ── TAB: TRABAJOS ENTREGADOS ──────────────────────────────────────────────────
+
+let allSubmissions = [];
+
+async function loadSubmissionsTab() {
+    const tbody = document.getElementById('submissions-table-body');
+    const countEl = document.getElementById('sub-result-count');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Cargando...</td></tr>';
+    if (countEl) countEl.textContent = '';
+
+    try {
+        const res = await fetch('/api/professor-submissions', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        allSubmissions = await res.json();
+
+        // Poblar filtro de secciones
+        const sectionFilter = document.getElementById('sub-section-filter');
+        const sections = [...new Map(allSubmissions.filter(s => s.section_name).map(s => [s.section_name, s.section_name])).entries()];
+        const prevSec = sectionFilter.value;
+        sectionFilter.innerHTML = '<option value="">Todas las secciones</option>' +
+            sections.map(([name]) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+        if (prevSec) sectionFilter.value = prevSec;
+
+        renderSubmissions(allSubmissions);
+    } catch (error) {
+        console.error('Error cargando entregas:', error);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--error-color, red);">Error al cargar trabajos</td></tr>';
+    }
+}
+
+function filterSubmissions() {
+    const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
+    const section = (document.getElementById('sub-section-filter')?.value || '').toLowerCase();
+
+    const filtered = allSubmissions.filter(s => {
+        const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+        const dni = (s.user_dni || '').toLowerCase();
+        const matchSearch = !search || fullName.includes(search) || dni.includes(search);
+        const matchSection = !section || (s.section_name || '').toLowerCase() === section;
+        return matchSearch && matchSection;
+    });
+
+    renderSubmissions(filtered);
+}
+
+function renderSubmissions(list) {
+    const tbody = document.getElementById('submissions-table-body');
+    const countEl = document.getElementById('sub-result-count');
+
+    if (countEl) countEl.textContent = `${list.length} resultado${list.length !== 1 ? 's' : ''}`;
+
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-secondary);">Sin resultados</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+    list.forEach(s => {
+        const nombre = [s.first_name, s.last_name].filter(Boolean).join(' ') || '—';
+        const nota = s.score !== null && s.score !== undefined ? `${s.score} / ${s.max_score}` : '—';
+        const fecha = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es', { day:'2-digit', month:'2-digit', year:'numeric' }) : '—';
+        const estadoBadge = s.status === 'completed'
+            ? `<span class="badge" style="background:#16a34a22;color:#16a34a;">Calificado</span>`
+            : `<span class="badge badge-pending">Pendiente</span>`;
+
+        let feedback = '';
+        if (s.feedback) {
+            try {
+                const fb = typeof s.feedback === 'string' ? JSON.parse(s.feedback) : s.feedback;
+                feedback = fb.general || Object.values(fb).filter(Boolean).join(' | ').substring(0, 180) || '—';
+            } catch { feedback = String(s.feedback).substring(0, 180); }
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${escapeHtml(nombre)}</td>
+            <td><code style="font-size:.82rem;">${escapeHtml(s.user_dni || '—')}</code></td>
+            <td>${escapeHtml(s.assignment_title || '—')}</td>
+            <td>${escapeHtml(s.section_name || '—')}</td>
+            <td><strong>${escapeHtml(nota)}</strong></td>
+            <td>${estadoBadge}</td>
+            <td style="white-space:nowrap;">${escapeHtml(fecha)}</td>
+            <td style="font-size:.8rem;max-width:260px;white-space:normal;line-height:1.4;">${escapeHtml(feedback) || '—'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function exportSubmissionsExcel() {
+    const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
+    const section = (document.getElementById('sub-section-filter')?.value || '').toLowerCase();
+
+    const list = allSubmissions.filter(s => {
+        const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+        const dni = (s.user_dni || '').toLowerCase();
+        const matchSearch = !search || fullName.includes(search) || dni.includes(search);
+        const matchSection = !section || (s.section_name || '').toLowerCase() === section;
+        return matchSearch && matchSection;
+    });
+
+    if (!list.length) { alert('No hay datos para exportar'); return; }
+
+    const headers = ['Estudiante', 'Cédula', 'Tarea', 'Sección', 'Nota IA', 'Nota Máxima', 'Estado', 'Fecha Entrega', 'Observaciones IA', 'Retroalimentación Profesor'];
+    const rows = list.map(s => {
+        const nombre = [s.first_name, s.last_name].filter(Boolean).join(' ') || '';
+        let feedback = '';
+        if (s.feedback) {
+            try {
+                const fb = typeof s.feedback === 'string' ? JSON.parse(s.feedback) : s.feedback;
+                feedback = fb.general || Object.values(fb).filter(Boolean).join(' | ');
+            } catch { feedback = String(s.feedback); }
+        }
+        const fecha = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es') : '';
+        return [
+            nombre, s.user_dni || '', s.assignment_title || '', s.section_name || '',
+            s.score ?? '', s.max_score ?? '', s.status === 'completed' ? 'Calificado' : 'Pendiente',
+            fecha, feedback, s.professor_feedback || ''
+        ];
+    });
+
+    const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `trabajos_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function exportSubmissionsPDF() {
+    const search = (document.getElementById('sub-search')?.value || '').toLowerCase().trim();
+    const section = (document.getElementById('sub-section-filter')?.value || '').toLowerCase();
+
+    const list = allSubmissions.filter(s => {
+        const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+        const dni = (s.user_dni || '').toLowerCase();
+        const matchSearch = !search || fullName.includes(search) || dni.includes(search);
+        const matchSection = !section || (s.section_name || '').toLowerCase() === section;
+        return matchSearch && matchSection;
+    });
+
+    if (!list.length) { alert('No hay datos para exportar'); return; }
+
+    const rows = list.map(s => {
+        const nombre = [s.first_name, s.last_name].filter(Boolean).join(' ') || '—';
+        const nota = s.score !== null && s.score !== undefined ? `${s.score} / ${s.max_score}` : '—';
+        const fecha = s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es') : '—';
+        let feedback = '—';
+        if (s.feedback) {
+            try {
+                const fb = typeof s.feedback === 'string' ? JSON.parse(s.feedback) : s.feedback;
+                feedback = fb.general || Object.values(fb).filter(Boolean).join(' | ') || '—';
+            } catch { feedback = String(s.feedback); }
+        }
+        return `<tr>
+            <td>${nombre}</td>
+            <td>${s.user_dni || '—'}</td>
+            <td>${s.assignment_title || '—'}</td>
+            <td>${s.section_name || '—'}</td>
+            <td><b>${nota}</b></td>
+            <td>${s.status === 'completed' ? 'Calificado' : 'Pendiente'}</td>
+            <td>${fecha}</td>
+            <td style="font-size:11px;">${feedback}</td>
+        </tr>`;
+    }).join('');
+
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<title>Trabajos Entregados</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; padding: 24px; color: #111; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  p.subtitle { color: #555; font-size: 12px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e1e2e; color: #fff; padding: 8px 6px; font-size: 11px; text-align: left; }
+  td { padding: 7px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-size: 12px; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  @media print { @page { size: A4 landscape; margin: 1.5cm; } }
+</style>
+</head><body>
+<h1>📊 Trabajos Entregados — Mirai AI</h1>
+<p class="subtitle">Exportado el ${new Date().toLocaleDateString('es')} · ${list.length} registro${list.length !== 1 ? 's' : ''}</p>
+<table>
+  <thead><tr>
+    <th>Estudiante</th><th>Cédula</th><th>Tarea</th><th>Sección</th>
+    <th>Nota IA</th><th>Estado</th><th>Fecha</th><th>Observaciones IA</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body></html>`);
+    win.document.close();
+}
+
+// Cargar automáticamente al entrar al tab
+const _origSwitchTab = window.switchTab;
+
 async function confirmBatchImport() {
     const sectionId = document.getElementById('section-student-select').value;
     if (!sectionId || !batchValidDnis.length) return;

@@ -407,6 +407,7 @@
                     Tarea</button>
                 <button class="admin-tab-btn" onclick="switchTab('list')" data-tab="list">📋 Mis Tareas</button>
                 <button class="admin-tab-btn" onclick="switchTab('sections')" data-tab="sections">🗂️ Secciones</button>
+                <button class="admin-tab-btn" onclick="switchTab('submissions')" data-tab="submissions">📊 Trabajos</button>
             </div>
 
             <!-- TAB: Crear Tarea -->
@@ -588,6 +589,62 @@
                     </div>
                 </div>
             </div>
+            <!-- TAB: Trabajos Entregados -->
+            <div id="tab-submissions" class="admin-tab-content">
+                <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
+                    <div class="course-detail-icon">📊</div>
+                    <div class="course-detail-info">
+                        <h2 class="course-detail-title" style="font-size:1.3rem;">Trabajos Entregados</h2>
+                        <p class="course-detail-description">Revisa las entregas, calificaciones IA y observaciones de tus estudiantes</p>
+                    </div>
+                </div>
+
+                <!-- Barra de filtros -->
+                <div style="padding: 0 8px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                        <label style="font-size: 0.82rem;">Buscar por nombre o cédula</label>
+                        <div class="courses-search" style="margin-top: 6px;">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                            </svg>
+                            <input type="text" id="sub-search" placeholder="Nombre o cédula..." autocomplete="off" oninput="filterSubmissions()">
+                        </div>
+                    </div>
+                    <div class="form-group" style="min-width: 200px; margin-bottom: 0;">
+                        <label style="font-size: 0.82rem;">Filtrar por sección</label>
+                        <select id="sub-section-filter" style="margin-top: 6px;" onchange="filterSubmissions()">
+                            <option value="">Todas las secciones</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" onclick="loadSubmissionsTab()" style="height: 42px; white-space: nowrap;">🔄 Actualizar</button>
+                    <button class="btn-secondary" onclick="exportSubmissionsExcel()" style="height: 42px; white-space: nowrap;">📥 Excel</button>
+                    <button class="btn-secondary" onclick="exportSubmissionsPDF()" style="height: 42px; white-space: nowrap;">🖨️ PDF</button>
+                </div>
+
+                <!-- Contador de resultados -->
+                <p id="sub-result-count" style="padding: 0 8px 10px; font-size: 0.83rem; color: var(--text-secondary);"></p>
+
+                <!-- Tabla -->
+                <div style="overflow-x: auto; padding: 0 8px 8px;">
+                    <table class="data-table" id="submissions-table">
+                        <thead>
+                            <tr>
+                                <th>Estudiante</th>
+                                <th>Cédula</th>
+                                <th>Tarea</th>
+                                <th>Sección</th>
+                                <th>Nota IA</th>
+                                <th>Estado</th>
+                                <th>Fecha Entrega</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissions-table-body">
+                            <tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-secondary);">Haz clic en "Actualizar" para cargar los trabajos</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div><!-- /tabs-container -->
 
     </main>
@@ -656,6 +713,10 @@
             if (content) content.style.display = 'block';
             var btn = document.querySelector('.admin-tab-btn[data-tab="' + tabId + '"]');
             if (btn) btn.classList.add('active');
+
+            if (tabId === 'submissions' && typeof loadSubmissionsTab === 'function') {
+                loadSubmissionsTab();
+            }
         }
 
         // Inicializar tabs al cargar

@@ -1622,6 +1622,59 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         return jsonResponse({ error: 'Error al obtener disputas' }, 500, corsHeaders);
       }
     }
+    // Ruta: GET /api/professor-submissions
+    if (path === '/api/professor-submissions' && request.method === 'GET') {
+      const userDni = await requireProfessorAuth(request, env, corsHeaders);
+      if (!userDni) return;
+
+      const search = (url.searchParams.get('search') || '').trim();
+      const sectionId = url.searchParams.get('section_id') || '';
+
+      try {
+        let query = `
+          SELECT
+            s.id,
+            s.user_dni,
+            u.first_name,
+            u.last_name,
+            a.title      AS assignment_title,
+            a.max_score,
+            s.score,
+            s.feedback,
+            s.status,
+            s.submitted_at,
+            s.professor_feedback,
+            sec.name     AS section_name
+          FROM submissions s
+          JOIN assignments a   ON s.assignment_id = a.id
+          JOIN user_courses uc ON a.course_id = uc.id
+          LEFT JOIN users u    ON s.user_dni = u.dni
+          LEFT JOIN sections sec ON a.section_id = sec.id
+          WHERE uc.user_dni = ?
+        `;
+        const bindings = [userDni];
+
+        if (sectionId) {
+          query += ' AND a.section_id = ?';
+          bindings.push(sectionId);
+        }
+        if (search) {
+          query += ' AND (s.user_dni LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ?)';
+          const like = `%${search}%`;
+          bindings.push(like, like, like);
+        }
+
+        query += ' ORDER BY s.submitted_at DESC LIMIT 500';
+
+        const stmt = env.MIRAI_AI_DB.prepare(query);
+        const { results } = await stmt.bind(...bindings).all();
+        return jsonResponse(results, 200, corsHeaders);
+      } catch (error) {
+        console.error('Error obteniendo entregas:', error);
+        return jsonResponse({ error: 'Error al obtener entregas' }, 500, corsHeaders);
+      }
+    }
+
     // RUTA: /api/enrolled-courses (MODIFICADA PARA FILTRAR POR USUARIO)
     if (path === '/api/enrolled-courses' && request.method === 'GET') {
       // 1. AUTENTICAR
