@@ -706,13 +706,13 @@
         // Esta versión mínima inicializa el estado visual antes de que cargue el JS diferido.
         function switchTab(tabId) {
             document.querySelectorAll('.admin-tab-content').forEach(function (el) {
-                el.style.display = 'none';
+                el.classList.remove('active');
             });
             document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
                 btn.classList.remove('active');
             });
             var content = document.getElementById('tab-' + tabId);
-            if (content) content.style.display = 'block';
+            if (content) content.classList.add('active');
             var btn = document.querySelector('.admin-tab-btn[data-tab="' + tabId + '"]');
             if (btn) btn.classList.add('active');
         }

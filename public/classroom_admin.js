@@ -507,11 +507,11 @@ async function removeStudent(assignmentId, userDni) {
 }
 
 function switchTab(tabName) {
-    document.querySelectorAll('.admin-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
 
     const content = document.getElementById('tab-' + tabName);
-    if (content) content.style.display = 'block';
+    if (content) content.classList.add('active');
 
     const btn = document.querySelector('.admin-tab-btn[data-tab="' + tabName + '"]');
     if (btn) btn.classList.add('active');
