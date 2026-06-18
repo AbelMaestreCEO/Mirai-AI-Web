@@ -99,27 +99,65 @@
 
                 <div class="input-group">
                     <label for="country">País</label>
-                    <div class="input-field">
-                        <select id="country" name="country" required
-                            style="width:100%;background:transparent;border:none;outline:none;font-size:1rem;color:inherit;cursor:pointer;padding-right:8px;">
-                            <option value="">— Selecciona tu país —</option>
-                            <option value="V">🇻🇪 Venezuela (V-)</option>
-                            <option value="COL">🇨🇴 Colombia (COL-)</option>
-                            <option value="ARG">🇦🇷 Argentina (ARG-)</option>
-                            <option value="PER">🇵🇪 Perú (PER-)</option>
-                            <option value="MEX">🇲🇽 México (MEX-)</option>
-                            <option value="CHL">🇨🇱 Chile (CHL-)</option>
-                            <option value="ECU">🇪🇨 Ecuador (ECU-)</option>
-                            <option value="BOL">🇧🇴 Bolivia (BOL-)</option>
-                            <option value="PRY">🇵🇾 Paraguay (PRY-)</option>
-                            <option value="URY">🇺🇾 Uruguay (URY-)</option>
-                            <option value="PAN">🇵🇦 Panamá (PAN-)</option>
-                            <option value="CRI">🇨🇷 Costa Rica (CRI-)</option>
-                            <option value="DOM">🇩🇴 Rep. Dominicana (DOM-)</option>
-                            <option value="ESP">🇪🇸 España (ESP-)</option>
-                            <option value="USA">🇺🇸 Estados Unidos (USA-)</option>
-                        </select>
-                        <span class="input-icon">🌎</span>
+                    <input type="hidden" id="country" name="country" required>
+                    <div class="country-selector" id="country-selector">
+                        <div class="country-trigger" id="country-trigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="country-trigger-flag" id="country-trigger-flag">🌎</span>
+                            <span class="country-trigger-text" id="country-trigger-text">— Selecciona tu país —</span>
+                            <span class="country-trigger-arrow">▾</span>
+                        </div>
+                        <div class="country-dropdown" id="country-dropdown" role="listbox" aria-label="Selecciona tu país">
+                            <div class="country-search-wrap">
+                                <input type="text" class="country-search" id="country-search" placeholder="Buscar país..." autocomplete="off">
+                            </div>
+                            <div class="country-list" id="country-list">
+                                <div class="country-option" data-value="V" data-label="Venezuela" role="option" tabindex="-1">
+                                    <span class="co-flag">🇻🇪</span><span class="co-name">Venezuela</span><span class="co-prefix">V-</span>
+                                </div>
+                                <div class="country-option" data-value="COL" data-label="Colombia" role="option" tabindex="-1">
+                                    <span class="co-flag">🇨🇴</span><span class="co-name">Colombia</span><span class="co-prefix">COL-</span>
+                                </div>
+                                <div class="country-option" data-value="ARG" data-label="Argentina" role="option" tabindex="-1">
+                                    <span class="co-flag">🇦🇷</span><span class="co-name">Argentina</span><span class="co-prefix">ARG-</span>
+                                </div>
+                                <div class="country-option" data-value="PER" data-label="Perú" role="option" tabindex="-1">
+                                    <span class="co-flag">🇵🇪</span><span class="co-name">Perú</span><span class="co-prefix">PER-</span>
+                                </div>
+                                <div class="country-option" data-value="MEX" data-label="México" role="option" tabindex="-1">
+                                    <span class="co-flag">🇲🇽</span><span class="co-name">México</span><span class="co-prefix">MEX-</span>
+                                </div>
+                                <div class="country-option" data-value="CHL" data-label="Chile" role="option" tabindex="-1">
+                                    <span class="co-flag">🇨🇱</span><span class="co-name">Chile</span><span class="co-prefix">CHL-</span>
+                                </div>
+                                <div class="country-option" data-value="ECU" data-label="Ecuador" role="option" tabindex="-1">
+                                    <span class="co-flag">🇪🇨</span><span class="co-name">Ecuador</span><span class="co-prefix">ECU-</span>
+                                </div>
+                                <div class="country-option" data-value="BOL" data-label="Bolivia" role="option" tabindex="-1">
+                                    <span class="co-flag">🇧🇴</span><span class="co-name">Bolivia</span><span class="co-prefix">BOL-</span>
+                                </div>
+                                <div class="country-option" data-value="PRY" data-label="Paraguay" role="option" tabindex="-1">
+                                    <span class="co-flag">🇵🇾</span><span class="co-name">Paraguay</span><span class="co-prefix">PRY-</span>
+                                </div>
+                                <div class="country-option" data-value="URY" data-label="Uruguay" role="option" tabindex="-1">
+                                    <span class="co-flag">🇺🇾</span><span class="co-name">Uruguay</span><span class="co-prefix">URY-</span>
+                                </div>
+                                <div class="country-option" data-value="PAN" data-label="Panamá" role="option" tabindex="-1">
+                                    <span class="co-flag">🇵🇦</span><span class="co-name">Panamá</span><span class="co-prefix">PAN-</span>
+                                </div>
+                                <div class="country-option" data-value="CRI" data-label="Costa Rica" role="option" tabindex="-1">
+                                    <span class="co-flag">🇨🇷</span><span class="co-name">Costa Rica</span><span class="co-prefix">CRI-</span>
+                                </div>
+                                <div class="country-option" data-value="DOM" data-label="Rep. Dominicana" role="option" tabindex="-1">
+                                    <span class="co-flag">🇩🇴</span><span class="co-name">Rep. Dominicana</span><span class="co-prefix">DOM-</span>
+                                </div>
+                                <div class="country-option" data-value="ESP" data-label="España" role="option" tabindex="-1">
+                                    <span class="co-flag">🇪🇸</span><span class="co-name">España</span><span class="co-prefix">ESP-</span>
+                                </div>
+                                <div class="country-option" data-value="USA" data-label="Estados Unidos" role="option" tabindex="-1">
+                                    <span class="co-flag">🇺🇸</span><span class="co-name">Estados Unidos</span><span class="co-prefix">USA-</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -364,7 +364,7 @@ async function handleRegister(request, env, corsHeaders) {
     if (password.length < 8) {
       return jsonResponse({ error: 'La contraseña debe tener al menos 8 caracteres' }, 400, corsHeaders);
     }
-    if (!/^[A-Z0-9]{7,10}$/.test(dni.toUpperCase())) {
+    if (!/^[A-Z]{1,5}-[A-Z0-9]{5,15}$/.test(dni.toUpperCase())) {
       return jsonResponse({ error: 'Formato de DNI inválido' }, 400, corsHeaders);
     }
 

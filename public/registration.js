@@ -7,21 +7,83 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMsg = document.getElementById('error-msg');
     const successMsg = document.getElementById('success-msg');
     const registerBtn = document.getElementById('register-btn');
-    const countrySelect = document.getElementById('country');
+    const countryInput = document.getElementById('country');
     const dniInput = document.getElementById('dni');
     const dniPrefix = document.getElementById('dni-prefix');
 
-    // Actualizar prefijo visual al cambiar país
-    countrySelect.addEventListener('change', () => {
-        const prefix = countrySelect.value;
-        if (prefix) {
-            dniPrefix.textContent = prefix + '-';
-            dniPrefix.style.display = 'flex';
-            dniInput.placeholder = 'Solo el número, sin prefijo';
-        } else {
-            dniPrefix.style.display = 'none';
-            dniInput.placeholder = 'Selecciona un país primero';
-        }
+    // ============================================
+    // CUSTOM COUNTRY SELECTOR
+    // ============================================
+    const selector   = document.getElementById('country-selector');
+    const trigger    = document.getElementById('country-trigger');
+    const triggerFlag = document.getElementById('country-trigger-flag');
+    const triggerText = document.getElementById('country-trigger-text');
+    const dropdown   = document.getElementById('country-dropdown');
+    const searchInput = document.getElementById('country-search');
+    const options    = Array.from(document.querySelectorAll('.country-option'));
+
+    triggerText.classList.add('placeholder');
+
+    function openDropdown() {
+        selector.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+        searchInput.value = '';
+        filterOptions('');
+        searchInput.focus();
+    }
+
+    function closeDropdown() {
+        selector.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    function selectCountry(option) {
+        const value = option.dataset.value;
+        const flag  = option.querySelector('.co-flag').textContent;
+        const name  = option.querySelector('.co-name').textContent;
+        const prefix = option.querySelector('.co-prefix').textContent;
+
+        countryInput.value = value;
+        triggerFlag.textContent = flag;
+        triggerText.textContent = name;
+        triggerText.classList.remove('placeholder');
+
+        options.forEach(o => o.classList.remove('selected'));
+        option.classList.add('selected');
+
+        dniPrefix.textContent = prefix;
+        dniPrefix.style.display = 'flex';
+        dniInput.placeholder = 'Solo el número, sin prefijo';
+
+        closeDropdown();
+        trigger.focus();
+    }
+
+    function filterOptions(query) {
+        const q = query.toLowerCase();
+        options.forEach(opt => {
+            const label = opt.dataset.label.toLowerCase();
+            opt.style.display = label.includes(q) ? '' : 'none';
+        });
+    }
+
+    trigger.addEventListener('click', () => selector.classList.contains('open') ? closeDropdown() : openDropdown());
+    trigger.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDropdown(); }
+        if (e.key === 'Escape') closeDropdown();
+    });
+
+    searchInput.addEventListener('input', () => filterOptions(searchInput.value));
+
+    options.forEach(opt => {
+        opt.addEventListener('click', () => selectCountry(opt));
+        opt.addEventListener('keydown', e => {
+            if (e.key === 'Enter') selectCountry(opt);
+        });
+    });
+
+    document.addEventListener('mousedown', e => {
+        if (!selector.contains(e.target)) closeDropdown();
     });
 
     // ============================================
@@ -32,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const first_name = document.getElementById('first_name').value.trim();
         const last_name  = document.getElementById('last_name').value.trim();
-        const country    = countrySelect.value;
+        const country    = countryInput.value;
         const dniRaw     = dniInput.value.trim();
         const email      = document.getElementById('email').value.trim().toLowerCase();
         const password   = document.getElementById('password').value;
