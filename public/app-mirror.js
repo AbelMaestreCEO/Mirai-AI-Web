@@ -156,12 +156,15 @@ function renderPreview() {
         item.className = 'image-item';
         const url = URL.createObjectURL(file);
         item.innerHTML = `
-            <img src="${url}" alt="${file.name}" onload="URL.revokeObjectURL(this.src)">
+            <img alt="${escapeHtml(file.name)}">
             <div class="image-info">
                 <span class="image-name">${escapeHtml(file.name)}</span>
                 <span class="image-size">${formatFileSize(file.size)}</span>
             </div>
             <button class="remove-btn" data-index="${index}" title="Eliminar">✕</button>`;
+        const img = item.querySelector('img');
+        img.onload = () => URL.revokeObjectURL(url);
+        img.src = url;
         item.querySelector('.remove-btn').addEventListener('click', e => {
             const i = parseInt(e.currentTarget.dataset.index);
             state.selectedFiles.splice(i, 1);

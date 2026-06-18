@@ -982,12 +982,15 @@
                 item.className = 'image-item';
                 item.style.animationDelay = Math.min(i * 0.04, 0.4) + 's';
                 item.innerHTML = `
-                    <img src="${esc(url)}" alt="${esc(file.name)}" loading="lazy" onload="URL.revokeObjectURL(this.src)">
+                    <img alt="${esc(file.name)}" loading="lazy">
                     <div class="image-info">
                         <span class="image-name">${esc(file.name)}</span>
                         <span class="image-size">${fmtSize(file.size)}</span>
                     </div>
                     <button class="remove-btn" data-i="${i}" title="Eliminar">✕</button>`;
+                const img = item.querySelector('img');
+                img.onload = () => URL.revokeObjectURL(url);
+                img.src = url;
                 item.querySelector('.remove-btn').addEventListener('click', ev => {
                     ev.stopPropagation();
                     state.files.splice(Number(ev.currentTarget.dataset.i), 1);
