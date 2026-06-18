@@ -424,34 +424,34 @@ async function handleRegister(request, env, corsHeaders) {
 }
 async function handleVerify(request, env, corsHeaders) {
   try {
-    const { dni, code } = await request.json();
+    const { code } = await request.json();
 
-    if (!dni || !code) {
-      return jsonResponse({ error: 'DNI y código son requeridos' }, 400, corsHeaders);
+    if (!code) {
+      return jsonResponse({ error: 'El código es requerido' }, 400, corsHeaders);
     }
 
-    // Buscar usuario y validar OTP
+    // Buscar usuario solo por código OTP válido
     const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT * FROM users WHERE dni = ? AND otp_code = ? AND otp_expires > datetime('now')"
-    ).bind(dni.toUpperCase(), code).first();
+      "SELECT * FROM users WHERE otp_code = ? AND otp_expires > datetime('now')"
+    ).bind(code).first();
 
     if (!user) {
       return jsonResponse({ error: 'Código inválido o expirado.' }, 401, corsHeaders);
     }
 
-    // 🆕 Generar Token de Sesión REAL ahora que se verificó
+    // Generar Token de Sesión
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // Guardar sesión
     await env.MIRAI_AI_DB.prepare(
       "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
-    ).bind(token, dni.toUpperCase(), expiresAt).run();
+    ).bind(token, user.dni, expiresAt).run();
 
     // Actualizar último login
     await env.MIRAI_AI_DB.prepare(
       "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
-    ).bind(dni.toUpperCase()).run();
+    ).bind(user.dni).run();
 
     // Asignar retroactivamente las tareas de secciones donde el DNI ya estaba registrado
     // Cubre el caso: profesor agregó al estudiante antes de que tuviera cuenta

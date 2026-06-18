@@ -19,8 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     verifyForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const dni = localStorage.getItem('pending_dni') || '';
-        const code = document.getElementById('otp').value;
+        const code = document.getElementById('otp').value.trim();
 
         if (code.length !== 6) {
             showError(errorMsg, 'El código debe tener 6 dígitos');
@@ -35,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dni, code })
+                body: JSON.stringify({ code })
             });
 
             const data = await res.json();
