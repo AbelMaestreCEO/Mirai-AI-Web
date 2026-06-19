@@ -9118,16 +9118,15 @@ async function handleTriggerNotification(request, env, corsHeaders) {
 // ============================================
 
 async function mirrorCreateSession(env, corsHeaders) {
-  if (!env.MIRAI_AI_DB) {
-    return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
-  }
   const sessionId = `mirai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  try {
-    await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, 0, ?)`
-    ).bind(sessionId, new Date().toISOString()).run();
-  } catch (e) {
-    return jsonResponse({ success: false, error: 'Failed to create session' }, 500, corsHeaders);
+  if (env.MIRAI_AI_DB) {
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, 0, ?)`
+      ).bind(sessionId, new Date().toISOString()).run();
+    } catch (e) {
+      console.warn('D1 session insert error (non-blocking):', e.message);
+    }
   }
   return jsonResponse({ success: true, sessionId }, 200, corsHeaders);
 }
