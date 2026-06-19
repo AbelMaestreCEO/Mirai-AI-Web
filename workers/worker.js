@@ -1904,12 +1904,17 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return await handleResetPassword(request, env, corsHeaders);
     }
 
-    if (path === '/api/process' && request.method === 'POST') {
-      return await processMirrorImages(request, env, corsHeaders);
+    if (path === '/api/mirror/session' && request.method === 'POST') {
+      return await mirrorCreateSession(env, corsHeaders);
     }
-
-    if (path === '/api/mirror/status' && request.method === 'GET') {
-      return await getMirrorStatus(env, corsHeaders);
+    if (path === '/api/mirror/upload' && request.method === 'POST') {
+      return await mirrorUploadImage(request, env, corsHeaders);
+    }
+    if (path === '/api/mirror/package' && request.method === 'POST') {
+      return await mirrorPackageSession(request, env, corsHeaders);
+    }
+    if (path === '/api/mirror/cleanup' && request.method === 'POST') {
+      return await mirrorCleanupSession(request, env, corsHeaders);
     }
     // NUEVA RUTA: Subida de archivos
     if (path === '/api/upload' && request.method === 'POST') {
@@ -9109,140 +9114,140 @@ async function handleTriggerNotification(request, env, corsHeaders) {
 }
 
 // ============================================
-// PROCESAR IMÁGENES
+// MIRROR — Subida individual + empaquetado
 // ============================================
-async function processMirrorImages(request, env, corsHeaders) {
-  const startTime = Date.now();
-  console.log('📥 /api/process');
 
+async function mirrorCreateSession(env, corsHeaders) {
+  if (!env.MIRAI_AI_DB) {
+    return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
+  }
+  const sessionId = `mirai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, 0, ?)`
+    ).bind(sessionId, new Date().toISOString()).run();
+  } catch (e) {
+    return jsonResponse({ success: false, error: 'Failed to create session' }, 500, corsHeaders);
+  }
+  return jsonResponse({ success: true, sessionId }, 200, corsHeaders);
+}
+
+async function mirrorUploadImage(request, env, corsHeaders) {
   if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
-    console.error('❌ Missing bindings (DB or MIRAI_PHOTOS)');
     return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
   }
 
   let formData;
-  try {
-    formData = await request.formData();
-  } catch (e) {
-    return jsonResponse({ success: false, error: 'Invalid form data: ' + e.message }, 400, corsHeaders);
+  try { formData = await request.formData(); } catch (e) {
+    return jsonResponse({ success: false, error: 'Invalid form data' }, 400, corsHeaders);
   }
 
-  const images = formData.getAll('images');
-  let lastModifiedList = [];
-  try {
-    const lmRaw = formData.get('lastModified');
-    if (lmRaw) lastModifiedList = JSON.parse(lmRaw);
-  } catch (_) {}
-  console.log(`🖼️  Recibidas: ${images.length}`);
+  const file = formData.get('image');
+  const sessionId = formData.get('sessionId');
+  const lastModified = Number(formData.get('lastModified') || 0);
 
-  if (!images || images.length === 0) {
-    return jsonResponse({ success: false, error: 'No images received' }, 400, corsHeaders);
+  if (!file || !sessionId) {
+    return jsonResponse({ success: false, error: 'Missing image or sessionId' }, 400, corsHeaders);
   }
 
-  // FIX: límite alineado con el frontend (200)
-  if (images.length > 200) {
-    return jsonResponse({ success: false, error: 'Max 200 files allowed' }, 400, corsHeaders);
+  const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/heic'];
+  if (file.type && !ALLOWED_TYPES.includes(file.type.toLowerCase())) {
+    return jsonResponse({ success: false, error: 'Invalid file type' }, 400, corsHeaders);
   }
 
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'];
-  const validImages = [];
-  const validLastModified = [];
-  images.forEach((img, i) => {
-    if (!img || typeof img.arrayBuffer !== 'function') return;
-    if (!img.size || img.size === 0) return;
-    if (img.type && !ALLOWED_TYPES.includes(img.type.toLowerCase())) return;
-    validImages.push(img);
-    validLastModified.push(lastModifiedList[i] || 0);
+  let dateStr = await extractEXIFDate(file);
+  if (!dateStr) dateStr = extractDateFromFilename(file.name);
+  if (!dateStr && lastModified) dateStr = new Date(lastModified).toISOString().split('T')[0];
+  if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+
+  const [year, month, day] = dateStr.split('-');
+  const folderName = `${day}-${month}-${year}`;
+
+  const imageBuffer = await file.arrayBuffer();
+  const fileId = Math.random().toString(36).substr(2, 12);
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const baseName = file.name.replace(/\.[^.]+$/, '');
+  const r2Key = `${sessionId}/${folderName}/${baseName}_${fileId}.${ext}`;
+
+  await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
+    customMetadata: { sessionId, originalName: file.name, folder: folderName, dateStr },
+    httpMetadata: { contentType: file.type || 'image/jpeg' }
   });
-
-  console.log(`✅ Válidas: ${validImages.length}`);
-
-  if (validImages.length === 0) {
-    return jsonResponse({ success: false, error: 'No valid images after filtering' }, 400, corsHeaders);
-  }
-
-  const sessionId = `mirai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`🆔 Session: ${sessionId}`);
 
   try {
     await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, ?, ?)`
-    ).bind(sessionId, validImages.length, new Date().toISOString()).run();
+      `INSERT INTO photos (session_id, r2_key, exif_date, original_name) VALUES (?, ?, ?, ?)`
+    ).bind(sessionId, r2Key, dateStr, file.name).run();
+    await env.MIRAI_AI_DB.prepare(
+      `UPDATE photo_sessions SET image_count = image_count + 1 WHERE session_id = ?`
+    ).bind(sessionId).run();
   } catch (e) {
-    console.warn('D1 session insert error:', e.message);
+    console.warn('D1 insert error:', e.message);
+  }
+
+  return jsonResponse({ success: true, fileId, folder: folderName, date: dateStr }, 200, corsHeaders);
+}
+
+async function mirrorPackageSession(request, env, corsHeaders) {
+  if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
+    return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
+  }
+
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return jsonResponse({ success: false, error: 'Invalid JSON' }, 400, corsHeaders);
+  }
+
+  const { sessionId } = body;
+  if (!sessionId) {
+    return jsonResponse({ success: false, error: 'Missing sessionId' }, 400, corsHeaders);
+  }
+
+  const photos = await env.MIRAI_AI_DB.prepare(
+    `SELECT r2_key, exif_date, original_name FROM photos WHERE session_id = ? ORDER BY exif_date ASC`
+  ).bind(sessionId).all();
+
+  if (!photos.results || !photos.results.length) {
+    return jsonResponse({ success: false, error: 'No photos in session' }, 400, corsHeaders);
   }
 
   const filesForZip = [];
-  const folderStats = {};
-  const usedNames = {}; // evitar colisiones de nombre dentro de la misma carpeta
+  const usedNames = {};
 
-  for (let idx = 0; idx < validImages.length; idx++) {
-    const image = validImages[idx];
-    try {
-      // --- Fecha ---
-      let dateStr = await extractEXIFDate(image);
-      if (!dateStr) dateStr = extractDateFromFilename(image.name);
-      if (!dateStr && validLastModified[idx]) dateStr = new Date(validLastModified[idx]).toISOString().split('T')[0];
-      if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+  for (const row of photos.results) {
+    const obj = await env.MIRAI_PHOTOS.get(row.r2_key);
+    if (!obj) continue;
 
-      const [year, month, day] = dateStr.split('-');
-      const folderName = `${day}-${month}-${year}`;
+    const folder = obj.customMetadata?.folder || 'sin-fecha';
+    const imageBuffer = await obj.arrayBuffer();
 
-      // --- Nombre único dentro de la carpeta ---
-      const ext = (image.name.split('.').pop() || 'jpg').toLowerCase();
-      const baseName = image.name.replace(/\.[^.]+$/, '');
-      const nameKey = `${folderName}/${baseName}`;
-      usedNames[nameKey] = (usedNames[nameKey] || 0) + 1;
-      const finalName = usedNames[nameKey] > 1
-        ? `${baseName}_${usedNames[nameKey]}.${ext}`
-        : `${baseName}.${ext}`;
+    const ext = (row.original_name.split('.').pop() || 'jpg').toLowerCase();
+    const baseName = row.original_name.replace(/\.[^.]+$/, '');
+    const nameKey = `${folder}/${baseName}`;
+    usedNames[nameKey] = (usedNames[nameKey] || 0) + 1;
+    const finalName = usedNames[nameKey] > 1
+      ? `${baseName}_${usedNames[nameKey]}.${ext}`
+      : `${baseName}.${ext}`;
 
-      // --- Subir a R2 ---
-      const imageBuffer = await image.arrayBuffer();
-      const r2Key = `${sessionId}/${folderName}/${finalName}`;
-
-      await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
-        customMetadata: { sessionId, originalName: image.name, folder: folderName },
-        httpMetadata: { contentType: image.type || 'image/jpeg' }
-      });
-
-      // --- Guardar en D1 ---
-      try {
-        await env.MIRAI_AI_DB.prepare(
-          `INSERT INTO photos (session_id, r2_key, exif_date, original_name) VALUES (?, ?, ?, ?)`
-        ).bind(sessionId, r2Key, dateStr, image.name).run();
-      } catch (e) {
-        console.warn('D1 photo insert error:', e.message);
-      }
-
-      filesForZip.push({
-        name: finalName,
-        path: `${folderName}/${finalName}`,
-        data: imageBuffer,
-        date: dateStr,
-        folder: folderName
-      });
-
-      folderStats[folderName] = (folderStats[folderName] || 0) + 1;
-
-    } catch (e) {
-      console.error(`Error processing "${image.name}":`, e.message);
-    }
+    filesForZip.push({
+      path: `${folder}/${finalName}`,
+      data: imageBuffer,
+      date: row.exif_date
+    });
   }
-
-  console.log(`📦 Archivos para ZIP: ${filesForZip.length}`);
-  console.log(`📁 Carpetas:`, folderStats);
 
   if (filesForZip.length === 0) {
-    return jsonResponse({ success: false, error: 'All images failed to process' }, 500, corsHeaders);
+    return jsonResponse({ success: false, error: 'All images failed to load from storage' }, 500, corsHeaders);
   }
 
-  // Ordenar por fecha antes de empaquetar
-  filesForZip.sort((a, b) => a.date.localeCompare(b.date));
-
-  const zipBlob = createZipWithFolders(filesForZip);
-  const processingTime = Date.now() - startTime;
-  console.log(`⏱️  Listo en ${processingTime}ms`);
+  filesForZip.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const zipBlob = createZipWithFolders(filesForZip.map(f => ({
+    path: f.path,
+    name: f.path.split('/').pop(),
+    data: f.data,
+    date: f.date,
+    folder: f.path.split('/')[0]
+  })));
 
   return new Response(zipBlob, {
     headers: {
@@ -9250,10 +9255,38 @@ async function processMirrorImages(request, env, corsHeaders) {
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="mirai_mirror_${sessionId}.zip"`,
       'Cache-Control': 'no-store',
-      'X-Processing-Time': `${processingTime}ms`,
       'X-Files-Count': String(filesForZip.length)
     }
   });
+}
+
+async function mirrorCleanupSession(request, env, corsHeaders) {
+  if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  }
+
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return jsonResponse({ success: false, error: 'Invalid JSON' }, 400, corsHeaders);
+  }
+
+  const { sessionId } = body;
+  if (!sessionId) return jsonResponse({ success: false, error: 'Missing sessionId' }, 400, corsHeaders);
+
+  const photos = await env.MIRAI_AI_DB.prepare(
+    `SELECT r2_key FROM photos WHERE session_id = ?`
+  ).bind(sessionId).all();
+
+  if (photos.results) {
+    for (const row of photos.results) {
+      try { await env.MIRAI_PHOTOS.delete(row.r2_key); } catch (_) {}
+    }
+  }
+
+  await env.MIRAI_AI_DB.prepare(`DELETE FROM photos WHERE session_id = ?`).bind(sessionId).run();
+  await env.MIRAI_AI_DB.prepare(`DELETE FROM photo_sessions WHERE session_id = ?`).bind(sessionId).run();
+
+  return jsonResponse({ success: true }, 200, corsHeaders);
 }
 
 // ============================================

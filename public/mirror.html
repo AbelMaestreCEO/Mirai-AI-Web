@@ -306,6 +306,191 @@
             flex-shrink: 0;
         }
 
+        /* ====== Upload Progress Panel ====== */
+        .upload-progress-panel {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border-radius: var(--border-radius-md);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+        .upload-progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .upload-progress-header h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .upload-progress-stats {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Main progress bar */
+        .upload-progress-bar-wrap {
+            width: 100%;
+            height: 8px;
+            border-radius: 99px;
+            background: var(--secondary-container);
+            overflow: hidden;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+        .upload-progress-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: var(--accent-gradient);
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+            position: relative;
+        }
+        .upload-progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+            animation: shimmer 1.8s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Per-file items in the upload list */
+        .upload-file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .upload-file-list::-webkit-scrollbar { width: 4px; }
+        .upload-file-list::-webkit-scrollbar-track { background: transparent; }
+        .upload-file-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 99px; }
+
+        .upload-file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: var(--border-radius-sm);
+            background: var(--message-user-bg);
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+            animation: fileSlideIn 0.3s ease forwards;
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        @keyframes fileSlideIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .upload-file-item.uploading {
+            border-color: var(--accent-glow);
+        }
+        .upload-file-item.done {
+            border-color: rgba(56,106,32,0.25);
+            background: rgba(56,106,32,0.06);
+        }
+        [data-theme="dark"] .upload-file-item.done {
+            border-color: rgba(168,216,140,0.15);
+            background: rgba(168,216,140,0.05);
+        }
+        .upload-file-item.error {
+            border-color: rgba(208,0,0,0.2);
+            background: rgba(208,0,0,0.05);
+        }
+
+        .upload-file-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .upload-file-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .upload-file-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .upload-file-meta {
+            font-size: 0.72rem;
+            color: var(--text-tertiary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .upload-file-status {
+            width: 22px; height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .upload-file-status .mini-spinner {
+            width: 16px; height: 16px;
+            border: 2px solid var(--glass-border);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .upload-file-status .check-icon {
+            color: #386A20;
+            animation: checkPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        [data-theme="dark"] .upload-file-status .check-icon { color: #A8D88C; }
+        @keyframes checkPop {
+            0%   { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .upload-file-status .error-icon { color: #D00000; }
+        [data-theme="dark"] .upload-file-status .error-icon { color: #ff8a80; }
+
+        /* Packaging phase */
+        .packaging-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+        .packaging-spinner {
+            width: 48px; height: 48px;
+            border: 3px solid var(--glass-border);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        .packaging-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .packaging-sub {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
         /* Expiration warning */
         .expiration-warning {
             display: flex;
@@ -749,10 +934,32 @@
                 Listo para subir imágenes.
             </div>
 
-            <!-- Spinner de proceso -->
-            <div id="loadingSpinner" style="display:none;align-items:center;gap:10px;margin-top:1rem;padding:12px 16px;border-radius:var(--border-radius-sm);background:var(--message-user-bg);font-size:0.88rem;color:var(--accent-color);">
-                <div class="mirror-spinner"></div>
-                Procesando imágenes…
+            <!-- Upload Progress Panel -->
+            <div id="uploadProgressPanel" class="upload-progress-panel hidden">
+                <div class="upload-progress-header">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="var(--accent-color)" stroke-width="2.2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span id="uploadPhaseTitle">Subiendo imágenes…</span>
+                    </h3>
+                    <span class="upload-progress-stats" id="uploadProgressStats">0 / 0</span>
+                </div>
+                <div class="upload-progress-bar-wrap">
+                    <div class="upload-progress-bar-fill" id="uploadProgressBarFill"></div>
+                </div>
+                <div class="upload-file-list" id="uploadFileList"></div>
+
+                <!-- Packaging overlay (shown after uploads finish) -->
+                <div id="packagingOverlay" class="packaging-overlay hidden">
+                    <div class="packaging-spinner"></div>
+                    <p class="packaging-text">Empaquetando tus recuerdos…</p>
+                    <p class="packaging-sub">Organizando por fecha y creando el ZIP</p>
+                </div>
             </div>
 
             <!-- Expiration -->
@@ -909,28 +1116,33 @@
         'use strict';
 
         const CONFIG = {
-            API_ENDPOINT : '/api/process',
             MAX_FILE_SIZE: 50 * 1024 * 1024,
             ALLOWED_TYPES: ['image/jpeg','image/png','image/gif','image/webp','image/heic'],
-            MAX_FILES    : 200
+            MAX_FILES    : 200,
+            CONCURRENT   : 3
         };
 
         const $ = id => document.getElementById(id);
         const el = {
-            dropZone:          $('dropZone'),
-            imageInput:        $('imageInput'),
-            previewContainer:  $('previewContainer'),
-            imageList:         $('imageList'),
-            imageCount:        $('imageCount'),
-            processBtn:        $('processBtn'),
-            downloadBtn:       $('downloadBtn'),
-            resetBtn:          $('resetBtn'),
-            statusMessage:     $('statusMessage'),
-            loadingSpinner:    $('loadingSpinner'),
-            expirationWarning: $('expirationWarning')
+            dropZone:           $('dropZone'),
+            imageInput:         $('imageInput'),
+            previewContainer:   $('previewContainer'),
+            imageList:          $('imageList'),
+            imageCount:         $('imageCount'),
+            processBtn:         $('processBtn'),
+            downloadBtn:        $('downloadBtn'),
+            resetBtn:           $('resetBtn'),
+            statusMessage:      $('statusMessage'),
+            expirationWarning:  $('expirationWarning'),
+            uploadProgressPanel:$('uploadProgressPanel'),
+            uploadPhaseTitle:   $('uploadPhaseTitle'),
+            uploadProgressStats:$('uploadProgressStats'),
+            uploadProgressBarFill:$('uploadProgressBarFill'),
+            uploadFileList:     $('uploadFileList'),
+            packagingOverlay:   $('packagingOverlay')
         };
 
-        let state = { files: [], blob: null, processing: false };
+        let state = { files: [], blob: null, processing: false, sessionId: null, aborted: false };
 
         function setup() {
             if (!el.dropZone || !el.imageInput) return;
@@ -956,12 +1168,12 @@
 
         function addFiles(fileList) {
             const valid = Array.from(fileList).filter(f => {
-                if (!CONFIG.ALLOWED_TYPES.includes(f.type)) { showStatus(`"${f.name}" no es una imagen válida.`, 'error'); return false; }
+                if (!CONFIG.ALLOWED_TYPES.includes(f.type)) { showStatus(`"${f.name}" no es una imagen valida.`, 'error'); return false; }
                 if (f.size > CONFIG.MAX_FILE_SIZE)          { showStatus(`"${f.name}" excede 50 MB.`, 'error'); return false; }
                 return true;
             });
             if (state.files.length + valid.length > CONFIG.MAX_FILES) {
-                showStatus(`Máximo ${CONFIG.MAX_FILES} archivos permitidos.`, 'error'); return;
+                showStatus(`Maximo ${CONFIG.MAX_FILES} archivos permitidos.`, 'error'); return;
             }
             state.files = [...state.files, ...valid];
             renderPreview();
@@ -987,7 +1199,7 @@
                         <span class="image-name">${esc(file.name)}</span>
                         <span class="image-size">${fmtSize(file.size)}</span>
                     </div>
-                    <button class="remove-btn" data-i="${i}" title="Eliminar">✕</button>`;
+                    <button class="remove-btn" data-i="${i}" title="Eliminar">&times;</button>`;
                 const img = item.querySelector('img');
                 img.onload = () => URL.revokeObjectURL(url);
                 img.src = url;
@@ -1000,29 +1212,164 @@
             });
         }
 
+        // ---- Upload progress UI helpers ----
+
+        function showUploadPanel() {
+            el.uploadProgressPanel.classList.remove('hidden');
+            el.uploadFileList.innerHTML = '';
+            el.uploadProgressBarFill.style.width = '0%';
+            el.packagingOverlay.classList.add('hidden');
+            el.uploadPhaseTitle.textContent = 'Subiendo imagenes…';
+        }
+
+        function addFileToUploadList(file, index) {
+            const thumb = URL.createObjectURL(file);
+            const item = document.createElement('div');
+            item.className = 'upload-file-item uploading';
+            item.id = `upload-item-${index}`;
+            item.style.animationDelay = Math.min(index * 0.05, 0.5) + 's';
+            item.innerHTML = `
+                <img class="upload-file-icon" src="${thumb}" alt="" onload="URL.revokeObjectURL(this.src)">
+                <div class="upload-file-info">
+                    <span class="upload-file-name">${esc(file.name)}</span>
+                    <div class="upload-file-meta">
+                        <span>${fmtSize(file.size)}</span>
+                        <span class="upload-file-folder"></span>
+                    </div>
+                </div>
+                <div class="upload-file-status">
+                    <div class="mini-spinner"></div>
+                </div>`;
+            el.uploadFileList.appendChild(item);
+            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function markFileDone(index, folder) {
+            const item = $(`upload-item-${index}`);
+            if (!item) return;
+            item.classList.remove('uploading');
+            item.classList.add('done');
+            const statusEl = item.querySelector('.upload-file-status');
+            statusEl.innerHTML = `<svg class="check-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+            if (folder) {
+                const folderEl = item.querySelector('.upload-file-folder');
+                if (folderEl) folderEl.textContent = folder;
+            }
+        }
+
+        function markFileError(index, msg) {
+            const item = $(`upload-item-${index}`);
+            if (!item) return;
+            item.classList.remove('uploading');
+            item.classList.add('error');
+            const statusEl = item.querySelector('.upload-file-status');
+            statusEl.innerHTML = `<svg class="error-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        }
+
+        function updateProgress(done, total) {
+            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            el.uploadProgressBarFill.style.width = pct + '%';
+            el.uploadProgressStats.textContent = `${done} / ${total}`;
+        }
+
+        // ---- Core upload + package flow ----
+
         async function processImages() {
             if (!state.files.length || state.processing) return;
             state.processing = true;
+            state.aborted = false;
             updateUI();
+            showUploadPanel();
+
+            const total = state.files.length;
+            let done = 0;
+            let errors = 0;
+            updateProgress(0, total);
+
             try {
-                const fd = new FormData();
-                state.files.forEach(f => fd.append('images', f));
-                fd.append('lastModified', JSON.stringify(state.files.map(f => f.lastModified || 0)));
-                const res = await fetch(CONFIG.API_ENDPOINT, { method:'POST', credentials:'same-origin', body:fd });
-                if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
-                state.blob = await res.blob();
-                showStatus('✅ ¡Imágenes procesadas! Descarga lista.', 'success');
+                // 1. Create session
+                const sesRes = await fetch('/api/mirror/session', { method: 'POST', credentials: 'same-origin' });
+                if (!sesRes.ok) throw new Error('No se pudo crear la sesion');
+                const { sessionId } = await sesRes.json();
+                state.sessionId = sessionId;
+
+                // 2. Upload files with concurrency limit
+                const queue = state.files.map((f, i) => ({ file: f, index: i }));
+                let cursor = 0;
+
+                async function uploadNext() {
+                    while (cursor < queue.length) {
+                        if (state.aborted) return;
+                        const { file, index } = queue[cursor++];
+                        addFileToUploadList(file, index);
+
+                        const fd = new FormData();
+                        fd.append('image', file);
+                        fd.append('sessionId', sessionId);
+                        fd.append('lastModified', String(file.lastModified || 0));
+
+                        try {
+                            const res = await fetch('/api/mirror/upload', { method: 'POST', credentials: 'same-origin', body: fd });
+                            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                            const data = await res.json();
+                            markFileDone(index, data.folder);
+                        } catch (err) {
+                            markFileError(index, err.message);
+                            errors++;
+                        }
+                        done++;
+                        updateProgress(done, total);
+                    }
+                }
+
+                const workers = [];
+                for (let i = 0; i < CONFIG.CONCURRENT; i++) workers.push(uploadNext());
+                await Promise.all(workers);
+
+                if (state.aborted) return;
+
+                if (errors === total) {
+                    showStatus('Todas las imagenes fallaron al subir.', 'error');
+                    state.processing = false;
+                    updateUI();
+                    return;
+                }
+
+                // 3. Package phase
+                el.uploadPhaseTitle.textContent = 'Empaquetando…';
+                el.uploadFileList.classList.add('hidden');
+                el.packagingOverlay.classList.remove('hidden');
+
+                const pkgRes = await fetch('/api/mirror/package', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId })
+                });
+
+                if (!pkgRes.ok) throw new Error(`Error al empaquetar: ${pkgRes.status}`);
+                state.blob = await pkgRes.blob();
+
+                // 4. Done!
+                el.uploadProgressPanel.classList.add('hidden');
+                const successMsg = errors > 0
+                    ? `${total - errors} de ${total} imagenes procesadas. Descarga lista.`
+                    : `${total} imagenes procesadas. Descarga lista.`;
+                showStatus(successMsg, 'success');
                 el.downloadBtn.style.display = 'inline-flex';
                 el.downloadBtn.disabled = false;
                 el.expirationWarning.classList.remove('hidden');
+
                 setTimeout(() => {
                     state.blob = null;
                     el.downloadBtn.disabled = true;
                     el.expirationWarning.classList.add('hidden');
                     showStatus('El archivo ha expirado. Procesa de nuevo.', 'error');
                 }, 30 * 60 * 1000);
+
             } catch (err) {
                 showStatus(`Error: ${err.message}`, 'error');
+                el.uploadProgressPanel.classList.add('hidden');
             } finally {
                 state.processing = false;
                 updateUI();
@@ -1039,16 +1386,28 @@
             URL.revokeObjectURL(a.href);
         }
 
-        function reset() {
-            state = { files:[], blob:null, processing:false };
+        async function reset() {
+            state.aborted = true;
+            if (state.sessionId) {
+                try {
+                    await fetch('/api/mirror/cleanup', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: state.sessionId })
+                    });
+                } catch (_) {}
+            }
+            state = { files: [], blob: null, processing: false, sessionId: null, aborted: false };
             el.imageInput.value = '';
             el.downloadBtn.style.display = 'none';
             el.downloadBtn.disabled = true;
             el.resetBtn.style.display = 'none';
             el.expirationWarning.classList.add('hidden');
+            el.uploadProgressPanel.classList.add('hidden');
             renderPreview();
             updateUI();
-            showStatus('Listo para nuevas imágenes.', 'info');
+            showStatus('Listo para nuevas imagenes.', 'info');
         }
 
         const SVG_ICONS = {
@@ -1066,10 +1425,8 @@
         function updateUI() {
             el.processBtn.disabled = !state.files.length || state.processing;
             if (state.processing) {
-                el.loadingSpinner.style.display = 'flex';
                 el.processBtn.innerHTML = svgIcon('processing') + ' Procesando…';
             } else {
-                el.loadingSpinner.style.display = 'none';
                 el.processBtn.innerHTML = svgIcon('process') + ' Procesar y Ordenar';
             }
             if (state.files.length > 0) el.resetBtn.style.display = 'inline-flex';
@@ -1079,8 +1436,6 @@
             const s = el.statusMessage;
             s.className = type;
             s.innerHTML = svgIcon(type, 15) + msg;
-            if (type === 'success')
-                setTimeout(() => showStatus('Listo para nuevas imágenes.', 'info'), 6000);
         }
 
         function esc(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
@@ -1090,9 +1445,9 @@
             return (b/1024**2).toFixed(1) + ' MB';
         }
 
-        window.addEventListener('offline', () => showStatus('Sin conexión a internet.', 'error'));
-        window.addEventListener('online',  () => showStatus('Conexión restaurada.', 'success'));
-        document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && state.files.length) reset(); });
+        window.addEventListener('offline', () => showStatus('Sin conexion a internet.', 'error'));
+        window.addEventListener('online',  () => showStatus('Conexion restaurada.', 'success'));
+        document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && state.files.length && !state.processing) reset(); });
         document.addEventListener('DOMContentLoaded', setup);
     })();
     </script>

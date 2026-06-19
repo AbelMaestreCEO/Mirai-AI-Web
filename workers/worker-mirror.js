@@ -49,8 +49,17 @@ export default {
 
         try {
             // API routes
-            if (request.method === 'POST' && url.pathname === '/api/process') {
-                return await processImages(request, env, corsHeaders);
+            if (request.method === 'POST' && url.pathname === '/api/session') {
+                return await createSession(env, corsHeaders);
+            }
+            if (request.method === 'POST' && url.pathname === '/api/upload') {
+                return await uploadImage(request, env, corsHeaders);
+            }
+            if (request.method === 'POST' && url.pathname === '/api/package') {
+                return await packageSession(request, env, corsHeaders);
+            }
+            if (request.method === 'POST' && url.pathname === '/api/cleanup') {
+                return await cleanupSession(request, env, corsHeaders);
             }
             if (request.method === 'GET' && url.pathname === '/api/status') {
                 return await getStatus(env, corsHeaders);
@@ -136,34 +145,102 @@ async function serveStatic(assets, request, corsHeaders) {
 
 
 // ============================================
-// PROCESAR IMÁGENES
+// SESSION + UPLOAD + PACKAGE (streaming, 200 fotos)
 // ============================================
 
-async function processImages(request, env, corsHeaders) {
-    const formData = await request.formData();
-    const files = formData.getAll('images');
+function generateId() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let id = '';
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    for (const b of arr) id += chars[b % chars.length];
+    return id;
+}
 
-    if (!files.length) {
-        return jsonResponse({ error: 'No images provided' }, 400, corsHeaders);
+async function createSession(env, corsHeaders) {
+    const sessionId = generateId();
+    await env.DB.prepare(
+        "INSERT INTO photo_sessions (id, created_at, file_count) VALUES (?, datetime('now'), 0)"
+    ).bind(sessionId).run();
+    return jsonResponse({ sessionId }, 200, corsHeaders);
+}
+
+async function uploadImage(request, env, corsHeaders) {
+    const formData = await request.formData();
+    const file = formData.get('image');
+    const sessionId = formData.get('sessionId');
+    const lastModified = Number(formData.get('lastModified') || 0);
+
+    if (!file || !sessionId) {
+        return jsonResponse({ error: 'Missing image or sessionId' }, 400, corsHeaders);
+    }
+
+    const session = await env.DB.prepare("SELECT id FROM photo_sessions WHERE id = ?").bind(sessionId).first();
+    if (!session) {
+        return jsonResponse({ error: 'Invalid session' }, 400, corsHeaders);
+    }
+
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const date = extractImageDate(bytes, file.name, lastModified);
+    const folder = formatDateFolder(date);
+    const fileId = generateId();
+    const r2Key = `sessions/${sessionId}/${fileId}`;
+
+    await env.MIRAI_PHOTOS.put(r2Key, buffer, {
+        customMetadata: {
+            originalName: file.name,
+            folder: folder,
+            dateMs: String(date.getTime())
+        }
+    });
+
+    await env.DB.prepare(
+        "INSERT INTO photos (id, session_id, r2_key, original_name, folder, date_ms, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))"
+    ).bind(fileId, sessionId, r2Key, file.name, folder, date.getTime()).run();
+
+    await env.DB.prepare(
+        "UPDATE photo_sessions SET file_count = file_count + 1 WHERE id = ?"
+    ).bind(sessionId).run();
+
+    return jsonResponse({ fileId, folder, date: date.toISOString() }, 200, corsHeaders);
+}
+
+async function packageSession(request, env, corsHeaders) {
+    const { sessionId } = await request.json();
+    if (!sessionId) {
+        return jsonResponse({ error: 'Missing sessionId' }, 400, corsHeaders);
+    }
+
+    const photos = await env.DB.prepare(
+        "SELECT r2_key, original_name, folder, date_ms FROM photos WHERE session_id = ? ORDER BY date_ms ASC"
+    ).bind(sessionId).all();
+
+    if (!photos.results || !photos.results.length) {
+        return jsonResponse({ error: 'No photos in session' }, 400, corsHeaders);
     }
 
     const items = [];
-    for (const file of files) {
-        const buffer = await file.arrayBuffer();
-        const date = extractImageDate(new Uint8Array(buffer), file.name, file.lastModified);
-        items.push({ name: file.name, buffer: new Uint8Array(buffer), date });
+    const nameCount = {};
+    for (const row of photos.results) {
+        const obj = await env.MIRAI_PHOTOS.get(row.r2_key);
+        if (!obj) continue;
+        const buffer = new Uint8Array(await obj.arrayBuffer());
+
+        let baseName = row.original_name;
+        const key = `${row.folder}/${baseName}`;
+        if (nameCount[key]) {
+            const dot = baseName.lastIndexOf('.');
+            const ext = dot >= 0 ? baseName.slice(dot) : '';
+            const stem = dot >= 0 ? baseName.slice(0, dot) : baseName;
+            baseName = `${stem}_${nameCount[key]}${ext}`;
+        }
+        nameCount[key] = (nameCount[key] || 0) + 1;
+
+        items.push({ path: `${row.folder}/${baseName}`, data: buffer });
     }
 
-    items.sort((a, b) => a.date - b.date);
-
-    const folders = {};
-    for (const item of items) {
-        const key = formatDateFolder(item.date);
-        if (!folders[key]) folders[key] = [];
-        folders[key].push(item);
-    }
-
-    const zipBytes = buildZip(folders);
+    const zipBytes = buildZipFromItems(items);
 
     return new Response(zipBytes, {
         status: 200,
@@ -173,6 +250,26 @@ async function processImages(request, env, corsHeaders) {
             'Content-Disposition': 'attachment; filename="mirai-mirror.zip"'
         }
     });
+}
+
+async function cleanupSession(request, env, corsHeaders) {
+    const { sessionId } = await request.json();
+    if (!sessionId) return jsonResponse({ error: 'Missing sessionId' }, 400, corsHeaders);
+
+    const photos = await env.DB.prepare(
+        "SELECT r2_key FROM photos WHERE session_id = ?"
+    ).bind(sessionId).all();
+
+    if (photos.results) {
+        for (const row of photos.results) {
+            try { await env.MIRAI_PHOTOS.delete(row.r2_key); } catch (_) {}
+        }
+    }
+
+    await env.DB.prepare("DELETE FROM photos WHERE session_id = ?").bind(sessionId).run();
+    await env.DB.prepare("DELETE FROM photo_sessions WHERE id = ?").bind(sessionId).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
 }
 
 function extractImageDate(bytes, filename, lastModified) {
@@ -286,23 +383,7 @@ function formatDateFolder(date) {
     return `${y}-${mo}-${d}`;
 }
 
-function buildZip(folders) {
-    const entries = [];
-    for (const [folder, items] of Object.entries(folders)) {
-        const nameCount = {};
-        for (const item of items) {
-            let baseName = item.name;
-            if (nameCount[baseName]) {
-                const dot = baseName.lastIndexOf('.');
-                const ext = dot >= 0 ? baseName.slice(dot) : '';
-                const stem = dot >= 0 ? baseName.slice(0, dot) : baseName;
-                baseName = `${stem}_${nameCount[baseName]}${ext}`;
-            }
-            nameCount[item.name] = (nameCount[item.name] || 0) + 1;
-            entries.push({ path: `${folder}/${baseName}`, data: item.buffer });
-        }
-    }
-
+function buildZipFromItems(entries) {
     const localHeaders = [];
     const centralHeaders = [];
     let localOffset = 0;
