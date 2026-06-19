@@ -2303,8 +2303,11 @@ function formatMessageContent(content) {
     return `__CODE_BLOCK_${id}__`;
   });
 
-  // Escapar el resto del HTML
-  formatted = escapeHtml(formatted);
+  // Escapar HTML pero preservar & literal (la IA envía & no &amp;)
+  formatted = formatted
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
   // Restaurar bloques de código (ahora seguros)
   const codeBlocksHTML = [];
@@ -2360,7 +2363,7 @@ function formatMessageContent(content) {
   // 3. Procesar otros elementos de Markdown (Negritas, Cursivas, etc.)
   // Como ya escapamos el texto, ahora reemplazamos los marcadores de texto
   formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/\*(.+?)\*/g, '<br><em class="roleplay-action">$1</em><br>');
   formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
   // Encabezados
