@@ -1007,6 +1007,7 @@
             try {
                 const fd = new FormData();
                 state.files.forEach(f => fd.append('images', f));
+                fd.append('lastModified', JSON.stringify(state.files.map(f => f.lastModified || 0)));
                 const res = await fetch(CONFIG.API_ENDPOINT, { method:'POST', credentials:'same-origin', body:fd });
                 if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
                 state.blob = await res.blob();

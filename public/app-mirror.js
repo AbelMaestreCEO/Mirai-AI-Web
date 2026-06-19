@@ -193,6 +193,7 @@ async function processImages() {
     try {
         const formData = new FormData();
         state.selectedFiles.forEach(file => formData.append('images', file));
+        formData.append('lastModified', JSON.stringify(state.selectedFiles.map(f => f.lastModified || 0)));
 
         const response = await fetch(MIRROR_CONFIG.API_ENDPOINT, {
             method: 'POST',

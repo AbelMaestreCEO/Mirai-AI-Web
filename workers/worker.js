@@ -9053,6 +9053,11 @@ async function processMirrorImages(request, env, corsHeaders) {
   }
 
   const images = formData.getAll('images');
+  let lastModifiedList = [];
+  try {
+    const lmRaw = formData.get('lastModified');
+    if (lmRaw) lastModifiedList = JSON.parse(lmRaw);
+  } catch (_) {}
   console.log(`🖼️  Recibidas: ${images.length}`);
 
   if (!images || images.length === 0) {
@@ -9065,12 +9070,14 @@ async function processMirrorImages(request, env, corsHeaders) {
   }
 
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'];
-  const validImages = images.filter(img => {
-    if (!img || typeof img.arrayBuffer !== 'function') return false;
-    if (!img.size || img.size === 0) return false;
-    // Si el tipo está vacío lo aceptamos igual (algunos navegadores no lo envían)
-    if (img.type && !ALLOWED_TYPES.includes(img.type.toLowerCase())) return false;
-    return true;
+  const validImages = [];
+  const validLastModified = [];
+  images.forEach((img, i) => {
+    if (!img || typeof img.arrayBuffer !== 'function') return;
+    if (!img.size || img.size === 0) return;
+    if (img.type && !ALLOWED_TYPES.includes(img.type.toLowerCase())) return;
+    validImages.push(img);
+    validLastModified.push(lastModifiedList[i] || 0);
   });
 
   console.log(`✅ Válidas: ${validImages.length}`);
@@ -9094,12 +9101,13 @@ async function processMirrorImages(request, env, corsHeaders) {
   const folderStats = {};
   const usedNames = {}; // evitar colisiones de nombre dentro de la misma carpeta
 
-  for (const image of validImages) {
+  for (let idx = 0; idx < validImages.length; idx++) {
+    const image = validImages[idx];
     try {
       // --- Fecha ---
       let dateStr = await extractEXIFDate(image);
       if (!dateStr) dateStr = extractDateFromFilename(image.name);
-      if (!dateStr && image.lastModified) dateStr = new Date(image.lastModified).toISOString().split('T')[0];
+      if (!dateStr && validLastModified[idx]) dateStr = new Date(validLastModified[idx]).toISOString().split('T')[0];
       if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
 
       const [year, month, day] = dateStr.split('-');
