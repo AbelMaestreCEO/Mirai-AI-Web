@@ -8,8 +8,8 @@ import { createZipArchive, generateZipName } from './zip-builder.js';
 function getAIGatewayURL(env) {
   return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/compat/chat/completions`;
 }
-const AI_MODEL_NORMAL = 'dynamic/DeepLlama';
-const AI_MODEL_PRO = 'dynamic/DeepLlamaPro';
+const AI_MODEL_NORMAL = 'deepseek-chat';
+const AI_MODEL_PRO = 'deepseek-reasoner';
 
 // ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
 const VIDEO_CONFIG = {
@@ -86,68 +86,92 @@ function getTokenFromCookie(request) {
   return match ? match[1] : null;
 }
 
-async function callAI(model, messages, options = {}, env) {
-  const url = getAIGatewayURL(env);
-  console.log('🌐 AI Gateway URL:', url);
+async function readSSEStream(response) {
+  let content = '';
+  let reasoning = '';
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
 
-  const useStream = options.stream !== false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'cf-aig-authorization': `Bearer ${env.AI_GATEWAY_KEY}`
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: options.temperature ?? 0.7,
-      max_tokens: options.max_tokens ?? 2000,
-      stream: useStream
-    })
-  });
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`AI Gateway error ${response.status}: ${err}`);
-  }
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
 
-  if (useStream) {
-    let content = '';
-    let reasoning = '';
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) continue;
-        const payload = trimmed.slice(5).trim();
-        if (payload === '[DONE]') continue;
-        try {
-          const chunk = JSON.parse(payload);
-          const delta = chunk.choices?.[0]?.delta;
-          if (delta?.content) content += delta.content;
-          if (delta?.reasoning_content) reasoning += delta.reasoning_content;
-        } catch {}
-      }
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      const payload = trimmed.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const chunk = JSON.parse(payload);
+        const delta = chunk.choices?.[0]?.delta;
+        if (delta?.content) content += delta.content;
+        if (delta?.reasoning_content) reasoning += delta.reasoning_content;
+      } catch {}
     }
-    return content || reasoning || '';
   }
+  return content || reasoning || '';
+}
 
-  const data = await response.json();
-  const msg = data.choices?.[0]?.message;
-  return msg?.content
-    || msg?.reasoning_content
-    || msg?.reasoning
-    || '';
+async function callAI(model, messages, options = {}, env) {
+  const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
+  const FALLBACK_MODEL = '@cf/zai-org/glm-5.2';
+
+  console.log(`🚀 Llamando DeepSeek directo: ${model}`);
+
+  try {
+    const response = await fetch(DEEPSEEK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.max_tokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`DeepSeek error ${response.status}: ${err}`);
+    }
+
+    return await readSSEStream(response);
+
+  } catch (err) {
+    console.warn(`⚠️ DeepSeek falló: ${err.message}. Usando fallback GLM...`);
+
+    const gwUrl = getAIGatewayURL(env);
+    const fallbackResponse = await fetch(gwUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'cf-aig-authorization': `Bearer ${env.AI_GATEWAY_KEY}`
+      },
+      body: JSON.stringify({
+        model: FALLBACK_MODEL,
+        messages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.max_tokens ?? 2000,
+        stream: true
+      })
+    });
+
+    if (!fallbackResponse.ok) {
+      const fallbackErr = await fallbackResponse.text();
+      throw new Error(`Fallback GLM error ${fallbackResponse.status}: ${fallbackErr}`);
+    }
+
+    return await readSSEStream(fallbackResponse);
+  }
 }
 
 // Hash de contraseña usando PBKDF2 nativo
