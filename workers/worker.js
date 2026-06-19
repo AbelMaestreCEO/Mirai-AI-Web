@@ -461,12 +461,12 @@ async function handleVerify(request, env, corsHeaders) {
         FROM section_students ss
         JOIN assignments a ON a.section_id = ss.section_id
         WHERE ss.user_dni = ?
-      `).bind(dni.toUpperCase()).all();
+      `).bind(user.dni.toUpperCase()).all();
 
       for (const task of pendingTasks) {
         await env.MIRAI_AI_DB.prepare(
           'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
-        ).bind(task.assignment_id, dni.toUpperCase()).run();
+        ).bind(task.assignment_id, user.dni.toUpperCase()).run();
       }
     } catch (e) {
       console.warn('No se pudieron asignar tareas retroactivas al verificar:', e.message);
@@ -476,10 +476,10 @@ async function handleVerify(request, env, corsHeaders) {
     return new Response(JSON.stringify({
       success: true,
       token: token,          // lo dejamos en el body para compatibilidad con verify.js
-      dni: dni.toUpperCase(),
+      dni: user.dni.toUpperCase(),
       first_name: user.first_name,
       last_name: user.last_name,
-      avatar_url: user.avatar_r2_key ? `/api/user/avatar/${dni.toUpperCase()}` : null,
+      avatar_url: user.avatar_r2_key ? `/api/user/avatar/${user.dni.toUpperCase()}` : null,
       role: user.role,
       message: '¡Verificación exitosa! Redirigiendo...'
     }), {
