@@ -7798,8 +7798,22 @@ async function handleHistory(request, conversationId, env, corsHeaders) {
       return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
     }
 
-    // 3. OBTENER HISTORIAL (solo si es dueño)
-    const messages = await getConversationHistory(conversationId, env);
+    // 3. OBTENER HISTORIAL COMPLETO para el frontend
+    const stmt = env.MIRAI_AI_DB.prepare(`
+      SELECT id, role, content, audio_url, video_url, created_at
+      FROM messages
+      WHERE conversation_id = ?
+      ORDER BY created_at ASC
+    `);
+    const { results } = await stmt.bind(conversationId).all();
+    const messages = results.map(row => ({
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      audio_url: row.audio_url,
+      video_url: row.video_url,
+      created_at: row.created_at
+    }));
 
     return jsonResponse(messages, 200, corsHeaders);
 
