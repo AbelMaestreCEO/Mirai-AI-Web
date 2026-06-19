@@ -9099,6 +9099,7 @@ async function processMirrorImages(request, env, corsHeaders) {
       // --- Fecha ---
       let dateStr = await extractEXIFDate(image);
       if (!dateStr) dateStr = extractDateFromFilename(image.name);
+      if (!dateStr && image.lastModified) dateStr = new Date(image.lastModified).toISOString().split('T')[0];
       if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
 
       const [year, month, day] = dateStr.split('-');
@@ -9203,18 +9204,43 @@ async function extractEXIFDate(file) {
 // EXTRAER FECHA DEL NOMBRE DE ARCHIVO
 // ============================================
 function extractDateFromFilename(filename) {
-  // Orden: más específico primero
-  // YYYY-MM-DD  o  YYYY/MM/DD
-  const isoMatch = filename.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
-  if (isoMatch) {
-    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  let m;
+
+  // WhatsApp: IMG-20240115-WA0001.jpg, VID-20240115-WA0001.mp4, STK-20240115-WA0001.webp
+  m = filename.match(/(?:IMG|VID|PHOTO|STK)-(\d{4})(\d{2})(\d{2})-/i);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+  // Telegram: photo_2024-01-15_14-30-22.jpg
+  m = filename.match(/photo_(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/i);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+  // Screenshot: Screenshot_20240115-143022.png o Screenshot_2024-01-15-14-30-22.png
+  m = filename.match(/Screenshot[_-](\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/i);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+  // Patrón español: 24-may.-20-02-02-06-25 → DD-MMM.-YY-HH-MM-SS-##
+  m = filename.match(/(\d{1,2})-(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\.?-(\d{2,4})-(\d{2})-(\d{2})-(\d{2})/i);
+  if (m) {
+    const monthMap = { ene:'01', feb:'02', mar:'03', abr:'04', may:'05', jun:'06', jul:'07', ago:'08', sep:'09', oct:'10', nov:'11', dic:'12' };
+    const mon = monthMap[m[2].toLowerCase()];
+    let yr = +m[3];
+    if (yr < 100) yr += 2000;
+    if (mon) return `${yr}-${mon}-${String(m[1]).padStart(2, '0')}`;
   }
 
-  // DD-MM-YYYY  o  DD/MM/YYYY
-  const dmy = filename.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
-  if (dmy) {
-    // dmy[1]=DD, dmy[2]=MM, dmy[3]=YYYY
-    return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  // YYYY-MM-DD o YYYY/MM/DD
+  m = filename.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+  // DD-MM-YYYY o DD/MM/YYYY
+  m = filename.match(/(\d{2})[-\/](\d{2})[-\/](\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+
+  // YYYYMMDD (ej. en nombres genéricos)
+  m = filename.match(/(\d{4})(\d{2})(\d{2})/);
+  if (m) {
+    const yr = +m[1];
+    if (yr >= 2000 && yr <= 2099) return `${m[1]}-${m[2]}-${m[3]}`;
   }
 
   return null;
