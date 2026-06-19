@@ -9175,7 +9175,7 @@ async function mirrorUploadImage(request, env, corsHeaders) {
 
   try {
     await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO photos (session_id, r2_key, exif_date, original_name) VALUES (?, ?, ?, ?)`
+      `INSERT INTO photos (session_id, r2_key, date_str, original_name) VALUES (?, ?, ?, ?)`
     ).bind(sessionId, r2Key, dateStr, file.name).run();
     await env.MIRAI_AI_DB.prepare(
       `UPDATE photo_sessions SET image_count = image_count + 1 WHERE session_id = ?`
@@ -9203,7 +9203,7 @@ async function mirrorPackageSession(request, env, corsHeaders) {
   }
 
   const photos = await env.MIRAI_AI_DB.prepare(
-    `SELECT r2_key, exif_date, original_name FROM photos WHERE session_id = ? ORDER BY exif_date ASC`
+    `SELECT r2_key, date_str, original_name FROM photos WHERE session_id = ? ORDER BY date_str ASC`
   ).bind(sessionId).all();
 
   if (!photos.results || !photos.results.length) {
@@ -9231,7 +9231,7 @@ async function mirrorPackageSession(request, env, corsHeaders) {
     filesForZip.push({
       path: `${folder}/${finalName}`,
       data: imageBuffer,
-      date: row.exif_date
+      date: row.date_str
     });
   }
 
