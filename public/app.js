@@ -371,18 +371,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const contextTask = urlParams.get('context_task');
   const contextMode = urlParams.get('context_mode');
   const contextSystem = urlParams.get('context_system');
+  const courseId = urlParams.get('course');
+  const lessonId = urlParams.get('lesson');
+  const urlMode = urlParams.get('mode');
+
+  const effectiveTask = contextTask || (courseId && lessonId ? `${courseId}_${lessonId}` : null);
+  const effectiveMode = contextMode || urlMode;
 
   let learningSessionActive = false;
 
-  if (contextTask && contextMode) {
-    console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${contextTask}, Modo ${contextMode}`);
+  if (effectiveTask && effectiveMode) {
+    console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${effectiveTask}, Modo ${effectiveMode}`);
     learningSessionActive = true;
 
     try {
       const token = localStorage.getItem('mirai_auth_token');
       const userDni = localStorage.getItem('mirai_user_dni');
 
-      const response = await fetch(`/api/get-or-create-learning-chat?task_id=${contextTask}&mode=${contextMode}`, {
+      const response = await fetch(`/api/get-or-create-learning-chat?task_id=${effectiveTask}&mode=${effectiveMode}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -406,7 +412,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       await loadConversationHistory(chatId);
 
-      if (data.is_new && contextSystem) {
+      if (contextSystem) {
         console.log("🔄 Estableciendo System Prompt...");
         const promptResp = await fetch('/api/set-system-prompt', {
           method: 'POST',
