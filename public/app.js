@@ -2044,7 +2044,7 @@ async function modifyResponse(messageDiv, originalContent, action) {
 
     if (data.response) {
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      contentEl.innerHTML = formatMessageContent(escapeHtml(data.response));
+      contentEl.innerHTML = formatMessageContent(data.response);
 
       const newMeta = document.createElement('div');
       newMeta.className = 'message-meta';
@@ -2135,7 +2135,7 @@ async function regenerateResponse(messageDiv, originalContent) {
     if (data.response) {
       // Reconstruir mensaje completo con nueva respuesta
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      contentEl.innerHTML = formatMessageContent(escapeHtml(data.response));
+      contentEl.innerHTML = formatMessageContent(data.response);
 
       // Re-agregar meta row
       const newMeta = document.createElement('div');
