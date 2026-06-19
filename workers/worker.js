@@ -8,8 +8,8 @@ import { createZipArchive, generateZipName } from './zip-builder.js';
 function getAIGatewayURL(env) {
   return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/compat/chat/completions`;
 }
-const AI_MODEL_NORMAL = 'deepseek-chat';
-const AI_MODEL_PRO = 'deepseek-reasoner';
+const AI_MODEL_NORMAL = 'deepseek-v4-flash';
+const AI_MODEL_PRO = 'deepseek-v4-pro';
 
 // ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
 const VIDEO_CONFIG = {
