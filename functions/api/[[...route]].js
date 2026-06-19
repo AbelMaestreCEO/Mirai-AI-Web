@@ -160,7 +160,7 @@ async function handleProcessImages(request, corsHeaders) {
   const items = [];
   for (const file of files) {
     const buffer = await file.arrayBuffer();
-    const date = extractImageDate(new Uint8Array(buffer), file.name);
+    const date = extractImageDate(new Uint8Array(buffer), file.name, file.lastModified);
     items.push({ name: file.name, buffer: new Uint8Array(buffer), date });
   }
 
@@ -185,12 +185,14 @@ async function handleProcessImages(request, corsHeaders) {
   });
 }
 
-function extractImageDate(bytes, filename) {
+function extractImageDate(bytes, filename, lastModified) {
   const exifDate = parseExifDate(bytes);
   if (exifDate) return exifDate;
 
   const fnDate = parseDateFromFilename(filename);
   if (fnDate) return fnDate;
+
+  if (lastModified && lastModified > 0) return new Date(lastModified);
 
   return new Date();
 }
@@ -293,6 +295,16 @@ function parseDateFromFilename(name) {
   // Screenshot patterns: Screenshot_20240115-143022.png
   m = name.match(/Screenshot[_-](\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/i);
   if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+
+  // Spanish month pattern: 24-may.-20-02-02-06-25 → DD-MMM.-YY-HH-MM-SS-##
+  m = name.match(/(\d{1,2})-(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\.?-(\d{2,4})-(\d{2})-(\d{2})-(\d{2})/i);
+  if (m) {
+    const monthMap = { ene:0, feb:1, mar:2, abr:3, may:4, jun:5, jul:6, ago:7, sep:8, oct:9, nov:10, dic:11 };
+    const mon = monthMap[m[2].toLowerCase()];
+    let yr = +m[3];
+    if (yr < 100) yr += 2000;
+    if (mon !== undefined) return new Date(yr, mon, +m[1], +m[4], +m[5], +m[6]);
+  }
 
   return null;
 }
