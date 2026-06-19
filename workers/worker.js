@@ -88,7 +88,10 @@ function getTokenFromCookie(request) {
 
 async function callAI(model, messages, options = {}, env) {
   const url = getAIGatewayURL(env);
-  console.log('🌐 AI Gateway URL:', url); // ← AGREGA ESTO
+  console.log('🌐 AI Gateway URL:', url);
+
+  const useStream = options.stream !== false;
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -100,18 +103,50 @@ async function callAI(model, messages, options = {}, env) {
       messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 2000,
-      ...(options.stream !== undefined && { stream: options.stream })
+      stream: useStream
     })
   });
   if (!response.ok) {
     const err = await response.text();
     throw new Error(`AI Gateway error ${response.status}: ${err}`);
   }
+
+  if (useStream) {
+    let content = '';
+    let reasoning = '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const chunk = JSON.parse(payload);
+          const delta = chunk.choices?.[0]?.delta;
+          if (delta?.content) content += delta.content;
+          if (delta?.reasoning_content) reasoning += delta.reasoning_content;
+        } catch {}
+      }
+    }
+    return content || reasoning || '';
+  }
+
   const data = await response.json();
   const msg = data.choices?.[0]?.message;
   return msg?.content
-    || msg?.reasoning_content  // DeepSeek V4 / reasoning models
-    || msg?.reasoning           // Gemma 4 / otros
+    || msg?.reasoning_content
+    || msg?.reasoning
     || '';
 }
 
