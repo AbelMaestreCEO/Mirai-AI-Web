@@ -1229,7 +1229,7 @@
             item.id = `upload-item-${index}`;
             item.style.animationDelay = Math.min(index * 0.05, 0.5) + 's';
             item.innerHTML = `
-                <img class="upload-file-icon" src="${thumb}" alt="" onload="URL.revokeObjectURL(this.src)">
+                <img class="upload-file-icon" src="${thumb}" alt="" onload="window.URL.revokeObjectURL(this.src)">
                 <div class="upload-file-info">
                     <span class="upload-file-name">${esc(file.name)}</span>
                     <div class="upload-file-meta">
