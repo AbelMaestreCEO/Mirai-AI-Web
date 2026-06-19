@@ -7750,14 +7750,16 @@ async function handleHistory(request, conversationId, env, corsHeaders) {
   }
 }
 
-async function getConversationHistory(conversationId, env) {
+async function getConversationHistory(conversationId, env, limit = 20) {
   const stmt = env.MIRAI_AI_DB.prepare(`
     SELECT id, role, content, audio_url, video_url, created_at
     FROM messages
     WHERE conversation_id = ?
-    ORDER BY created_at ASC
+    ORDER BY created_at DESC
+    LIMIT ?
   `);
-  const { results } = await stmt.bind(conversationId).all();
+  const { results } = await stmt.bind(conversationId, limit).all();
+  results.reverse();
   return results.map(row => ({
     id: row.id,
     role: row.role,
