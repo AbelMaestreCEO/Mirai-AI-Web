@@ -6508,6 +6508,7 @@ async function handleInvestigationHistoryDelete(request, env, corsHeaders) {
     console.error('❌ [Investigation] Error al eliminar historial:', err.message);
     return jsonResponse({ error: 'Error al eliminar.' }, 500, corsHeaders);
   }
+}
 
 // ════════════════════════════════════════════════════════════
 // EXA — 3 búsquedas en paralelo
