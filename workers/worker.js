@@ -1567,6 +1567,14 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return await handleInvestigationSearch(request, env, corsHeaders);
     }
 
+    if (path === '/api/investigation/history' && request.method === 'GET') {
+      return await handleInvestigationHistoryList(request, env, corsHeaders);
+    }
+
+    if (path === '/api/investigation/history' && request.method === 'DELETE') {
+      return await handleInvestigationHistoryDelete(request, env, corsHeaders);
+    }
+
     // Ruta: /api/inventory/list
     if (path === '/api/inventory/list' && request.method === 'GET') {
       return await handleInventoryList(request, env, corsHeaders);
@@ -6394,8 +6402,112 @@ async function handleInvestigationSearch(request, env, corsHeaders) {
     publishedDate: r.publishedDate || null,
   }));
 
+  // ── 8. Guardar en historial ──
+  try {
+    await env.MIRAI_AI_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS inv_history (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_dni   TEXT    NOT NULL,
+        question   TEXT    NOT NULL,
+        summary    TEXT    NOT NULL,
+        sources    TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO inv_history (user_dni, question, summary, sources)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      userDni.toUpperCase(),
+      question.substring(0, 500),
+      summary.substring(0, 8000),
+      JSON.stringify(sources).substring(0, 8000)
+    ).run();
+  } catch (err) {
+    console.error('⚠️ [Investigation] Error al guardar historial:', err.message);
+  }
+
   return jsonResponse({ summary, sources }, 200, corsHeaders);
 }
+
+// ════════════════════════════════════════════════════════════
+// GET /api/investigation/history — listar historial del usuario
+// ════════════════════════════════════════════════════════════
+
+async function handleInvestigationHistoryList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) {
+    return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
+  }
+
+  try {
+    await env.MIRAI_AI_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS inv_history (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_dni   TEXT    NOT NULL,
+        question   TEXT    NOT NULL,
+        summary    TEXT    NOT NULL,
+        sources    TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, question, summary, sources, created_at
+      FROM inv_history
+      WHERE user_dni = ?
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).bind(userDni.toUpperCase()).all();
+
+    const items = (results || []).map(r => ({
+      id: r.id,
+      question: r.question,
+      summary: r.summary,
+      sources: r.sources ? JSON.parse(r.sources) : [],
+      created_at: r.created_at,
+    }));
+
+    return jsonResponse({ history: items }, 200, corsHeaders);
+  } catch (err) {
+    console.error('❌ [Investigation] Error al listar historial:', err.message);
+    return jsonResponse({ error: 'Error al cargar historial.' }, 500, corsHeaders);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// DELETE /api/investigation/history — eliminar entrada del historial
+// ════════════════════════════════════════════════════════════
+
+async function handleInvestigationHistoryDelete(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) {
+    return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
+  }
+
+  let id;
+  try {
+    const body = await request.json();
+    id = body.id;
+  } catch (_) {
+    return jsonResponse({ error: 'Cuerpo inválido.' }, 400, corsHeaders);
+  }
+
+  if (!id) {
+    return jsonResponse({ error: 'Se requiere el campo "id".' }, 400, corsHeaders);
+  }
+
+  try {
+    await env.MIRAI_AI_DB.prepare(`
+      DELETE FROM inv_history WHERE id = ? AND user_dni = ?
+    `).bind(id, userDni.toUpperCase()).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (err) {
+    console.error('❌ [Investigation] Error al eliminar historial:', err.message);
+    return jsonResponse({ error: 'Error al eliminar.' }, 500, corsHeaders);
+  }
 
 // ════════════════════════════════════════════════════════════
 // EXA — 3 búsquedas en paralelo

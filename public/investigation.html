@@ -501,6 +501,105 @@ body.sidebar-collapsed .inv-page-content {
     word-break: break-word;
     font-family: 'Georgia', 'Times New Roman', serif;
 }
+
+/* ── Historial de búsquedas ── */
+.inv-history-section {
+    width: 100%;
+    max-width: 680px;
+    margin: 28px auto 0;
+}
+.inv-history-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+    background: var(--glass-bg, rgba(255,255,255,0.8));
+    color: var(--text-secondary, #888);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    font-family: inherit;
+}
+.inv-history-toggle:hover {
+    border-color: var(--accent-color, #6750A4);
+    color: var(--accent-color, #6750A4);
+}
+.inv-history-toggle.active {
+    border-color: var(--accent-color, #6750A4);
+    color: var(--accent-color, #6750A4);
+    background: var(--secondary-container, #E8DEF8);
+}
+.inv-history-list {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.inv-history-list.visible { display: flex; }
+.inv-history-list:empty::after {
+    content: 'Aún no tienes búsquedas guardadas.';
+    font-size: 0.84rem;
+    color: var(--text-secondary, #aaa);
+    text-align: center;
+    padding: 18px 0;
+}
+.inv-history-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+    background: var(--glass-bg, rgba(255,255,255,0.8));
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.inv-history-item:hover {
+    border-color: var(--accent-color, #6750A4);
+    box-shadow: 0 2px 10px var(--accent-glow, rgba(103,80,164,0.1));
+}
+.inv-history-item-body {
+    flex: 1;
+    min-width: 0;
+}
+.inv-history-item-question {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.inv-history-item-date {
+    font-size: 0.72rem;
+    color: var(--text-secondary, #aaa);
+    margin-top: 2px;
+}
+.inv-history-delete {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #bbb);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+    font-size: 1rem;
+}
+.inv-history-delete:hover {
+    background: #FFEBEE;
+    color: #B71C1C;
+}
 </style>
 </head>
 
@@ -781,6 +880,17 @@ body.sidebar-collapsed .inv-page-content {
             <p class="inv-disclaimer">
                 ⚠️ El resumen es generado por IA a partir de fuentes públicas. Verifica la información antes de usarla en trabajos académicos.
             </p>
+
+            <!-- ── Historial de búsquedas ── -->
+            <div class="inv-history-section">
+                <button class="inv-history-toggle" id="inv-history-toggle">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                        <path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                    </svg>
+                    Historial de búsquedas
+                </button>
+                <div class="inv-history-list" id="inv-history-list"></div>
+            </div>
         </div>
 
         <!-- Zona de resultados -->

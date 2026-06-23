@@ -17,6 +17,7 @@ if (!document.getElementById('inv-input')) {
 
 const INV_CONFIG = {
     API_ENDPOINT: '/api/investigation/search',
+    HISTORY_ENDPOINT: '/api/investigation/history',
     STEP_INTERVAL: 2200,
     MAX_COPY_RESET: 2500,
 };
@@ -74,6 +75,8 @@ const invEl = {
     copyBtn: document.getElementById('inv-copy-btn'),
     copyApaBtn: document.getElementById('inv-copy-apa-btn'),
     apaBox: document.getElementById('inv-apa-box'),
+    historyToggle: document.getElementById('inv-history-toggle'),
+    historyList: document.getElementById('inv-history-list'),
 };
 
 // ════════════════════════════════════════════════════════════
@@ -367,6 +370,8 @@ async function startInvestigation() {
 
         renderResult(data);
 
+        if (invEl.historyList.classList.contains('visible')) loadHistory();
+
     } catch (err) {
         stopLoadingAnimation();
         const msg = err.message.includes('Failed to fetch')
@@ -478,6 +483,70 @@ function autoResizeTextarea() {
 }
 
 // ════════════════════════════════════════════════════════════
+// HISTORIAL DE BÚSQUEDAS
+// ════════════════════════════════════════════════════════════
+
+async function loadHistory() {
+    try {
+        const res = await fetch(INV_CONFIG.HISTORY_ENDPOINT, { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderHistoryList(data.history || []);
+    } catch (_) { }
+}
+
+function renderHistoryList(items) {
+    invEl.historyList.innerHTML = '';
+    items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'inv-history-item';
+        div.innerHTML = `
+            <div class="inv-history-item-body">
+                <div class="inv-history-item-question">${escHtml(item.question)}</div>
+                <div class="inv-history-item-date">${formatHistoryDate(item.created_at)}</div>
+            </div>
+            <button class="inv-history-delete" title="Eliminar" data-id="${item.id}">&times;</button>
+        `;
+        div.querySelector('.inv-history-item-body').addEventListener('click', () => {
+            renderResult({ summary: item.summary, sources: item.sources || [] });
+            invEl.input.value = item.question;
+            autoResizeTextarea();
+            invEl.historyList.classList.remove('visible');
+            invEl.historyToggle.classList.remove('active');
+        });
+        div.querySelector('.inv-history-delete').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            try {
+                await fetch(INV_CONFIG.HISTORY_ENDPOINT, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: Number(id) }),
+                });
+                div.remove();
+            } catch (_) { }
+        });
+        invEl.historyList.appendChild(div);
+    });
+}
+
+function formatHistoryDate(isoStr) {
+    if (!isoStr) return '';
+    try {
+        const d = new Date(isoStr + 'Z');
+        const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}, ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+    } catch (_) { return isoStr; }
+}
+
+function toggleHistory() {
+    const visible = invEl.historyList.classList.toggle('visible');
+    invEl.historyToggle.classList.toggle('active', visible);
+    if (visible) loadHistory();
+}
+
+// ════════════════════════════════════════════════════════════
 // REGISTRO DE EVENTOS
 // ════════════════════════════════════════════════════════════
 
@@ -490,6 +559,9 @@ function setupEventListeners() {
     invEl.copyBtn.addEventListener('click', handleCopy);
     if (invEl.copyApaBtn) {
         invEl.copyApaBtn.addEventListener('click', handleCopyApa);
+    }
+    if (invEl.historyToggle) {
+        invEl.historyToggle.addEventListener('click', toggleHistory);
     }
 }
 
