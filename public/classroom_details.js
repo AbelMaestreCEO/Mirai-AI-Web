@@ -6,6 +6,7 @@ console.log('🔍 classroom_details.js cargado');
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ DOMContentLoaded');
 
+    if (window.miraiUserReady) await window.miraiUserReady;
     const dni = window.miraiUser?.dni;
     if (!dni) return;
 

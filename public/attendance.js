@@ -291,7 +291,8 @@ function showResult(icon, title, sub) {
 }
 
 // ── Init ──────────────────────────────────────────────────────
-function init() {
+async function init() {
+    if (window.miraiUserReady) await window.miraiUserReady;
     loadProfile();
     loadHistory();
 

@@ -57,6 +57,7 @@ let state = {
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', async () => {
+        if (window.miraiUserReady) await window.miraiUserReady;
         // Tema y Sidebar → manejados por mirai-boot.js + app.js. No tocar aquí.
         // NO llamar MiraiApp.init() — app.js ya se auto-inicializa al cargar.
  

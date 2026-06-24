@@ -1,5 +1,5 @@
 /**
- * MIRAI AI - Auth Guard Universal v5 (cookie-based)
+ * MIRAI AI - Auth Guard Universal v6 (cookie-based)
  *
  * INSTRUCCIONES DE USO:
  * - Poner SOLO en páginas protegidas de la app (index, inventory, classroom, etc.)
@@ -7,8 +7,9 @@
  *
  * Comportamiento: si no hay sesión válida en cookie → redirige a login
  * Expone window.miraiUser = { dni, name, role } para uso en la app
+ * Expone window.miraiUserReady (Promise) para que otros scripts esperen la autenticación
  */
-(async function () {
+window.miraiUserReady = (async function () {
     'use strict';
     try {
         var res = await fetch('/api/me', { credentials: 'same-origin' });

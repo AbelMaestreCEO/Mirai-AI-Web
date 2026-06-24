@@ -6,6 +6,7 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', async () => {
+        if (window.miraiUserReady) await window.miraiUserReady;
         const dni = window.miraiUser?.dni;
         if (!dni) return;
 

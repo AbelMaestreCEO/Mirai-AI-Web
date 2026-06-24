@@ -823,6 +823,7 @@ function bindEvents() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function init() {
+    if (window.miraiUserReady) await window.miraiUserReady;
     const user = getUser();
 
     // Mostrar botón de panel admin si el usuario es profesor

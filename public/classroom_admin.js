@@ -4,6 +4,7 @@ let currentUserDni = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Auth Check (Sin redefinir fetch)
+    if (window.miraiUserReady) await window.miraiUserReady;
     currentUserDni = window.miraiUser?.dni;
     if (!currentUserDni) return;
 
