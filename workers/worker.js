@@ -7787,21 +7787,84 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
   }
 }
 
-// --- NUEVO: ENVIAR CORREO DE RECUPERACIÓN ---
+// --- ENVIAR CORREO DE RECUPERACIÓN ---
 async function sendRecoveryEmail(email, token, env) {
+  const RESEND_API_KEY = env.RESEND_API_KEY;
+
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY no configurada');
+    return false;
+  }
+
+  const recoveryLink = `https://aberumirai.com/reset-password.html?token=${token}`;
+
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: 'Roboto', sans-serif; background: #0d1117; padding: 20px; margin: 0; }
+        .container { max-width: 520px; margin: 0 auto; background: #161b22; padding: 40px 30px; border-radius: 12px; border: 1px solid #30363d; }
+        h1 { color: #e6edf3; text-align: center; font-size: 22px; margin-bottom: 8px; }
+        .brand { color: #58a6ff; }
+        p { color: #8b949e; line-height: 1.7; font-size: 14px; }
+        .btn {
+          display: block;
+          width: 100%;
+          max-width: 280px;
+          margin: 25px auto;
+          padding: 14px 24px;
+          background: #58a6ff;
+          color: #0d1117;
+          text-align: center;
+          text-decoration: none;
+          font-weight: 700;
+          font-size: 15px;
+          border-radius: 8px;
+        }
+        .link-fallback { font-size: 12px; color: #484f58; word-break: break-all; text-align: center; margin-top: 10px; }
+        .warning { font-size: 12px; color: #484f58; text-align: center; margin-top: 30px; }
+        .warning strong { color: #8b949e; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🔑 <span class="brand">Mirai AI</span></h1>
+        <p>Hola,</p>
+        <p>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para crear una nueva:</p>
+        <a href="${recoveryLink}" class="btn">Restablecer contraseña</a>
+        <p class="link-fallback">Si el botón no funciona, copia y pega este enlace en tu navegador:<br>${recoveryLink}</p>
+        <p>Este enlace expira en <strong>1 hora</strong>. Si no solicitaste este correo, puedes ignorarlo.</p>
+        <div class="warning">
+          © 2026 Mirai AI · Powered by <strong>Proton</strong> & <strong>Cloudflare</strong>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
   try {
-    // Nota: Para enviar correos reales necesitas configurar un servicio SMTP 
-    // o usar una API como SendGrid/Resend. Aquí simulamos la lógica.
-    // Si usas Proton Mail, podrías integrar su API o un worker SMTP.
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Mirai AI <mirai@aberumirai.com>',
+        to: email,
+        subject: 'Restablecer contraseña — Mirai AI 🔑',
+        html: htmlBody
+      })
+    });
 
-    const recoveryLink = `https://aberumirai.com/reset-password?token=${token}`;
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Error Resend (recovery):', err);
+      return false;
+    }
 
-    console.log(`📧 [Recovery] Enviando correo a ${email} con link: ${recoveryLink}`);
-
-    // AQUÍ IRÍA TU LÓGICA DE ENVÍO DE CORREO REAL
-    // Ejemplo con una API genérica:
-    // await fetch('https://api.sendgrid.com/v3/mail/send', { ... });
-
+    console.log(`📧 [Recovery] Correo enviado a ${email}`);
     return true;
   } catch (error) {
     console.error('❌ Error enviando correo de recuperación:', error);
