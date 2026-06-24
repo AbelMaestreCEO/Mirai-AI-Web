@@ -2653,25 +2653,44 @@ ORDER BY u.last_name, u.first_name
           const imageBytes = new Uint8Array(imageBuffer);
           const imageArray = Array.from(imageBytes);
 
-          const visionPrompt = `Eres un profesor experto evaluador académico. Analiza esta imagen que un estudiante ha entregado como tarea.
+          // Paso 1: LLaVA describe la imagen (prompt corto y simple)
+          const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+            image: imageArray,
+            prompt: 'Describe this image in detail. What objects, colors, shapes, text, and elements do you see? Be specific.',
+            max_tokens: 512
+          });
 
-TAREA: ${submissionData.title}
-DESCRIPCIÓN Y REQUISITOS: ${submissionData.description}
+          const visionText = (visionResponse.response || visionResponse.text || '').trim();
+          console.log('🖼️ [DEBUG] Respuesta LLaVA raw:', visionText.substring(0, 300));
+
+          if (!visionText || visionText.length < 5) {
+            console.warn('⚠️ [DEBUG] LLaVA no devolvió descripción, intentando con prompt alternativo...');
+            const retryResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+              image: imageArray,
+              prompt: 'What is in this image?',
+              max_tokens: 512
+            });
+            const retryText = (retryResponse.response || retryResponse.text || '').trim();
+            console.log('🖼️ [DEBUG] Respuesta LLaVA retry:', retryText.substring(0, 300));
+            var finalVisionText = retryText || 'No se pudo analizar la imagen.';
+          } else {
+            var finalVisionText = visionText;
+          }
+
+          // Paso 2: DeepSeek evalúa basándose en la descripción de LLaVA
+          const refinePrompt = `Eres un profesor evaluador académico. Un sistema de visión artificial analizó la imagen entregada por un estudiante y generó esta descripción:
+
+DESCRIPCIÓN DE LA IMAGEN: "${finalVisionText}"
+
+TAREA ASIGNADA: ${submissionData.title}
+REQUISITOS DE LA TAREA: ${submissionData.description}
 PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
 
-CRITERIOS DE EVALUACIÓN PARA IMAGEN:
-1. Cumplimiento de requisitos: ¿La imagen cumple con lo que pide la tarea? Compara detalladamente lo que ves con cada requisito de la descripción.
-2. Calidad visual: ¿La imagen es clara, está bien enfocada, tiene buena resolución?
-3. Creatividad y esfuerzo: ¿Se nota esfuerzo y creatividad en el trabajo?
-4. Precisión: ¿Los elementos representados son correctos y apropiados para la tarea?
-5. Presentación: ¿La imagen está limpia, bien encuadrada y presentada de forma profesional?
-6. Pertinencia: Si la imagen no tiene relación con la tarea, la puntuación máxima es 20%.
-
 INSTRUCCIONES:
-1. Describe brevemente qué ves en la imagen.
-2. Compara lo que ves con cada requisito de la descripción de la tarea.
-3. Evalúa cada criterio y asigna una puntuación.
-4. Devuelve SOLO un JSON válido con este formato exacto:
+1. Compara la descripción de la imagen con los requisitos de la tarea.
+2. Si la descripción indica que la imagen NO cumple los requisitos, penaliza fuertemente.
+3. Si cumple, califica según calidad y esfuerzo visible.
+4. Devuelve EXCLUSIVAMENTE un JSON con este formato:
 {
   "score": <número entero de 0 a ${submissionData.max_score}>,
   "feedback": {
@@ -2681,48 +2700,10 @@ INSTRUCCIONES:
     "precision": "<evaluación de precisión>",
     "presentacion": "<evaluación de presentación>",
     "pertinencia": "<relación con la tarea>",
-    "general": "<resumen general de la evaluación>"
+    "general": "<resumen general>"
   },
   "reasoning": "<razonamiento breve>"
 }
-
-NO agregues texto adicional fuera del JSON.`;
-
-          const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-            image: imageArray,
-            prompt: visionPrompt,
-            max_tokens: 1024
-          });
-
-          const visionText = visionResponse.response || visionResponse.text || '';
-          console.log('🖼️ [DEBUG] Respuesta LLaVA raw:', visionText.substring(0, 300));
-
-          // LLaVA puede no devolver JSON perfecto, usar DeepSeek para refinar
-          const refinePrompt = `Eres un evaluador académico. Un modelo de visión analizó una imagen entregada por un estudiante y produjo la siguiente descripción/evaluación:
-
-"${visionText}"
-
-TAREA: ${submissionData.title}
-DESCRIPCIÓN Y REQUISITOS: ${submissionData.description}
-PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
-
-Basándote en esa descripción visual, genera una evaluación justa. Si la descripción indica que la imagen NO cumple los requisitos de la tarea, penaliza fuertemente. Si cumple, califica según calidad y esfuerzo.
-
-Devuelve EXCLUSIVAMENTE un JSON con este formato:
-{
-  "score": <número entero de 0 a ${submissionData.max_score}>,
-  "feedback": {
-    "cumplimiento_requisitos": "<qué requisitos cumple y cuáles no>",
-    "calidad_visual": "<evaluación>",
-    "creatividad": "<evaluación>",
-    "precision": "<evaluación>",
-    "presentacion": "<evaluación>",
-    "pertinencia": "<relación con la tarea>",
-    "general": "<resumen general>"
-  },
-  "reasoning": "<razonamiento>"
-}
-
 NO agregues texto fuera del JSON.`;
 
           aiContent = await callAI(
