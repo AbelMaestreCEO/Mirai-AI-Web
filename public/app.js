@@ -472,10 +472,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 10 * 60 * 1000);
   }
 
-  const _origSendMessage = window.sendMessage || sendMessage;
   const _chatInput = document.getElementById('message-input');
   if (_chatInput) {
-    const observer = new MutationObserver(() => {});
     _chatInput.addEventListener('keydown', () => {
       _lastUserMessageTime = Date.now();
       schedulePreferenceAnalysis();
