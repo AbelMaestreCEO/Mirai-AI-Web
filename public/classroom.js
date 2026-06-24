@@ -211,6 +211,7 @@
                 <p class="task-course-name">
                     📚 ${escapeHtml(assignment.course_title || 'Sin curso')}
                     ${assignment.section_name ? `<span style="margin-left:8px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🗂️ ${escapeHtml(assignment.section_name)}</span>` : ''}
+                    ${assignment.submission_type === 'image' ? `<span style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🖼️ Imagen</span>` : assignment.submission_type === 'any' ? `<span style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">📎 Cualquier formato</span>` : ''}
                 </p>
 
                 <div class="task-meta">

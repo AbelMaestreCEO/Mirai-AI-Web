@@ -209,16 +209,24 @@ function handleSubmissionState(submission, assignment, elements) {
 
         if (elements.submitSection) {
             elements.submitSection.style.display = 'block';
-            renderUploadForm(elements.submitSection, assignment.id);
+            renderUploadForm(elements.submitSection, assignment.id, assignment.submission_type);
         }
     }
 }
 
 // --- FORMULARIO DE SUBIDA ---
-function renderUploadForm(container, assignmentId) {
+function renderUploadForm(container, assignmentId, submissionType) {
+    const type = submissionType || 'document';
+    const acceptMap = {
+        document: { accept: '.pdf,.docx', label: 'PDF o DOCX', icon: '📄' },
+        image: { accept: '.png,.jpg,.jpeg,.webp', label: 'imagen PNG, JPG o WEBP', icon: '🖼️' },
+        any: { accept: '.pdf,.docx,.png,.jpg,.jpeg,.webp', label: 'PDF, DOCX o imagen PNG/JPG/WEBP', icon: '📎' }
+    };
+    const cfg = acceptMap[type] || acceptMap.any;
+
     container.innerHTML = `
         <h3 class="section-title">Entregar Tarea</h3>
-        <p class="section-subtitle">Sube tu trabajo en formato PDF, DOCX o imagen PNG/JPG/WEBP (máx. 10MB)</p>
+        <p class="section-subtitle">${cfg.icon} Sube tu trabajo en formato ${cfg.label} (máx. 10MB)</p>
         
         <div class="upload-area" id="upload-area">
             <div class="upload-icon">📤</div>
@@ -227,7 +235,7 @@ function renderUploadForm(container, assignmentId) {
             
             <div class="file-input-wrapper">
                 <button class="btn btn-primary">Seleccionar Archivos</button>
-                <input type="file" id="file-input" accept=".pdf,.docx,.png,.jpg,.jpeg,.webp" multiple>
+                <input type="file" id="file-input" accept="${cfg.accept}" multiple>
             </div>
 
             <div id="file-list" class="file-list"></div>
@@ -277,20 +285,12 @@ function renderUploadForm(container, assignmentId) {
     });
 
     function validateAndAddFile(file) {
-        const validTypes = [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'image/png',
-            'image/jpeg',
-            'image/webp'
-        ];
-        const validExtensions = ['.pdf', '.docx', '.png', '.jpg', '.jpeg', '.webp'];
         const extension = file.name.split('.').pop().toLowerCase();
+        const allowedExts = cfg.accept.split(',').map(e => e.replace('.', ''));
+        const isValid = allowedExts.includes(extension);
 
-        const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
-
-        if (!isValidType) {
-            alert(`El archivo ${file.name} no es válido. Se permiten PDF, DOCX, PNG, JPG y WEBP.`);
+        if (!isValid) {
+            alert(`El archivo ${file.name} no es válido. Esta tarea solo acepta: ${cfg.label}.`);
             return;
         }
 

@@ -452,11 +452,21 @@
                             <input type="number" id="task-score" value="100" min="1" max="100" step="0.01">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Sección (Opcional — asigna automáticamente a sus estudiantes)</label>
-                        <select id="task-section-select">
-                            <option value="">Sin sección específica</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo de Entrega</label>
+                            <select id="task-submission-type">
+                                <option value="document">📄 Documento (PDF / DOCX)</option>
+                                <option value="image">🖼️ Imagen (PNG / JPG / WEBP)</option>
+                                <option value="any">📎 Cualquier formato</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sección (Opcional — asigna automáticamente a sus estudiantes)</label>
+                            <select id="task-section-select">
+                                <option value="">Sin sección específica</option>
+                            </select>
+                        </div>
                     </div>
                     <button type="submit" class="btn-primary"
                         style="width: 100%; justify-content: center; padding: 14px;">

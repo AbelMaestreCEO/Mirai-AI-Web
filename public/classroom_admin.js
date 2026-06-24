@@ -223,6 +223,7 @@ function setupCreateTaskForm() {
         const due = document.getElementById('task-due').value;
         const score = document.getElementById('task-score').value;
         const sectionId = document.getElementById('task-section-select')?.value || '';
+        const submissionType = document.getElementById('task-submission-type')?.value || 'document';
 
         if (!courseId) {
             alert('Por favor selecciona un curso');
@@ -233,7 +234,7 @@ function setupCreateTaskForm() {
             const res = await fetch('/api/create-assignment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, course_id: courseId, description: desc, due_date: due, max_score: score, section_id: sectionId || null })
+                body: JSON.stringify({ title, course_id: courseId, description: desc, due_date: due, max_score: score, section_id: sectionId || null, submission_type: submissionType })
             });
 
             if (res.ok) {

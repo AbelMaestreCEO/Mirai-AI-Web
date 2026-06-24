@@ -1430,6 +1430,16 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
   const url = new URL(request.url);
   const path = url.pathname;
 
+  // Migración: agregar columna submission_type a assignments si no existe
+  if (!globalThis._migratedSubmissionType) {
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        "ALTER TABLE assignments ADD COLUMN submission_type TEXT DEFAULT 'document'"
+      ).run();
+    } catch (_) { /* columna ya existe */ }
+    globalThis._migratedSubmissionType = true;
+  }
+
   try {
 
     // Ruta: POST /api/chat
@@ -2373,7 +2383,7 @@ ORDER BY u.last_name, u.first_name
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
       if (!userDni) return;
 
-      const { title, description, course_id, due_date, section_id, max_score } = await request.json();
+      const { title, description, course_id, due_date, section_id, max_score, submission_type } = await request.json();
 
       if (!title || !course_id) {
         return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
@@ -2390,10 +2400,11 @@ ORDER BY u.last_name, u.first_name
       const id = crypto.randomUUID();
       const parsedMaxScore = parseFloat(max_score);
       const safeMaxScore = (!isNaN(parsedMaxScore) && parsedMaxScore >= 1 && parsedMaxScore <= 100) ? parsedMaxScore : 100;
+      const safeSubmissionType = ['document', 'image', 'any'].includes(submission_type) ? submission_type : 'document';
       await env.MIRAI_AI_DB.prepare(`
-    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore).run();
+    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score, submission_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore, safeSubmissionType).run();
 
       // Auto-asignar todos los estudiantes de la sección
       if (section_id) {
@@ -2499,7 +2510,7 @@ ORDER BY u.last_name, u.first_name
     SELECT * FROM (
         SELECT DISTINCT
             a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-            a.section_id, a.created_at,
+            a.section_id, a.created_at, a.submission_type,
             c.title as course_title,
             s.name  as section_name
         FROM assignments a
@@ -2510,7 +2521,7 @@ ORDER BY u.last_name, u.first_name
         UNION
         SELECT DISTINCT
             a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-            a.section_id, a.created_at,
+            a.section_id, a.created_at, a.submission_type,
             c.title as course_title,
             s.name  as section_name
         FROM assignments a
@@ -2556,6 +2567,7 @@ ORDER BY u.last_name, u.first_name
         a.course_id,
         a.section_id,
         a.created_at,
+        a.submission_type,
         uc.title    as course_title,
         uc.user_dni as professor_dni,
         s.name      as section_name
@@ -2948,20 +2960,23 @@ NO agregues texto adicional fuera del JSON.`;
           return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
         }
 
-        const validTypes = [
-          'application/pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'image/png',
-          'image/jpeg',
-          'image/webp'
-        ];
+        // Obtener el tipo de entrega configurado por el profesor
+        const assignmentData = await env.MIRAI_AI_DB.prepare(
+          'SELECT submission_type FROM assignments WHERE id = ?'
+        ).bind(assignmentId).first();
+        const submissionType = assignmentData?.submission_type || 'document';
 
-        const validExtensions = ['.pdf', '.docx', '.png', '.jpg', '.jpeg', '.webp'];
         const extension = file.name.split('.').pop().toLowerCase();
+        const isImageExt = ['png', 'jpg', 'jpeg', 'webp'].includes(extension);
+        const isDocExt = ['pdf', 'docx'].includes(extension);
 
-        const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
-
-        if (!isValidType) {
+        if (submissionType === 'document' && !isDocExt) {
+          return jsonResponse({ error: 'Esta tarea solo acepta documentos (PDF o DOCX)' }, 400, corsHeaders);
+        }
+        if (submissionType === 'image' && !isImageExt) {
+          return jsonResponse({ error: 'Esta tarea solo acepta imágenes (PNG, JPG o WEBP)' }, 400, corsHeaders);
+        }
+        if (!isDocExt && !isImageExt) {
           return jsonResponse({ error: 'Solo se permiten archivos PDF, DOCX, PNG, JPG y WEBP' }, 400, corsHeaders);
         }
 
