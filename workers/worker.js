@@ -2641,7 +2641,7 @@ ORDER BY u.last_name, u.first_name
         let aiContent;
 
         if (isImage) {
-          // ── EVALUACIÓN DE IMAGEN VÍA LLAVA (VISIÓN) ──
+          // ── EVALUACIÓN DE IMAGEN VÍA MODELO DE VISIÓN ──
           console.log('🖼️ [DEBUG] Evaluando imagen con modelo de visión...');
 
           const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
@@ -2651,33 +2651,46 @@ ORDER BY u.last_name, u.first_name
 
           const imageBuffer = await r2Object.arrayBuffer();
           const imageBytes = new Uint8Array(imageBuffer);
-          const imageArray = Array.from(imageBytes);
+          const imageArray = [...imageBytes];
 
-          // Paso 1: LLaVA describe la imagen (prompt corto y simple)
-          const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-            image: imageArray,
-            prompt: 'Describe this image in detail. What objects, colors, shapes, text, and elements do you see? Be specific.',
-            max_tokens: 512
-          });
+          console.log(`🖼️ [DEBUG] Imagen cargada: ${imageBuffer.byteLength} bytes, extensión: ${fileExtension}`);
 
-          const visionText = (visionResponse.response || visionResponse.text || '').trim();
-          console.log('🖼️ [DEBUG] Respuesta LLaVA raw:', visionText.substring(0, 300));
+          // Paso 1: Modelo de visión describe la imagen
+          let finalVisionText = '';
 
-          if (!visionText || visionText.length < 5) {
-            console.warn('⚠️ [DEBUG] LLaVA no devolvió descripción, intentando con prompt alternativo...');
-            const retryResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-              image: imageArray,
-              prompt: 'What is in this image?',
-              max_tokens: 512
-            });
-            const retryText = (retryResponse.response || retryResponse.text || '').trim();
-            console.log('🖼️ [DEBUG] Respuesta LLaVA retry:', retryText.substring(0, 300));
-            var finalVisionText = retryText || 'No se pudo analizar la imagen.';
-          } else {
-            var finalVisionText = visionText;
+          // Intentar con Llama 3.2 Vision (más capaz)
+          const visionModels = [
+            '@cf/meta/llama-3.2-11b-vision-instruct',
+            '@cf/llava-hf/llava-1.5-7b-hf'
+          ];
+
+          for (const model of visionModels) {
+            try {
+              console.log(`🖼️ [DEBUG] Intentando modelo: ${model}`);
+              const visionResponse = await env.AI.run(model, {
+                image: imageArray,
+                prompt: 'Describe this image in detail. What objects, colors, shapes, text, and elements do you see?',
+                max_tokens: 512
+              });
+              console.log('🖼️ [DEBUG] Response completo:', JSON.stringify(visionResponse).substring(0, 500));
+
+              const text = (visionResponse.description || visionResponse.response || visionResponse.text || '').trim();
+              if (text && text.length >= 5) {
+                finalVisionText = text;
+                console.log(`✅ [DEBUG] Modelo ${model} respondió: ${text.substring(0, 200)}`);
+                break;
+              }
+              console.warn(`⚠️ [DEBUG] Modelo ${model} devolvió respuesta vacía`);
+            } catch (modelError) {
+              console.error(`❌ [DEBUG] Error con modelo ${model}:`, modelError.message);
+            }
           }
 
-          // Paso 2: DeepSeek evalúa basándose en la descripción de LLaVA
+          if (!finalVisionText) {
+            finalVisionText = 'No se pudo analizar la imagen con los modelos de visión disponibles.';
+          }
+
+          // Paso 2: DeepSeek evalúa basándose en la descripción del modelo de visión
           const refinePrompt = `Eres un profesor evaluador académico. Un sistema de visión artificial analizó la imagen entregada por un estudiante y generó esta descripción:
 
 DESCRIPCIÓN DE LA IMAGEN: "${finalVisionText}"
