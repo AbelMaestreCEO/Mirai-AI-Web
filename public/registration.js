@@ -146,8 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showSuccess(successMsg, '✅ ¡Registro exitoso! Redirigiendo...');
             hideMessage(errorMsg);
 
-            // Guardar DNI para que verify.js pueda enviarlo al backend
-            localStorage.setItem('pending_dni', dni);
+            sessionStorage.setItem('pending_dni', dni);
 
             document.querySelector('.auth-card').animate([
                 { transform: 'scale(1)' },

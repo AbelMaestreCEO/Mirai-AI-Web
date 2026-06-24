@@ -4,12 +4,8 @@ let currentUserDni = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Auth Check (Sin redefinir fetch)
-    currentUserDni = localStorage.getItem('mirai_user_dni');
-
-    if (!currentUserDni) {
-        window.location.href = 'login';
-        return;
-    }
+    currentUserDni = window.miraiUser?.dni;
+    if (!currentUserDni) return;
 
     // 2. Verificar rol de profesor
     try {
@@ -538,9 +534,6 @@ function setupLogout() {
                 try {
                     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
                 } catch (e) { }
-                localStorage.removeItem('mirai_user_dni');
-                localStorage.removeItem('mirai_user_name');
-                localStorage.removeItem('mirai_user_role');
                 localStorage.removeItem('mirai-ai-conversation-id');
                 localStorage.removeItem('mirai-ai-course-id');
                 localStorage.removeItem('mirai-ai-lesson-id');

@@ -97,7 +97,7 @@ async function loadInventory() {
     try {
         showLoadingState();
 
-        const userDni = localStorage.getItem('mirai_user_dni');
+        const userDni = window.miraiUser?.dni;
 
         const headers = {
             'Content-Type': 'application/json'
@@ -734,10 +734,8 @@ async function handleFormSubmit(e) {
     } catch (error) {
         console.error('Error en formulario:', error);
 
-        // Si es error 401, redirigir a login
         if (error.message.includes('401') || error.message.includes('No autorizado')) {
-            showStatus('❌ Sesión expirada. Serás redirigido al login...', 'error');
-            setTimeout(() => { window.location.href = 'login'; }, 2000);
+            showStatus('❌ Tu sesión ha expirado. Por favor, cierra sesión y vuelve a iniciar sesión.', 'error');
         } else {
             showStatus(`❌ Error: ${error.message}`, 'error');
         }

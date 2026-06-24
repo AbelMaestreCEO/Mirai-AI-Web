@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         showError(errorMsg, data.error);
                     }
 
-                    localStorage.setItem('pending_dni', data.dni || '');
+                    sessionStorage.setItem('pending_dni', data.dni || '');
 
                     setTimeout(() => {
                         window.location.href = 'verify';
@@ -53,11 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || 'Error de login');
             }
 
-            // El token ya viaja en cookie HttpOnly (el servidor la pone automáticamente)
-            // Solo guardamos datos NO sensibles para mostrar en la UI
-            if (data.dni) localStorage.setItem('mirai_user_dni', data.dni);
-            if (data.first_name) localStorage.setItem('mirai_user_name', data.first_name);
-            if (data.role) localStorage.setItem('mirai_user_role', data.role);
+            // La cookie HttpOnly se establece automáticamente por el servidor
             window.location.href = '/';
 
         } catch (err) {

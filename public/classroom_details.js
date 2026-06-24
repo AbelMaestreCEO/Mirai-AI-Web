@@ -6,12 +6,8 @@ console.log('🔍 classroom_details.js cargado');
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ DOMContentLoaded');
 
-    const dni = localStorage.getItem('mirai_user_dni');
-
-    if (!dni) {
-        window.location.href = 'login';
-        return;
-    }
+    const dni = window.miraiUser?.dni;
+    if (!dni) return;
 
     // Delegar Tema y Menú a MiraiApp
     if (typeof MiraiApp !== 'undefined') {
@@ -509,9 +505,6 @@ function setupLogout() {
                 try {
                     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
                 } catch (e) { }
-                localStorage.removeItem('mirai_user_dni');
-                localStorage.removeItem('mirai_user_name');
-                localStorage.removeItem('mirai_user_role');
                 localStorage.removeItem('mirai-ai-conversation-id');
                 localStorage.removeItem('mirai-ai-course-id');
                 localStorage.removeItem('mirai-ai-lesson-id');

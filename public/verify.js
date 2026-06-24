@@ -48,14 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
             hideMessage(errorMsg);
 
             // La cookie de sesión llega automáticamente desde el servidor (HttpOnly)
-            // Solo guardamos datos no sensibles para la UI
-            if (data.dni) localStorage.setItem('mirai_user_dni', data.dni);
-            if (data.first_name && data.last_name) localStorage.setItem('mirai_user_name', `${data.first_name} ${data.last_name}`);
-            if (data.role) localStorage.setItem('mirai_user_role', data.role);
-
-            // Limpiar formulario y DNI pendiente
             verifyForm.reset();
-            localStorage.removeItem('pending_dni');
+            sessionStorage.removeItem('pending_dni');
 
             // Redirigir a INDEX (NO a login)
             setTimeout(() => {
@@ -81,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resendLink.addEventListener('click', async (e) => {
         e.preventDefault();
 
-        const dni = localStorage.getItem('pending_dni') || '';
+        const dni = sessionStorage.getItem('pending_dni') || '';
         if (!dni) {
             showError(errorMsg, 'No se encontró tu sesión. Vuelve a iniciar sesión.');
             return;

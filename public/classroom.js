@@ -6,11 +6,8 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', async () => {
-        const dni = localStorage.getItem('mirai_user_dni');
-        if (!dni) {
-            window.location.replace('login');
-            return;
-        }
+        const dni = window.miraiUser?.dni;
+        if (!dni) return;
 
         await loadTasks(dni);
         setupProfessorButton();
@@ -31,8 +28,6 @@
 
         try {
             const headers = { 'Content-Type': 'application/json' };
-            const token = localStorage.getItem('mirai_auth_token');
-            if (token) headers['Authorization'] = `Bearer ${token}`;
 
             const response = await fetch(`/api/my-submissions?user_dni=${encodeURIComponent(userDni)}`, {
                 method: 'GET',
@@ -273,11 +268,7 @@
 
         btn.addEventListener('click', async () => {
             try {
-                const headers = {};
-                const token = localStorage.getItem('mirai_auth_token');
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-
-                const res = await fetch('/api/check-professor-role', { credentials: 'same-origin', headers });
+                const res = await fetch('/api/check-professor-role', { credentials: 'same-origin' });
                 const data = await res.json();
 
                 if (data.is_professor) {
@@ -301,8 +292,7 @@
             try {
                 await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
             } catch (_) { }
-            ['mirai_user_dni', 'mirai_user_name', 'mirai_user_role', 'mirai-ai-conversation-id',
-                'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
+            ['mirai-ai-conversation-id', 'mirai-ai-course-id', 'mirai-ai-lesson-id'].forEach(k => localStorage.removeItem(k));
             window.location.href = 'login';
         });
     }
@@ -355,7 +345,7 @@
 
     function _startRealtimeClassroom() {
         const rt = window.MiraiRealtime.getInstance();
-        const dni = localStorage.getItem('mirai_user_dni');
+        const dni = window.miraiUser?.dni;
 
         rt.subscribe('classroom', (payload) => {
             const sections = payload.sections || [];

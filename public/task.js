@@ -43,7 +43,7 @@
       credentials: 'same-origin',
       ...options,
     });
-    if (res.status === 401) { window.location.href = '/login'; return null; }
+    if (res.status === 401) { alert('Tu sesión ha expirado. Por favor, cierra sesión y vuelve a iniciar sesión.'); return null; }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return data;

@@ -17,11 +17,7 @@ const API = {
 };
 
 function authHeaders() {
-    const token = localStorage.getItem('mirai_auth_token');
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    };
+    return { 'Content-Type': 'application/json' };
 }
 
 function escHtml(s) {
@@ -47,7 +43,7 @@ const state = {
 
 // ── Cargar perfil del usuario ──────────────────────────────────
 async function loadProfile() {
-    const dni = localStorage.getItem('mirai_user_dni') || '';
+    const dni = window.miraiUser?.dni || '';
     if (el('att-user-name')) el('att-user-name').textContent = dni || 'Usuario';
     if (el('att-avatar'))    el('att-avatar').textContent    = initials(dni);
     try {

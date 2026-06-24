@@ -1893,6 +1893,27 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return Response.json(user);
     }
 
+    if (path === '/api/me' && request.method === 'GET') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      const user = await env.MIRAI_AI_DB.prepare(
+        "SELECT dni, first_name, last_name, role FROM users WHERE dni = ?"
+      ).bind(userDni).first();
+      if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
+      return jsonResponse({ dni: user.dni, name: `${user.first_name || ''} ${user.last_name || ''}`.trim(), role: user.role }, 200, corsHeaders);
+    }
+
+    if (path === '/api/logout' && request.method === 'POST') {
+      const token = getTokenFromRequest(request);
+      if (token) {
+        await env.MIRAI_AI_DB.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Set-Cookie': clearSessionCookie() }
+      });
+    }
+
     if (path === '/api/login' && request.method === 'POST') {
       return await handleLogin(request, env, corsHeaders);
     }

@@ -17,11 +17,7 @@ const API = {
 };
 
 function authHeaders() {
-    const token = localStorage.getItem('mirai_auth_token');
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    };
+    return { 'Content-Type': 'application/json' };
 }
 
 function esc(s) {

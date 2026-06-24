@@ -130,8 +130,8 @@ class MiraiRealtimeEngine {
     const modules = [...this.#subscribers.keys()];
     if (modules.length === 0) return;
 
-    const userDni  = localStorage.getItem('mirai_user_dni');
-    const userRole = localStorage.getItem('mirai_user_role');
+    const userDni  = window.miraiUser?.dni;
+    const userRole = window.miraiUser?.role;
     if (!userDni) return;
 
     this.#setIndicator('syncing');

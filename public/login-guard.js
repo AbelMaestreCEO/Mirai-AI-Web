@@ -1,5 +1,5 @@
 /**
- * MIRAI AI - Login Guard
+ * MIRAI AI - Login Guard (cookie-based)
  *
  * INSTRUCCIONES DE USO:
  * - Poner SOLO en login (antes de login.js)
@@ -7,12 +7,14 @@
  *
  * Comportamiento: si ya hay sesión activa → redirige a index
  */
-(function () {
+(async function () {
     'use strict';
-
-    var dni = localStorage.getItem('mirai_user_dni');
-
-    if (dni) {
-        window.location.replace('/');
+    try {
+        var res = await fetch('/api/me', { credentials: 'same-origin' });
+        if (res.ok) {
+            window.location.replace('/');
+        }
+    } catch (e) {
+        // No session — stay on login
     }
 })();

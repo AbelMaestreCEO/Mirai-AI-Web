@@ -343,21 +343,22 @@ let state = {
 };
 
 function checkAuth() {
-  // auth-guard.js ya se encargó del redirect antes de que app.js cargue.
-  // Esta función queda como wrapper para no romper la llamada existente.
-  const token = localStorage.getItem('mirai_auth_token');
-  const dni = localStorage.getItem('mirai_user_dni');
-  return !!(token && dni);
+  return !!(window.miraiUser && window.miraiUser.dni);
 }
 
-// La cookie HttpOnly se envía automáticamente por el navegador en cada petición.
-// Solo necesitamos asegurarnos de que fetch incluya credentials:
 const originalFetch = window.fetch;
 window.fetch = async function (url, options = {}) {
   if (typeof url === 'string' && url.startsWith('/api/')) {
-    options.credentials = 'same-origin'; // Envía la cookie automáticamente
+    options.credentials = 'same-origin';
   }
-  return originalFetch.call(this, url, options);
+  const response = await originalFetch.call(this, url, options);
+  if (response.status === 401 && typeof url === 'string' && url.startsWith('/api/') && !url.includes('/api/me') && !url.includes('/api/login')) {
+    if (!window._miraiSessionExpiredShown) {
+      window._miraiSessionExpiredShown = true;
+      alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión y vuelve a iniciar sesión.');
+    }
+  }
+  return response;
 };
 
 // --- INICIALIZACIÓN ---
@@ -385,16 +386,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     learningSessionActive = true;
 
     try {
-      const token = localStorage.getItem('mirai_auth_token');
-      const userDni = localStorage.getItem('mirai_user_dni');
-
       const response = await fetch(`/api/get-or-create-learning-chat?task_id=${effectiveTask}&mode=${effectiveMode}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-          'X-User-DNI': userDni || ''
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       const data = await response.json();
@@ -1314,7 +1308,7 @@ function appendUserAudioMessage(audioUrl) {
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   messageDiv.innerHTML = `
-    <div class="message-avatar" style="${localStorage.getItem('mirai-user-avatar') ? 'padding:0;overflow:hidden;' : ''}">${getUserAvatarHTML()}</div>
+    <div class="message-avatar" style="${window.miraiUserProfile?.avatarUrl ? 'padding:0;overflow:hidden;' : ''}">${getUserAvatarHTML()}</div>
     <div class="message-content">
       <div class="audio-player-container user-audio">
         <div class="audio-player-header">
@@ -1504,15 +1498,6 @@ async function loadConversationHistory(conversationId) {
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
   } catch (error) {
-    if (error.status === 403 || error.status === 500) {
-      console.warn('⚠️ Sesión inválida detectada. Limpiando...');
-      // Llamar al servidor para invalidar la sesión y borrar la cookie
-      await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-      localStorage.removeItem('mirai_user_dni');
-      localStorage.removeItem('mirai_user_name');
-      localStorage.removeItem('mirai_user_role');
-      window.location.href = 'login';
-    }
     console.error('Error cargando historial:', error);
   }
 }
@@ -1625,26 +1610,24 @@ async function handleClearConversation() {
 }
 
 function getUserAvatarHTML() {
-  // La URL se guarda en localStorage como caché cuando el usuario
-  // sube/elimina foto desde settings
-  const avatarUrl = localStorage.getItem('mirai-user-avatar-url');
+  const p = window.miraiUserProfile;
+  const avatarUrl = p?.avatarUrl;
   if (avatarUrl) {
+    const initial = (p?.firstName || window.miraiUser?.name || 'U')[0].toUpperCase();
     return `<img src="${avatarUrl}" alt="Avatar"
               style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"
-              onerror="this.remove();this.parentElement.textContent=localStorage.getItem('mirai-user-nombre')?.[0]?.toUpperCase()||'U'">`;
+              onerror="this.remove();this.parentElement.textContent='${initial}'">`;
   }
-  const nombre = localStorage.getItem('mirai-user-nombre') || '';
+  const nombre = p?.firstName || window.miraiUser?.name || '';
   return nombre.trim() ? nombre.trim()[0].toUpperCase() : 'U';
 }
 function initAvatarSyncListener() {
   window.addEventListener('mirai-avatar-changed', (e) => {
     const url = e.detail?.url ?? null;
-    if (url) {
-      localStorage.setItem('mirai-user-avatar-url', url);
-    } else {
-      localStorage.removeItem('mirai-user-avatar-url');
+    if (window.miraiUserProfile) {
+      window.miraiUserProfile.avatarUrl = url;
+      window.miraiUserProfile.hasAvatar = !!url;
     }
-    // Re-renderizar avatares ya en pantalla
     document.querySelectorAll('.message.user .message-avatar').forEach(el => {
       el.style.padding = '';
       el.style.overflow = 'hidden';
@@ -1791,14 +1774,7 @@ async function syncAvatarFromAPI() {
     if (!res.ok) return;
     const { profile } = await res.json();
 
-    if (profile.firstName) localStorage.setItem('mirai-user-nombre', profile.firstName);
-    if (profile.lastName) localStorage.setItem('mirai-user-apellido', profile.lastName);
-
-    if (profile.hasAvatar && profile.avatarUrl) {
-      localStorage.setItem('mirai-user-avatar-url', profile.avatarUrl);
-    } else {
-      localStorage.removeItem('mirai-user-avatar-url');
-    }
+    window.miraiUserProfile = profile;
   } catch (e) {
     // Silencioso — no bloquear el chat si falla
   }
@@ -2633,15 +2609,6 @@ async function loadConversations() {
     renderConversationsList(conversations, enrolledCourses);
 
   } catch (error) {
-    if (error.status === 403 || error.status === 500) {
-      console.warn('⚠️ Sesión inválida detectada. Limpiando...');
-      // Llamar al servidor para invalidar la sesión y borrar la cookie
-      await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
-      localStorage.removeItem('mirai_user_dni');
-      localStorage.removeItem('mirai_user_name');
-      localStorage.removeItem('mirai_user_role');
-      window.location.href = 'login';
-    }
     console.error('Error cargando conversaciones:', error);
   }
 }
@@ -3310,9 +3277,6 @@ if (_logoutBtn) {
       } catch (e) {
         // Continuar aunque falle el servidor
       }
-      localStorage.removeItem('mirai_user_dni');
-      localStorage.removeItem('mirai_user_name');
-      localStorage.removeItem('mirai_user_role');
       localStorage.removeItem('mirai-ai-conversation-id');
       localStorage.removeItem('mirai-ai-course-id');
       localStorage.removeItem('mirai-ai-lesson-id');

@@ -79,27 +79,18 @@ function escapeHtml(str) {
 // AUTENTICACIÓN
 // ══════════════════════════════════════════════════════════════════════════════
 
-function getToken() {
-    return localStorage.getItem('mirai_auth_token') || '';
-}
+function getToken() { return ''; }
 
-/**
- * Devuelve un objeto normalizado con los datos del usuario desde localStorage.
- * Claves reales del sistema Mirai: mirai_user_dni, mirai_user_name, mirai_user_role.
- */
 function getUser() {
     return {
-        dni:  localStorage.getItem('mirai_user_dni')  || '',
-        name: localStorage.getItem('mirai_user_name') || '',
-        role: localStorage.getItem('mirai_user_role') || '',   // 'teacher' | 'student'
+        dni:  window.miraiUser?.dni  || '',
+        name: window.miraiUser?.name || '',
+        role: window.miraiUser?.role || '',
     };
 }
 
-function logout() {
-    localStorage.removeItem('mirai_user_dni');
-    localStorage.removeItem('mirai_user_name');
-    localStorage.removeItem('mirai_user_role');
-    localStorage.removeItem('mirai_auth_token');
+async function logout() {
+    try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
     localStorage.removeItem('mirai-ai-conversation-id');
     window.location.href = 'login';
 }
@@ -114,15 +105,10 @@ async function api(path, opts = {}) {
         credentials: 'same-origin',   // envía cookie HttpOnly igual que app.js
         headers: {
             'Content-Type': 'application/json',
-            'X-User-DNI': localStorage.getItem('mirai_user_dni') || '',
+            'X-User-DNI': window.miraiUser?.dni || '',
             ...(opts.headers || {}),
         },
     });
-
-    if (response.status === 401) {
-        logout();
-        throw new Error('No autorizado');
-    }
 
     if (!response.ok) {
         const body = await response.text().catch(() => '');
