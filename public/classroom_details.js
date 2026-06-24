@@ -191,14 +191,15 @@ function handleSubmissionState(submission, assignment, elements) {
             elements.status.textContent = 'En revisión';
 
             if (elements.evaluateSection) {
+                const isImageSubmission = submission.file_url && /\.(png|jpg|jpeg|webp)$/i.test(submission.file_url);
                 elements.evaluateSection.style.display = 'block';
                 elements.evaluateSection.innerHTML = `
                     <h3 class="section-title">¿Quieres una evaluación rápida?</h3>
-                    <p class="section-subtitle">Usa nuestra IA para obtener una calificación preliminar</p>
-                    <button id="ai-evaluate-btn" class="btn btn-primary">🤖 Evaluar con IA</button>
+                    <p class="section-subtitle">${isImageSubmission ? 'La IA analizará tu imagen y la comparará con los requisitos de la tarea' : 'Usa nuestra IA para obtener una calificación preliminar'}</p>
+                    <button id="ai-evaluate-btn" class="btn btn-primary">${isImageSubmission ? '🖼️ Evaluar Imagen con IA' : '🤖 Evaluar con IA'}</button>
                 `;
 
-                document.getElementById('ai-evaluate-btn').onclick = () => confirmEvaluation(submission.id);
+                document.getElementById('ai-evaluate-btn').onclick = () => confirmEvaluation(submission.id, submission.file_url);
             }
         }
     } else {
@@ -217,7 +218,7 @@ function handleSubmissionState(submission, assignment, elements) {
 function renderUploadForm(container, assignmentId) {
     container.innerHTML = `
         <h3 class="section-title">Entregar Tarea</h3>
-        <p class="section-subtitle">Sube tu trabajo en formato PDF (máx. 10MB)</p>
+        <p class="section-subtitle">Sube tu trabajo en formato PDF, DOCX o imagen PNG/JPG/WEBP (máx. 10MB)</p>
         
         <div class="upload-area" id="upload-area">
             <div class="upload-icon">📤</div>
@@ -226,7 +227,7 @@ function renderUploadForm(container, assignmentId) {
             
             <div class="file-input-wrapper">
                 <button class="btn btn-primary">Seleccionar Archivos</button>
-                <input type="file" id="file-input" accept=".pdf,.docx" multiple>
+                <input type="file" id="file-input" accept=".pdf,.docx,.png,.jpg,.jpeg,.webp" multiple>
             </div>
 
             <div id="file-list" class="file-list"></div>
@@ -278,15 +279,18 @@ function renderUploadForm(container, assignmentId) {
     function validateAndAddFile(file) {
         const validTypes = [
             'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'image/png',
+            'image/jpeg',
+            'image/webp'
         ];
-        const validExtensions = ['.pdf', '.docx'];
+        const validExtensions = ['.pdf', '.docx', '.png', '.jpg', '.jpeg', '.webp'];
         const extension = file.name.split('.').pop().toLowerCase();
 
         const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
 
         if (!isValidType) {
-            alert(`El archivo ${file.name} no es válido. Solo se permiten PDF y DOCX.`);
+            alert(`El archivo ${file.name} no es válido. Se permiten PDF, DOCX, PNG, JPG y WEBP.`);
             return;
         }
 
@@ -295,10 +299,11 @@ function renderUploadForm(container, assignmentId) {
             return;
         }
 
+        const isImageFile = ['png', 'jpg', 'jpeg', 'webp'].includes(extension);
         const chip = document.createElement('div');
         chip.className = 'file-chip';
         chip.innerHTML = `
-            <span class="attachment-icon">📄</span>
+            <span class="attachment-icon">${isImageFile ? '🖼️' : '📄'}</span>
             <span class="attachment-name">${file.name}</span>
             <span class="attachment-remove" onclick="this.parentElement.remove()">×</span>
         `;
@@ -323,16 +328,24 @@ function renderUploadForm(container, assignmentId) {
                 throw new Error('No se encontró el archivo');
             }
 
-            // Extraer texto del documento en el frontend
-            console.log('🔍 [FRONTEND] Iniciando extracción de texto...');
-            const extractedText = await extractDocumentText(file);
-            console.log(`🔍 [FRONTEND] Texto extraído: ${extractedText.length} caracteres`);
+            const fileExt = file.name.split('.').pop().toLowerCase();
+            const isImageUpload = ['png', 'jpg', 'jpeg', 'webp'].includes(fileExt);
 
-            // Subir el archivo original a R2 (para almacenamiento)
+            let extractedText = '';
+            if (!isImageUpload) {
+                console.log('🔍 [FRONTEND] Iniciando extracción de texto...');
+                extractedText = await extractDocumentText(file);
+                console.log(`🔍 [FRONTEND] Texto extraído: ${extractedText.length} caracteres`);
+            } else {
+                console.log('🖼️ [FRONTEND] Archivo de imagen detectado, se evaluará con IA de visión.');
+            }
+
             const formData = new FormData();
             formData.append('assignment_id', assignmentId);
             formData.append('file', file);
-            formData.append('extracted_text', extractedText);
+            if (extractedText) {
+                formData.append('extracted_text', extractedText);
+            }
 
             const uploadResponse = await fetch('/api/submit-assignment', {
                 method: 'POST',
@@ -346,15 +359,16 @@ function renderUploadForm(container, assignmentId) {
 
             const uploadData = await uploadResponse.json();
 
-            // 🔴 NUEVO: Asociar el texto extraído con la entrega en la DB
-            await fetch('/api/save-extracted-text', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    submission_id: uploadData.submission_id,
-                    extracted_text: extractedText
-                })
-            });
+            if (extractedText) {
+                await fetch('/api/save-extracted-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        submission_id: uploadData.submission_id,
+                        extracted_text: extractedText
+                    })
+                });
+            }
 
             showStatus('✅ Trabajo entregado correctamente', 'success');
             setTimeout(() => window.location.reload(), 1500);
@@ -369,6 +383,23 @@ function renderUploadForm(container, assignmentId) {
 }
 
 // --- RENDERIZADO DE FEEDBACK ---
+const FEEDBACK_LABELS = {
+    apa: 'Normas APA',
+    tercera_persona: 'Tercera Persona',
+    conectores: 'Conectores Lógicos',
+    tablas_figuras: 'Tablas y Figuras',
+    originalidad: 'Originalidad',
+    coherencia: 'Coherencia',
+    profundidad: 'Profundidad',
+    pertinencia_tematica: 'Pertinencia Temática',
+    cumplimiento_requisitos: 'Cumplimiento de Requisitos',
+    calidad_visual: 'Calidad Visual',
+    creatividad: 'Creatividad y Esfuerzo',
+    precision: 'Precisión',
+    presentacion: 'Presentación',
+    pertinencia: 'Pertinencia'
+};
+
 function renderFeedback(container, submission, maxScore) {
     let feedbackText = 'Sin retroalimentación.';
 
@@ -378,12 +409,18 @@ function renderFeedback(container, submission, maxScore) {
                 ? JSON.parse(submission.feedback)
                 : submission.feedback;
 
+            const isImageFeedback = fb.cumplimiento_requisitos || fb.calidad_visual;
+
             let formattedFeedback = '<div class="feedback-content">';
+            if (isImageFeedback) {
+                formattedFeedback += '<div style="margin-bottom:16px;padding:8px 12px;background:var(--secondary-container);border-radius:8px;font-size:0.85rem;">🖼️ Evaluación de imagen</div>';
+            }
             for (const [key, value] of Object.entries(fb)) {
                 if (key !== 'general' && value) {
+                    const label = FEEDBACK_LABELS[key] || key.replace(/_/g, ' ').toUpperCase();
                     formattedFeedback += `
                         <div style="margin-bottom:12px;">
-                            <strong style="color:var(--accent-primary);">${key.replace(/_/g, ' ').toUpperCase()}:</strong>
+                            <strong style="color:var(--accent-primary);">${label}:</strong>
                             <span style="color:var(--text-secondary);">${value}</span>
                         </div>
                     `;
@@ -399,11 +436,20 @@ function renderFeedback(container, submission, maxScore) {
         feedbackText = submission.feedback || 'Sin retroalimentación.';
     }
 
+    const isImageFile = submission.file_url && /\.(png|jpg|jpeg|webp)$/i.test(submission.file_url);
+    const imagePreview = isImageFile
+        ? `<div style="margin:16px 0;text-align:center;">
+            <img src="${submission.file_url}" alt="Imagen entregada" style="max-width:100%;max-height:400px;border-radius:12px;border:1px solid var(--glass-border);object-fit:contain;">
+           </div>`
+        : '';
+
     container.innerHTML = `
         <div class="feedback-header">
             <span class="feedback-icon">✅</span>
             <h2 class="section-title">Tarea Evaluada</h2>
         </div>
+
+        ${imagePreview}
 
         <div class="feedback-score">
             <span class="score-label">Tu Puntuación</span>
@@ -416,8 +462,17 @@ function renderFeedback(container, submission, maxScore) {
 }
 
 // --- EVALUACIÓN CON IA ---
-function confirmEvaluation(submissionId) {
-    const criteria = [
+function confirmEvaluation(submissionId, fileUrl) {
+    const isImage = fileUrl && /\.(png|jpg|jpeg|webp)$/i.test(fileUrl);
+
+    const criteria = isImage ? [
+        "Cumplimiento de requisitos de la tarea",
+        "Calidad visual (claridad, resolución, enfoque)",
+        "Creatividad y esfuerzo",
+        "Precisión de los elementos representados",
+        "Presentación (encuadre, limpieza)",
+        "Pertinencia temática"
+    ] : [
         "Pertinencia Temática",
         "Cumplimiento de normas APA 7ma edición",
         "Escrito en tercera persona",
@@ -428,7 +483,8 @@ function confirmEvaluation(submissionId) {
         "Profundidad en el análisis"
     ];
 
-    const message = "La IA evaluará tu trabajo basándose en los siguientes criterios:\n\n" +
+    const typeLabel = isImage ? '🖼️ La IA analizará tu imagen' : 'La IA evaluará tu trabajo';
+    const message = `${typeLabel} basándose en los siguientes criterios:\n\n` +
         criteria.map((c, i) => `${i + 1}. ${c}`).join('\n') +
         "\n\n¿Deseas proceder?";
 

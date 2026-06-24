@@ -2621,40 +2621,135 @@ ORDER BY u.last_name, u.first_name
           return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
         }
 
-        let textContent = submissionData.extracted_text;
+        const r2Key = submissionData.file_url.replace('/api/file/', '');
+        const filename = r2Key.split('/').pop();
+        const fileExtension = filename.split('.').pop().toLowerCase();
+        const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(fileExtension);
 
-        if (!textContent || textContent.length < 50) {
-          // Fallback: intentar extraer del archivo (por si acaso)
-          console.log('⚠️ [DEBUG] No hay texto extraído, intentando extracción del archivo...');
+        let aiContent;
 
-          const r2Key = submissionData.file_url.replace('/api/file/', '');
+        if (isImage) {
+          // ── EVALUACIÓN DE IMAGEN VÍA LLAVA (VISIÓN) ──
+          console.log('🖼️ [DEBUG] Evaluando imagen con modelo de visión...');
+
           const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
-
           if (!r2Object) {
             return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
           }
 
-          const fileBuffer = await r2Object.arrayBuffer();
-          const filename = r2Key.split('/').pop();
-          const extension = filename.split('.').pop().toLowerCase();
+          const imageBuffer = await r2Object.arrayBuffer();
+          const imageBytes = new Uint8Array(imageBuffer);
+          const imageArray = Array.from(imageBytes);
 
-          try {
-            if (extension === 'pdf') {
-              textContent = await extractTextFromPDF(fileBuffer);
-            } else if (extension === 'docx') {
-              textContent = await extractTextFromDocx(fileBuffer);
+          const visionPrompt = `Eres un profesor experto evaluador académico. Analiza esta imagen que un estudiante ha entregado como tarea.
+
+TAREA: ${submissionData.title}
+DESCRIPCIÓN Y REQUISITOS: ${submissionData.description}
+PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
+
+CRITERIOS DE EVALUACIÓN PARA IMAGEN:
+1. Cumplimiento de requisitos: ¿La imagen cumple con lo que pide la tarea? Compara detalladamente lo que ves con cada requisito de la descripción.
+2. Calidad visual: ¿La imagen es clara, está bien enfocada, tiene buena resolución?
+3. Creatividad y esfuerzo: ¿Se nota esfuerzo y creatividad en el trabajo?
+4. Precisión: ¿Los elementos representados son correctos y apropiados para la tarea?
+5. Presentación: ¿La imagen está limpia, bien encuadrada y presentada de forma profesional?
+6. Pertinencia: Si la imagen no tiene relación con la tarea, la puntuación máxima es 20%.
+
+INSTRUCCIONES:
+1. Describe brevemente qué ves en la imagen.
+2. Compara lo que ves con cada requisito de la descripción de la tarea.
+3. Evalúa cada criterio y asigna una puntuación.
+4. Devuelve SOLO un JSON válido con este formato exacto:
+{
+  "score": <número entero de 0 a ${submissionData.max_score}>,
+  "feedback": {
+    "cumplimiento_requisitos": "<qué requisitos cumple y cuáles no>",
+    "calidad_visual": "<evaluación de calidad>",
+    "creatividad": "<evaluación de creatividad y esfuerzo>",
+    "precision": "<evaluación de precisión>",
+    "presentacion": "<evaluación de presentación>",
+    "pertinencia": "<relación con la tarea>",
+    "general": "<resumen general de la evaluación>"
+  },
+  "reasoning": "<razonamiento breve>"
+}
+
+NO agregues texto adicional fuera del JSON.`;
+
+          const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+            image: imageArray,
+            prompt: visionPrompt,
+            max_tokens: 1024
+          });
+
+          const visionText = visionResponse.response || visionResponse.text || '';
+          console.log('🖼️ [DEBUG] Respuesta LLaVA raw:', visionText.substring(0, 300));
+
+          // LLaVA puede no devolver JSON perfecto, usar DeepSeek para refinar
+          const refinePrompt = `Eres un evaluador académico. Un modelo de visión analizó una imagen entregada por un estudiante y produjo la siguiente descripción/evaluación:
+
+"${visionText}"
+
+TAREA: ${submissionData.title}
+DESCRIPCIÓN Y REQUISITOS: ${submissionData.description}
+PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
+
+Basándote en esa descripción visual, genera una evaluación justa. Si la descripción indica que la imagen NO cumple los requisitos de la tarea, penaliza fuertemente. Si cumple, califica según calidad y esfuerzo.
+
+Devuelve EXCLUSIVAMENTE un JSON con este formato:
+{
+  "score": <número entero de 0 a ${submissionData.max_score}>,
+  "feedback": {
+    "cumplimiento_requisitos": "<qué requisitos cumple y cuáles no>",
+    "calidad_visual": "<evaluación>",
+    "creatividad": "<evaluación>",
+    "precision": "<evaluación>",
+    "presentacion": "<evaluación>",
+    "pertinencia": "<relación con la tarea>",
+    "general": "<resumen general>"
+  },
+  "reasoning": "<razonamiento>"
+}
+
+NO agregues texto fuera del JSON.`;
+
+          aiContent = await callAI(
+            AI_MODEL_PRO,
+            [{ role: 'user', content: refinePrompt }],
+            { temperature: 0.3, max_tokens: 5000 },
+            env
+          );
+
+        } else {
+          // ── EVALUACIÓN DE DOCUMENTO (PDF/DOCX) ──
+          let textContent = submissionData.extracted_text;
+
+          if (!textContent || textContent.length < 50) {
+            console.log('⚠️ [DEBUG] No hay texto extraído, intentando extracción del archivo...');
+
+            const r2Object = await env.MIRAI_AI_ASSETS.get(r2Key);
+            if (!r2Object) {
+              return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
             }
-          } catch (extractError) {
-            console.error('❌ [DEBUG] Extracción del archivo falló:', extractError.message);
-            return jsonResponse({
-              error: 'No se pudo extraer texto del archivo. Por favor, vuelve a subir el documento.'
-            }, 500, corsHeaders);
-          }
-        }
-        console.log(`🔍 [DEBUG] Usando texto extraído: ${textContent.length} caracteres`);
 
-        // 4. Construir prompt de evaluación con criterios específicos
-        const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
+            const fileBuffer = await r2Object.arrayBuffer();
+
+            try {
+              if (fileExtension === 'pdf') {
+                textContent = await extractTextFromPDF(fileBuffer);
+              } else if (fileExtension === 'docx') {
+                textContent = await extractTextFromDocx(fileBuffer);
+              }
+            } catch (extractError) {
+              console.error('❌ [DEBUG] Extracción del archivo falló:', extractError.message);
+              return jsonResponse({
+                error: 'No se pudo extraer texto del archivo. Por favor, vuelve a subir el documento.'
+              }, 500, corsHeaders);
+            }
+          }
+          console.log(`🔍 [DEBUG] Usando texto extraído: ${textContent.length} caracteres`);
+
+          const systemPrompt = `Eres un profesor experto evaluador académico. Tu tarea es evaluar un trabajo estudiantil basado en criterios rigurosos.
 
 TAREA: ${submissionData.title}
 DESCRIPCIÓN Y PUNTOS A EVALUAR: ${submissionData.description}
@@ -2694,14 +2789,15 @@ INSTRUCCIONES:
 
 NO agregues texto adicional fuera del JSON.`;
 
-        const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`; // Limitar tamaño
+          const userPrompt = `Aquí está el trabajo del estudiante:\n\n${textContent.substring(0, 15000)}`;
 
-        const aiContent = await callAI(
-          AI_MODEL_PRO,
-          [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-          { temperature: 0.3, max_tokens: 5000 },
-          env
-        );
+          aiContent = await callAI(
+            AI_MODEL_PRO,
+            [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+            { temperature: 0.3, max_tokens: 5000 },
+            env
+          );
+        }
         console.log('🤖 [DEBUG] aiContent raw:', aiContent?.substring(0, 300));
 
         // 6. Parsear la respuesta JSON
@@ -2854,16 +2950,19 @@ NO agregues texto adicional fuera del JSON.`;
 
         const validTypes = [
           'application/pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'image/png',
+          'image/jpeg',
+          'image/webp'
         ];
 
-        const validExtensions = ['.pdf', '.docx'];
+        const validExtensions = ['.pdf', '.docx', '.png', '.jpg', '.jpeg', '.webp'];
         const extension = file.name.split('.').pop().toLowerCase();
 
         const isValidType = validTypes.includes(file.type) || validExtensions.includes('.' + extension);
 
         if (!isValidType) {
-          return jsonResponse({ error: 'Solo se permiten archivos PDF y DOCX' }, 400, corsHeaders);
+          return jsonResponse({ error: 'Solo se permiten archivos PDF, DOCX, PNG, JPG y WEBP' }, 400, corsHeaders);
         }
 
         // Validar tamaño máximo (10MB)
@@ -2908,8 +3007,10 @@ NO agregues texto adicional fuera del JSON.`;
       if (!object) return new Response('Archivo no encontrado', { status: 404 });
 
       const headers = new Headers();
-      headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
-      headers.set('Content-Disposition', `attachment; filename="${r2Key.split('/').pop()}"`);
+      const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
+      headers.set('Content-Type', contentType);
+      const isInlineType = contentType.startsWith('image/');
+      headers.set('Content-Disposition', `${isInlineType ? 'inline' : 'attachment'}; filename="${r2Key.split('/').pop()}"`);
 
       return new Response(object.body, { headers });
     }
