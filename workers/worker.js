@@ -2655,39 +2655,28 @@ ORDER BY u.last_name, u.first_name
 
           console.log(`🖼️ [DEBUG] Imagen cargada: ${imageBuffer.byteLength} bytes, extensión: ${fileExtension}`);
 
-          // Paso 1: Modelo de visión describe la imagen
+          // Paso 1: Llama 3.2 Vision describe la imagen
           let finalVisionText = '';
 
-          // Intentar con Llama 3.2 Vision (más capaz)
-          const visionModels = [
-            '@cf/meta/llama-3.2-11b-vision-instruct',
-            '@cf/llava-hf/llava-1.5-7b-hf'
-          ];
-
-          for (const model of visionModels) {
-            try {
-              console.log(`🖼️ [DEBUG] Intentando modelo: ${model}`);
-              const visionResponse = await env.AI.run(model, {
-                image: imageArray,
-                prompt: 'Describe this image in detail. What objects, colors, shapes, text, and elements do you see?',
-                max_tokens: 512
-              });
-              console.log('🖼️ [DEBUG] Response completo:', JSON.stringify(visionResponse).substring(0, 500));
-
-              const text = (visionResponse.description || visionResponse.response || visionResponse.text || '').trim();
-              if (text && text.length >= 5) {
-                finalVisionText = text;
-                console.log(`✅ [DEBUG] Modelo ${model} respondió: ${text.substring(0, 200)}`);
-                break;
-              }
-              console.warn(`⚠️ [DEBUG] Modelo ${model} devolvió respuesta vacía`);
-            } catch (modelError) {
-              console.error(`❌ [DEBUG] Error con modelo ${model}:`, modelError.message);
+          try {
+            console.log('🖼️ [DEBUG] Llamando a Llama 3.2 Vision...');
+            const visionResponse = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+              image: imageArray,
+              prompt: 'Describe this image in detail. What objects, colors, shapes, text, and elements do you see? Be very specific about colors, positions, and quantities.',
+              max_tokens: 512,
+              temperature: 0.3
+            });
+            console.log('🖼️ [DEBUG] Response completo:', JSON.stringify(visionResponse).substring(0, 500));
+            finalVisionText = (visionResponse.response || '').trim();
+            if (finalVisionText) {
+              console.log(`✅ [DEBUG] Llama Vision respondió: ${finalVisionText.substring(0, 200)}`);
             }
+          } catch (visionError) {
+            console.error('❌ [DEBUG] Error con Llama Vision:', visionError.message);
           }
 
           if (!finalVisionText) {
-            finalVisionText = 'No se pudo analizar la imagen con los modelos de visión disponibles.';
+            finalVisionText = 'No se pudo analizar la imagen con el modelo de visión.';
           }
 
           // Paso 2: DeepSeek evalúa basándose en la descripción del modelo de visión
@@ -4977,15 +4966,12 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 
     const imageBuffer = await object.arrayBuffer();
 
-    // ✅ CORRECCIÓN CRÍTICA: Convertir ArrayBuffer a Array de números (Uint8Array)
-    // LLaVA en CF espera: image: [123, 45, 67, ...] (array de bytes)
     const imageBytes = new Uint8Array(imageBuffer);
-    const imageArray = Array.from(imageBytes);
+    const imageArray = [...imageBytes];
 
-    // 2. Llamada a Workers AI para visión (LLaVA 1.5)
-    // Nota: Usamos el modelo correcto @cf/llava-hf/llava-1.5-7b-hf
-    const visionResponse = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-      image: imageArray, // ← Enviar array de bytes, NO base64
+    // 2. Llamada a Workers AI para visión (Llama 3.2 Vision)
+    const visionResponse = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+      image: imageArray,
       prompt: "Identifica el producto en esta imagen. Devuelve SOLO un JSON válido con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria', 'description': 'breve descripción' }. No incluyas texto extra.",
       max_tokens: 256
     });
@@ -4995,8 +4981,8 @@ async function processInventoryAI(productId, r2Key, specs, env) {
     let aiCategory = 'general';
 
     try {
-      const content = visionResponse.response || visionResponse.text || '';
-      console.log(`🤖 Respuesta LLaVA raw: ${content.substring(0, 200)}...`);
+      const content = visionResponse.response || '';
+      console.log(`🤖 Respuesta Llama Vision raw: ${content.substring(0, 200)}...`);
 
       // Intentar extraer JSON (a veces el modelo incluye texto antes/después)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
