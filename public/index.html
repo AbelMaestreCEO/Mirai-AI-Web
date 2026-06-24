@@ -70,15 +70,29 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
     <style>
+        /* ===== LAYOUT: sidebar-aware ===== */
+        .home-main,
+        .welcome-footer {
+            margin-left: 280px;
+            transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
+        }
+
+        .mobile-sidebar.collapsed~.home-main,
+        .mobile-sidebar.collapsed~.welcome-footer {
+            margin-left: 72px !important;
+        }
+
         /* ===== ACCESOS DIRECTOS HORIZONTALES ===== */
         .shortcuts-row {
             display: flex;
             gap: 12px;
             overflow-x: auto;
-            padding: 0 20px 8px;
+            overflow-y: hidden;
+            padding: 0 20px 12px;
             scrollbar-width: none;
             -ms-overflow-style: none;
             scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
         }
 
         .shortcuts-row::-webkit-scrollbar {
@@ -92,8 +106,8 @@
             flex-direction: column;
             align-items: center;
             gap: 6px;
-            padding: 14px 18px;
-            min-width: 90px;
+            padding: 14px 16px;
+            min-width: 80px;
             background: var(--glass-bg, rgba(255, 255, 255, 0.94));
             border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
             border-radius: var(--border-radius-lg, 16px);
@@ -124,8 +138,6 @@
 
         /* ===== DASHBOARD ===== */
         .dashboard-container {
-            max-width: 1200px;
-            margin: 0 auto;
             padding: 20px 20px 40px;
         }
 
@@ -143,23 +155,11 @@
             gap: 16px;
         }
 
-        @media (min-width: 768px) {
-            .dashboard-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (min-width: 1100px) {
-            .dashboard-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
         .dashboard-card {
             background: var(--glass-bg, rgba(255, 255, 255, 0.94));
             border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
             border-radius: var(--border-radius-lg, 16px);
-            padding: 20px 22px;
+            padding: 22px 24px;
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             transition: all 0.25s ease;
@@ -307,7 +307,83 @@
             margin-top: 4px;
         }
 
-        /* Reutiliza .welcome-input-wrapper y .welcome-textarea de styles.css */
+        /* ===== PC: dashboard más ancho ===== */
+        @media (min-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .dashboard-card {
+                padding: 26px 28px;
+            }
+        }
+
+        @media (min-width: 1100px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .dashboard-card {
+                padding: 28px 32px;
+            }
+        }
+
+        /* ===== MÓVIL ===== */
+        @media (max-width: 768px) {
+            .home-main,
+            .welcome-footer {
+                margin-left: 0 !important;
+            }
+
+            .mobile-sidebar.collapsed~.home-main,
+            .mobile-sidebar.collapsed~.welcome-footer {
+                margin-left: 0 !important;
+            }
+
+            .home-input-section {
+                padding: 20px 12px 12px;
+            }
+
+            .shortcuts-row {
+                padding: 0 10px 10px;
+                gap: 8px;
+            }
+
+            .shortcut-card {
+                padding: 10px 12px;
+                min-width: 70px;
+                border-radius: 12px;
+            }
+
+            .shortcut-icon {
+                font-size: 1.3rem;
+            }
+
+            .shortcut-label {
+                font-size: 0.65rem;
+            }
+
+            .dashboard-container {
+                padding: 12px 10px 32px;
+            }
+
+            .dashboard-card {
+                padding: 16px 14px;
+            }
+
+            .dashboard-section-title {
+                margin: 16px 0 10px;
+                font-size: 1rem;
+            }
+
+            .home-greeting h1 {
+                font-size: 1.2rem;
+            }
+
+            .home-greeting p {
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 
@@ -548,7 +624,7 @@
     </header>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <main class="welcome-main" style="padding-top: 0;">
+    <main class="home-main">
 
         <!-- 1. BARRA PARA NUEVO CHAT -->
         <section class="home-input-section">
