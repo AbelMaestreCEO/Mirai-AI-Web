@@ -1409,6 +1409,24 @@
             </div>
         </div>
 
+        <!-- ══ PREFERENCIAS IA ══ -->
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-icon">🧠</div>
+                <div>
+                    <h2>Tus preferencias (detectadas por Mirai)</h2>
+                    <p>Mirai analiza tus conversaciones para personalizar las respuestas</p>
+                </div>
+            </div>
+            <div class="settings-section-body">
+                <div id="ai-prefs-loading" style="color:var(--text-secondary);font-size:0.85rem;padding:8px 0;">Cargando preferencias…</div>
+                <div id="ai-prefs-container" style="display:none;"></div>
+                <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:12px;opacity:0.7;">
+                    Estos datos se actualizan automáticamente cada 10 minutos mientras conversas con Mirai.
+                </p>
+            </div>
+        </div>
+
         <!-- ══ MODELO IA ══ -->
         <div class="settings-section">
             <div class="settings-section-header">
@@ -2354,8 +2372,62 @@
                     if (sel) sel.value = e.detail;
                 });
 
+                const PREF_LABELS = {
+                    colores_favoritos: '🎨 Colores favoritos',
+                    colores_que_no_gustan: '🚫🎨 Colores que no gustan',
+                    musica_favorita: '🎵 Música favorita',
+                    musica_que_no_gusta: '🚫🎵 Música que no gusta',
+                    peliculas_series_favoritas: '🎬 Películas/Series favoritas',
+                    peliculas_series_que_no_gustan: '🚫🎬 Películas/Series que no gustan',
+                    temas_de_conversacion_favoritos: '💬 Temas favoritos',
+                    temas_que_evita: '🚫💬 Temas que evita',
+                    estudios_o_profesion: '🎓 Estudios/Profesión',
+                    hobbies: '🎯 Hobbies',
+                    comida_favorita: '🍽️ Comida favorita',
+                    comida_que_no_gusta: '🚫🍽️ Comida que no gusta',
+                    deportes: '⚽ Deportes',
+                    videojuegos: '🎮 Videojuegos',
+                    estilo_comunicacion: '🗣️ Estilo de comunicación',
+                    personalidad_observada: '🧩 Personalidad observada',
+                    otros_gustos: '✨ Otros gustos',
+                    otros_disgustos: '👎 Otros disgustos'
+                };
+
+                async function loadAIPreferences() {
+                    const container = document.getElementById('ai-prefs-container');
+                    const loading = document.getElementById('ai-prefs-loading');
+                    try {
+                        const res = await fetch('/api/user/preferences');
+                        if (!res.ok) { loading.textContent = 'No se pudieron cargar'; return; }
+                        const { preferences } = await res.json();
+                        loading.style.display = 'none';
+
+                        if (!preferences || Object.keys(preferences).length === 0) {
+                            container.style.display = 'block';
+                            container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Aún no hay preferencias detectadas. Sigue conversando con Mirai para que te conozca mejor.</p>';
+                            return;
+                        }
+
+                        let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+                        for (const [key, value] of Object.entries(preferences)) {
+                            if (!value) continue;
+                            const label = PREF_LABELS[key] || key.replace(/_/g, ' ');
+                            html += `<div style="background:var(--secondary-container);border:1px solid var(--glass-border);border-radius:10px;padding:12px 14px;">
+                                <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:4px;">${label}</div>
+                                <div style="font-size:0.88rem;color:var(--text-primary);font-weight:500;">${value}</div>
+                            </div>`;
+                        }
+                        html += '</div>';
+                        container.innerHTML = html;
+                        container.style.display = 'block';
+                    } catch (e) {
+                        loading.textContent = 'Error al cargar preferencias';
+                    }
+                }
+
                 document.addEventListener('DOMContentLoaded', init);
                 if (document.readyState !== 'loading') init();
+                loadAIPreferences();
 
             })();
     </script>

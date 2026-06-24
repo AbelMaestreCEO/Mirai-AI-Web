@@ -2918,6 +2918,13 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/user/settings' && request.method === 'PUT')
       return await handleSaveUserSettings(request, env, corsHeaders);
 
+    // Preferencias detectadas por IA
+    if (path === '/api/user/preferences' && request.method === 'GET')
+      return await handleGetUserPreferences(request, env, corsHeaders);
+
+    if (path === '/api/user/preferences/analyze' && request.method === 'POST')
+      return await handleAnalyzePreferences(request, env, corsHeaders);
+
     // Servir avatar desde R2 (URL pública sin auth, para usar en <img>)
     if (path.startsWith('/api/user/avatar/') && request.method === 'GET')
       return await handleServeAvatar(request, env, corsHeaders);
@@ -7022,6 +7029,35 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       }
     }
 
+    // Inyectar datos personales del usuario en el system prompt
+    if (userDni) {
+      try {
+        const userData = await env.MIRAI_AI_DB.prepare(
+          "SELECT first_name, last_name, dni, ai_preferences_json FROM users WHERE dni = ?"
+        ).bind(userDni).first();
+        if (userData) {
+          const personalInfo = `\n\n[DATOS DEL USUARIO] El usuario con quien hablas se llama ${userData.first_name || ''} ${userData.last_name || ''}, su documento de identidad (DNI) es ${userData.dni}. Usa su nombre para personalizar tus respuestas, salúdalo por su nombre cuando sea apropiado.`;
+          systemPrompt += personalInfo;
+
+          if (userData.ai_preferences_json) {
+            try {
+              const prefs = JSON.parse(userData.ai_preferences_json);
+              if (prefs && Object.keys(prefs).length > 0) {
+                let prefsText = '\n\n[PREFERENCIAS DEL USUARIO] Basándote en conversaciones anteriores, estos son los gustos y preferencias conocidos del usuario:';
+                for (const [category, value] of Object.entries(prefs)) {
+                  if (value) prefsText += `\n- ${category}: ${value}`;
+                }
+                prefsText += '\nUsa esta información para adaptar tus respuestas, referencias y sugerencias al gusto del usuario.';
+                systemPrompt += prefsText;
+              }
+            } catch (e) { /* ignore malformed prefs */ }
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Error al obtener datos del usuario para system prompt:', e.message);
+      }
+    }
+
     console.log('System prompt activo:', systemPrompt.substring(0, 80) + '...');
 
     // 4. Obtener historial
@@ -7169,6 +7205,116 @@ async function handleSaveUserSettings(request, env, corsHeaders) {
     return jsonResponse({ success: true }, 200, corsHeaders);
   } catch (error) {
     console.error('Error saveUserSettings:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// ── Preferencias detectadas por IA: GET ──────────────────────
+async function handleGetUserPreferences(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const row = await env.MIRAI_AI_DB.prepare(
+      "SELECT ai_preferences_json FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+
+    const preferences = row?.ai_preferences_json ? JSON.parse(row.ai_preferences_json) : {};
+    return jsonResponse({ success: true, preferences }, 200, corsHeaders);
+  } catch (error) {
+    console.error('Error getPreferences:', error);
+    return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+  }
+}
+
+// ── Preferencias detectadas por IA: POST (análisis) ──────────
+async function handleAnalyzePreferences(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const recentMessages = await env.MIRAI_AI_DB.prepare(
+      `SELECT m.content, m.role FROM messages m
+       JOIN conversations c ON m.conversation_id = c.id
+       WHERE c.user_dni = ? AND c.course_id IS NULL AND c.project_id IS NULL
+       ORDER BY m.created_at DESC LIMIT 60`
+    ).bind(userDni).all();
+
+    if (!recentMessages.results || recentMessages.results.length < 4) {
+      return jsonResponse({ success: true, skipped: true, reason: 'No hay suficientes mensajes para analizar' }, 200, corsHeaders);
+    }
+
+    const conversationSample = recentMessages.results
+      .reverse()
+      .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content.substring(0, 300)}`)
+      .join('\n');
+
+    const existingRow = await env.MIRAI_AI_DB.prepare(
+      "SELECT ai_preferences_json FROM users WHERE dni = ?"
+    ).bind(userDni).first();
+    const existingPrefs = existingRow?.ai_preferences_json || '{}';
+
+    const analysisPrompt = `Analiza la siguiente conversación entre un usuario y un asistente. Extrae los gustos, preferencias y disgustos del USUARIO (no del asistente). Devuelve SOLO un JSON válido con las siguientes categorías (deja vacío "" si no hay datos suficientes):
+
+{
+  "colores_favoritos": "",
+  "colores_que_no_gustan": "",
+  "musica_favorita": "",
+  "musica_que_no_gusta": "",
+  "peliculas_series_favoritas": "",
+  "peliculas_series_que_no_gustan": "",
+  "temas_de_conversacion_favoritos": "",
+  "temas_que_evita": "",
+  "estudios_o_profesion": "",
+  "hobbies": "",
+  "comida_favorita": "",
+  "comida_que_no_gusta": "",
+  "deportes": "",
+  "videojuegos": "",
+  "estilo_comunicacion": "",
+  "personalidad_observada": "",
+  "otros_gustos": "",
+  "otros_disgustos": ""
+}
+
+Preferencias existentes (combínalas con las nuevas, no pierdas datos anteriores):
+${existingPrefs}
+
+Conversación reciente:
+${conversationSample}
+
+Responde SOLO con el JSON, sin explicaciones ni markdown.`;
+
+    const messages = [
+      { role: 'system', content: 'Eres un analista de preferencias. Solo respondes con JSON válido.' },
+      { role: 'user', content: analysisPrompt }
+    ];
+
+    const aiResponse = await callAI(AI_MODEL_NORMAL, messages, { temperature: 0.3, max_tokens: 1500 }, env);
+
+    let preferences = {};
+    try {
+      const cleaned = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      preferences = JSON.parse(cleaned);
+    } catch (parseErr) {
+      console.error('Error parseando preferencias:', parseErr.message);
+      return jsonResponse({ success: false, error: 'Error al parsear respuesta de IA' }, 500, corsHeaders);
+    }
+
+    const filtered = {};
+    for (const [key, value] of Object.entries(preferences)) {
+      if (value && typeof value === 'string' && value.trim()) {
+        filtered[key] = value.trim();
+      }
+    }
+
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE users SET ai_preferences_json = ? WHERE dni = ?"
+    ).bind(JSON.stringify(filtered), userDni).run();
+
+    return jsonResponse({ success: true, preferences: filtered }, 200, corsHeaders);
+  } catch (error) {
+    console.error('Error analyzePreferences:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }

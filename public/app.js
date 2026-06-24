@@ -456,6 +456,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   initializeFileUpload();
   loadConversations();
   initializeAudioMode();
+
+  // Análisis de preferencias del usuario cada 10 minutos
+  let _prefAnalysisTimer = null;
+  let _lastUserMessageTime = 0;
+
+  function schedulePreferenceAnalysis() {
+    if (_prefAnalysisTimer) clearTimeout(_prefAnalysisTimer);
+    _prefAnalysisTimer = setTimeout(async () => {
+      if (Date.now() - _lastUserMessageTime > 10 * 60 * 1000) return;
+      try {
+        await fetch('/api/user/preferences/analyze', { method: 'POST' });
+        console.log('🧠 Preferencias del usuario analizadas');
+      } catch (e) { console.warn('Error analizando preferencias:', e); }
+    }, 10 * 60 * 1000);
+  }
+
+  const _origSendMessage = window.sendMessage || sendMessage;
+  const _chatInput = document.getElementById('message-input');
+  if (_chatInput) {
+    const observer = new MutationObserver(() => {});
+    _chatInput.addEventListener('keydown', () => {
+      _lastUserMessageTime = Date.now();
+      schedulePreferenceAnalysis();
+    });
+  }
+
+  document.addEventListener('mirai-message-sent', () => {
+    _lastUserMessageTime = Date.now();
+    schedulePreferenceAnalysis();
+  });
+
+  schedulePreferenceAnalysis();
+  _lastUserMessageTime = Date.now();
 });
 
 async function sendInitialSystemPrompt(prompt) {
@@ -860,6 +893,7 @@ function getFileIcon(extension) {
 async function handleSendMessage() {
   const userInput = elements.messageInput.value.trim();
   if (!userInput && state.attachments.length === 0) return;
+  document.dispatchEvent(new CustomEvent('mirai-message-sent'));
 
   // 2. Construir mensaje
   let fullMessage = userInput;
