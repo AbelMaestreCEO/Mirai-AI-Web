@@ -568,6 +568,97 @@
             background: #FFEBEE;
         }
 
+        /* ── Edición de imagen ── */
+        .gen-edit-preview-wrap {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .gen-edit-preview-img {
+            max-width: 280px;
+            max-height: 200px;
+            border-radius: 12px;
+            border: 2px solid var(--glass-border, rgba(103, 80, 164, 0.15));
+            object-fit: cover;
+        }
+
+        .gen-edit-change-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.55);
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .gen-edit-upload-zone {
+            border: 2px dashed var(--glass-border, rgba(103, 80, 164, 0.25));
+            border-radius: 14px;
+            padding: 28px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .gen-edit-upload-zone:hover,
+        .gen-edit-upload-zone.dragover {
+            border-color: var(--accent-color, #6750A4);
+            background: var(--accent-glow, rgba(103, 80, 164, 0.06));
+        }
+
+        .gen-edit-url-input {
+            flex: 1;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1.5px solid var(--glass-border, rgba(103, 80, 164, 0.2));
+            background: var(--gen-input-bg, #fff);
+            color: var(--text-primary, #333);
+            font-size: 0.88rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        [data-theme="dark"] .gen-edit-url-input {
+            background: #1e1b26;
+        }
+
+        .gen-edit-url-input:focus {
+            border-color: var(--accent-color, #6750A4);
+        }
+
+        .gen-edit-select {
+            width: 100%;
+            padding: 9px 14px;
+            border-radius: 12px;
+            border: 1.5px solid var(--glass-border, rgba(103, 80, 164, 0.2));
+            background: var(--gen-input-bg, #fff);
+            color: var(--text-primary, #333);
+            font-size: 0.88rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        [data-theme="dark"] .gen-edit-select {
+            background: #1e1b26;
+        }
+
+        .gen-edit-select:focus {
+            border-color: var(--accent-color, #6750A4);
+        }
+
         @media (max-width: 480px) {
             .gen-hero-zone {
                 padding: 36px 16px 20px;
@@ -867,6 +958,7 @@
                 <div class="filter-pills" id="gen-tabs">
                     <button class="filter-pill active" data-tab="texto">✍️ Texto</button>
                     <button class="filter-pill" data-tab="imagen">🖼️ Imagen</button>
+                    <button class="filter-pill" data-tab="editar">✏️ Editar Imagen</button>
                     <button class="filter-pill" data-tab="video">🎬 Vídeo</button>
                     <button class="filter-pill" data-tab="musica">🎵 Música</button>
                 </div>
@@ -907,6 +999,65 @@
                     <button class="filter-pill" data-val="cartoon">🎨 Cartoon</button>
                     <button class="filter-pill" data-val="anime">🌸 Anime</button>
                     <button class="filter-pill" data-val="fotorrealista">📷 Fotorrealista</button>
+                </div>
+            </div>
+
+            <!-- ── PANEL EDICIÓN DE IMAGEN ── -->
+            <div class="gen-panel" id="panel-editar">
+                <div class="gen-edit-source" id="gen-edit-source" style="display:none;">
+                    <p class="gen-options-label">Imagen a editar</p>
+                    <div class="gen-edit-preview-wrap">
+                        <img id="gen-edit-preview-img" class="gen-edit-preview-img" src="" alt="Imagen fuente">
+                        <button class="gen-edit-change-btn" id="gen-edit-change-btn" title="Cambiar imagen">✕</button>
+                    </div>
+                </div>
+                <div class="gen-edit-upload" id="gen-edit-upload">
+                    <p class="gen-options-label">Sube o pega la URL de la imagen</p>
+                    <div class="gen-edit-upload-zone" id="gen-edit-drop-zone">
+                        <span style="font-size:2rem;">📤</span>
+                        <p style="margin:6px 0 0;font-size:0.88rem;color:var(--text-secondary)">Arrastra una imagen aquí o haz clic para seleccionar</p>
+                        <input type="file" id="gen-edit-file-input" accept="image/*" style="display:none">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+                        <input type="text" id="gen-edit-url-input" class="gen-edit-url-input" placeholder="O pega la URL de la imagen...">
+                        <button class="filter-pill" id="gen-edit-url-load-btn">Cargar</button>
+                    </div>
+                </div>
+
+                <p class="gen-options-label" style="margin-top:16px;">Estilo predefinido</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+                    <select id="gen-edit-style-select" class="gen-edit-select">
+                        <option value="">Sin estilo</option>
+                        <optgroup label="🎨 Estilos artísticos">
+                            <option value="Transform into a watercolor painting style with vibrant colors">Acuarela</option>
+                            <option value="Convert to oil painting style, rich textures, classical art">Pintura al óleo</option>
+                            <option value="Render in anime style, clean linework, expressive, manga aesthetic">Anime</option>
+                            <option value="Make it look like a pixel art retro video game sprite">Pixel Art</option>
+                            <option value="Apply pop art style, bold colors, halftone dots, Andy Warhol inspired">Pop Art</option>
+                            <option value="Sketch pencil drawing style, detailed crosshatching, graphite">Dibujo a lápiz</option>
+                        </optgroup>
+                        <optgroup label="🌄 Fondos">
+                            <option value="Place the subject on a tropical beach with palm trees and sunset">Playa tropical</option>
+                            <option value="Set in a futuristic cyberpunk city with neon lights at night">Ciudad cyberpunk</option>
+                            <option value="Place in a magical enchanted forest with glowing lights">Bosque encantado</option>
+                            <option value="Set the scene in outer space with stars and nebulas">Espacio exterior</option>
+                            <option value="Place in a cozy coffee shop with warm lighting">Cafetería acogedora</option>
+                        </optgroup>
+                        <optgroup label="✨ Efectos">
+                            <option value="Add dramatic cinematic lighting with lens flare and bokeh">Iluminación cinematográfica</option>
+                            <option value="Apply vintage retro film filter with grain and faded colors">Filtro vintage</option>
+                            <option value="Make it black and white with high contrast noir style">Blanco y negro noir</option>
+                            <option value="Add golden hour warm sunset lighting">Hora dorada</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <p class="gen-options-label">Relación de aspecto</p>
+                <div class="gen-options-row" id="edit-aspect-opts">
+                    <button class="filter-pill active" data-val="match_input_image">📐 Original</button>
+                    <button class="filter-pill" data-val="1:1">⬜ 1:1</button>
+                    <button class="filter-pill" data-val="16:9">🖥️ 16:9</button>
+                    <button class="filter-pill" data-val="9:16">📱 9:16</button>
                 </div>
             </div>
 
@@ -981,6 +1132,7 @@
                     <div class="filter-pills" id="gen-history-tabs">
                         <button class="filter-pill active" data-htab="texto">✍️ Texto</button>
                         <button class="filter-pill" data-htab="imagen">🖼️ Imágenes</button>
+                        <button class="filter-pill" data-htab="editar">✏️ Ediciones</button>
                         <button class="filter-pill" data-htab="video">🎬 Vídeo</button>
                         <button class="filter-pill" data-htab="musica">🎵 Música</button>
                     </div>

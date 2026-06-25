@@ -3129,6 +3129,10 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/gen-history' && request.method === 'DELETE')
       return await handleGenHistoryDelete(request, env, corsHeaders);
 
+    // ── Edición de imagen con Pruna P-Image-Edit ──
+    if (path === '/api/image-edit' && request.method === 'POST')
+      return await handleImageEdit(request, env, corsHeaders);
+
     // ── Tokens / Cuotas diarias ──
     if (path === '/api/user/tokens' && request.method === 'GET')
       return await handleGetTokens(request, env, corsHeaders);
@@ -7922,6 +7926,117 @@ async function generateAndStoreImage(prompt, conversationId, env) {
   } catch (error) {
     console.error('❌ Error en generateAndStoreImage:', error.message);
     throw error;
+  }
+}
+
+// --- EDITAR IMAGEN CON PRUNA AI P-IMAGE-EDIT ---
+async function handleImageEdit(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) {
+      return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
+    }
+
+    const tokenCheck = await checkAndConsumeToken(userDni, 'imagen', env);
+    if (!tokenCheck.allowed) {
+      return jsonResponse({
+        error: `Has alcanzado el límite diario de ${tokenCheck.limit} imágenes. Vuelve a intentarlo mañana.`,
+        token_limit_reached: true,
+      }, 429, corsHeaders);
+    }
+
+    const { prompt, image_url, aspect_ratio } = await request.json();
+
+    if (!prompt || !image_url) {
+      return jsonResponse({ error: 'Se requiere prompt e image_url' }, 400, corsHeaders);
+    }
+
+    let imageSource = image_url;
+    if (image_url.startsWith('/api/image/')) {
+      const origin = new URL(request.url).origin;
+      imageSource = origin + image_url;
+    }
+
+    console.log('✏️ Iniciando edición con pruna/p-image-edit');
+    console.log('✏️ Prompt:', prompt.substring(0, 100));
+
+    const aiResponse = await env.AI.run(
+      'pruna/p-image-edit',
+      {
+        prompt: prompt,
+        images: [imageSource],
+        aspect_ratio: aspect_ratio || '1:1',
+      },
+      { gateway: { id: 'default' } }
+    );
+
+    if (!aiResponse) {
+      throw new Error('No se recibió respuesta de Pruna P-Image-Edit');
+    }
+
+    let imageBuffer = null;
+    let rawString = null;
+
+    if (aiResponse instanceof ArrayBuffer) {
+      imageBuffer = aiResponse;
+    } else if (aiResponse.image && typeof aiResponse.image === 'string') {
+      rawString = aiResponse.image.trim();
+    } else if (aiResponse.result && typeof aiResponse.result.image === 'string') {
+      rawString = aiResponse.result.image.trim();
+    } else if (typeof aiResponse === 'string') {
+      rawString = aiResponse.trim();
+    }
+
+    if (rawString) {
+      if (rawString.startsWith('http://') || rawString.startsWith('https://')) {
+        const imageFetch = await fetch(rawString, {
+          headers: { 'User-Agent': 'Cloudflare-Worker' }
+        });
+        if (!imageFetch.ok) throw new Error(`Error descargando imagen editada: ${imageFetch.status}`);
+        imageBuffer = await imageFetch.arrayBuffer();
+      } else {
+        const cleanBase64 = rawString.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+        if (cleanBase64.length < 100) throw new Error('Respuesta no contiene imagen válida');
+        const binaryString = atob(cleanBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        imageBuffer = bytes.buffer;
+      }
+    }
+
+    if (!imageBuffer || imageBuffer.byteLength === 0) {
+      throw new Error('Buffer de imagen vacío');
+    }
+
+    const imageId = crypto.randomUUID();
+    const conversationId = `edit_${Date.now()}`;
+    const r2Key = `generated-images/${conversationId}/${imageId}.jpg`;
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, imageBuffer, {
+      httpMetadata: { contentType: 'image/jpeg' },
+      customMetadata: {
+        prompt: prompt.substring(0, 200),
+        generated_at: new Date().toISOString(),
+        model: 'pruna/p-image-edit',
+        source_image: image_url.substring(0, 200),
+      }
+    });
+
+    const editedUrl = `/api/image/${r2Key}`;
+    console.log(`✨ Imagen editada exitosamente: ${editedUrl}`);
+
+    return jsonResponse({
+      image_url: editedUrl,
+      prompt: prompt,
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ handleImageEdit error:', error.message);
+    return jsonResponse({
+      error: 'Error al editar imagen: ' + error.message,
+    }, 500, corsHeaders);
   }
 }
 

@@ -19,6 +19,8 @@
         imageStyle: 'cinematografico',
         videoStyle: 'cinematografico',
         musicGenre: 'pop',
+        editAspect: 'match_input_image',
+        editImageUrl: '',
         isLoading: false
     };
 
@@ -150,6 +152,7 @@
         const placeholders = {
             texto: '¿Qué quieres escribir? Ej: "Escribe un correo solicitando vacaciones"',
             imagen: 'Describe la imagen que quieres generar...',
+            editar: 'Describe la edición que quieres aplicar...',
             video: 'Describe el vídeo que quieres generar...',
             musica: 'Describe la música que quieres generar...'
         };
@@ -271,7 +274,7 @@
             if (!url) { showError('No se recibió URL de imagen.'); return; }
             showResult({
                 title: '🖼️ Imagen generada', badge,
-                body: { html: `<img class="gen-image-output" src="${escAttr(url)}" alt="Imagen generada" loading="lazy">`, actions: buildDownloadBtn(url, 'imagen-mirai.png') + buildCopyUrlBtn(url) }
+                body: { html: `<img class="gen-image-output" src="${escAttr(url)}" alt="Imagen generada" loading="lazy">`, actions: buildDownloadBtn(url, 'imagen-mirai.png') + buildCopyUrlBtn(url) + buildEditBtn(url) }
             });
             apiSaveHistory('imagen', badge, _lastUserText, url).then(() => {
                 $('gen-history-section').style.display = 'block';
@@ -371,6 +374,13 @@
     // ============================================
     async function generate(userText) {
         if (genState.isLoading) return;
+
+        const tab = genState.activeTab;
+
+        if (tab === 'editar') {
+            return generateEdit(userText);
+        }
+
         if (!userText.trim()) {
             showError('Escribe algo antes de generar.');
             return;
@@ -379,7 +389,6 @@
         hideResult();
         $('gen-error').classList.remove('visible');
 
-        const tab = genState.activeTab;
         const icons = { texto: '✍️', imagen: '🖼️', video: '🎬', musica: '🎵' };
         const loadMsgs = { texto: 'Redactando texto...', imagen: 'Generando imagen...', video: 'Generando vídeo...', musica: 'Componiendo música...' };
         setLoading(true, loadMsgs[tab] || 'Generando...', icons[tab] || '✨');
@@ -419,6 +428,154 @@
         } finally {
             setLoading(false);
         }
+    }
+
+    // ============================================
+    // EDICIÓN DE IMAGEN
+    // ============================================
+    async function generateEdit(userText) {
+        if (!genState.editImageUrl) {
+            showError('Primero selecciona una imagen para editar.');
+            return;
+        }
+
+        const styleSelect = $('gen-edit-style-select');
+        const stylePrompt = styleSelect ? styleSelect.value : '';
+        const combinedPrompt = [userText.trim(), stylePrompt].filter(Boolean).join('. ');
+
+        if (!combinedPrompt) {
+            showError('Escribe una instrucción de edición o selecciona un estilo predefinido.');
+            return;
+        }
+
+        hideResult();
+        $('gen-error').classList.remove('visible');
+        setLoading(true, 'Editando imagen...', '✏️');
+        _lastUserText = combinedPrompt;
+
+        try {
+            const res = await fetch('/api/image-edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    prompt: combinedPrompt,
+                    image_url: genState.editImageUrl,
+                    aspect_ratio: genState.editAspect,
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Error ${res.status}`);
+            }
+
+            const data = await res.json();
+            const url = data.image_url || '';
+            if (!url) { showError('No se recibió la imagen editada.'); return; }
+
+            showResult({
+                title: '✏️ Imagen editada', badge: '✏️ Edición',
+                body: {
+                    html: `<img class="gen-image-output" src="${escAttr(url)}" alt="Imagen editada" loading="lazy">`,
+                    actions: buildDownloadBtn(url, 'editada-mirai.jpg') + buildCopyUrlBtn(url) + buildEditBtn(url)
+                }
+            });
+
+            apiSaveHistory('editar', '✏️ Edición', _lastUserText, url).then(() => {
+                $('gen-history-section').style.display = 'block';
+                _histPage = 1; _activeHistTab = 'editar';
+                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.htab === 'editar'));
+                renderHistory();
+            });
+
+        } catch (err) {
+            console.error('❌ image-edit error:', err);
+            showError('Error al editar: ' + (err.message || 'Inténtalo de nuevo.'));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function buildEditBtn(imageUrl) {
+        const safe = escAttr(imageUrl);
+        return `<button class="gen-action-btn" onclick="window._genEditImage('${safe}')">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+            Editar
+        </button>`;
+    }
+
+    window._genEditImage = function (imageUrl) {
+        genState.editImageUrl = imageUrl;
+        genState.activeTab = 'editar';
+
+        document.querySelectorAll('#gen-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.tab === 'editar'));
+        document.querySelectorAll('.gen-panel').forEach(p => p.style.display = 'none');
+        const panel = document.getElementById('panel-editar');
+        if (panel) panel.style.display = 'block';
+
+        setEditPreview(imageUrl);
+        updatePlaceholder();
+        hideResult();
+        $('gen-input').focus();
+    };
+
+    function setEditPreview(url) {
+        const preview = $('gen-edit-preview-img');
+        const sourceWrap = $('gen-edit-source');
+        const uploadWrap = $('gen-edit-upload');
+        if (url) {
+            preview.src = url;
+            sourceWrap.style.display = 'block';
+            uploadWrap.style.display = 'none';
+            genState.editImageUrl = url;
+        } else {
+            preview.src = '';
+            sourceWrap.style.display = 'none';
+            uploadWrap.style.display = 'block';
+            genState.editImageUrl = '';
+        }
+    }
+
+    function initEditPanel() {
+        initStyleOpts('edit-aspect-opts', 'editAspect');
+
+        const changeBtn = $('gen-edit-change-btn');
+        if (changeBtn) changeBtn.addEventListener('click', () => setEditPreview(''));
+
+        const dropZone = $('gen-edit-drop-zone');
+        const fileInput = $('gen-edit-file-input');
+
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) handleEditFile(file);
+            });
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files[0]) handleEditFile(fileInput.files[0]);
+            });
+        }
+
+        const urlLoadBtn = $('gen-edit-url-load-btn');
+        if (urlLoadBtn) {
+            urlLoadBtn.addEventListener('click', () => {
+                const url = $('gen-edit-url-input').value.trim();
+                if (url) setEditPreview(url);
+            });
+        }
+    }
+
+    function handleEditFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => setEditPreview(e.target.result);
+        reader.readAsDataURL(file);
     }
 
     // ============================================
@@ -474,7 +631,10 @@
             actions = `<button class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" onclick="window._genHistCopy(this,${item.id})">Copiar</button>`;
         } else if (type === 'imagen') {
             preview = item.result ? `<img class="gen-hist-img" src="${escAttr(item.result)}" alt="Imagen" loading="lazy">` : '';
-            actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="imagen-mirai.png" target="_blank">Descargar</a>` : '';
+            actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="imagen-mirai.png" target="_blank">Descargar</a><button class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" onclick="window._genEditImage('${escAttr(item.result)}')">Editar</button>` : '';
+        } else if (type === 'editar') {
+            preview = item.result ? `<img class="gen-hist-img" src="${escAttr(item.result)}" alt="Editada" loading="lazy">` : '';
+            actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="editada-mirai.jpg" target="_blank">Descargar</a><button class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" onclick="window._genEditImage('${escAttr(item.result)}')">Re-editar</button>` : '';
         } else if (type === 'video') {
             preview = item.result ? `<video style="width:100%;border-radius:8px;max-height:160px" controls src="${escAttr(item.result)}"></video>` : '';
             actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="video-mirai.mp4" target="_blank">Descargar</a>` : '';
@@ -605,6 +765,7 @@
         initStyleOpts('image-style-opts', 'imageStyle');
         initStyleOpts('video-style-opts', 'videoStyle');
         initStyleOpts('music-genre-opts', 'musicGenre');
+        initEditPanel();
         initHistoryTabs();
         updatePlaceholder();
 
