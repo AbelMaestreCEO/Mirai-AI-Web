@@ -90,6 +90,7 @@
             flex-direction: column;
             gap: 0.75rem;
             position: relative;
+            overflow: hidden;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             cursor: pointer;
         }
@@ -737,8 +738,9 @@
         .projects-new-btn {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
-            padding: 0.55rem 1.2rem;
+            padding: 0.65rem 1.2rem;
             border-radius: 20px;
             border: none;
             background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
@@ -750,6 +752,7 @@
             transition: opacity 0.18s, transform 0.18s;
             white-space: nowrap;
             letter-spacing: 0.02em;
+            width: 100%;
         }
 
         .projects-new-btn:hover {
@@ -768,16 +771,22 @@
             gap: 0.75rem;
         }
 
+        .courses-toolbar-top {
+            width: 100%;
+        }
+
         .courses-toolbar-top .courses-search {
             width: 100%;
         }
 
         #filter-pills {
+            display: flex;
             overflow-x: auto;
             flex-wrap: nowrap;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             padding-bottom: 4px;
+            width: 100%;
         }
 
         #filter-pills::-webkit-scrollbar {
