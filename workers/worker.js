@@ -7834,7 +7834,6 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       'xai/grok-imagine-image',
       {
         prompt: prompt,
-        aspect_ratio: '1:1'
       }
     );
 
