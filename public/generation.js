@@ -144,6 +144,10 @@
                 hideResult();
                 $('gen-error').classList.remove('visible');
                 updatePlaceholder();
+
+                _activeHistTab = tab;
+                _histPage = 1;
+                renderHistory();
             });
         });
     }
@@ -678,16 +682,6 @@
     }
 
     function initHistoryTabs() {
-        document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(btn => {
-            btn.addEventListener('click', () => {
-                _activeHistTab = btn.dataset.htab;
-                _histPage = 1;
-                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                renderHistory();
-            });
-        });
-
         $('gen-hist-clear-tab-btn').addEventListener('click', async () => {
             if (!confirm(`¿Borrar todo el historial de ${_activeHistTab}?`)) return;
             await apiDeleteHistory(null, _activeHistTab);
