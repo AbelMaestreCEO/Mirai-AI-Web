@@ -181,6 +181,17 @@
             color: var(--text-secondary, #49454F);
             opacity: 0.7;
         }
+        .tokens-plan-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            background: var(--secondary-container, #E8DEF8);
+            color: var(--accent-color, #6750A4);
+        }
         .tokens-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -831,7 +842,7 @@
         <div class="tokens-card" id="tokens-card">
             <div class="tokens-header">
                 <span class="tokens-title">Tokens disponibles hoy</span>
-                <span class="tokens-reset-hint">Se reinician a medianoche</span>
+                <span class="tokens-plan-badge" id="tokens-plan-badge">⭐ Basic</span>
             </div>
             <div class="tokens-grid">
                 <div class="token-item">
@@ -1248,18 +1259,32 @@
 
     <script>
         (function () {
+            var PLAN_LABELS = { basic: '⭐ Basic', students: '🎓 Students', development: '💻 Development', designer: '🎨 Designer', max: '🚀 Max' };
+
             async function loadTokens() {
                 try {
                     const res = await fetch('/api/user/tokens', { credentials: 'same-origin' });
                     if (!res.ok) return;
-                    const { tokens } = await res.json();
+                    const data = await res.json();
+                    const tokens = data.tokens;
                     if (!tokens) return;
+
+                    var planBadge = document.getElementById('tokens-plan-badge');
+                    if (planBadge && data.plan) {
+                        planBadge.textContent = PLAN_LABELS[data.plan] || PLAN_LABELS.basic;
+                    }
 
                     ['imagen', 'musica', 'video'].forEach(function (type) {
                         var t = tokens[type];
                         var bar = document.getElementById('token-bar-' + type);
                         var count = document.getElementById('token-count-' + type);
                         if (!bar || !count) return;
+                        if (t.limit === -1) {
+                            bar.className = 'token-bar unlimited';
+                            bar.style.width = '100%';
+                            count.textContent = 'Ilimitado';
+                            return;
+                        }
                         var pct = t.limit > 0 ? ((t.remaining / t.limit) * 100) : 0;
                         bar.style.width = pct + '%';
                         bar.className = 'token-bar' + (pct <= 0 ? ' empty' : pct <= 30 ? ' low' : '');

@@ -251,6 +251,23 @@
             color: var(--accent-color);
         }
 
+        /* Plan badge */
+        .user-plan-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .user-plan-badge.plan-basic { background: #E8E8E8; color: #555; }
+        .user-plan-badge.plan-students { background: #E3F2FD; color: #1565C0; }
+        .user-plan-badge.plan-development { background: #E8F5E9; color: #2E7D32; }
+        .user-plan-badge.plan-designer { background: #FFF3E0; color: #E65100; }
+        .user-plan-badge.plan-max { background: linear-gradient(135deg, #6750A4, #9A82DB); color: #fff; }
+
         /* Selector de rol */
         .role-select-wrapper {
             width: 100%;
@@ -747,6 +764,11 @@
             return map[role.toLowerCase()] || role;
         }
 
+        function planLabel(plan) {
+            const map = { basic: '⭐ Basic', students: '🎓 Students', development: '💻 Development', designer: '🎨 Designer', max: '🚀 Max' };
+            return map[plan] || '⭐ Basic';
+        }
+
         // ── Estado ───────────────────────────────────────────────────
 
         let allUsers = [];   // cache de usuarios
@@ -845,6 +867,7 @@
                 const fullName = [firstName, lastName].filter(Boolean).join(' ') || escHtml(u.name || 'Sin nombre');
                 const email = censorEmail(u.email || '');
                 const role = u.role || 'student';
+                const plan = u.plan || 'basic';
                 const dni = u.dni || u.id || '';
                 const avatarUrl = u.avatar_url || '';
                 const initial = (firstName || fullName || '?')[0].toUpperCase();
@@ -859,6 +882,7 @@
                 <p class="user-name">${fullName}</p>
                 <p class="user-email">${email}</p>
                 <span class="user-role-badge ${roleBadgeClass(role)}">${roleLabel(role)}</span>
+                <span class="user-plan-badge plan-${plan}">${planLabel(plan)}</span>
                 <div class="role-select-wrapper">
                     <select class="role-select" data-dni="${escHtml(dni)}" data-current="${escHtml(role)}" aria-label="Cambiar rol de ${fullName}">
 <option value="student"  ${role === 'student' ? 'selected' : ''}>🎓 Estudiante</option>
@@ -866,7 +890,19 @@
 <option value="admin"    ${role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
                     </select>
                     <button class="role-save-btn" data-dni="${escHtml(dni)}" aria-label="Guardar rol de ${fullName}">
-                        Guardar cambio
+                        Guardar rol
+                    </button>
+                </div>
+                <div class="role-select-wrapper">
+                    <select class="plan-select" data-dni="${escHtml(dni)}" data-current="${escHtml(plan)}" aria-label="Cambiar plan de ${fullName}">
+<option value="basic"       ${plan === 'basic' ? 'selected' : ''}>⭐ Basic</option>
+<option value="students"    ${plan === 'students' ? 'selected' : ''}>🎓 Students</option>
+<option value="development" ${plan === 'development' ? 'selected' : ''}>💻 Development</option>
+<option value="designer"    ${plan === 'designer' ? 'selected' : ''}>🎨 Designer</option>
+<option value="max"         ${plan === 'max' ? 'selected' : ''}>🚀 Max</option>
+                    </select>
+                    <button class="plan-save-btn" data-dni="${escHtml(dni)}" aria-label="Guardar plan de ${fullName}">
+                        Guardar plan
                     </button>
                 </div>
             </div>`;
@@ -875,6 +911,9 @@
             // Listeners para los botones de guardar
             grid.querySelectorAll('.role-save-btn').forEach(btn => {
                 btn.addEventListener('click', handleRoleChange);
+            });
+            grid.querySelectorAll('.plan-save-btn').forEach(btn => {
+                btn.addEventListener('click', handlePlanChange);
             });
         }
 
@@ -933,6 +972,61 @@
                 console.error('[Panel] Error actualizando rol:', err);
                 showToast(`Error: ${err.message}`);
                 btn.textContent = 'Guardar cambio';
+                btn.disabled = false;
+            }
+        }
+
+        async function handlePlanChange(e) {
+            const btn = e.currentTarget;
+            const card = btn.closest('.user-card');
+            const dni = btn.dataset.dni;
+            const sel = card.querySelector('.plan-select');
+            const newPlan = sel.value;
+            const oldPlan = sel.dataset.current;
+
+            if (newPlan === oldPlan) {
+                showToast('El plan ya es el mismo, no hay cambios.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                const res = await fetch('/api/admin/set-plan', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dni, plan: newPlan })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || `HTTP ${res.status}`);
+                }
+
+                sel.dataset.current = newPlan;
+                const badge = card.querySelector('.user-plan-badge');
+                badge.className = `user-plan-badge plan-${newPlan}`;
+                badge.textContent = planLabel(newPlan);
+
+                const user = allUsers.find(u => (u.dni || u.id) === dni);
+                if (user) user.plan = newPlan;
+
+                btn.textContent = '✓ Guardado';
+                btn.classList.add('saved');
+                showToast(`Plan de ${card.querySelector('.user-name').textContent} actualizado a "${planLabel(newPlan)}"`);
+
+                setTimeout(() => {
+                    btn.textContent = 'Guardar plan';
+                    btn.classList.remove('saved');
+                    btn.disabled = false;
+                }, 2500);
+
+            } catch (err) {
+                console.error('[Panel] Error actualizando plan:', err);
+                showToast(`Error: ${err.message}`);
+                btn.textContent = 'Guardar plan';
                 btn.disabled = false;
             }
         }

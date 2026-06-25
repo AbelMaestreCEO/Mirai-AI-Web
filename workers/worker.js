@@ -2153,6 +2153,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (!userDni || userDni instanceof Response) return userDni;
 
       try {
+        await ensurePlanColumn(env);
         const { results } = await env.MIRAI_AI_DB.prepare(`
       SELECT
         dni,
@@ -2160,6 +2161,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         last_name,
         email,
         role,
+        COALESCE(plan, 'basic') AS plan,
         CASE WHEN avatar_r2_key IS NOT NULL
              THEN '/api/user/avatar/' || dni
              ELSE NULL END AS avatar_url
@@ -2186,9 +2188,8 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         }
 
         const validRoles = ['student', 'teacher', 'admin'];
-        if (!validRoles.includes(newRole)) {
-          showToast('Rol inválido');
-          return;
+        if (!validRoles.includes(role)) {
+          return jsonResponse({ error: 'Rol inválido' }, 400, corsHeaders);
         }
 
         await env.MIRAI_AI_DB.prepare(
@@ -2198,6 +2199,31 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         return jsonResponse({ success: true, dni: dni.toUpperCase(), role }, 200, corsHeaders);
       } catch (error) {
         return jsonResponse({ error: 'Error al cambiar rol', details: error.message }, 500, corsHeaders);
+      }
+    }
+
+    // POST /api/admin/set-plan
+    if (path === '/api/admin/set-plan' && request.method === 'POST') {
+      const userDni = await requireAdminAuth(request, env, corsHeaders);
+      if (!userDni || userDni instanceof Response) return userDni;
+
+      try {
+        const { dni, plan } = await request.json();
+        if (!dni || !plan) {
+          return jsonResponse({ error: 'Faltan campos: dni y plan' }, 400, corsHeaders);
+        }
+        const validPlans = ['basic', 'students', 'development', 'designer', 'max'];
+        if (!validPlans.includes(plan)) {
+          return jsonResponse({ error: 'Plan inválido' }, 400, corsHeaders);
+        }
+        await ensurePlanColumn(env);
+        await env.MIRAI_AI_DB.prepare(
+          "UPDATE users SET plan = ? WHERE dni = ?"
+        ).bind(plan, dni.toUpperCase().trim()).run();
+
+        return jsonResponse({ success: true, dni: dni.toUpperCase(), plan }, 200, corsHeaders);
+      } catch (error) {
+        return jsonResponse({ error: 'Error al cambiar plan', details: error.message }, 500, corsHeaders);
       }
     }
 
@@ -3716,11 +3742,32 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
 
 // ── Sistema de Tokens / Cuotas Diarias ──────────────────────────
 
-const DAILY_LIMITS = {
-  imagen: 10,
-  musica: 2,
-  video: 1,
+const PLAN_LIMITS = {
+  basic:       { imagen: 10, musica: 2, video: 1 },
+  students:    { imagen: 20, musica: 4, video: 2 },
+  development: { imagen: 30, musica: 6, video: 3 },
+  designer:    { imagen: 40, musica: 8, video: 4 },
+  max:         { imagen: -1, musica: -1, video: -1 },
 };
+
+const DAILY_LIMITS = PLAN_LIMITS.basic;
+
+async function ensurePlanColumn(env) {
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'basic'`
+    ).run();
+  } catch (_) { }
+}
+
+async function getUserPlanLimits(userDni, env) {
+  await ensurePlanColumn(env);
+  const row = await env.MIRAI_AI_DB.prepare(
+    `SELECT plan FROM users WHERE dni = ?`
+  ).bind(userDni.toUpperCase()).first();
+  const plan = (row && row.plan) || 'basic';
+  return { plan, limits: PLAN_LIMITS[plan] || PLAN_LIMITS.basic };
+}
 
 async function ensureTokensTable(env) {
   await env.MIRAI_AI_DB.prepare(`
@@ -3749,7 +3796,10 @@ async function getDailyUsage(userDni, env) {
 }
 
 async function checkAndConsumeToken(userDni, type, env) {
-  if (!DAILY_LIMITS[type]) return { allowed: true };
+  const { limits } = await getUserPlanLimits(userDni, env);
+  const limit = limits[type];
+  if (limit === undefined) return { allowed: true };
+  if (limit === -1) return { allowed: true, used: 0, limit: -1 };
 
   await ensureTokensTable(env);
   const today = new Date().toISOString().slice(0, 10);
@@ -3760,7 +3810,6 @@ async function checkAndConsumeToken(userDni, type, env) {
   ).bind(dni, today).first();
 
   const used = row ? row[type] : 0;
-  const limit = DAILY_LIMITS[type];
 
   if (used >= limit) {
     return { allowed: false, used, limit };
@@ -3785,11 +3834,20 @@ async function handleGetTokens(request, env, corsHeaders) {
 
   try {
     const usage = await getDailyUsage(userDni, env);
+    const { plan, limits } = await getUserPlanLimits(userDni, env);
+
+    const buildToken = (type) => {
+      const limit = limits[type];
+      if (limit === -1) return { used: usage[type], limit: -1, remaining: -1 };
+      return { used: usage[type], limit, remaining: limit - usage[type] };
+    };
+
     return jsonResponse({
+      plan,
       tokens: {
-        imagen: { used: usage.imagen, limit: DAILY_LIMITS.imagen, remaining: DAILY_LIMITS.imagen - usage.imagen },
-        musica: { used: usage.musica, limit: DAILY_LIMITS.musica, remaining: DAILY_LIMITS.musica - usage.musica },
-        video:  { used: usage.video,  limit: DAILY_LIMITS.video,  remaining: DAILY_LIMITS.video  - usage.video  },
+        imagen: buildToken('imagen'),
+        musica: buildToken('musica'),
+        video:  buildToken('video'),
         texto:  { used: 0, limit: -1, remaining: -1 },
       }
     }, 200, corsHeaders);
