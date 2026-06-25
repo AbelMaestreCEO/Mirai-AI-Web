@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v268'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v269'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -186,13 +186,16 @@ self.addEventListener('push', event => {
   const title = data.notification?.title || 'Mirai AI';
   const body = data.notification?.body || 'Tienes una nueva notificación.';
   const icon = data.notification?.icon || '/icon.png';
+  const tag = data.notification?.tag || 'mirai-alert';
+  const url = data.notification?.url || '/';
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon,
       badge: '/badge.png',
-      tag: 'inventory-alert',
+      tag,
+      data: { url },
       requireInteraction: true
     })
   );
@@ -200,7 +203,8 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  const url = event.notification.data?.url || '/';
   event.waitUntil(
-    clients.openWindow('https://ai.aberumirai.com/inventory')
+    clients.openWindow('https://ai.aberumirai.com' + url)
   );
 });
