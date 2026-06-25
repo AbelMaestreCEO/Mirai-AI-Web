@@ -261,12 +261,77 @@
             font-size: 0.72rem;
             font-weight: 600;
             letter-spacing: 0.02em;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         .user-plan-badge.plan-basic { background: #E8E8E8; color: #555; }
         .user-plan-badge.plan-students { background: #E3F2FD; color: #1565C0; }
         .user-plan-badge.plan-development { background: #E8F5E9; color: #2E7D32; }
         .user-plan-badge.plan-designer { background: #FFF3E0; color: #E65100; }
-        .user-plan-badge.plan-max { background: linear-gradient(135deg, #6750A4, #9A82DB); color: #fff; }
+        .user-plan-badge.plan-max { background: linear-gradient(135deg, #6750A4, #9A82DB); color: #fff; box-shadow: 0 2px 8px rgba(103,80,164,0.25); }
+
+        /* Plan selector */
+        .plan-select {
+            width: 100%;
+            padding: 0.5rem 0.8rem;
+            border-radius: 10px;
+            border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.1));
+            background: var(--bg-primary, #f5f5f5);
+            color: var(--text-primary, #1a1a1a);
+            font-size: 0.88rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16'%3E%3Cpath d='M7 10l5 5 5-5z' fill='%23888'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.6rem center;
+            padding-right: 2rem;
+        }
+
+        .plan-select:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.12));
+        }
+
+        .plan-save-btn {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 10px;
+            border: 1.5px solid var(--accent-color, #6750A4);
+            background: transparent;
+            color: var(--accent-color, #6750A4);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 0.2rem;
+        }
+
+        .plan-save-btn:hover:not(:disabled) {
+            background: var(--accent-gradient);
+            color: #fff;
+            border-color: transparent;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--accent-glow, rgba(103,80,164,0.18));
+        }
+
+        .plan-save-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .plan-save-btn.saved {
+            background: linear-gradient(135deg, #2E7D32, #66BB6A);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        /* Separador visual entre rol y plan */
+        .role-select-wrapper + .role-select-wrapper {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--glass-border, rgba(103, 80, 164, 0.08));
+        }
 
         /* Selector de rol */
         .role-select-wrapper {
