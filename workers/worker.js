@@ -11,9 +11,9 @@ function getAIGatewayURL(env) {
 const AI_MODEL_NORMAL = 'deepseek-v4-flash';
 const AI_MODEL_PRO = 'deepseek-v4-pro';
 
-// ✨ Configuración Video (Migrado a Pruna AI P-Video)
+// ✨ NUEVO: Configuración Video (Migrado a xAI Grok Video)
 const VIDEO_CONFIG = {
-  MODEL: 'pruna/p-video',
+  MODEL: 'xai/grok-imagine-video',
   DEFAULT_DURATION: 5,
   DEFAULT_RESOLUTION: '480p',
   ASPECT_RATIO: '16:9',
@@ -7713,19 +7713,18 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON PRUNA AI P-IMAGE ---
+// --- GENERAR IMAGEN CON GROK IMAGINE IMAGE (xAI) ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
-    console.log('🖼️ Iniciando generación con pruna/p-image');
+    console.log('🖼️ Iniciando generación con xai/grok-imagine-image');
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Llamada a Cloudflare AI con Pruna P-Image
+    // 1. Llamada a Cloudflare AI
     const aiResponse = await env.AI.run(
-      'pruna/p-image',
+      'xai/grok-imagine-image',
       {
         prompt: prompt,
-        aspect_ratio: '1:1',
-        prompt_upsampling: true,
+        aspect_ratio: '1:1'
       }
     );
 
@@ -7736,7 +7735,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     let imageBuffer = null;
     let rawString = null;
 
-    // 2. Extraer el contenido según la estructura de respuesta de Pruna
+    // 2. Extraer el contenido de texto o binario según la estructura que devuelva Cloudflare
     if (aiResponse instanceof ArrayBuffer) {
       imageBuffer = aiResponse;
     } else if (aiResponse.body && aiResponse.body instanceof ReadableStream) {
@@ -7752,28 +7751,27 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       rawString = String(aiResponse.result.response).trim();
     }
 
-    // 3. Evaluar la cadena obtenida (URL presignada de Pruna o Base64)
+    // 3. Evaluar la cadena obtenida (si es una URL de x.ai o una cadena Base64)
     if (rawString) {
-      if (rawString.startsWith('http://') || rawString.startsWith('https://')) {
+      if (rawString.startsWith('http://') || rawString.startsWith('https://') || rawString.includes('imgen.x.ai')) {
         const urlMatch = rawString.match(/https?:\/\/[^\s"']+/);
         const targetUrl = urlMatch ? urlMatch[0] : rawString;
 
-        console.log(`🔗 Se detectó una URL presignada de Pruna: ${targetUrl}`);
-        console.log('📥 Descargando imagen...');
+        console.log(`🔗 Se detectó una URL externa de Grok: ${targetUrl}`);
+        console.log('📥 Descargando imagen binaria desde los servidores de x.ai...');
 
         const imageFetch = await fetch(targetUrl, {
           headers: { 'User-Agent': 'Cloudflare-Worker' }
         });
 
         if (!imageFetch.ok) {
-          throw new Error(`Error al descargar la imagen remota: Status ${imageFetch.status}`);
+          throw new Error(`Error al descargar la imagen remota de x.ai: Status ${imageFetch.status}`);
         }
 
         imageBuffer = await imageFetch.arrayBuffer();
         console.log(`✅ Imagen descargada con éxito. Tamaño: ${imageBuffer.byteLength} bytes`);
 
       } else {
-        // Procesamos como Base64 (data:image/jpeg;base64,...)
         const cleanBase64 = rawString.replace(/^data:image\/[a-z]+;base64,/, '').trim();
 
         if (cleanBase64.length < 1000) {
@@ -7789,12 +7787,12 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       }
     }
 
-    // 4. Validar que tengamos los datos binarios listos
+    // 4. Validar que tengamos los datos binarios listos antes de ir a R2
     if (!imageBuffer || imageBuffer.byteLength === 0) {
       throw new Error('El buffer binario de la imagen está vacío o no se pudo procesar');
     }
 
-    // 5. Almacenar en R2
+    // 5. Almacenar el archivo binario en tu R2 Bucket
     const imageId = crypto.randomUUID();
     const r2Key = `generated-images/${conversationId}/${imageId}.png`;
 
@@ -7808,7 +7806,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
       }
     });
 
-    // 6. Registrar en D1
+    // 6. Registrar la respuesta de tipo "image" en tu base de datos D1
     const imageUrl = `/api/image/${r2Key}`;
     await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
 
@@ -7829,13 +7827,14 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
     let imageUrl;
     try {
       imageUrl = await generateAndStoreImage(prompt, conversationId, env);
-    } catch (imageError) {
-      const isBlocked = imageError.message.includes('safety') ||
-        imageError.message.includes('flagged') ||
-        imageError.message.includes('blocked') ||
+    } catch (grokError) {
+      // Grok rechazó el prompt (copyright, contenido bloqueado, etc.)
+      const isBlocked = grokError.message.includes('3030') ||
+        grokError.message.includes('flagged') ||
         isCopyright;
 
       if (isBlocked) {
+        // Generar mensaje de rechazo con personalidad de Mirai via DeepSeek
         let refusalText = 'Ah... lo siento, no puedo generar esa imagen 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨';
         try {
           refusalText = await callAI(
@@ -7859,7 +7858,8 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
         }, 200, corsHeaders);
       }
 
-      throw imageError;
+      // Otro tipo de error → relanzar
+      throw grokError;
     }
 
     const assistantContent = `![Imagen generada](${imageUrl})`;
@@ -7965,7 +7965,7 @@ async function sendRecoveryEmail(email, token, env) {
 
 async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders) {
   try {
-    console.log('🎬 Iniciando generación de video con Pruna AI P-Video');
+    console.log('🎬 Iniciando generación de video con Grok Imagine Video (Solo Texto)');
     console.log('🎬 Prompt original:', prompt);
 
     // 1. Guardar traza inicial en la base de datos
@@ -7975,39 +7975,42 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     const videoPrompt = simplifyVideoPrompt(prompt);
     console.log('🎬 Video prompt final:', videoPrompt);
 
-    // 2. Invocación a Pruna P-Video
-    console.log('🚀 Invocando env.AI.run con pruna/p-video (Text-to-Video)...');
+    // 2. Invocación al modelo optimizando resolución para evitar el Timeout de Cloudflare (50s)
+    console.log('🚀 Invocando env.AI.run con xai/grok-imagine-video (Text-to-Video)...');
     const videoResult = await env.AI.run(
       VIDEO_CONFIG.MODEL,
       {
         prompt: videoPrompt,
-        duration: 5,
+        duration: 5,               // Mantener duración corta para velocidad
         aspect_ratio: '16:9',
-        resolution: '480p',
+        resolution: '480p',        // Reducido temporalmente de 720p a 480p para ganancia de velocidad
       },
       {
         gateway: { id: 'default' },
       }
     );
 
-    console.log('📦 Respuesta cruda recibida de Pruna Video:', JSON.stringify(videoResult).substring(0, 500));
+    console.log('📦 Respuesta cruda recibida de Grok Video:', JSON.stringify(videoResult).substring(0, 500));
 
     let videoBuffer = null;
     let videoUrlTarget = null;
 
-    // 3. Extracción adaptativa (Buffer, Base64 o URL presignada)
+    // 3. Extracción adaptativa (Buffer, Base64 o URL remota de x.ai)
     if (videoResult instanceof ArrayBuffer && videoResult.byteLength > 0) {
       videoBuffer = videoResult;
     } else if (videoResult instanceof Uint8Array && videoResult.byteLength > 0) {
       videoBuffer = videoResult.buffer;
     } else if (videoResult) {
+      // Si viene encapsulado en propiedades de objeto comunes en Cloudflare AI
       const rawField = videoResult.video || videoResult.result?.video || videoResult.response;
 
       if (typeof rawField === 'string') {
         const cleanField = rawField.trim();
-        if (cleanField.startsWith('http://') || cleanField.startsWith('https://')) {
+        // Verificar si Grok nos entregó una URL temporal de descarga rápida
+        if (cleanField.startsWith('http://') || cleanField.startsWith('https://') || cleanField.includes('x.ai')) {
           videoUrlTarget = cleanField;
         } else {
+          // Si es un string largo es codificación Base64
           const binaryString = atob(cleanField.replace(/^data:video\/[a-z0-9]+;base64,/, ''));
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
@@ -8016,22 +8019,22 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
       }
     }
 
-    // 4. Si se detectó una URL presignada, descargarla
+    // 4. Si se interceptó una URL remota de xAI, la descargamos de inmediato
     if (videoUrlTarget) {
-      console.log(`🔗 Descargando archivo de video remoto: ${videoUrlTarget}`);
+      console.log(`🔗 Descargando archivo de video remoto detectado: ${videoUrlTarget}`);
       const videoFetch = await fetch(videoUrlTarget, {
         headers: { 'User-Agent': 'Cloudflare-Worker' }
       });
       if (!videoFetch.ok) {
-        throw new Error(`Fallo en la descarga del video: Status ${videoFetch.status}`);
+        throw new Error(`Fallo en la descarga del video desde x.ai externo: Status ${videoFetch.status}`);
       }
       videoBuffer = await videoFetch.arrayBuffer();
       console.log(`✅ Video descargado con éxito: ${videoBuffer.byteLength} bytes`);
     }
 
-    // 5. Validar datos binarios
+    // 5. Validar si obtuvimos datos binarios correctos
     if (!videoBuffer || videoBuffer.byteLength === 0) {
-      throw new Error(`No se recibió un video válido desde Pruna. Respuesta: ${JSON.stringify(videoResult)}`);
+      throw new Error(`No se recibió un video válido desde el modelo xAI. Respuesta: ${JSON.stringify(videoResult)}`);
     }
 
     // 6. Guardar el archivo final .mp4 en R2
@@ -8062,7 +8065,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
 
   } catch (error) {
     console.error('❌ handleVideoGeneration error:', error.message);
-    return jsonResponse({ error: 'Error generando video', details: error.message }, 500, corsHeaders);
+    return jsonResponse({ error: 'Error generando video con Grok', details: error.message }, 500, corsHeaders);
   }
 }
 
