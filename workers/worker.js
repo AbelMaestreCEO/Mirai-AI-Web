@@ -8087,9 +8087,6 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
       VIDEO_CONFIG.MODEL,
       {
         prompt: videoPrompt,
-        duration: VIDEO_CONFIG.DEFAULT_DURATION,
-        aspect_ratio: VIDEO_CONFIG.ASPECT_RATIO,
-        resolution: VIDEO_CONFIG.DEFAULT_RESOLUTION,
       },
       {
         gateway: { id: 'default' },
