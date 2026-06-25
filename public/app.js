@@ -366,7 +366,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Solo ejecutar lógica de chat si existe el elemento #chat-messages en la página
   const isChatPage = !!document.getElementById('chat-messages');
-  if (!isChatPage) return; // En otras páginas (inventory, mirror, courses…), MiraiApp ya inicializó el sidebar
+  if (!isChatPage) return;
+
+  const webSearchBtn = document.getElementById('web-search-btn');
+  if (webSearchBtn) {
+    webSearchBtn.addEventListener('click', () => webSearchBtn.classList.toggle('active'));
+  }
 
   const urlParams = new URLSearchParams(window.location.search);
   const contextTask = urlParams.get('context_task');
@@ -928,8 +933,9 @@ async function handleSendMessage() {
         message: fullMessage,
         conversation_id: state.currentConversationId,
         audio_mode: state.audioMode || 'auto',
-        force_type: null, // ← NULL para dejar que DeepSeek decida
-        model: selectedModel // ← AGREGAR ESTO
+        force_type: null,
+        model: selectedModel,
+        web_search: !!document.getElementById('web-search-btn')?.classList.contains('active')
       })
     });
 

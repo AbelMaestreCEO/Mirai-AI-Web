@@ -926,7 +926,7 @@ async function handleChat(request, env, corsHeaders) {
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -1054,7 +1054,8 @@ async function handleChat(request, env, corsHeaders) {
           model || 'deepseek',
           env,
           corsHeaders,
-          userDni
+          userDni,
+          !!web_search
         );
     }
 
@@ -7280,7 +7281,7 @@ async function handleUploadUserAudio(request, env, corsHeaders) {
   }
 }
 
-async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni) {
+async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -7366,6 +7367,36 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     // 4. Obtener historial
     const history = await getConversationHistory(conversation_id, env);
 
+    // 4.5 Web search — single Exa call, inject context
+    let webContext = '';
+    if (webSearch && env.EXA_API_KEY) {
+      try {
+        console.log('🌐 Web search activado para chat');
+        const exaRes = await fetch('https://api.exa.ai/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': env.EXA_API_KEY },
+          body: JSON.stringify({ query: message, numResults: 5, type: 'auto', contents: { highlights: true } }),
+        });
+        if (exaRes.ok) {
+          const exaData = await exaRes.json();
+          const results = (exaData.results || []).slice(0, 5);
+          if (results.length > 0) {
+            webContext = '\n\n[CONTEXTO WEB — Resultados de búsqueda recientes]\n' +
+              results.map((r, i) => {
+                const highlights = (r.highlights || []).join(' ').slice(0, 800);
+                return `[${i + 1}] ${r.title || 'Sin título'} (${r.url})\n${highlights}`;
+              }).join('\n\n') +
+              '\n\n[FIN CONTEXTO WEB] Usa esta información para complementar tu respuesta. Cita las fuentes cuando sea relevante.';
+            console.log(`🌐 ${results.length} resultados web inyectados`);
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ Web search falló:', e.message);
+      }
+    }
+
+    const finalMessage = webContext ? message + webContext : message;
+
     // 5. ENRUTAR SEGÚN EL MODELO
     let aiResponse = '';
 
@@ -7374,38 +7405,28 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       const messages = [
         { role: 'system', content: systemPrompt },
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: 'user', content: message }
+        { role: 'user', content: finalMessage }
       ];
       aiResponse = await callAI(AI_MODEL_NORMAL, messages, { temperature: 0.7, max_tokens: 2000 }, env);
 
     } else if (model === 'deepseek-reasoner') {
-      // --- LLAMADA A DEEPSEEK REASONER (deepseek-reasoner / R1 Pro) ---
       console.log('🧠 Usando modelo DeepSeek Reasoner (Pro)');
-
-      // deepseek-reasoner no acepta system prompt como primer mensaje; lo inyectamos en user
       const reasonerMessages = [
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: "user", content: message }
+        { role: "user", content: finalMessage }
       ];
-
-      // Prefijo de contexto en el primer mensaje si hay historial vacío
       if (reasonerMessages.length === 1) {
-        reasonerMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${message}`;
+        reasonerMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${finalMessage}`;
       }
-
       aiResponse = await callAI(AI_MODEL_PRO, reasonerMessages, { temperature: 0.6, max_tokens: 8000 }, env);
 
     } else {
-      // --- LLAMADA A DEEPSEEK (API Externa) ---
       console.log('🚀 Usando modelo DeepSeek');
-
-      // Construir mensajes incluyendo el systemPrompt dinámico
       const deepseekMessages = [
         { role: "system", content: systemPrompt },
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: "user", content: message }
+        { role: "user", content: finalMessage }
       ];
-
       aiResponse = await callAI(AI_MODEL_NORMAL, deepseekMessages, { temperature: 0.7, max_tokens: 2000 }, env);
     }
 
