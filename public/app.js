@@ -457,35 +457,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   initializeAudioMode();
 
   // Análisis de preferencias del usuario cada 10 minutos
-  let _prefAnalysisTimer = null;
-  let _lastUserMessageTime = 0;
-
-  function schedulePreferenceAnalysis() {
-    if (_prefAnalysisTimer) clearTimeout(_prefAnalysisTimer);
-    _prefAnalysisTimer = setTimeout(async () => {
-      if (Date.now() - _lastUserMessageTime > 10 * 60 * 1000) return;
-      try {
-        await fetch('/api/user/preferences/analyze', { method: 'POST' });
-        console.log('🧠 Preferencias del usuario analizadas');
-      } catch (e) { console.warn('Error analizando preferencias:', e); }
-    }, 10 * 60 * 1000);
-  }
-
-  const _chatInput = document.getElementById('message-input');
-  if (_chatInput) {
-    _chatInput.addEventListener('keydown', () => {
-      _lastUserMessageTime = Date.now();
-      schedulePreferenceAnalysis();
-    });
-  }
+  let _msgCount = 0;
+  const PREF_INTERVAL = 10;
 
   document.addEventListener('mirai-message-sent', () => {
-    _lastUserMessageTime = Date.now();
-    schedulePreferenceAnalysis();
+    _msgCount++;
+    if (_msgCount >= PREF_INTERVAL) {
+      _msgCount = 0;
+      fetch('/api/user/preferences/analyze', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: state.currentConversationId })
+      }).then(() => console.log('🧠 Preferencias analizadas'))
+        .catch(e => console.warn('Error analizando preferencias:', e));
+    }
   });
-
-  schedulePreferenceAnalysis();
-  _lastUserMessageTime = Date.now();
 });
 
 async function sendInitialSystemPrompt(prompt) {

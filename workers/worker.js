@@ -7373,13 +7373,9 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
           if (userData.ai_preferences_json) {
             try {
               const prefs = JSON.parse(userData.ai_preferences_json);
-              if (prefs && Object.keys(prefs).length > 0) {
-                let prefsText = '\n\n[PREFERENCIAS DEL USUARIO] Basándote en conversaciones anteriores, estos son los gustos y preferencias conocidos del usuario:';
-                for (const [category, value] of Object.entries(prefs)) {
-                  if (value) prefsText += `\n- ${category}: ${value}`;
-                }
-                prefsText += '\nUsa esta información para adaptar tus respuestas, referencias y sugerencias al gusto del usuario.';
-                systemPrompt += prefsText;
+              const entries = Object.entries(prefs).filter(([, v]) => v);
+              if (entries.length > 0) {
+                systemPrompt += '\n\n[PREFERENCIAS DEL USUARIO] ' + entries.map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join('; ') + '. Adapta tus respuestas a estos gustos.';
               }
             } catch (e) { /* ignore malformed prefs */ }
           }
@@ -7584,20 +7580,31 @@ async function handleAnalyzePreferences(request, env, corsHeaders) {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    const recentMessages = await env.MIRAI_AI_DB.prepare(
-      `SELECT m.content, m.role FROM messages m
+    let conversationId = null;
+    try { conversationId = (await request.json()).conversation_id; } catch (_) { }
+
+    let query, binds;
+    if (conversationId) {
+      query = `SELECT content, role FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 20`;
+      binds = [conversationId];
+    } else {
+      query = `SELECT m.content, m.role FROM messages m
        JOIN conversations c ON m.conversation_id = c.id
        WHERE c.user_dni = ? AND c.course_id IS NULL AND c.project_id IS NULL
-       ORDER BY m.created_at DESC LIMIT 60`
-    ).bind(userDni).all();
-
-    if (!recentMessages.results || recentMessages.results.length < 4) {
-      return jsonResponse({ success: true, skipped: true, reason: 'No hay suficientes mensajes para analizar' }, 200, corsHeaders);
+       ORDER BY m.created_at DESC LIMIT 20`;
+      binds = [userDni];
     }
 
-    const conversationSample = recentMessages.results
+    const recentMessages = await env.MIRAI_AI_DB.prepare(query).bind(...binds).all();
+
+    if (!recentMessages.results || recentMessages.results.length < 6) {
+      return jsonResponse({ success: true, skipped: true, reason: 'No hay suficientes mensajes' }, 200, corsHeaders);
+    }
+
+    const sample = recentMessages.results
       .reverse()
-      .map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content.substring(0, 300)}`)
+      .filter(m => m.role === 'user')
+      .map(m => m.content.substring(0, 200))
       .join('\n');
 
     const existingRow = await env.MIRAI_AI_DB.prepare(
@@ -7605,43 +7612,22 @@ async function handleAnalyzePreferences(request, env, corsHeaders) {
     ).bind(userDni).first();
     const existingPrefs = existingRow?.ai_preferences_json || '{}';
 
-    const analysisPrompt = `Analiza la siguiente conversación entre un usuario y un asistente. Extrae los gustos, preferencias y disgustos del USUARIO (no del asistente). Devuelve SOLO un JSON válido con las siguientes categorías (deja vacío "" si no hay datos suficientes):
+    const analysisPrompt = `Extrae preferencias del USUARIO de estos mensajes. Cada valor debe ser MUY CORTO (máximo 6 palabras), como "batido de fresa" o "rock alternativo". Si no hay dato claro, deja "".
 
-{
-  "colores_favoritos": "",
-  "colores_que_no_gustan": "",
-  "musica_favorita": "",
-  "musica_que_no_gusta": "",
-  "peliculas_series_favoritas": "",
-  "peliculas_series_que_no_gustan": "",
-  "temas_de_conversacion_favoritos": "",
-  "temas_que_evita": "",
-  "estudios_o_profesion": "",
-  "hobbies": "",
-  "comida_favorita": "",
-  "comida_que_no_gusta": "",
-  "deportes": "",
-  "videojuegos": "",
-  "estilo_comunicacion": "",
-  "personalidad_observada": "",
-  "otros_gustos": "",
-  "otros_disgustos": ""
-}
+Si ya existen preferencias previas, conserva las que sigan teniendo sentido y actualiza solo si hay evidencia clara en los mensajes nuevos.
 
-Preferencias existentes (combínalas con las nuevas, no pierdas datos anteriores):
-${existingPrefs}
+Preferencias actuales: ${existingPrefs}
 
-Conversación reciente:
-${conversationSample}
+Mensajes del usuario:
+${sample}
 
-Responde SOLO con el JSON, sin explicaciones ni markdown.`;
+Responde SOLO con JSON válido:
+{"colores_favoritos":"","colores_que_no_gustan":"","musica_favorita":"","musica_que_no_gusta":"","peliculas_series_favoritas":"","peliculas_series_que_no_gustan":"","temas_de_conversacion_favoritos":"","temas_que_evita":"","estudios_o_profesion":"","hobbies":"","comida_favorita":"","comida_que_no_gusta":"","deportes":"","videojuegos":"","estilo_comunicacion":"","personalidad_observada":"","otros_gustos":"","otros_disgustos":""}`;
 
-    const messages = [
-      { role: 'system', content: 'Eres un analista de preferencias. Solo respondes con JSON válido.' },
+    const aiResponse = await callAI(AI_MODEL_NORMAL, [
+      { role: 'system', content: 'Eres un extractor de preferencias. Solo respondes con JSON válido. Valores cortos de máximo 6 palabras cada uno.' },
       { role: 'user', content: analysisPrompt }
-    ];
-
-    const aiResponse = await callAI(AI_MODEL_NORMAL, messages, { temperature: 0.3, max_tokens: 1500 }, env);
+    ], { temperature: 0.2, max_tokens: 800 }, env);
 
     let preferences = {};
     try {
@@ -7655,7 +7641,7 @@ Responde SOLO con el JSON, sin explicaciones ni markdown.`;
     const filtered = {};
     for (const [key, value] of Object.entries(preferences)) {
       if (value && typeof value === 'string' && value.trim()) {
-        filtered[key] = value.trim();
+        filtered[key] = value.trim().substring(0, 60);
       }
     }
 
