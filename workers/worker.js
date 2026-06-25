@@ -7829,13 +7829,19 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     console.log('🖼️ Iniciando generación con xai/grok-imagine-image');
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Llamada a Cloudflare AI
-    const aiResponse = await env.AI.run(
-      'xai/grok-imagine-image',
-      {
-        prompt: prompt,
-      }
-    );
+    // 1. Llamada a Cloudflare AI (xAI Grok Imagine Image)
+    console.log('🖼️ Parámetros enviados:', JSON.stringify({ prompt: prompt }));
+    let aiResponse;
+    try {
+      aiResponse = await env.AI.run(
+        'xai/grok-imagine-image',
+        { prompt: prompt },
+      );
+    } catch (aiErr) {
+      console.error('🖼️ Error en env.AI.run:', aiErr.message, JSON.stringify(aiErr));
+      throw aiErr;
+    }
+    console.log('🖼️ Tipo de respuesta:', typeof aiResponse, aiResponse ? Object.keys(aiResponse) : 'null');
 
     if (!aiResponse) {
       throw new Error('No se recibió respuesta del modelo de IA');
