@@ -525,17 +525,185 @@
             border-radius: 6px;
             padding: 3px 8px;
             cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .loc-pop-del:hover {
+            background: #e53935;
+            color: #fff;
         }
 
-        .loc-pop-del {
-            margin-top: 7px;
+        /* ── Popup thumbnail ── */
+        .loc-pop-thumb {
+            width: 100%;
+            max-height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 6px;
+        }
+        .loc-pop-details-btn {
+            display: inline-block;
+            margin-top: 6px;
             font-size: 0.73rem;
-            background: none;
-            border: 1px solid #e53935;
-            color: #e53935;
+            border: 1px solid var(--accent-color, #6750A4);
+            color: var(--accent-color, #6750A4);
             border-radius: 6px;
-            padding: 3px 8px;
+            padding: 4px 10px;
             cursor: pointer;
+            background: none;
+            transition: background 0.15s, color 0.15s;
+        }
+        .loc-pop-details-btn:hover {
+            background: var(--accent-color, #6750A4);
+            color: #fff;
+        }
+
+        /* ── Image upload in form ── */
+        .loc-images-section {
+            margin-top: 4px;
+        }
+        .loc-images-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary, #888);
+        }
+        .loc-images-hint {
+            font-weight: 400;
+            opacity: 0.7;
+        }
+        .loc-images-preview {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .loc-img-thumb-wrap {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.12));
+        }
+        .loc-img-thumb-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .loc-img-thumb-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            font-size: 11px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .loc-images-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+            padding: 6px 14px;
+            border-radius: 10px;
+            border: 1.5px dashed var(--glass-border, rgba(103,80,164,0.2));
+            background: transparent;
+            color: var(--accent-color, #6750A4);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .loc-images-add-btn:hover {
+            border-color: var(--accent-color, #6750A4);
+            background: var(--secondary-container, #E8DEF8);
+        }
+
+        /* ── Detail modal ── */
+        .loc-detail-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
+        }
+        .loc-detail-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .loc-detail-modal {
+            background: var(--glass-bg, rgba(255,255,255,0.97));
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+            border-radius: 18px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 420px;
+            max-height: 85vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transform: translateY(16px) scale(0.98);
+            transition: transform 0.22s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+        }
+        .loc-detail-overlay.open .loc-detail-modal {
+            transform: translateY(0) scale(1);
+        }
+        .loc-detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .loc-detail-header h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .loc-detail-images {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+        .loc-detail-images::-webkit-scrollbar { display: none; }
+        .loc-detail-images img {
+            width: 100%;
+            max-width: 280px;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 12px;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .loc-detail-images img:hover {
+            transform: scale(1.03);
+        }
+        .loc-detail-desc {
+            font-size: 0.88rem;
+            color: var(--text-secondary, #666);
+            line-height: 1.5;
+        }
+        .loc-detail-coords {
+            font-size: 0.75rem;
+            color: var(--text-secondary, #888);
         }
     </style>
 </head>
@@ -854,6 +1022,15 @@
                     <input type="text" id="loc-title" placeholder="Título del lugar" maxlength="60" autocomplete="off">
                     <input type="text" id="loc-desc" placeholder="Descripción (opcional)" maxlength="120"
                         autocomplete="off">
+                    <!-- Imágenes -->
+                    <div class="loc-images-section">
+                        <label class="loc-images-label">📷 Imágenes <span class="loc-images-hint">(máx. 5)</span></label>
+                        <div class="loc-images-preview" id="loc-images-preview"></div>
+                        <label class="loc-images-add-btn" id="loc-images-add-label">
+                            <input type="file" id="loc-images-input" accept="image/*" multiple style="display:none">
+                            + Añadir imágenes
+                        </label>
+                    </div>
                     <div class="loc-modal-actions">
                         <button class="loc-modal-cancel" id="loc-modal-cancel-btn">Cancelar</button>
                         <button class="loc-save-btn" id="loc-save-btn" disabled>Guardar punto</button>
@@ -861,6 +1038,22 @@
                 </div>
             </div>
         </div>
+        <!-- Modal detalle de marcador -->
+        <div id="loc-detail-overlay" class="loc-detail-overlay">
+            <div id="loc-detail-modal" class="loc-detail-modal">
+                <div class="loc-detail-header">
+                    <h3 id="loc-detail-title">📍 Detalle</h3>
+                    <button class="loc-modal-close" id="loc-detail-close-btn" title="Cerrar">✕</button>
+                </div>
+                <div id="loc-detail-images" class="loc-detail-images"></div>
+                <div id="loc-detail-desc" class="loc-detail-desc"></div>
+                <div id="loc-detail-coords" class="loc-detail-coords"></div>
+                <div class="loc-modal-actions">
+                    <button class="loc-pop-del" id="loc-detail-delete-btn">🗑 Eliminar</button>
+                </div>
+            </div>
+        </div>
+
     </div><!-- /loc-wrapper -->
 
     <!-- ══ SCRIPTS ══ -->

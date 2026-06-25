@@ -2487,6 +2487,17 @@ ORDER BY u.last_name, u.first_name
       return handleLocDelete(markerId, request, env, corsHeaders);
     }
 
+    if (path.startsWith('/api/location-img/') && request.method === 'GET') {
+      const r2Key = path.replace('/api/location-img/', '');
+      try {
+        const object = await env.MIRAI_AI_ASSETS.get(r2Key);
+        if (!object) return new Response('Not found', { status: 404, headers: corsHeaders });
+        return new Response(object.body, {
+          headers: { ...corsHeaders, 'Content-Type': object.httpMetadata?.contentType || 'image/jpeg', 'Cache-Control': 'public, max-age=31536000' },
+        });
+      } catch { return new Response('Error', { status: 500, headers: corsHeaders }); }
+    }
+
     // ── REPORTES (profesor) ───────────────────────────────────
     if (path === '/api/reports' && request.method === 'GET')
       return handleReportList(request, env, corsHeaders);
@@ -3455,7 +3466,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
         // Admin ve todos los marcadores
         markers = await env.MIRAI_AI_DB.prepare(`
           SELECT lm.id, lm.user_dni, lm.title, lm.description,
-                 lm.lat, lm.lng, lm.created_at,
+                 lm.lat, lm.lng, COALESCE(lm.images, '[]') AS images, lm.created_at,
                  u.first_name, u.last_name
           FROM   location_markers lm
           JOIN   users u ON u.dni = lm.user_dni
@@ -3466,7 +3477,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
       } else {
         markers = await env.MIRAI_AI_DB.prepare(`
           SELECT id, user_dni, title, description,
-                 lat, lng, created_at
+                 lat, lng, COALESCE(images, '[]') AS images, created_at
           FROM   location_markers
           WHERE  user_dni = ? AND created_at > ?
           ORDER  BY created_at DESC
@@ -10455,19 +10466,33 @@ async function handleApaDelete(fileId, env, corsHeaders) {
   }
 }
 
+async function ensureLocImagesColumn(env) {
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `ALTER TABLE location_markers ADD COLUMN images TEXT DEFAULT '[]'`
+    ).run();
+  } catch (_) { }
+}
+
 async function handleLocList(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   try {
+    await ensureLocImagesColumn(env);
     const { results } = await env.MIRAI_AI_DB.prepare(`
-      SELECT id, title, description, lat, lng, created_at
+      SELECT id, title, description, lat, lng, COALESCE(images, '[]') AS images, created_at
       FROM location_markers
       WHERE user_dni = ?
       ORDER BY created_at DESC
     `).bind(userDni).all();
 
-    return jsonResponse({ markers: results }, 200, corsHeaders);
+    const markers = results.map(m => ({
+      ...m,
+      images: JSON.parse(m.images || '[]'),
+    }));
+
+    return jsonResponse({ markers }, 200, corsHeaders);
   } catch (err) {
     console.error('[Locations] List error:', err);
     return jsonResponse({ error: 'Error al obtener marcadores' }, 500, corsHeaders);
@@ -10479,21 +10504,39 @@ async function handleLocCreate(request, env, corsHeaders) {
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   try {
-    const { title, description, lat, lng } = await request.json();
+    await ensureLocImagesColumn(env);
+    const formData = await request.formData();
+    const title = (formData.get('title') || '').toString().trim();
+    const description = (formData.get('description') || '').toString().trim();
+    const lat = parseFloat(formData.get('lat'));
+    const lng = parseFloat(formData.get('lng'));
 
-    if (!title || lat == null || lng == null) {
+    if (!title || isNaN(lat) || isNaN(lng)) {
       return jsonResponse({ error: 'Faltan campos: title, lat, lng' }, 400, corsHeaders);
     }
 
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    await env.MIRAI_AI_DB.prepare(`
-      INSERT INTO location_markers (id, user_dni, title, description, lat, lng, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(id, userDni, title.slice(0, 60), (description || '').slice(0, 120), lat, lng, createdAt).run();
+    const imageFiles = formData.getAll('images');
+    const imageUrls = [];
+    for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
+      const file = imageFiles[i];
+      if (!file || !file.size) continue;
+      const ext = (file.name || 'img').split('.').pop().toLowerCase();
+      const r2Key = `locations/${id}/${crypto.randomUUID()}.${ext}`;
+      await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
+        httpMetadata: { contentType: file.type || 'image/jpeg' },
+      });
+      imageUrls.push(`/api/location-img/${r2Key}`);
+    }
 
-    return jsonResponse({ success: true, marker: { id, title, description, lat, lng, created_at: createdAt } }, 201, corsHeaders);
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO location_markers (id, user_dni, title, description, lat, lng, images, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, userDni, title.slice(0, 60), description.slice(0, 120), lat, lng, JSON.stringify(imageUrls), createdAt).run();
+
+    return jsonResponse({ success: true, marker: { id, title, description, lat, lng, images: imageUrls, created_at: createdAt } }, 201, corsHeaders);
   } catch (err) {
     console.error('[Locations] Create error:', err);
     return jsonResponse({ error: 'Error al guardar marcador' }, 500, corsHeaders);

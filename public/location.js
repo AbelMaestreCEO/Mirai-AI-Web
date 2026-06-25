@@ -24,6 +24,7 @@
     let pendingMarker = null;   // pin provisional (antes de guardar)
     let locMarkers = {};     // id → L.Marker (ubicaciones guardadas)
     let taskMarkers = [];     // L.Marker[] (tareas con ubicación)
+    let allMarkersCache = [];
 
     const elGpsBtn = document.getElementById('loc-gps-btn');
     const elListBtn = document.getElementById('loc-list-btn');
@@ -37,7 +38,11 @@
     const elModalOverlay = document.getElementById('loc-modal-overlay');
     const elModalCoords = document.getElementById('loc-modal-coords');
     const elModalMinimap = document.getElementById('loc-modal-minimap');
+    const elImagesInput = document.getElementById('loc-images-input');
+    const elImagesPreview = document.getElementById('loc-images-preview');
+    const elDetailOverlay = document.getElementById('loc-detail-overlay');
     let minimapInstance = null;
+    let pendingImages = [];
     /* ── API ─────────────────────────────────────────────────────────────── */
 
     async function apiLocations() {
@@ -46,12 +51,11 @@
         return (await res.json()).markers || [];
     }
 
-    async function apiLocCreate(payload) {
+    async function apiLocCreate(formData) {
         const res = await fetch('/api/locations', {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: formData,
         });
         if (!res.ok) throw new Error('Error al guardar marcador');
         return (await res.json()).marker;
@@ -148,10 +152,21 @@
         elHint.textContent = 'Toca el mapa para colocar un marcador';
         elTitle.value = '';
         elDesc.value = '';
+        pendingImages = [];
+        elImagesPreview.innerHTML = '';
+        if (elImagesInput) elImagesInput.value = '';
         elModalOverlay.classList.remove('open');
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && pendingLatlng) clearPending(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            if (elDetailOverlay && elDetailOverlay.classList.contains('open')) {
+                elDetailOverlay.classList.remove('open');
+            } else if (pendingLatlng) {
+                clearPending();
+            }
+        }
+    });
     document.getElementById('loc-modal-close-btn').addEventListener('click', clearPending);
     document.getElementById('loc-modal-cancel-btn').addEventListener('click', clearPending);
     elModalOverlay.addEventListener('click', function(e) {
@@ -165,23 +180,28 @@
         elSaveBtn.disabled = true;
         elSaveBtn.textContent = '...';
         try {
-            const marker = await apiLocCreate({
-                title: elTitle.value.trim() || 'Sin título',
-                description: elDesc.value.trim(),
-                lat: pendingLatlng.lat,
-                lng: pendingLatlng.lng,
-            });
+            const fd = new FormData();
+            fd.append('title', elTitle.value.trim() || 'Sin título');
+            fd.append('description', elDesc.value.trim());
+            fd.append('lat', pendingLatlng.lat);
+            fd.append('lng', pendingLatlng.lng);
+            pendingImages.forEach(f => fd.append('images', f));
+            const marker = await apiLocCreate(fd);
             // Quitar provisional → poner permanente
             if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
             addLocMarker(marker);
 
             const all = await apiLocations();
+            allMarkersCache = all;
             renderList(all);
             updateCount(all.length);
 
             pendingLatlng = null;
             elTitle.value = '';
             elDesc.value = '';
+            pendingImages = [];
+            elImagesPreview.innerHTML = '';
+            if (elImagesInput) elImagesInput.value = '';
             elSaveBtn.disabled = true;
             elHint.textContent = 'Toca el mapa para colocar un marcador';
             showToast('✅ Marcador guardado');
@@ -204,6 +224,7 @@
     async function loadLocMarkers() {
         try {
             const markers = await apiLocations();
+            allMarkersCache = markers;
             markers.forEach(m => addLocMarker(m));
             updateCount(markers.length);
             renderList(markers);
@@ -231,10 +252,18 @@
     }
 
     function buildLocPopup(m) {
-        return `<div class="loc-pop-title">${esc(m.title)}</div>
+        const imgs = m.images || [];
+        const thumb = imgs.length > 0
+            ? `<img class="loc-pop-thumb" src="${esc(imgs[0])}" alt="" onerror="this.style.display='none'">`
+            : '';
+        return `${thumb}
+                <div class="loc-pop-title">${esc(m.title)}</div>
                 ${m.description ? `<div class="loc-pop-desc">${esc(m.description)}</div>` : ''}
                 <div class="loc-pop-coords">${Number(m.lat).toFixed(5)}, ${Number(m.lng).toFixed(5)}</div>
-                <button class="loc-pop-del" onclick="locDelete('${m.id}')">🗑 Eliminar</button>`;
+                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                    <button class="loc-pop-details-btn" onclick="locShowDetail('${m.id}')">Ver detalles</button>
+                    <button class="loc-pop-del" onclick="locDelete('${m.id}')" style="margin-top:0;">🗑 Eliminar</button>
+                </div>`;
     }
 
     /* ── Eliminar ubicación ──────────────────────────────────────────────── */
@@ -244,6 +273,7 @@
             await apiLocDelete(id);
             if (locMarkers[id]) { map.removeLayer(locMarkers[id]); delete locMarkers[id]; }
             const all = await apiLocations();
+            allMarkersCache = all;
             renderList(all);
             updateCount(all.length);
             showToast('🗑 Marcador eliminado');
@@ -392,6 +422,71 @@
         return String(s || '')
             .replace(/&/g, '&amp;').replace(/</g, '&lt;')
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /* ── Image upload handling ───────────────────────────────────────────── */
+
+    if (elImagesInput) {
+        elImagesInput.addEventListener('change', function () {
+            const files = Array.from(this.files);
+            files.forEach(f => {
+                if (pendingImages.length >= 5) return;
+                pendingImages.push(f);
+            });
+            this.value = '';
+            renderImagePreviews();
+        });
+    }
+
+    function renderImagePreviews() {
+        elImagesPreview.innerHTML = pendingImages.map((f, i) => {
+            const url = URL.createObjectURL(f);
+            return `<div class="loc-img-thumb-wrap">
+                        <img src="${url}" alt="">
+                        <button class="loc-img-thumb-remove" onclick="locRemovePendingImg(${i})">✕</button>
+                    </div>`;
+        }).join('');
+    }
+
+    window.locRemovePendingImg = function (idx) {
+        pendingImages.splice(idx, 1);
+        renderImagePreviews();
+    };
+
+    /* ── Detail modal ───────────────────────────────────────────────────── */
+
+    window.locShowDetail = function (id) {
+        const m = allMarkersCache.find(x => x.id === id);
+        if (!m) return;
+
+        document.getElementById('loc-detail-title').textContent = '📍 ' + (m.title || 'Sin título');
+        document.getElementById('loc-detail-desc').textContent = m.description || '';
+        document.getElementById('loc-detail-coords').textContent = `${Number(m.lat).toFixed(5)}, ${Number(m.lng).toFixed(5)}`;
+
+        const imgsEl = document.getElementById('loc-detail-images');
+        const imgs = m.images || [];
+        if (imgs.length > 0) {
+            imgsEl.innerHTML = imgs.map(url =>
+                `<img src="${esc(url)}" alt="Imagen del marcador" onclick="window.open('${esc(url)}','_blank')">`
+            ).join('');
+            imgsEl.style.display = 'flex';
+        } else {
+            imgsEl.innerHTML = '';
+            imgsEl.style.display = 'none';
+        }
+
+        const delBtn = document.getElementById('loc-detail-delete-btn');
+        delBtn.onclick = async function () {
+            await window.locDelete(id);
+            elDetailOverlay.classList.remove('open');
+        };
+
+        elDetailOverlay.classList.add('open');
+    };
+
+    if (elDetailOverlay) {
+        document.getElementById('loc-detail-close-btn').addEventListener('click', () => elDetailOverlay.classList.remove('open'));
+        elDetailOverlay.addEventListener('click', e => { if (e.target === elDetailOverlay) elDetailOverlay.classList.remove('open'); });
     }
 
     function initRealtimeLocation() {
