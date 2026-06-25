@@ -985,7 +985,28 @@ async function handleChat(request, env, corsHeaders) {
 
     console.log(`🎯 Clasificación final: intent=${classification.intent}, prompt="${classification.prompt.substring(0, 80)}"`);
 
-    // ✨ PASO 2: ENRUTAR SEGÚN INTENCIÓN
+    // ✨ PASO 2: VERIFICAR CUOTA DIARIA ANTES DE ENRUTAR
+    const intentToTokenType = {
+      [INTENT_TYPES.IMAGE]: 'imagen',
+      [INTENT_TYPES.VIDEO]: 'video',
+      [INTENT_TYPES.MUSIC]: 'musica',
+    };
+    const tokenType = intentToTokenType[classification.intent];
+    if (tokenType) {
+      const tokenCheck = await checkAndConsumeToken(userDni, tokenType, env);
+      if (!tokenCheck.allowed) {
+        const typeLabels = { imagen: 'imágenes', musica: 'canciones', video: 'videos' };
+        return jsonResponse({
+          error: `Has alcanzado el límite diario de ${tokenCheck.limit} ${typeLabels[tokenType]}. Vuelve a intentarlo mañana.`,
+          token_limit_reached: true,
+          token_type: tokenType,
+          used: tokenCheck.used,
+          limit: tokenCheck.limit,
+        }, 429, corsHeaders);
+      }
+    }
+
+    // ✨ PASO 3: ENRUTAR SEGÚN INTENCIÓN
     switch (classification.intent) {
 
       case INTENT_TYPES.IMAGE:
@@ -3108,6 +3129,10 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/gen-history' && request.method === 'DELETE')
       return await handleGenHistoryDelete(request, env, corsHeaders);
 
+    // ── Tokens / Cuotas diarias ──
+    if (path === '/api/user/tokens' && request.method === 'GET')
+      return await handleGetTokens(request, env, corsHeaders);
+
     // Ruta no encontrada
     return jsonResponse(
       { error: 'Endpoint no encontrado' },
@@ -3679,6 +3704,91 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
   } catch (error) {
     console.error('❌ gen-history delete error:', error);
     return jsonResponse({ error: 'Error al eliminar', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// ── Sistema de Tokens / Cuotas Diarias ──────────────────────────
+
+const DAILY_LIMITS = {
+  imagen: 10,
+  musica: 2,
+  video: 1,
+};
+
+async function ensureTokensTable(env) {
+  await env.MIRAI_AI_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS daily_tokens (
+      user_dni   TEXT NOT NULL,
+      token_date TEXT NOT NULL,
+      imagen     INTEGER DEFAULT 0,
+      musica     INTEGER DEFAULT 0,
+      video      INTEGER DEFAULT 0,
+      PRIMARY KEY (user_dni, token_date)
+    )
+  `).run();
+}
+
+async function getDailyUsage(userDni, env) {
+  await ensureTokensTable(env);
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await env.MIRAI_AI_DB.prepare(
+    `SELECT imagen, musica, video FROM daily_tokens WHERE user_dni = ? AND token_date = ?`
+  ).bind(userDni.toUpperCase(), today).first();
+  return {
+    imagen: row ? row.imagen : 0,
+    musica: row ? row.musica : 0,
+    video:  row ? row.video  : 0,
+  };
+}
+
+async function checkAndConsumeToken(userDni, type, env) {
+  if (!DAILY_LIMITS[type]) return { allowed: true };
+
+  await ensureTokensTable(env);
+  const today = new Date().toISOString().slice(0, 10);
+  const dni = userDni.toUpperCase();
+
+  const row = await env.MIRAI_AI_DB.prepare(
+    `SELECT imagen, musica, video FROM daily_tokens WHERE user_dni = ? AND token_date = ?`
+  ).bind(dni, today).first();
+
+  const used = row ? row[type] : 0;
+  const limit = DAILY_LIMITS[type];
+
+  if (used >= limit) {
+    return { allowed: false, used, limit };
+  }
+
+  if (!row) {
+    await env.MIRAI_AI_DB.prepare(
+      `INSERT INTO daily_tokens (user_dni, token_date, ${type}) VALUES (?, ?, 1)`
+    ).bind(dni, today).run();
+  } else {
+    await env.MIRAI_AI_DB.prepare(
+      `UPDATE daily_tokens SET ${type} = ${type} + 1 WHERE user_dni = ? AND token_date = ?`
+    ).bind(dni, today).run();
+  }
+
+  return { allowed: true, used: used + 1, limit };
+}
+
+async function handleGetTokens(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const usage = await getDailyUsage(userDni, env);
+    return jsonResponse({
+      tokens: {
+        imagen: { used: usage.imagen, limit: DAILY_LIMITS.imagen, remaining: DAILY_LIMITS.imagen - usage.imagen },
+        musica: { used: usage.musica, limit: DAILY_LIMITS.musica, remaining: DAILY_LIMITS.musica - usage.musica },
+        video:  { used: usage.video,  limit: DAILY_LIMITS.video,  remaining: DAILY_LIMITS.video  - usage.video  },
+        texto:  { used: 0, limit: -1, remaining: -1 },
+      }
+    }, 200, corsHeaders);
+  } catch (error) {
+    console.error('❌ handleGetTokens error:', error);
+    return jsonResponse({ error: 'Error al obtener tokens' }, 500, corsHeaders);
   }
 }
 
