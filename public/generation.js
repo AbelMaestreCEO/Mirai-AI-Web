@@ -265,7 +265,6 @@
             apiSaveHistory('texto', badge, _lastUserText, text).then(() => {
                 $('gen-history-section').style.display = 'block';
                 _histPage = 1; _activeHistTab = 'texto';
-                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.htab === 'texto'));
                 renderHistory();
             });
         }
@@ -279,7 +278,6 @@
             apiSaveHistory('imagen', badge, _lastUserText, url).then(() => {
                 $('gen-history-section').style.display = 'block';
                 _histPage = 1; _activeHistTab = 'imagen';
-                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.htab === 'imagen'));
                 renderHistory();
             });
         }
@@ -293,7 +291,6 @@
             apiSaveHistory('video', badge, _lastUserText, url).then(() => {
                 $('gen-history-section').style.display = 'block';
                 _histPage = 1; _activeHistTab = 'video';
-                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.htab === 'video'));
                 renderHistory();
             });
         }
@@ -307,7 +304,6 @@
             apiSaveHistory('musica', badge, _lastUserText, url).then(() => {
                 $('gen-history-section').style.display = 'block';
                 _histPage = 1; _activeHistTab = 'musica';
-                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.htab === 'musica'));
                 renderHistory();
             });
         }
@@ -483,7 +479,6 @@
             apiSaveHistory('editar', '✏️ Edición', _lastUserText, url).then(() => {
                 $('gen-history-section').style.display = 'block';
                 _histPage = 1; _activeHistTab = 'editar';
-                document.querySelectorAll('#gen-history-tabs .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.htab === 'editar'));
                 renderHistory();
             });
 

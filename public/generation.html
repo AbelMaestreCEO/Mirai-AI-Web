@@ -199,8 +199,15 @@
         .gen-tabs {
             display: flex;
             gap: 8px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             margin-bottom: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .gen-tabs::-webkit-scrollbar {
+            display: none;
         }
 
         /* ── Paneles ── */
@@ -224,9 +231,17 @@
 
         .gen-options-row {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: 8px;
             margin-bottom: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+
+        .gen-options-row::-webkit-scrollbar {
+            display: none;
         }
 
         /* ── Tarjeta de resultado (misma base que inv-summary-box) ── */
@@ -955,7 +970,7 @@
 
             <!-- Tabs de módulo (usan filter-pills de courses) -->
             <div class="courses-toolbar" style="margin-bottom: 8px;">
-                <div class="filter-pills" id="gen-tabs">
+                <div class="filter-pills gen-tabs" id="gen-tabs">
                     <button class="filter-pill active" data-tab="texto">✍️ Texto</button>
                     <button class="filter-pill" data-tab="imagen">🖼️ Imagen</button>
                     <button class="filter-pill" data-tab="editar">✏️ Editar Imagen</button>
@@ -1128,15 +1143,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="courses-toolbar" style="margin-bottom:16px;">
-                    <div class="filter-pills" id="gen-history-tabs">
-                        <button class="filter-pill active" data-htab="texto">✍️ Texto</button>
-                        <button class="filter-pill" data-htab="imagen">🖼️ Imágenes</button>
-                        <button class="filter-pill" data-htab="editar">✏️ Ediciones</button>
-                        <button class="filter-pill" data-htab="video">🎬 Vídeo</button>
-                        <button class="filter-pill" data-htab="musica">🎵 Música</button>
-                    </div>
-                </div>
+                <!-- Tabs removidos: el historial se sincroniza con el tab principal activo -->
                 <div id="gen-history-list"></div>
                 <div id="gen-history-more" style="text-align:center;margin-top:20px;display:none;">
                     <button class="gen-action-btn" id="gen-hist-load-more">Cargar más</button>
