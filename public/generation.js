@@ -397,10 +397,7 @@
         const prompt = buildPrompt(userText);
         const forceType = getForceType();
 
-        // Obtener conversation_id activo (app.js lo gestiona globalmente)
-        const conversationId = (typeof MiraiApp !== 'undefined' && MiraiApp.getConversationId)
-            ? MiraiApp.getConversationId()
-            : (localStorage.getItem('mirai-ai-conversation-id') || `gen_${Date.now()}`);
+        const conversationId = `gen_${Date.now()}`;
 
         try {
             const res = await fetch('/api/chat', {
@@ -410,7 +407,8 @@
                 body: JSON.stringify({
                     message: prompt,
                     conversation_id: conversationId,
-                    force_type: forceType
+                    force_type: forceType,
+                    skip_history: true
                 })
             });
 

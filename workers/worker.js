@@ -926,7 +926,7 @@ async function handleChat(request, env, corsHeaders) {
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -936,36 +936,36 @@ async function handleChat(request, env, corsHeaders) {
       return jsonResponse({ error: 'El campo "conversation_id" es requerido' }, 400, corsHeaders);
     }
 
-    // 2. ASEGURAR PERMISO DE ACCESO (MODIFICADO)
-    let convData = await env.MIRAI_AI_DB.prepare(
-      "SELECT user_dni, course_id FROM conversations WHERE id = ?"
-    ).bind(conversation_id).first();
-
-    if (!convData) {
-      await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni, model);
-      const newConvData = await env.MIRAI_AI_DB.prepare(
+    // Si skip_history, saltar toda la lógica de conversación en DB
+    if (!skip_history) {
+      // 2. ASEGURAR PERMISO DE ACCESO (MODIFICADO)
+      let convData = await env.MIRAI_AI_DB.prepare(
         "SELECT user_dni, course_id FROM conversations WHERE id = ?"
       ).bind(conversation_id).first();
-      if (!newConvData) {
-        // Si sigue sin existir, algo muy grave pasó
-        return jsonResponse({ error: 'Error interno al crear conversación' }, 500, corsHeaders);
+
+      if (!convData) {
+        await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni, model);
+        const newConvData = await env.MIRAI_AI_DB.prepare(
+          "SELECT user_dni, course_id FROM conversations WHERE id = ?"
+        ).bind(conversation_id).first();
+        if (!newConvData) {
+          return jsonResponse({ error: 'Error interno al crear conversación' }, 500, corsHeaders);
+        }
+        convData = newConvData;
       }
-      convData = newConvData; // Actualizamos convData
-    }
 
-    const isSharedCourseConv = !!convData.course_id;
-    const isOwnedByUser = convData.user_dni === userDni;
+      const isSharedCourseConv = !!convData.course_id;
+      const isOwnedByUser = convData.user_dni === userDni;
 
-    // Si no es curso compartido Y no soy el dueño -> Bloqueo
-    if (!isSharedCourseConv && !isOwnedByUser) {
-      return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
-    }
+      if (!isSharedCourseConv && !isOwnedByUser) {
+        return jsonResponse({ error: 'Acceso denegado a esta conversación' }, 403, corsHeaders);
+      }
 
-    // Si es nueva conversación, asignar usuario
-    if (!convData) {
-      await env.MIRAI_AI_DB.prepare(
-        "UPDATE conversations SET user_dni = ? WHERE id = ?"
-      ).bind(userDni, conversation_id).run();
+      if (!convData) {
+        await env.MIRAI_AI_DB.prepare(
+          "UPDATE conversations SET user_dni = ? WHERE id = ?"
+        ).bind(userDni, conversation_id).run();
+      }
     }
 
     console.log(`📩 Recibido: audio_mode = ${audio_mode}`);
@@ -1017,7 +1017,8 @@ async function handleChat(request, env, corsHeaders) {
           userDni,
           env,
           corsHeaders,
-          classification.is_copyright === true  // ← nuevo parámetro
+          classification.is_copyright === true,
+          !!skip_history
         );
 
       case INTENT_TYPES.VIDEO:
@@ -1026,7 +1027,8 @@ async function handleChat(request, env, corsHeaders) {
           conversation_id,
           userDni,
           env,
-          corsHeaders
+          corsHeaders,
+          !!skip_history
         );
 
       case INTENT_TYPES.MUSIC:
@@ -1035,7 +1037,8 @@ async function handleChat(request, env, corsHeaders) {
           conversation_id,
           userDni,
           env,
-          corsHeaders
+          corsHeaders,
+          !!skip_history
         );
 
       case INTENT_TYPES.TEXT:
@@ -8040,10 +8043,12 @@ async function handleImageEdit(request, env, corsHeaders) {
   }
 }
 
-async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false) {
+async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false, skipHistory = false) {
   try {
-    await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, AI_MODEL_NORMAL);
-    await saveMessage(conversationId, 'user', originalMessage, env, null, null, null, userDni);
+    if (!skipHistory) {
+      await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, AI_MODEL_NORMAL);
+      await saveMessage(conversationId, 'user', originalMessage, env, null, null, null, userDni);
+    }
 
     let imageUrl;
     try {
@@ -8069,8 +8074,10 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
           );
         } catch (_) { }
 
-        await saveMessage(conversationId, 'assistant', refusalText, env, null, null, null, userDni);
-        await updateConversationTimestamp(conversationId, env);
+        if (!skipHistory) {
+          await saveMessage(conversationId, 'assistant', refusalText, env, null, null, null, userDni);
+          await updateConversationTimestamp(conversationId, env);
+        }
 
         return jsonResponse({
           response: refusalText,
@@ -8083,8 +8090,10 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
     }
 
     const assistantContent = `![Imagen generada](${imageUrl})`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env, null, null, null, userDni);
-    await updateConversationTimestamp(conversationId, env);
+    if (!skipHistory) {
+      await saveMessage(conversationId, 'assistant', assistantContent, env, null, null, null, userDni);
+      await updateConversationTimestamp(conversationId, env);
+    }
 
     return jsonResponse({
       type: 'image',
@@ -8183,14 +8192,16 @@ async function sendRecoveryEmail(email, token, env) {
   }
 }
 
-async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders) {
+async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false) {
   try {
     console.log('🎬 Iniciando generación de video con Pruna AI P-Video');
     console.log('🎬 Prompt original:', prompt);
 
     // 1. Guardar traza inicial
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, AI_MODEL_NORMAL);
-    await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
+    if (!skipHistory) {
+      await ensureConversationExists(conversationId, prompt, env, null, null, userDni, AI_MODEL_NORMAL);
+      await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
+    }
 
     const videoPrompt = simplifyVideoPrompt(prompt);
     console.log('🎬 Video prompt final:', videoPrompt);
@@ -8269,7 +8280,9 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     const videoUrl = `/api/video/${videoFilename}`;
     const assistantContent = `🎬 Aquí tienes el video generado a partir de tu prompt:`;
 
-    await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
+    if (!skipHistory) {
+      await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
+    }
 
     return jsonResponse({
       type: 'video',
@@ -9258,15 +9271,16 @@ function extractSuggestions(aiResponse) {
 }
 
 // --- GENERAR MÚSICA CON MINIMAX 2.6 ---
-async function handleMusicGeneration(prompt, conversationId, userDni, env, corsHeaders) {
+async function handleMusicGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false) {
   console.log('🎵 Iniciando handleMusicGeneration...');
   try {
     console.log('🎵 Iniciando generación de música con MiniMax 2.6');
     console.log('🎵 Prompt original:', prompt);
 
-    // PASAR userDni
-    await ensureConversationExists(conversationId, prompt, env, null, null, userDni, AI_MODEL_NORMAL);
-    await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
+    if (!skipHistory) {
+      await ensureConversationExists(conversationId, prompt, env, null, null, userDni, AI_MODEL_NORMAL);
+      await saveMessage(conversationId, 'user', prompt, env, null, null, null, userDni);
+    }
 
     // 2. Limpiar y simplificar el prompt para MiniMax
     const cleanPrompt = simplifyMusicPrompt(prompt);
@@ -9336,8 +9350,10 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
       if (errorMsg.includes('unavailable') || errorMsg.includes('provider')) {
         const fallbackMessage = "🎵 El servicio de generación de música está temporalmente no disponible. ¡Prueba en unos minutos! Mientras tanto, ¿quieres que genere una imagen o hablemos de algo?";
 
-        await saveMessage(conversationId, 'assistant', fallbackMessage, env);
-        await updateConversationTimestamp(conversationId, env);
+        if (!skipHistory) {
+          await saveMessage(conversationId, 'assistant', fallbackMessage, env);
+          await updateConversationTimestamp(conversationId, env);
+        }
 
         return jsonResponse({
           type: 'music',
@@ -9377,8 +9393,10 @@ async function handleMusicGeneration(prompt, conversationId, userDni, env, corsH
 
     // 7. Guardar respuesta en D1
     const assistantContent = `🎵 Aquí tienes la canción que pediste:`;
-    await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl, null, null, userDni);
-    await updateConversationTimestamp(conversationId, env);
+    if (!skipHistory) {
+      await saveMessage(conversationId, 'assistant', assistantContent, env, audioUrl, null, null, userDni);
+      await updateConversationTimestamp(conversationId, env);
+    }
 
     return jsonResponse({
       type: 'music',
