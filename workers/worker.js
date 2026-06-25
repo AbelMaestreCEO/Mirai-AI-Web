@@ -3178,6 +3178,9 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/user/tokens' && request.method === 'GET')
       return await handleGetTokens(request, env, corsHeaders);
 
+    if (path === '/api/user/tokens/monthly' && request.method === 'GET')
+      return await handleGetTokensMonthly(request, env, corsHeaders, url);
+
     // Ruta no encontrada
     return jsonResponse(
       { error: 'Endpoint no encontrado' },
@@ -3866,6 +3869,30 @@ async function handleGetTokens(request, env, corsHeaders) {
   } catch (error) {
     console.error('❌ handleGetTokens error:', error);
     return jsonResponse({ error: 'Error al obtener tokens' }, 500, corsHeaders);
+  }
+}
+
+async function handleGetTokensMonthly(request, env, corsHeaders, url) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    await ensureTokensTable(env);
+    const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7);
+    const startDate = month + '-01';
+    const endDate = month + '-31';
+
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT token_date, imagen, musica, video
+      FROM daily_tokens
+      WHERE user_dni = ? AND token_date >= ? AND token_date <= ?
+      ORDER BY token_date ASC
+    `).bind(userDni.toUpperCase(), startDate, endDate).all();
+
+    return jsonResponse({ month, days: results || [] }, 200, corsHeaders);
+  } catch (error) {
+    console.error('❌ handleGetTokensMonthly error:', error);
+    return jsonResponse({ error: 'Error al obtener historial' }, 500, corsHeaders);
   }
 }
 

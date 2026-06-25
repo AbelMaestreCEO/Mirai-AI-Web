@@ -235,6 +235,105 @@
             .tokens-card { margin: 12px 12px 0; padding: 16px; }
         }
 
+        /* ===== TOKEN CHART ===== */
+        .tokens-chart-section {
+            margin-top: 16px;
+            border-top: 1px solid var(--glass-border, rgba(103,80,164,0.1));
+            padding-top: 14px;
+        }
+        .tokens-chart-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .tokens-chart-nav button {
+            background: none;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary, #49454F);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tokens-chart-nav button:hover {
+            border-color: var(--accent-color, #6750A4);
+            color: var(--accent-color, #6750A4);
+        }
+        .tokens-chart-month {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary, #1C1B1F);
+        }
+        .tokens-chart-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+        .tokens-chart-wrap::-webkit-scrollbar { display: none; }
+        .tokens-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 90px;
+            min-width: max-content;
+        }
+        .chart-day {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            min-width: 14px;
+        }
+        .chart-bar-stack {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 1px;
+            width: 12px;
+            height: 70px;
+            justify-content: flex-start;
+        }
+        .chart-seg {
+            width: 100%;
+            border-radius: 2px;
+            min-height: 0;
+            transition: height 0.3s ease;
+        }
+        .chart-seg.img { background: var(--accent-color, #6750A4); }
+        .chart-seg.mus { background: #F57C00; }
+        .chart-seg.vid { background: #1565C0; }
+        .chart-day-label {
+            font-size: 0.55rem;
+            color: var(--text-secondary, #888);
+            line-height: 1;
+        }
+        .chart-day.today .chart-day-label {
+            color: var(--accent-color, #6750A4);
+            font-weight: 700;
+        }
+        .tokens-chart-legend {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.65rem;
+            color: var(--text-secondary, #888);
+        }
+        .chart-legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
         /* ===== DASHBOARD ===== */
         .dashboard-container {
             padding: 20px 20px 40px;
@@ -878,6 +977,22 @@
                     <span class="token-count" id="token-count-texto">Ilimitado</span>
                 </div>
             </div>
+            <!-- Chart -->
+            <div class="tokens-chart-section">
+                <div class="tokens-chart-nav">
+                    <button id="chart-prev">‹</button>
+                    <span class="tokens-chart-month" id="chart-month-label">Junio 2026</span>
+                    <button id="chart-next">›</button>
+                </div>
+                <div class="tokens-chart-wrap">
+                    <div class="tokens-chart" id="tokens-chart"></div>
+                </div>
+                <div class="tokens-chart-legend">
+                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent-color,#6750A4)"></span>Imágenes</span>
+                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#F57C00"></span>Música</span>
+                    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#1565C0"></span>Videos</span>
+                </div>
+            </div>
         </div>
 
         <!-- 4. DASHBOARD -->
@@ -1300,6 +1415,104 @@
                 document.addEventListener('DOMContentLoaded', loadTokens);
             } else {
                 loadTokens();
+            }
+        })();
+    </script>
+    <script>
+        (function () {
+            var MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+            var now = new Date();
+            var chartYear = now.getFullYear();
+            var chartMonth = now.getMonth();
+            var todayStr = now.toISOString().slice(0, 10);
+
+            function monthKey(y, m) { return y + '-' + String(m + 1).padStart(2, '0'); }
+            function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+            async function loadChart() {
+                var key = monthKey(chartYear, chartMonth);
+                document.getElementById('chart-month-label').textContent = MONTH_NAMES[chartMonth] + ' ' + chartYear;
+                var chart = document.getElementById('tokens-chart');
+                chart.innerHTML = '';
+
+                try {
+                    var res = await fetch('/api/user/tokens/monthly?month=' + key, { credentials: 'same-origin' });
+                    if (!res.ok) return;
+                    var data = await res.json();
+                    var dayMap = {};
+                    (data.days || []).forEach(function (d) { dayMap[d.token_date] = d; });
+
+                    var totalDays = daysInMonth(chartYear, chartMonth);
+                    var maxVal = 1;
+                    for (var i = 1; i <= totalDays; i++) {
+                        var dateStr = key + '-' + String(i).padStart(2, '0');
+                        var d = dayMap[dateStr];
+                        if (d) {
+                            var sum = (d.imagen || 0) + (d.musica || 0) + (d.video || 0);
+                            if (sum > maxVal) maxVal = sum;
+                        }
+                    }
+
+                    var barHeight = 60;
+                    for (var i = 1; i <= totalDays; i++) {
+                        var dateStr = key + '-' + String(i).padStart(2, '0');
+                        var d = dayMap[dateStr] || { imagen: 0, musica: 0, video: 0 };
+                        var isToday = dateStr === todayStr;
+
+                        var col = document.createElement('div');
+                        col.className = 'chart-day' + (isToday ? ' today' : '');
+                        col.title = i + '/' + (chartMonth + 1) + ': ' + d.imagen + ' img, ' + d.musica + ' mus, ' + d.video + ' vid';
+
+                        var stack = document.createElement('div');
+                        stack.className = 'chart-bar-stack';
+
+                        var imgH = maxVal > 0 ? (d.imagen / maxVal) * barHeight : 0;
+                        var musH = maxVal > 0 ? (d.musica / maxVal) * barHeight : 0;
+                        var vidH = maxVal > 0 ? (d.video / maxVal) * barHeight : 0;
+
+                        if (imgH > 0) { var s = document.createElement('div'); s.className = 'chart-seg img'; s.style.height = imgH + 'px'; stack.appendChild(s); }
+                        if (musH > 0) { var s = document.createElement('div'); s.className = 'chart-seg mus'; s.style.height = musH + 'px'; stack.appendChild(s); }
+                        if (vidH > 0) { var s = document.createElement('div'); s.className = 'chart-seg vid'; s.style.height = vidH + 'px'; stack.appendChild(s); }
+
+                        if (imgH === 0 && musH === 0 && vidH === 0) {
+                            var s = document.createElement('div');
+                            s.className = 'chart-seg';
+                            s.style.height = '2px';
+                            s.style.background = 'var(--glass-border, #ddd)';
+                            stack.appendChild(s);
+                        }
+
+                        var lbl = document.createElement('div');
+                        lbl.className = 'chart-day-label';
+                        lbl.textContent = i;
+
+                        col.appendChild(stack);
+                        col.appendChild(lbl);
+                        chart.appendChild(col);
+                    }
+                } catch (e) { console.warn('Chart error:', e); }
+            }
+
+            function initChart() {
+                document.getElementById('chart-prev').addEventListener('click', function () {
+                    chartMonth--;
+                    if (chartMonth < 0) { chartMonth = 11; chartYear--; }
+                    loadChart();
+                });
+                document.getElementById('chart-next').addEventListener('click', function () {
+                    var nowY = now.getFullYear(), nowM = now.getMonth();
+                    if (chartYear === nowY && chartMonth === nowM) return;
+                    chartMonth++;
+                    if (chartMonth > 11) { chartMonth = 0; chartYear++; }
+                    loadChart();
+                });
+                loadChart();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initChart);
+            } else {
+                initChart();
             }
         })();
     </script>
