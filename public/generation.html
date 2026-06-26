@@ -73,7 +73,7 @@
             }
         }
 
-        /* ── Hero + input superior (estilo investigation) ── */
+        /* ── Hero + input superior ── */
         .gen-hero-zone {
             flex-shrink: 0;
             display: flex;
@@ -91,15 +91,8 @@
         }
 
         @keyframes gen-icon-in {
-            from {
-                opacity: 0;
-                transform: scale(0.7) translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
+            from { opacity: 0; transform: scale(0.7) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
         .gen-hero-title {
@@ -119,7 +112,7 @@
             max-width: 520px;
         }
 
-        /* ── Barra de input superior (misma estética que investigation) ── */
+        /* ── Barra de input superior ── */
         .gen-input-wrapper {
             display: flex;
             align-items: center;
@@ -135,18 +128,10 @@
             box-sizing: border-box;
         }
 
-        :root .gen-input-wrapper {
-            --gen-input-bg: #ffffff;
-        }
+        :root .gen-input-wrapper { --gen-input-bg: #ffffff; }
+        [data-theme="dark"] .gen-input-wrapper { --gen-input-bg: #1e1b26; }
 
-        [data-theme="dark"] .gen-input-wrapper {
-            --gen-input-bg: #1e1b26;
-        }
-
-        .gen-input-wrapper:hover {
-            border-color: var(--accent-color, #6750A4);
-        }
-
+        .gen-input-wrapper:hover { border-color: var(--accent-color, #6750A4); }
         .gen-input-wrapper:focus-within {
             border-color: var(--accent-color, #6750A4);
             box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08), 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.18));
@@ -170,9 +155,7 @@
             font-family: inherit;
         }
 
-        .gen-input-wrapper textarea::placeholder {
-            color: var(--text-secondary, #aaa);
-        }
+        .gen-input-wrapper textarea::placeholder { color: var(--text-secondary, #aaa); }
 
         .gen-input-wrapper .send-button {
             flex-shrink: 0;
@@ -185,7 +168,7 @@
             justify-content: center;
         }
 
-        /* ── Área principal con tabs y resultado ── */
+        /* ── Área principal ── */
         .gen-body {
             flex: 1;
             width: 100%;
@@ -195,31 +178,27 @@
             box-sizing: border-box;
         }
 
-        /* ── Tabs de módulo (reutiliza filter-pills de courses) ── */
+        /* ── Tabs de módulo — wrap en vez de scroll ── */
         .gen-tabs {
             display: flex;
             gap: 8px;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             margin-bottom: 20px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
         }
 
-        .gen-tabs::-webkit-scrollbar {
-            display: none;
+        .gen-tabs .filter-pill {
+            flex: 1 1 0;
+            min-width: 0;
+            text-align: center;
+            justify-content: center;
+            white-space: nowrap;
         }
 
         /* ── Paneles ── */
-        .gen-panel {
-            display: none;
-        }
+        .gen-panel { display: none; }
+        .gen-panel.active { display: block; }
 
-        .gen-panel.active {
-            display: block;
-        }
-
-        /* ── Sección de opciones dentro de cada panel ── */
+        /* ── Sección de opciones ── */
         .gen-options-label {
             font-size: 0.78rem;
             font-weight: 700;
@@ -229,22 +208,68 @@
             margin: 0 0 10px;
         }
 
+        /* Filas de opciones: wrap en vez de scroll */
         .gen-options-row {
             display: flex;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             gap: 8px;
             margin-bottom: 20px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
             padding-bottom: 4px;
         }
 
-        .gen-options-row::-webkit-scrollbar {
-            display: none;
+        .gen-options-row .filter-pill {
+            flex: 1 1 0;
+            min-width: 0;
+            text-align: center;
+            justify-content: center;
+            white-space: nowrap;
         }
 
-        /* ── Tarjeta de resultado (misma base que inv-summary-box) ── */
+        /* ── Dropdowns (select) ── */
+        .gen-select {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1.5px solid var(--glass-border, rgba(103, 80, 164, 0.2));
+            background: var(--gen-input-bg, #fff);
+            color: var(--text-primary, #333);
+            font-size: 0.88rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            margin-bottom: 14px;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23888' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        [data-theme="dark"] .gen-select { background-color: #1e1b26; }
+        .gen-select:focus { border-color: var(--accent-color, #6750A4); }
+
+        /* Grid de dropdowns */
+        .gen-selects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .gen-selects-grid .gen-select-group { display: flex; flex-direction: column; }
+        .gen-selects-grid .gen-select { margin-bottom: 0; }
+        .gen-selects-grid .gen-select-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary, #999);
+            margin-bottom: 6px;
+        }
+
+        /* ── Tarjeta de resultado ── */
         .gen-result-card {
             display: none;
             background: var(--glass-bg, rgba(255, 255, 255, 0.94));
@@ -255,20 +280,11 @@
             animation: gen-fade-up 0.45s ease both;
         }
 
-        .gen-result-card.visible {
-            display: block;
-        }
+        .gen-result-card.visible { display: block; }
 
         @keyframes gen-fade-up {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .gen-result-header {
@@ -298,7 +314,6 @@
             font-weight: 600;
         }
 
-        /* Texto generado */
         .gen-text-output {
             font-size: 0.95rem;
             line-height: 1.78;
@@ -307,26 +322,9 @@
             word-break: break-word;
         }
 
-        /* Imagen generada */
-        .gen-image-output {
-            width: 100%;
-            border-radius: 12px;
-            display: block;
-            margin: 0 auto;
-        }
-
-        /* Video generado */
-        .gen-video-output {
-            width: 100%;
-            border-radius: 12px;
-            display: block;
-        }
-
-        /* Audio generado */
-        .gen-audio-output {
-            width: 100%;
-            margin-top: 8px;
-        }
+        .gen-image-output { width: 100%; border-radius: 12px; display: block; margin: 0 auto; }
+        .gen-video-output { width: 100%; border-radius: 12px; display: block; }
+        .gen-audio-output { width: 100%; margin-top: 8px; }
 
         /* ── Botón copiar/descargar ── */
         .gen-action-btn {
@@ -346,16 +344,8 @@
             text-decoration: none;
         }
 
-        .gen-action-btn:hover {
-            background: var(--accent-color, #6750A4);
-            color: #fff;
-        }
-
-        .gen-action-btn.copied {
-            background: #34c759;
-            border-color: #34c759;
-            color: #fff;
-        }
+        .gen-action-btn:hover { background: var(--accent-color, #6750A4); color: #fff; }
+        .gen-action-btn.copied { background: #34c759; border-color: #34c759; color: #fff; }
 
         /* ── Loading ── */
         .gen-loading {
@@ -367,9 +357,7 @@
             text-align: center;
         }
 
-        .gen-loading.visible {
-            display: flex;
-        }
+        .gen-loading.visible { display: flex; }
 
         .gen-orb {
             width: 64px;
@@ -382,20 +370,9 @@
         }
 
         @keyframes gen-pulse {
-            0% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 var(--accent-glow, rgba(103, 80, 164, 0.35));
-            }
-
-            50% {
-                transform: scale(1.08);
-                box-shadow: 0 0 0 16px transparent;
-            }
-
-            100% {
-                transform: scale(1);
-                box-shadow: 0 0 0 0 transparent;
-            }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow, rgba(103, 80, 164, 0.35)); }
+            50% { transform: scale(1.08); box-shadow: 0 0 0 16px transparent; }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
         }
 
         .gen-orb-icon {
@@ -424,13 +401,8 @@
         }
 
         @keyframes gen-slide {
-            0% {
-                transform: translateX(-120%);
-            }
-
-            100% {
-                transform: translateX(380%);
-            }
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(380%); }
         }
 
         .gen-loading-text {
@@ -451,9 +423,7 @@
             margin-bottom: 16px;
         }
 
-        .gen-error.visible {
-            display: block;
-        }
+        .gen-error.visible { display: block; }
 
         /* ── Historial ── */
         .gen-history-section {
@@ -555,9 +525,7 @@
             object-fit: cover;
         }
 
-        .gen-hist-audio {
-            width: 100%;
-        }
+        .gen-hist-audio { width: 100%; }
 
         .gen-hist-actions {
             display: flex;
@@ -578,10 +546,7 @@
             font-family: inherit;
         }
 
-        .gen-hist-del-btn:hover {
-            color: #B71C1C;
-            background: #FFEBEE;
-        }
+        .gen-hist-del-btn:hover { color: #B71C1C; background: #FFEBEE; }
 
         /* ── Edición de imagen ── */
         .gen-edit-preview-wrap {
@@ -644,53 +609,15 @@
             transition: border-color 0.2s;
         }
 
-        [data-theme="dark"] .gen-edit-url-input {
-            background: #1e1b26;
-        }
-
-        .gen-edit-url-input:focus {
-            border-color: var(--accent-color, #6750A4);
-        }
-
-        .gen-edit-select {
-            width: 100%;
-            padding: 9px 14px;
-            border-radius: 12px;
-            border: 1.5px solid var(--glass-border, rgba(103, 80, 164, 0.2));
-            background: var(--gen-input-bg, #fff);
-            color: var(--text-primary, #333);
-            font-size: 0.88rem;
-            font-family: inherit;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.2s;
-        }
-
-        [data-theme="dark"] .gen-edit-select {
-            background: #1e1b26;
-        }
-
-        .gen-edit-select:focus {
-            border-color: var(--accent-color, #6750A4);
-        }
+        [data-theme="dark"] .gen-edit-url-input { background: #1e1b26; }
+        .gen-edit-url-input:focus { border-color: var(--accent-color, #6750A4); }
 
         @media (max-width: 480px) {
-            .gen-hero-zone {
-                padding: 36px 16px 20px;
-            }
-
-            .gen-result-card {
-                padding: 18px;
-            }
-
-            .gen-result-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .gen-history-grid {
-                grid-template-columns: 1fr;
-            }
+            .gen-hero-zone { padding: 36px 16px 20px; }
+            .gen-result-card { padding: 18px; }
+            .gen-result-header { flex-direction: column; align-items: flex-start; }
+            .gen-history-grid { grid-template-columns: 1fr; }
+            .gen-selects-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -712,7 +639,6 @@
         </div>
 
         <div class="sidebar-content">
-            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
             <section class="sidebar-section collapsible-section active">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Navegación</h4>
@@ -723,48 +649,37 @@
                 <div class="collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
                     <div class="nav-grid">
                         <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar">
-                            <span class="nav-icon">🏠</span>
-                            <span class="nav-label">Hogar</span>
+                            <span class="nav-icon">🏠</span><span class="nav-label">Hogar</span>
                         </a>
                         <a href="chat" class="nav-grid-item" data-tooltip="Chat">
-                            <span class="nav-icon">💬</span>
-                            <span class="nav-label">Chat</span>
+                            <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
                         </a>
                         <a href="projects" class="nav-grid-item" data-tooltip="Proyectos">
-                            <span class="nav-icon">🗂️</span>
-                            <span class="nav-label">Proyectos</span>
+                            <span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span>
                         </a>
                         <a href="generation" class="nav-grid-item" data-tooltip="Generación con IA">
-                            <span class="nav-icon">🖌️</span>
-                            <span class="nav-label">Generación con IA</span>
+                            <span class="nav-icon">🖌️</span><span class="nav-label">Generación con IA</span>
                         </a>
                         <a href="course_category" class="nav-grid-item" data-tooltip="Cursos">
-                            <span class="nav-icon">📚</span>
-                            <span class="nav-label">Cursos</span>
+                            <span class="nav-icon">📚</span><span class="nav-label">Cursos</span>
                         </a>
                         <a href="classroom" class="nav-grid-item" data-tooltip="Aula">
-                            <span class="nav-icon">🏫</span>
-                            <span class="nav-label">Aula</span>
+                            <span class="nav-icon">🏫</span><span class="nav-label">Aula</span>
                         </a>
                         <a href="inventory" class="nav-grid-item" data-tooltip="Inventario">
-                            <span class="nav-icon">📦</span>
-                            <span class="nav-label">Inventario</span>
+                            <span class="nav-icon">📦</span><span class="nav-label">Inventario</span>
                         </a>
                         <a href="mirror" class="nav-grid-item" data-tooltip="Organizador">
-                            <span class="nav-icon">🖼️</span>
-                            <span class="nav-label">Fotos</span>
+                            <span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span>
                         </a>
                         <a href="format" class="nav-grid-item" data-tooltip="Formato">
-                            <span class="nav-icon">📝</span>
-                            <span class="nav-label">Formato</span>
+                            <span class="nav-icon">📝</span><span class="nav-label">Formato</span>
                         </a>
                         <a href="apa" class="nav-grid-item" data-tooltip="Formato">
-                            <span class="nav-icon">📄</span>
-                            <span class="nav-label">APA 7</span>
+                            <span class="nav-icon">📄</span><span class="nav-label">APA 7</span>
                         </a>
                         <a href="attendance" class="nav-grid-item" data-tooltip="Asistencia">
-                            <span class="nav-icon">✅</span>
-                            <span class="nav-label">Asistencia</span>
+                            <span class="nav-icon">✅</span><span class="nav-label">Asistencia</span>
                         </a>
                         <a href="investigation" class="nav-grid-item active-link" data-tooltip="Investigador">
                             <span class="nav-icon">🔭</span><span class="nav-label">Investigar</span>
@@ -791,7 +706,6 @@
                 </div>
             </section>
 
-            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                 <div class="conversations-header">
                     <h4>Conversaciones</h4>
@@ -801,12 +715,9 @@
                         </svg>
                     </button>
                 </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
+                <ul id="conversations-list" class="conversations-list"></ul>
             </section>
 
-            <!-- Sección 3: Explorar (Desplegable Maestro) -->
             <section class="sidebar-section collapsible-section">
                 <div class="collapsible-header" role="button" tabindex="0">
                     <h4>Explorar</h4>
@@ -815,8 +726,6 @@
                     </svg>
                 </div>
                 <div class="collapsible-content">
-
-                    <!-- Submenú: Servicios -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Servicios</h5>
@@ -834,8 +743,6 @@
                             </ul>
                         </div>
                     </div>
-
-                    <!-- Submenú: Empresa -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Empresa</h5>
@@ -853,8 +760,6 @@
                             </ul>
                         </div>
                     </div>
-
-                    <!-- Submenú: Enlaces Externos -->
                     <div class="nested-collapsible">
                         <div class="collapsible-header nested-header" role="button" tabindex="0">
                             <h5>Enlaces Externos</h5>
@@ -871,11 +776,9 @@
                             </ul>
                         </div>
                     </div>
-
                 </div>
             </section>
 
-            <!-- Sección 4: Redes Sociales -->
             <section class="sidebar-section">
                 <h4>Síguenos</h4>
                 <div class="sidebar-social">
@@ -914,8 +817,7 @@
             </a>
             <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display: block;">
-                    <path
-                        d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                    <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
                 <span>Cerrar Sesión</span>
             </button>
@@ -928,7 +830,6 @@
             </div>
         </div>
 
-        <!-- Footer del sidebar -->
         <div class="sidebar-footer">
             <p>&copy;
                 <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
@@ -950,16 +851,13 @@
     <!-- ══ CONTENIDO PRINCIPAL ══ -->
     <div class="gen-page-content">
 
-        <!-- Hero + input superior -->
         <div class="gen-hero-zone">
             <span class="gen-hero-icon">✨</span>
             <h1 class="gen-hero-title">Generación con IA</h1>
-            <p class="gen-hero-subtitle">Describe lo que necesitas y la IA lo creará por ti: texto, imágenes, vídeo o
-                música.</p>
+            <p class="gen-hero-subtitle">Describe lo que necesitas y la IA lo creará por ti: texto, imágenes, vídeo o música.</p>
 
             <div class="gen-input-wrapper">
-                <textarea id="gen-input" placeholder="¿Qué quieres generar?" rows="1" autocomplete="off"
-                    spellcheck="false"></textarea>
+                <textarea id="gen-input" placeholder="¿Qué quieres generar?" rows="1" autocomplete="off" spellcheck="false"></textarea>
                 <button id="gen-send-btn" class="send-button" aria-label="Generar">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -968,10 +866,9 @@
             </div>
         </div>
 
-        <!-- Área de cuerpo: tabs + paneles + resultado -->
         <div class="gen-body">
 
-            <!-- Tabs de módulo (usan filter-pills de courses) -->
+            <!-- Tabs de módulo -->
             <div class="courses-toolbar" style="margin-bottom: 8px;">
                 <div class="filter-pills gen-tabs" id="gen-tabs">
                     <button class="filter-pill active" data-tab="texto">✍️ Texto</button>
@@ -984,27 +881,56 @@
 
             <!-- ── PANEL TEXTO ── -->
             <div class="gen-panel active" id="panel-texto">
-                <p class="gen-options-label">Tipo de texto</p>
-                <div class="gen-options-row" id="text-type-opts">
-                    <button class="filter-pill active" data-val="correo">📧 Correo</button>
-                    <button class="filter-pill" data-val="tono">🎭 Cambio de tono</button>
-                </div>
-
-                <!-- Sub-opciones: Tono (oculto hasta seleccionar "tono") -->
-                <div id="tone-opts-wrapper" style="display:none;">
-                    <p class="gen-options-label">Selecciona el tono</p>
-                    <div class="gen-options-row" id="tone-opts">
-                        <button class="filter-pill active" data-val="alegre">😄 Alegre</button>
-                        <button class="filter-pill" data-val="dramatico">🎭 Dramático</button>
-                        <button class="filter-pill" data-val="triste">😢 Triste</button>
-                        <button class="filter-pill" data-val="profesional">💼 Profesional</button>
-                        <button class="filter-pill" data-val="casual">😎 Casual</button>
-                        <button class="filter-pill" data-val="sentimental">💖 Sentimental</button>
-                        <button class="filter-pill" data-val="educado">🎩 Educado</button>
-                        <button class="filter-pill" data-val="divertido">😂 Divertido</button>
-                        <button class="filter-pill" data-val="rrss">📱 Redes Sociales</button>
-                        <button class="filter-pill" data-val="emotivo">🥹 Emotivo</button>
-                        <button class="filter-pill" data-val="ingenioso">🧠 Ingenioso</button>
+                <div class="gen-selects-grid">
+                    <div class="gen-select-group">
+                        <span class="gen-select-label">Tipo de texto</span>
+                        <select class="gen-select" id="text-type-select">
+                            <option value="correo">📧 Correo electrónico</option>
+                            <option value="tono">🎭 Cambio de tono</option>
+                            <option value="resumen">📋 Resumen</option>
+                            <option value="traduccion">🌐 Traducción</option>
+                            <option value="historia">📖 Historia / Narrativa</option>
+                            <option value="poema">🎶 Poema</option>
+                            <option value="eslogan">💡 Eslogan / Lema</option>
+                            <option value="publicacion">📱 Publicación para redes</option>
+                            <option value="carta">✉️ Carta formal</option>
+                            <option value="descripcion">🏷️ Descripción de producto</option>
+                        </select>
+                    </div>
+                    <div class="gen-select-group" id="tone-select-wrapper">
+                        <span class="gen-select-label">Tono</span>
+                        <select class="gen-select" id="tone-select">
+                            <option value="">— Ninguno —</option>
+                            <option value="alegre">😄 Alegre</option>
+                            <option value="dramatico">🎭 Dramático</option>
+                            <option value="triste">😢 Triste</option>
+                            <option value="profesional">💼 Profesional</option>
+                            <option value="casual">😎 Casual</option>
+                            <option value="sentimental">💖 Sentimental</option>
+                            <option value="educado">🎩 Educado</option>
+                            <option value="divertido">😂 Divertido</option>
+                            <option value="rrss">📱 Redes Sociales</option>
+                            <option value="emotivo">🥹 Emotivo</option>
+                            <option value="ingenioso">🧠 Ingenioso</option>
+                            <option value="misterioso">🔮 Misterioso</option>
+                            <option value="sarcastico">😏 Sarcástico</option>
+                            <option value="motivacional">💪 Motivacional</option>
+                            <option value="romantico">💕 Romántico</option>
+                        </select>
+                    </div>
+                    <div class="gen-select-group" id="language-select-wrapper" style="display:none;">
+                        <span class="gen-select-label">Idioma destino</span>
+                        <select class="gen-select" id="language-select">
+                            <option value="ingles">🇺🇸 Inglés</option>
+                            <option value="español">🇪🇸 Español</option>
+                            <option value="frances">🇫🇷 Francés</option>
+                            <option value="portugues">🇧🇷 Portugués</option>
+                            <option value="aleman">🇩🇪 Alemán</option>
+                            <option value="italiano">🇮🇹 Italiano</option>
+                            <option value="japones">🇯🇵 Japonés</option>
+                            <option value="coreano">🇰🇷 Coreano</option>
+                            <option value="chino">🇨🇳 Chino</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -1042,32 +968,49 @@
                     </div>
                 </div>
 
-                <p class="gen-options-label" style="margin-top:16px;">Estilo predefinido</p>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-                    <select id="gen-edit-style-select" class="gen-edit-select">
-                        <option value="">Sin estilo</option>
-                        <optgroup label="🎨 Estilos artísticos">
+                <p class="gen-options-label" style="margin-top:16px;">Opciones de edición</p>
+                <div class="gen-selects-grid">
+                    <div class="gen-select-group">
+                        <span class="gen-select-label">🎨 Estilo artístico</span>
+                        <select class="gen-select" id="gen-edit-style-select">
+                            <option value="">— Ninguno —</option>
                             <option value="Transform into a watercolor painting style with vibrant colors">Acuarela</option>
                             <option value="Convert to oil painting style, rich textures, classical art">Pintura al óleo</option>
                             <option value="Render in anime style, clean linework, expressive, manga aesthetic">Anime</option>
                             <option value="Make it look like a pixel art retro video game sprite">Pixel Art</option>
                             <option value="Apply pop art style, bold colors, halftone dots, Andy Warhol inspired">Pop Art</option>
                             <option value="Sketch pencil drawing style, detailed crosshatching, graphite">Dibujo a lápiz</option>
-                        </optgroup>
-                        <optgroup label="🌄 Fondos">
+                            <option value="Convert to cartoon style, bold outlines, vibrant flat colors">Cartoon</option>
+                            <option value="Render as a 3D clay figure, smooth surfaces, Pixar style">Arcilla 3D</option>
+                        </select>
+                    </div>
+                    <div class="gen-select-group">
+                        <span class="gen-select-label">🌄 Fondo</span>
+                        <select class="gen-select" id="gen-edit-bg-select">
+                            <option value="">— Ninguno —</option>
                             <option value="Place the subject on a tropical beach with palm trees and sunset">Playa tropical</option>
                             <option value="Set in a futuristic cyberpunk city with neon lights at night">Ciudad cyberpunk</option>
                             <option value="Place in a magical enchanted forest with glowing lights">Bosque encantado</option>
                             <option value="Set the scene in outer space with stars and nebulas">Espacio exterior</option>
                             <option value="Place in a cozy coffee shop with warm lighting">Cafetería acogedora</option>
-                        </optgroup>
-                        <optgroup label="✨ Efectos">
+                            <option value="Set in a snowy mountain landscape with northern lights">Montaña nevada</option>
+                            <option value="Place on a clean white studio background with soft shadows">Estudio blanco</option>
+                            <option value="Set in an ancient Japanese temple garden with cherry blossoms">Jardín japonés</option>
+                        </select>
+                    </div>
+                    <div class="gen-select-group">
+                        <span class="gen-select-label">✨ Efectos</span>
+                        <select class="gen-select" id="gen-edit-fx-select">
+                            <option value="">— Ninguno —</option>
                             <option value="Add dramatic cinematic lighting with lens flare and bokeh">Iluminación cinematográfica</option>
                             <option value="Apply vintage retro film filter with grain and faded colors">Filtro vintage</option>
                             <option value="Make it black and white with high contrast noir style">Blanco y negro noir</option>
                             <option value="Add golden hour warm sunset lighting">Hora dorada</option>
-                        </optgroup>
-                    </select>
+                            <option value="Add neon glow effects with vibrant electric colors">Neón brillante</option>
+                            <option value="Apply dreamy soft focus with pastel color toning">Efecto soñado</option>
+                            <option value="Add rain and reflections with moody atmospheric lighting">Lluvia atmosférica</option>
+                        </select>
+                    </div>
                 </div>
 
                 <p class="gen-options-label">Relación de aspecto</p>
@@ -1124,29 +1067,24 @@
                         ✨ Resultado
                         <span class="gen-result-badge" id="gen-result-badge">Texto</span>
                     </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;" id="gen-result-actions">
-                        <!-- Se inyectan botones dinámicamente -->
-                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;" id="gen-result-actions"></div>
                 </div>
                 <div id="gen-result-body"></div>
             </div>
 
             <!-- ── HISTORIAL ── -->
-            <div class="gen-history-section" id="gen-history-section" style="">
+            <div class="gen-history-section" id="gen-history-section">
                 <div class="gen-history-header">
                     <h2 class="gen-history-title">🗂️ Mi historial</h2>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                        <button class="gen-action-btn" id="gen-hist-clear-tab-btn"
-                            style="font-size:0.78rem;padding:6px 14px;">
+                        <button class="gen-action-btn" id="gen-hist-clear-tab-btn" style="font-size:0.78rem;padding:6px 14px;">
                             🗑️ Limpiar categoría
                         </button>
-                        <button class="gen-action-btn" id="gen-hist-clear-all-btn"
-                            style="font-size:0.78rem;padding:6px 14px;border-color:#EF9A9A;color:#B71C1C;">
+                        <button class="gen-action-btn" id="gen-hist-clear-all-btn" style="font-size:0.78rem;padding:6px 14px;border-color:#EF9A9A;color:#B71C1C;">
                             🗑️ Limpiar todo
                         </button>
                     </div>
                 </div>
-                <!-- Tabs removidos: el historial se sincroniza con el tab principal activo -->
                 <div id="gen-history-list"></div>
                 <div id="gen-history-more" style="text-align:center;margin-top:20px;display:none;">
                     <button class="gen-action-btn" id="gen-hist-load-more">Cargar más</button>

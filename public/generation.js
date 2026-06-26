@@ -2,7 +2,7 @@
  * ============================================
  * MIRAI AI - generation.js
  * Módulo de Generación con IA
- * Maneja: texto (correo, tono), imagen, vídeo, música
+ * Maneja: texto (correo, tono, resumen, etc.), imagen, vídeo, música
  * ============================================
  */
 
@@ -15,7 +15,8 @@
     const genState = {
         activeTab: 'texto',
         textType: 'correo',
-        tone: 'alegre',
+        tone: '',
+        language: 'ingles',
         imageStyle: 'cinematografico',
         videoStyle: 'cinematografico',
         musicGenre: 'pop',
@@ -34,6 +35,19 @@
         musica: { icon: '🎵', label: 'Música' }
     };
 
+    const TEXT_TYPE_LABELS = {
+        correo: 'Correo',
+        tono: 'Cambio de tono',
+        resumen: 'Resumen',
+        traduccion: 'Traducción',
+        historia: 'Historia',
+        poema: 'Poema',
+        eslogan: 'Eslogan',
+        publicacion: 'Publicación',
+        carta: 'Carta formal',
+        descripcion: 'Descripción'
+    };
+
     const TONE_LABELS = {
         alegre: 'Alegre',
         dramatico: 'Dramático',
@@ -45,7 +59,11 @@
         divertido: 'Divertido',
         rrss: 'Redes Sociales',
         emotivo: 'Emotivo',
-        ingenioso: 'Ingenioso'
+        ingenioso: 'Ingenioso',
+        misterioso: 'Misterioso',
+        sarcastico: 'Sarcástico',
+        motivacional: 'Motivacional',
+        romantico: 'Romántico'
     };
 
     const STYLE_LABELS = {
@@ -64,7 +82,6 @@
         videojuego: 'Videojuego'
     };
 
-    // ── PROMPTS de estilo para imagen/vídeo ──
     const IMAGE_STYLE_PROMPTS = {
         cinematografico: 'cinematic style, dramatic lighting, wide angle, film grain, movie still, high contrast, epic composition',
         cartoon: 'cartoon style, colorful, flat design, bold outlines, vibrant colors, animated look, fun illustration',
@@ -72,7 +89,6 @@
         fotorrealista: 'photorealistic, ultra detailed, 8K resolution, real photography, natural lighting, lifelike textures, DSLR quality'
     };
 
-    // ── PROMPTS de género musical ──
     const MUSIC_GENRE_PROMPTS = {
         pop: 'upbeat pop song, catchy melody, modern production, synth and guitar, radio-friendly, 120 BPM',
         rock: 'energetic rock, electric guitar riffs, powerful drums, bass driven, stadium sound, 130 BPM',
@@ -116,7 +132,6 @@
         $('gen-result').classList.add('visible');
     }
 
-    // Auto-resize textarea
     function autoResize(el) {
         el.style.height = 'auto';
         el.style.height = Math.min(el.scrollHeight, 100) + 'px';
@@ -132,11 +147,9 @@
                 if (tab === genState.activeTab) return;
                 genState.activeTab = tab;
 
-                // Activar pill
                 document.querySelectorAll('#gen-tabs .filter-pill').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
-                // Mostrar panel correcto
                 document.querySelectorAll('.gen-panel').forEach(p => p.style.display = 'none');
                 const panel = document.getElementById('panel-' + tab);
                 if (panel) panel.style.display = 'block';
@@ -164,29 +177,37 @@
     }
 
     // ============================================
-    // OPCIONES DE TEXTO (correo / tono)
+    // OPCIONES DE TEXTO (dropdowns)
     // ============================================
-    function initTextTypeOpts() {
-        document.querySelectorAll('#text-type-opts .filter-pill').forEach(btn => {
-            btn.addEventListener('click', () => {
-                genState.textType = btn.dataset.val;
-                document.querySelectorAll('#text-type-opts .filter-pill').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                $('tone-opts-wrapper').style.display = (genState.textType === 'tono') ? 'block' : 'none';
-            });
+    function initTextOpts() {
+        const typeSelect = $('text-type-select');
+        const toneWrapper = $('tone-select-wrapper');
+        const langWrapper = $('language-select-wrapper');
+        const toneSelect = $('tone-select');
+        const langSelect = $('language-select');
+
+        typeSelect.addEventListener('change', () => {
+            genState.textType = typeSelect.value;
+            toneWrapper.style.display = (genState.textType === 'tono') ? 'none' : 'flex';
+            langWrapper.style.display = (genState.textType === 'traduccion') ? 'flex' : 'none';
+            if (genState.textType === 'tono') {
+                toneSelect.value = 'alegre';
+                genState.tone = 'alegre';
+                toneWrapper.style.display = 'flex';
+            }
         });
 
-        document.querySelectorAll('#tone-opts .filter-pill').forEach(btn => {
-            btn.addEventListener('click', () => {
-                genState.tone = btn.dataset.val;
-                document.querySelectorAll('#tone-opts .filter-pill').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
+        toneSelect.addEventListener('change', () => {
+            genState.tone = toneSelect.value;
+        });
+
+        langSelect.addEventListener('change', () => {
+            genState.language = langSelect.value;
         });
     }
 
     // ============================================
-    // OPCIONES IMAGEN, VÍDEO, MÚSICA
+    // OPCIONES IMAGEN, VÍDEO, MÚSICA (pills)
     // ============================================
     function initStyleOpts(containerId, stateKey) {
         document.querySelectorAll(`#${containerId} .filter-pill`).forEach(btn => {
@@ -204,11 +225,34 @@
     function buildPrompt(userText) {
         switch (genState.activeTab) {
             case 'texto': {
-                if (genState.textType === 'correo') {
-                    return `Redacta un correo electrónico profesional y completo (con asunto, saludo, cuerpo y despedida) basado en la siguiente solicitud del usuario. Responde SOLO con el correo, sin explicaciones adicionales:\n\n"${userText}"`;
-                } else {
-                    const toneLabel = TONE_LABELS[genState.tone] || genState.tone;
-                    return `Reescribe el siguiente texto con un tono ${toneLabel}. Conserva el significado original pero adapta el estilo, vocabulario y estructura al tono indicado. Responde SOLO con el texto reescrito, sin explicaciones:\n\n"${userText}"`;
+                const toneLabel = genState.tone ? (TONE_LABELS[genState.tone] || genState.tone) : '';
+                const toneInstruction = toneLabel ? ` Usa un tono ${toneLabel}.` : '';
+
+                switch (genState.textType) {
+                    case 'correo':
+                        return `Redacta un correo electrónico profesional y completo (con asunto, saludo, cuerpo y despedida) basado en la siguiente solicitud del usuario.${toneInstruction} Responde SOLO con el correo, sin explicaciones adicionales:\n\n"${userText}"`;
+                    case 'tono':
+                        return `Reescribe el siguiente texto con un tono ${toneLabel || 'profesional'}. Conserva el significado original pero adapta el estilo, vocabulario y estructura al tono indicado. Responde SOLO con el texto reescrito, sin explicaciones:\n\n"${userText}"`;
+                    case 'resumen':
+                        return `Haz un resumen claro y conciso del siguiente texto.${toneInstruction} Responde SOLO con el resumen, sin explicaciones adicionales:\n\n"${userText}"`;
+                    case 'traduccion': {
+                        const lang = genState.language || 'inglés';
+                        return `Traduce el siguiente texto al ${lang}. Responde SOLO con la traducción, sin explicaciones:\n\n"${userText}"`;
+                    }
+                    case 'historia':
+                        return `Escribe una historia creativa basada en la siguiente idea.${toneInstruction} Responde SOLO con la historia:\n\n"${userText}"`;
+                    case 'poema':
+                        return `Escribe un poema basado en la siguiente idea.${toneInstruction} Responde SOLO con el poema:\n\n"${userText}"`;
+                    case 'eslogan':
+                        return `Genera 5 opciones de eslogan o lema creativos basados en lo siguiente.${toneInstruction} Responde SOLO con los eslóganes numerados:\n\n"${userText}"`;
+                    case 'publicacion':
+                        return `Escribe una publicación atractiva para redes sociales basada en lo siguiente. Incluye hashtags relevantes.${toneInstruction} Responde SOLO con la publicación:\n\n"${userText}"`;
+                    case 'carta':
+                        return `Redacta una carta formal completa (con fecha, destinatario, saludo, cuerpo y despedida) basada en lo siguiente.${toneInstruction} Responde SOLO con la carta:\n\n"${userText}"`;
+                    case 'descripcion':
+                        return `Escribe una descripción atractiva de producto para e-commerce o catálogo basada en lo siguiente.${toneInstruction} Responde SOLO con la descripción:\n\n"${userText}"`;
+                    default:
+                        return `${userText}${toneInstruction ? '\n\n' + toneInstruction : ''}`;
                 }
             }
             case 'imagen': {
@@ -243,8 +287,11 @@
         const tab = TAB_LABELS[genState.activeTab];
         if (!tab) return 'Generado';
         if (genState.activeTab === 'texto') {
-            if (genState.textType === 'correo') return '📧 Correo';
-            return `🎭 ${TONE_LABELS[genState.tone] || genState.tone}`;
+            const typeLabel = TEXT_TYPE_LABELS[genState.textType] || genState.textType;
+            if (genState.textType === 'tono' && genState.tone) {
+                return `🎭 ${TONE_LABELS[genState.tone] || genState.tone}`;
+            }
+            return `✍️ ${typeLabel}`;
         }
         if (genState.activeTab === 'imagen') return `🖼️ ${STYLE_LABELS[genState.imageStyle] || ''}`;
         if (genState.activeTab === 'video') return `🎬 ${STYLE_LABELS[genState.videoStyle] || ''}`;
@@ -347,7 +394,6 @@
         return String(str).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // Funciones globales para botones inline
     window._genCopy = function (btn) {
         const output = document.querySelector('.gen-text-output');
         if (!output) return;
@@ -437,12 +483,13 @@
             return;
         }
 
-        const styleSelect = $('gen-edit-style-select');
-        const stylePrompt = styleSelect ? styleSelect.value : '';
-        const combinedPrompt = [userText.trim(), stylePrompt].filter(Boolean).join('. ');
+        const stylePrompt = ($('gen-edit-style-select') || {}).value || '';
+        const bgPrompt = ($('gen-edit-bg-select') || {}).value || '';
+        const fxPrompt = ($('gen-edit-fx-select') || {}).value || '';
+        const combinedPrompt = [userText.trim(), stylePrompt, bgPrompt, fxPrompt].filter(Boolean).join('. ');
 
         if (!combinedPrompt) {
-            showError('Escribe una instrucción de edición o selecciona un estilo predefinido.');
+            showError('Escribe una instrucción de edición o selecciona al menos una opción.');
             return;
         }
 
@@ -667,7 +714,6 @@
             }
 
             if (append) {
-                // Asegurar que hay un grid
                 let grid = list.querySelector('.gen-history-grid');
                 if (!grid) { grid = document.createElement('div'); grid.className = 'gen-history-grid'; list.appendChild(grid); }
                 grid.insertAdjacentHTML('beforeend', items.map(buildHistCard).join(''));
@@ -702,20 +748,13 @@
         });
     }
 
-    // Funciones globales para tarjetas del historial
     window._genHistDel = async function (id) {
         await apiDeleteHistory(id);
-        // Quitar card del DOM sin recargar
-        const grid = document.querySelector('.gen-history-grid');
-        if (!grid) return;
-        const cards = grid.querySelectorAll('.gen-hist-card');
-        // No tenemos referencia directa al id en el DOM, recargamos
         _histPage = 1;
         renderHistory();
     };
 
     window._genHistCopy = function (btn, id) {
-        // Buscar el texto en el preview del card padre
         const card = btn.closest('.gen-hist-card');
         const preview = card && card.querySelector('.gen-hist-preview-text');
         if (!preview) return;
@@ -748,7 +787,7 @@
 
         setupLogout();
         initTabs();
-        initTextTypeOpts();
+        initTextOpts();
         initStyleOpts('image-style-opts', 'imageStyle');
         initStyleOpts('video-style-opts', 'videoStyle');
         initStyleOpts('music-genre-opts', 'musicGenre');
@@ -756,12 +795,10 @@
         initHistoryTabs();
         updatePlaceholder();
 
-        // Mostrar solo el panel activo al inicio
         document.querySelectorAll('.gen-panel').forEach(p => p.style.display = 'none');
         const firstPanel = document.getElementById('panel-' + genState.activeTab);
         if (firstPanel) firstPanel.style.display = 'block';
 
-        // Cargar historial al abrir
         (async () => {
             try {
                 const data = await apiLoadHistory(_activeHistTab, 1);
@@ -772,7 +809,6 @@
             } catch (e) { }
         })();
 
-        // Textarea auto-resize
         const input = $('gen-input');
         input.addEventListener('input', () => autoResize(input));
         $('gen-send-btn').addEventListener('click', () => { generate(input.value.trim()); });
