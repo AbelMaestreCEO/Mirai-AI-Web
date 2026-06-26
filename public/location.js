@@ -379,7 +379,7 @@
             content: buildLocPopup(m),
         });
 
-        gMarker.addListener('click', () => {
+        gMarker.addEventListener('gmp-click', () => {
             if (currentInfoWindow) currentInfoWindow.close();
             infoWindow.open(map, gMarker);
             currentInfoWindow = infoWindow;
@@ -461,7 +461,7 @@
                     content: buildTaskPopup(t, color),
                 });
 
-                gMarker.addListener('click', () => {
+                gMarker.addEventListener('gmp-click', () => {
                     if (currentInfoWindow) currentInfoWindow.close();
                     infoWindow.open(map, gMarker);
                     currentInfoWindow = infoWindow;
@@ -537,7 +537,7 @@
 
                 const gpsiw = new google.maps.InfoWindow({ content: '<strong>📍 Mi ubicación actual</strong>' });
                 gpsiw.open(map, gpsMkr);
-                gpsMkr.addListener('click', () => gpsiw.open(map, gpsMkr));
+                gpsMkr.addEventListener('gmp-click', () => gpsiw.open(map, gpsMkr));
 
                 pendingLatlng = ll;
                 dropPendingPin(ll);
