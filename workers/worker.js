@@ -2477,6 +2477,13 @@ ORDER BY u.last_name, u.first_name
       return await handleServeAudio(path, env);
     }
 
+    if (path === '/api/maps-key' && request.method === 'GET') {
+      const key = env.GOOGLE_MAPS_KEY || '';
+      return new Response(JSON.stringify({ key }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (path === '/api/locations' && request.method === 'GET')
       return handleLocList(request, env, corsHeaders);
 

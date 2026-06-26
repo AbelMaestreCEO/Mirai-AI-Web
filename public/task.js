@@ -576,8 +576,34 @@
   let modalMap     = null;
   let modalPin     = null;
   let modalMapOpen = false;
+  let taskGeocoderReady = false;
+  let taskGeocoder = null;
 
-  /** Escribe los tres campos de ubicación en el modal */
+  async function ensureGoogleMaps() {
+    if (window.google && window.google.maps) {
+      if (!taskGeocoder) taskGeocoder = new google.maps.Geocoder();
+      return true;
+    }
+    try {
+      const res = await fetch('/api/maps-key', { credentials: 'same-origin' });
+      const { key } = await res.json();
+      if (!key) return false;
+      return new Promise((resolve) => {
+        if (window.google && window.google.maps) { resolve(true); return; }
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=__gmTaskInit`;
+        script.async = true;
+        window.__gmTaskInit = () => {
+          delete window.__gmTaskInit;
+          taskGeocoder = new google.maps.Geocoder();
+          resolve(true);
+        };
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+    } catch { return false; }
+  }
+
   function setLocFields(lat, lng, label) {
     const elLat   = document.getElementById('modal-lat');
     const elLng   = document.getElementById('modal-lng');
@@ -589,36 +615,48 @@
     if (elClear) elClear.style.display = (lat != null) ? '' : 'none';
   }
 
-  function openModalMap() {
+  async function openModalMap() {
     const container = document.getElementById('modal-map-container');
     if (!container) return;
     container.style.display = 'block';
     document.getElementById('modal-pick-loc-btn')?.classList.add('active');
     modalMapOpen = true;
 
+    const ready = await ensureGoogleMaps();
+    if (!ready) { container.innerHTML = '<p style="padding:12px;text-align:center;font-size:.8rem;">⚠️ Google Maps no disponible</p>'; return; }
+
     if (!modalMap) {
       requestAnimationFrame(() => {
-        modalMap = L.map('modal-map-container', { center: [9.0, -66.0], zoom: 5 });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap',
-        }).addTo(modalMap);
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        modalMap = new google.maps.Map(container, {
+          center: { lat: 9.0, lng: -66.0 },
+          zoom: 5,
+          disableDefaultUI: true,
+          zoomControl: true,
+          gestureHandling: 'greedy',
+          styles: isDark ? [
+            { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+            { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+            { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+          ] : [],
+        });
 
-        // Si ya hay coordenadas, centrar y poner pin
         const lat = parseFloat(document.getElementById('modal-lat')?.value);
         const lng = parseFloat(document.getElementById('modal-lng')?.value);
         if (!isNaN(lat) && !isNaN(lng)) {
-          modalMap.setView([lat, lng], 14);
-          placeModalPin(L.latLng(lat, lng), false); // false = no reverseGeocode al abrir
+          modalMap.setCenter({ lat, lng });
+          modalMap.setZoom(14);
+          placeModalPin({ lat, lng }, false);
         }
 
-        modalMap.on('click', e => {
-          placeModalPin(e.latlng, true);
+        modalMap.addListener('click', e => {
+          placeModalPin({ lat: e.latLng.lat(), lng: e.latLng.lng() }, true);
         });
       });
     } else {
-      // Invalidar tamaño si el mapa ya existía pero estaba oculto
-      setTimeout(() => modalMap.invalidateSize(), 50);
+      google.maps.event.trigger(modalMap, 'resize');
     }
   }
 
@@ -631,24 +669,24 @@
 
   function placeModalPin(latlng, doGeocode) {
     if (!modalMap) return;
-    if (modalPin) modalMap.removeLayer(modalPin);
+    if (modalPin) modalPin.setMap(null);
 
     const accent = getComputedStyle(document.documentElement)
       .getPropertyValue('--accent-color').trim() || '#6750A4';
 
-    modalPin = L.marker(latlng, {
-      icon: L.divIcon({
-        html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="30" viewBox="0 0 22 30">
-                 <path d="M11 0C4.93 0 0 4.93 0 11c0 7.7 11 19 11 19S22 18.7 22 11C22 4.93 17.07 0 11 0z"
-                       fill="${accent}" stroke="white" stroke-width="1.4"/>
-                 <circle cx="11" cy="11" r="4" fill="white"/>
-               </svg>`,
-        className: '',
-        iconSize:    [22, 30],
-        iconAnchor:  [11, 30],
-        popupAnchor: [0, -30],
-      }),
-    }).addTo(modalMap);
+    modalPin = new google.maps.Marker({
+      position: latlng,
+      map: modalMap,
+      icon: {
+        path: 'M11 0C4.93 0 0 4.93 0 11c0 7.7 11 19 11 19S22 18.7 22 11C22 4.93 17.07 0 11 0z',
+        fillColor: accent,
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 1.4,
+        scale: 1,
+        anchor: new google.maps.Point(11, 30),
+      },
+    });
 
     document.getElementById('modal-lat').value = latlng.lat;
     document.getElementById('modal-lng').value = latlng.lng;
@@ -660,11 +698,10 @@
 
   async function reverseGeocode(latlng) {
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`;
-      const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
-      const data = await res.json();
-      const label = data.display_name
-        ? data.display_name.split(',').slice(0, 2).join(', ')
+      if (!taskGeocoder) taskGeocoder = new google.maps.Geocoder();
+      const response = await taskGeocoder.geocode({ location: latlng });
+      const label = response.results[0]
+        ? response.results[0].formatted_address.split(',').slice(0, 2).join(', ')
         : `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
       const el = document.getElementById('modal-location-label');
       if (el) el.value = label;
@@ -680,7 +717,7 @@
 
   document.getElementById('modal-clear-loc-btn')?.addEventListener('click', () => {
     setLocFields(null, null, '');
-    if (modalPin && modalMap) { modalMap.removeLayer(modalPin); modalPin = null; }
+    if (modalPin) { modalPin.setMap(null); modalPin = null; }
   });
 
   /* ══════════════════════════════════════════════════════════

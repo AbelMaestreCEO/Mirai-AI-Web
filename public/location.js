@@ -1,18 +1,13 @@
 /**
  * location.js — Módulo de Ubicaciones (Mirai AI)
  * Persistencia: Cloudflare D1 via /api/locations + /api/tasks
- * Sin type="module" — funciones globales para onclick en popups
- *
- * Pines en el mapa:
- *  • Pin sólido accent-color  → marcador de ubicación guardado (/api/locations)
- *  • Pin circular con emoji   → tarea pendiente con lat/lng (/api/tasks)
- *  • Pin provisional punteado → punto de clic antes de guardar
+ * Proveedor de mapas: Google Maps + Places + Geocoding
  */
 
 (function () {
     'use strict';
 
-    const DEFAULT_CENTER = [9.0, -66.0];
+    const DEFAULT_CENTER = { lat: 9.0, lng: -66.0 };
     const DEFAULT_ZOOM = 6;
 
     const PRIORITY_COLOR = { critica: '#ef4444', alta: '#f97316', media: '#eab308', baja: '#22c55e' };
@@ -20,11 +15,13 @@
     const PRIORITY_LABEL = { critica: '🔴 Crítica', alta: '🟠 Alta', media: '🟡 Media', baja: '🟢 Baja' };
 
     let map = null;
+    let geocoder = null;
     let pendingLatlng = null;
-    let pendingMarker = null;   // pin provisional (antes de guardar)
-    let locMarkers = {};     // id → L.Marker (ubicaciones guardadas)
-    let taskMarkers = [];     // L.Marker[] (tareas con ubicación)
+    let pendingMarker = null;
+    let locMarkers = {};
+    let taskMarkers = [];
     let allMarkersCache = [];
+    let currentInfoWindow = null;
 
     const elGpsBtn = document.getElementById('loc-gps-btn');
     const elListBtn = document.getElementById('loc-list-btn');
@@ -43,6 +40,7 @@
     const elDetailOverlay = document.getElementById('loc-detail-overlay');
     let minimapInstance = null;
     let pendingImages = [];
+
     /* ── API ─────────────────────────────────────────────────────────────── */
 
     async function apiLocations() {
@@ -78,44 +76,141 @@
         } catch { return []; }
     }
 
+    /* ── Load Google Maps API ───────────────────────────────────────────── */
+
+    async function loadGoogleMaps() {
+        if (window.google && window.google.maps) return;
+
+        const res = await fetch('/api/maps-key', { credentials: 'same-origin' });
+        const { key } = await res.json();
+        if (!key) {
+            showToast('⚠️ API Key de Google Maps no configurada');
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,marker&callback=__gmInit`;
+            script.async = true;
+            script.defer = true;
+            window.__gmInit = () => { delete window.__gmInit; resolve(); };
+            script.onerror = () => reject(new Error('Error cargando Google Maps'));
+            document.head.appendChild(script);
+        });
+    }
+
     /* ── Init ────────────────────────────────────────────────────────────── */
 
+    async function init() {
+        try {
+            await loadGoogleMaps();
+            initMap();
+        } catch (err) {
+            console.error('[Location] init:', err);
+            showToast('⚠️ Error al inicializar el mapa');
+        }
+    }
+
     function initMap() {
-        map = L.map('loc-map', { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM });
+        map = new google.maps.Map(document.getElementById('loc-map'), {
+            center: DEFAULT_CENTER,
+            zoom: DEFAULT_ZOOM,
+            mapId: 'mirai-locations',
+            disableDefaultUI: false,
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+            gestureHandling: 'greedy',
+            styles: getMapStyles(),
+        });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        }).addTo(map);
+        geocoder = new google.maps.Geocoder();
 
-        map.on('click', onMapClick);
+        map.addListener('click', onMapClick);
 
+        initSearchBox();
         loadLocMarkers();
         loadTaskMarkers();
         initRealtimeLocation();
     }
 
+    function getMapStyles() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (!isDark) return [];
+        return [
+            { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+            { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+            { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+            { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
+            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+            { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
+            { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
+            { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
+        ];
+    }
+
+    /* ── Places Search Box ──────────────────────────────────────────────── */
+
+    function initSearchBox() {
+        const input = document.getElementById('loc-search-box');
+        if (!input) return;
+
+        const autocomplete = new google.maps.places.Autocomplete(input, {
+            fields: ['geometry', 'name', 'formatted_address'],
+        });
+
+        autocomplete.bindTo('bounds', map);
+
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (!place.geometry || !place.geometry.location) {
+                showToast('⚠️ No se encontró ese lugar');
+                return;
+            }
+
+            const loc = place.geometry.location;
+            map.panTo(loc);
+            map.setZoom(15);
+
+            const latlng = { lat: loc.lat(), lng: loc.lng() };
+            pendingLatlng = latlng;
+            dropPendingPin(latlng);
+            openModal(latlng);
+
+            if (place.name) elTitle.value = place.name;
+            input.value = '';
+        });
+    }
+
+    /* ── Pending pin ────────────────────────────────────────────────────── */
+
     function dropPendingPin(latlng) {
-        if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
+        if (pendingMarker) pendingMarker.setMap(null);
         const accent = getAccent();
-        pendingMarker = L.marker(latlng, {
-            icon: L.divIcon({
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">
-                         <path d="M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z"
-                               fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="4 3"/>
-                         <circle cx="13" cy="13" r="4" fill="${accent}" opacity="0.75"/>
-                       </svg>`,
-                className: '',
-                iconSize: [26, 34], iconAnchor: [13, 34],
-            }),
-            zIndexOffset: 1000,
-        }).addTo(map);
+
+        pendingMarker = new google.maps.Marker({
+            position: latlng,
+            map: map,
+            icon: {
+                path: 'M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z',
+                fillColor: accent,
+                fillOpacity: 0.3,
+                strokeColor: accent,
+                strokeWeight: 2.5,
+                scale: 1,
+                anchor: new google.maps.Point(13, 34),
+            },
+            zIndex: 1000,
+        });
     }
 
     function onMapClick(e) {
-        pendingLatlng = e.latlng;
-        dropPendingPin(e.latlng);
-        openModal(e.latlng);
+        const latlng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+        pendingLatlng = latlng;
+        dropPendingPin(latlng);
+        openModal(latlng);
     }
 
     function openModal(latlng) {
@@ -123,30 +218,35 @@
         elSaveBtn.disabled = false;
         elModalOverlay.classList.add('open');
 
+        // Reverse geocode to prefill description
+        if (geocoder && !elDesc.value) {
+            geocoder.geocode({ location: latlng }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    const addr = results[0].formatted_address;
+                    if (!elDesc.value) elDesc.value = addr;
+                }
+            });
+        }
+
         setTimeout(() => {
             if (minimapInstance) {
-                minimapInstance.invalidateSize();
-                minimapInstance.setView(latlng, 15);
+                minimapInstance.setCenter(latlng);
+                minimapInstance.setZoom(15);
             } else {
-                minimapInstance = L.map('loc-modal-minimap', {
+                minimapInstance = new google.maps.Map(elModalMinimap, {
                     center: latlng,
                     zoom: 15,
-                    zoomControl: false,
-                    attributionControl: false,
-                    dragging: false,
-                    scrollWheelZoom: false,
-                    doubleClickZoom: false,
-                    touchZoom: false,
+                    disableDefaultUI: true,
+                    gestureHandling: 'none',
+                    styles: getMapStyles(),
                 });
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(minimapInstance);
-                minimapInstance.invalidateSize();
             }
             elTitle.focus();
         }, 80);
     }
 
     function clearPending() {
-        if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
+        if (pendingMarker) { pendingMarker.setMap(null); pendingMarker = null; }
         pendingLatlng = null;
         elSaveBtn.disabled = true;
         elHint.textContent = 'Toca el mapa para colocar un marcador';
@@ -187,8 +287,7 @@
             fd.append('lng', pendingLatlng.lng);
             pendingImages.forEach(f => fd.append('images', f));
             const marker = await apiLocCreate(fd);
-            // Quitar provisional → poner permanente
-            if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
+            if (pendingMarker) { pendingMarker.setMap(null); pendingMarker = null; }
             addLocMarker(marker);
 
             const all = await apiLocations();
@@ -237,18 +336,33 @@
     function addLocMarker(m) {
         if (locMarkers[m.id]) return;
         const accent = getAccent();
-        const lm = L.marker([m.lat, m.lng], {
-            icon: L.divIcon({
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="34" viewBox="0 0 26 34">
-                         <path d="M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z"
-                               fill="${accent}" stroke="white" stroke-width="1.4"/>
-                         <circle cx="13" cy="13" r="4.5" fill="white"/>
-                       </svg>`,
-                className: '',
-                iconSize: [26, 34], iconAnchor: [13, 34], popupAnchor: [0, -34],
-            }),
-        }).addTo(map).bindPopup(buildLocPopup(m));
-        locMarkers[m.id] = lm;
+
+        const gMarker = new google.maps.Marker({
+            position: { lat: Number(m.lat), lng: Number(m.lng) },
+            map: map,
+            icon: {
+                path: 'M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z',
+                fillColor: accent,
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 1.4,
+                scale: 1,
+                anchor: new google.maps.Point(13, 34),
+            },
+            title: m.title,
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+            content: buildLocPopup(m),
+        });
+
+        gMarker.addListener('click', () => {
+            if (currentInfoWindow) currentInfoWindow.close();
+            infoWindow.open(map, gMarker);
+            currentInfoWindow = infoWindow;
+        });
+
+        locMarkers[m.id] = { marker: gMarker, infoWindow };
     }
 
     function buildLocPopup(m) {
@@ -271,7 +385,11 @@
     window.locDelete = async function (id) {
         try {
             await apiLocDelete(id);
-            if (locMarkers[id]) { map.removeLayer(locMarkers[id]); delete locMarkers[id]; }
+            if (locMarkers[id]) {
+                locMarkers[id].marker.setMap(null);
+                if (locMarkers[id].infoWindow) locMarkers[id].infoWindow.close();
+                delete locMarkers[id];
+            }
             const all = await apiLocations();
             allMarkersCache = all;
             renderList(all);
@@ -284,10 +402,13 @@
     };
 
     window.locFly = function (id) {
-        const lm = locMarkers[id];
-        if (!lm) return;
-        map.flyTo(lm.getLatLng(), 16, { animate: true, duration: 0.9 });
-        lm.openPopup();
+        const entry = locMarkers[id];
+        if (!entry) return;
+        map.panTo(entry.marker.getPosition());
+        map.setZoom(16);
+        if (currentInfoWindow) currentInfoWindow.close();
+        entry.infoWindow.open(map, entry.marker);
+        currentInfoWindow = entry.infoWindow;
         elList.classList.add('hidden');
         elListBtn.classList.remove('open');
     };
@@ -295,8 +416,7 @@
     /* ── Cargar tareas pendientes con ubicación ──────────────────────────── */
 
     async function loadTaskMarkers() {
-        // Limpiar anteriores
-        taskMarkers.forEach(m => map.removeLayer(m));
+        taskMarkers.forEach(m => m.setMap(null));
         taskMarkers = [];
 
         const tasks = await apiTasks();
@@ -305,20 +425,33 @@
             .filter(t => t.lat != null && t.lng != null && t.status !== 'completado')
             .forEach(t => {
                 const color = PRIORITY_COLOR[t.priority] || '#888';
-                const lm = L.marker([t.lat, t.lng], {
-                    icon: L.divIcon({
-                        html: `<div style="
-                            width:30px;height:30px;border-radius:50%;
-                            background:${color};
-                            border:2.5px solid white;
-                            box-shadow:0 2px 8px rgba(0,0,0,0.22);
-                            display:flex;align-items:center;justify-content:center;
-                            font-size:14px;line-height:1;">🗒️</div>`,
-                        className: '',
-                        iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15],
-                    }),
-                }).addTo(map).bindPopup(buildTaskPopup(t, color));
-                taskMarkers.push(lm);
+
+                const gMarker = new google.maps.Marker({
+                    position: { lat: Number(t.lat), lng: Number(t.lng) },
+                    map: map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: color,
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2.5,
+                        scale: 14,
+                    },
+                    label: { text: '🗒️', fontSize: '14px' },
+                    title: t.title,
+                });
+
+                const infoWindow = new google.maps.InfoWindow({
+                    content: buildTaskPopup(t, color),
+                });
+
+                gMarker.addListener('click', () => {
+                    if (currentInfoWindow) currentInfoWindow.close();
+                    infoWindow.open(map, gMarker);
+                    currentInfoWindow = infoWindow;
+                });
+
+                taskMarkers.push(gMarker);
             });
     }
 
@@ -374,21 +507,24 @@
                 elGpsBtn.classList.remove('locating');
                 elGpsBtn.disabled = false;
 
-                const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
-                map.flyTo(ll, 17, { animate: true, duration: 1.1 });
+                const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                map.panTo(ll);
+                map.setZoom(17);
 
-                // Punto "estoy aquí" (no guardado)
-                L.marker(ll, {
-                    icon: L.divIcon({
-                        html: `<div style="width:14px;height:14px;border-radius:50%;
-                               background:var(--accent-color);border:2.5px solid white;
-                               box-shadow:0 0 0 5px var(--accent-glow);"></div>`,
-                        className: '',
-                        iconSize: [14, 14], iconAnchor: [7, 7],
-                    })
-                }).addTo(map).bindPopup('<strong>📍 Mi ubicación actual</strong>').openPopup();
+                new google.maps.Marker({
+                    position: ll,
+                    map: map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        fillColor: getAccent(),
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2.5,
+                        scale: 7,
+                    },
+                    title: 'Mi ubicación actual',
+                });
 
-                // Pre-cargar como pendiente para guardar
                 pendingLatlng = ll;
                 dropPendingPin(ll);
                 elHint.textContent = `📍 ${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)} — Agrega título y guarda`;
@@ -494,14 +630,12 @@
 
         rt.subscribe('location', (markers) => {
             markers.forEach(marker => {
-                // Si hay un mapa Leaflet/Google Maps activo, agregar el marcador
                 if (typeof addMarkerToMap === 'function') {
                     addMarkerToMap(marker);
                 } else if (typeof loadMarkers === 'function') {
                     loadMarkers();
                     return;
                 }
-                // Actualizar lista lateral si existe
                 const item = document.querySelector(`[data-marker-id="${marker.id}"]`);
                 if (!item && typeof appendMarkerListItem === 'function') {
                     appendMarkerListItem(marker);
@@ -513,6 +647,6 @@
     }
 
     /* ── Arranque ────────────────────────────────────────────────────────── */
-    initMap();
+    init();
 
 })();

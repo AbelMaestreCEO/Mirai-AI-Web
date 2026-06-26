@@ -53,8 +53,6 @@
     </script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
-
     <style>
         /* ── Wrapper ── */
         .loc-wrapper {
@@ -334,14 +332,8 @@
             pointer-events: none;
         }
 
-        #loc-modal-map .leaflet-pane,
-        #loc-modal-map .leaflet-map-pane {
-            z-index: 1 !important;
-        }
-
-        #loc-modal-map .leaflet-top,
-        #loc-modal-map .leaflet-bottom {
-            z-index: 2 !important;
+        #loc-modal-minimap .gm-style {
+            border-radius: inherit;
         }
 
         .loc-modal-coords-badge {
@@ -480,23 +472,46 @@
             }
         }
 
-        /* Popup Leaflet con tema */
-        .leaflet-popup-content-wrapper {
-            background: var(--glass-bg) !important;
-            border: 1px solid var(--glass-border) !important;
-            border-radius: 12px !important;
-            color: var(--text-primary, inherit) !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
-        }
-
         #loc-modal-minimap {
             width: 100%;
             height: 100%;
             min-height: 160px;
         }
 
-        .leaflet-popup-tip {
+        .gm-style .gm-style-iw-c {
             background: var(--glass-bg) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 12px !important;
+            color: var(--text-primary, inherit) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+            padding: 12px !important;
+        }
+        .gm-style .gm-style-iw-tc::after {
+            background: var(--glass-bg) !important;
+        }
+
+        /* Places autocomplete styling */
+        #loc-search-box {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 500;
+            width: 260px;
+            max-width: calc(100% - 120px);
+            padding: 9px 14px;
+            font-size: 0.82rem;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            color: var(--text-primary, inherit);
+            outline: none;
+            font-family: inherit;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+        }
+        #loc-search-box:focus {
+            border-color: var(--accent-color);
         }
 
         .loc-pop-title {
@@ -963,6 +978,8 @@
     <!-- ══ CONTENEDOR PRINCIPAL ══ -->
     <div class="loc-wrapper">
 
+        <!-- Buscador Places -->
+        <input type="text" id="loc-search-box" placeholder="🔍 Buscar lugar...">
         <!-- Mapa -->
         <div id="loc-map"></div>
 
@@ -1063,7 +1080,6 @@
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     <script src="location.js"></script>
     <script src="transitions.js"></script>
 
