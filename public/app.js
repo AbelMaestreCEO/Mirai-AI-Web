@@ -958,6 +958,8 @@ async function handleSendMessage() {
       // El contenido puede ser un placeholder o el prompt
       const content = `🎵 Canción generada: ${userInput}`;
       appendMessage('assistant', content, true, responseData.audio_url);
+    } else if (responseData.type === 'youtube' && responseData.videos) {
+      appendYouTubeMessage(responseData.videos, responseData.response, responseData.query);
     } else if (responseData.type === 'video' && responseData.video_url) {
       appendVideoMessage(responseData.video_url, responseData.thumbnail_url, userInput);
     } else if (responseData.type === 'video') {
@@ -1181,6 +1183,8 @@ async function sendTextToAI(text) {
       // El contenido puede ser un placeholder o el prompt
       const content = `🎵 Canción generada: ${userInput}`;
       appendMessage('assistant', content, true, responseData.audio_url);
+    } else if (responseData.type === 'youtube' && responseData.videos) {
+      appendYouTubeMessage(responseData.videos, responseData.response, responseData.query);
     } else if (responseData.type === 'video' && responseData.video_url) {
       appendVideoMessage(responseData.video_url, responseData.thumbnail_url, userInput);
     } else if (responseData.type === 'video') {
@@ -1291,6 +1295,65 @@ async function downloadVideo(videoUrl, filename) {
   } catch (err) {
     console.error('Error descargando video:', err);
     alert('No se pudo descargar automáticamente. Haz clic derecho y "Guardar como..."');
+  }
+}
+
+function appendYouTubeMessage(videos, headerText, query) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message assistant fade-in';
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const videosHtml = videos.map((v, i) => `
+    <div class="yt-card" data-video-id="${escapeHtml(v.videoId)}">
+      <div class="yt-thumb-wrap">
+        <img src="${escapeHtml(v.thumbnail)}" alt="" loading="lazy">
+        <div class="yt-play-icon">
+          <svg viewBox="0 0 24 24" width="36" height="36"><circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.6)" stroke="white" stroke-width="1"/><path d="M9 6v12l10-6z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="yt-info">
+        <div class="yt-title">${escapeHtml(v.title)}</div>
+        <div class="yt-channel">${escapeHtml(v.channel)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  messageDiv.innerHTML = `
+    <div class="message-avatar">M</div>
+    <div class="message-content">
+      <div class="yt-results-header">${escapeHtml(headerText || '🎬 Videos encontrados:')}</div>
+      <div class="yt-results-list">${videosHtml}</div>
+      <div class="yt-player-wrap" style="display:none;">
+        <div class="yt-player-close-bar"><button class="yt-player-close-btn" title="Cerrar reproductor">✕ Cerrar</button></div>
+        <div class="yt-player-container"></div>
+      </div>
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+      </div>
+    </div>
+  `;
+
+  elements.chatMessages.appendChild(messageDiv);
+  scrollToBottom();
+
+  messageDiv.querySelectorAll('.yt-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const videoId = card.dataset.videoId;
+      const wrap = messageDiv.querySelector('.yt-player-wrap');
+      const container = messageDiv.querySelector('.yt-player-container');
+      container.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>`;
+      wrap.style.display = 'block';
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
+
+  const closeBtn = messageDiv.querySelector('.yt-player-close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      const wrap = messageDiv.querySelector('.yt-player-wrap');
+      wrap.querySelector('.yt-player-container').innerHTML = '';
+      wrap.style.display = 'none';
+    });
   }
 }
 

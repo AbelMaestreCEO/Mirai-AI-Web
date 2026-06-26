@@ -39,7 +39,8 @@ const INTENT_TYPES = {
   IMAGE: 2,
   VIDEO: 3,
   MUSIC: 4,
-  TEXT_DEFAULT: 5
+  TEXT_DEFAULT: 5,
+  YOUTUBE: 6
 };
 
 const SMTP_CONFIG = {
@@ -67,17 +68,21 @@ Categories:
 3 = VIDEO: User explicitly wants to generate, create, animate a video/animation/GIF/motion clip
 4 = MUSIC: User explicitly wants to generate, create, compose music/audio/song/melody/soundtrack/beat/SFX, or describes a musical style
 5 = TEXT (default): When ambiguous or unclear, ALWAYS default to text
+6 = YOUTUBE: User wants to search, find, watch, play, or see a YouTube video. Keywords: "busca un video", "pon un video", "reproduce", "busca en youtube", "quiero ver un video de", "muéstrame un video", "video de youtube", "tutorial de", "pon música de" (when referring to existing songs/artists, NOT generating new music)
 
 Rules:
 - If the user asks to "explain AND draw", classify as IMAGE (the text part comes naturally with the image)
 - If the user says something casual like "hola" or "qué es X", it's TEXT
-- Only classify as 2/3/4 when the user CLEARLY wants generated media
+- Only classify as 2/3/4/6 when the user CLEARLY wants generated media or YouTube
+- IMPORTANT: Distinguish between MUSIC (4) = user wants to CREATE/GENERATE new music, vs YOUTUBE (6) = user wants to FIND/WATCH/LISTEN to an EXISTING video or song on YouTube
+- If the user mentions a specific artist, band, or existing song they want to hear, classify as YOUTUBE (6), not MUSIC (4)
 - When intent is 2, write a detailed English prompt for image generation. CRITICAL: If the user asks for a copyrighted character (anime, games, movies, brands, real people), DO NOT use the character name or franchise. Instead describe ONLY their visual traits: hair color/style, outfit colors, accessories, body type. Example: instead of "Hatsune Miku" write "anime girl with very long teal twin pigtails, futuristic black and teal outfit, small headset, bright cyan eyes, slim figure".
 - When the user asks for a real person or copyrighted character, add a special field "is_copyright": true to the JSON response.
 - When intent is 4, write a CONCISE English prompt for music generation (max 200 chars). Include: genre, mood, and key instruments. Do NOT include lyrics or vocal instructions. Example: "Smooth jazz ballad with saxophone and piano, slow tempo, romantic mood"
+- When intent is 6, write a concise YouTube search query in the user's language that will find the best matching video. Example: user says "pon algo de Bad Bunny" → prompt: "Bad Bunny canciones"
 
 Respond ONLY with valid JSON, nothing else:
-{"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
+{"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, search query if intent 6, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
 
 // --- HELPERS DE COOKIE ---
 function getTokenFromCookie(request) {
@@ -914,6 +919,57 @@ async function handleSetSystemPrompt(request, env) {
   }
 }
 
+async function handleYouTubeSearch(query, originalMessage, conversationId, userDni, env, corsHeaders, skipHistory) {
+  const apiKey = env.GOOGLE_MAPS_KEY;
+  if (!apiKey) {
+    return jsonResponse({ type: 'text', response: '⚠️ YouTube no está configurado en este momento.' }, 200, corsHeaders);
+  }
+
+  try {
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(query)}&key=${apiKey}`;
+    const ytRes = await fetch(searchUrl);
+    if (!ytRes.ok) throw new Error(`YouTube API: ${ytRes.status}`);
+    const ytData = await ytRes.json();
+
+    const videos = (ytData.items || []).map(item => ({
+      videoId: item.id.videoId,
+      title: item.snippet.title,
+      channel: item.snippet.channelTitle,
+      thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
+      description: item.snippet.description,
+    }));
+
+    if (!videos.length) {
+      return jsonResponse({ type: 'text', response: '😕 No encontré videos para esa búsqueda.' }, 200, corsHeaders);
+    }
+
+    if (!skipHistory && conversationId) {
+      try {
+        const DB = env.MIRAI_AI_DB;
+        const titles = videos.slice(0, 3).map((v, i) => `${i + 1}. ${v.title}`).join('\n');
+        const assistantContent = `🎬 Videos encontrados para "${originalMessage}":\n${titles}`;
+        await DB.prepare('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)')
+          .bind(conversationId, 'user', originalMessage).run();
+        await DB.prepare('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)')
+          .bind(conversationId, 'assistant', assistantContent).run();
+        await DB.prepare('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .bind(conversationId).run();
+      } catch (e) { console.error('[YouTube] history save:', e); }
+    }
+
+    return jsonResponse({
+      type: 'youtube',
+      query: query,
+      videos: videos,
+      response: `🎬 Encontré ${videos.length} videos para ti:`,
+    }, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[YouTube] search error:', err);
+    return jsonResponse({ type: 'text', response: '⚠️ Error al buscar en YouTube. Intenta de nuevo.' }, 200, corsHeaders);
+  }
+}
+
 async function handleChat(request, env, corsHeaders) {
   // 1. Autenticar
   const userDni = await requireAuth(request, env);
@@ -1034,6 +1090,17 @@ async function handleChat(request, env, corsHeaders) {
       case INTENT_TYPES.MUSIC:
         return await handleMusicGeneration(
           classification.prompt || message,
+          conversation_id,
+          userDni,
+          env,
+          corsHeaders,
+          !!skip_history
+        );
+
+      case INTENT_TYPES.YOUTUBE:
+        return await handleYouTubeSearch(
+          classification.prompt || message,
+          message,
           conversation_id,
           userDni,
           env,
@@ -1281,7 +1348,7 @@ function parseClassification(content) {
   // Intent 1: JSON directo
   try {
     const parsed = JSON.parse(content.trim());
-    if (parsed.intent >= 1 && parsed.intent <= 5) {
+    if (parsed.intent >= 1 && parsed.intent <= 6) {
       return {
         intent: parsed.intent,
         prompt: parsed.prompt || ''
@@ -1296,7 +1363,7 @@ function parseClassification(content) {
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.intent >= 1 && parsed.intent <= 5) {
+      if (parsed.intent >= 1 && parsed.intent <= 6) {
         return {
           intent: parsed.intent,
           prompt: parsed.prompt || ''
