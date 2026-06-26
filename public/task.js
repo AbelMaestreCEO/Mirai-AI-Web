@@ -591,7 +591,7 @@
       return new Promise((resolve) => {
         if (window.google && window.google.maps) { resolve(true); return; }
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=__gmTaskInit`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,marker&loading=async&callback=__gmTaskInit`;
         script.async = true;
         window.__gmTaskInit = () => {
           delete window.__gmTaskInit;
@@ -631,16 +631,11 @@
         modalMap = new google.maps.Map(container, {
           center: { lat: 9.0, lng: -66.0 },
           zoom: 5,
+          mapId: 'mirai-task-map',
           disableDefaultUI: true,
           zoomControl: true,
           gestureHandling: 'greedy',
-          styles: isDark ? [
-            { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-            { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-            { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
-            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-          ] : [],
+          colorScheme: isDark ? 'DARK' : 'LIGHT',
         });
 
         const lat = parseFloat(document.getElementById('modal-lat')?.value);
@@ -669,23 +664,25 @@
 
   function placeModalPin(latlng, doGeocode) {
     if (!modalMap) return;
-    if (modalPin) modalPin.setMap(null);
+    if (modalPin) modalPin.map = null;
 
     const accent = getComputedStyle(document.documentElement)
       .getPropertyValue('--accent-color').trim() || '#6750A4';
 
-    modalPin = new google.maps.Marker({
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '22'); svg.setAttribute('height', '30'); svg.setAttribute('viewBox', '0 0 22 30');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M11 0C4.93 0 0 4.93 0 11c0 7.7 11 19 11 19S22 18.7 22 11C22 4.93 17.07 0 11 0z');
+    path.setAttribute('fill', accent); path.setAttribute('stroke', 'white'); path.setAttribute('stroke-width', '1.4');
+    svg.appendChild(path);
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', '11'); circle.setAttribute('cy', '11'); circle.setAttribute('r', '4'); circle.setAttribute('fill', 'white');
+    svg.appendChild(circle);
+
+    modalPin = new google.maps.marker.AdvancedMarkerElement({
       position: latlng,
       map: modalMap,
-      icon: {
-        path: 'M11 0C4.93 0 0 4.93 0 11c0 7.7 11 19 11 19S22 18.7 22 11C22 4.93 17.07 0 11 0z',
-        fillColor: accent,
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 1.4,
-        scale: 1,
-        anchor: new google.maps.Point(11, 30),
-      },
+      content: svg,
     });
 
     document.getElementById('modal-lat').value = latlng.lat;
@@ -717,7 +714,7 @@
 
   document.getElementById('modal-clear-loc-btn')?.addEventListener('click', () => {
     setLocFields(null, null, '');
-    if (modalPin) { modalPin.setMap(null); modalPin = null; }
+    if (modalPin) { modalPin.map = null; modalPin = null; }
   });
 
   /* ══════════════════════════════════════════════════════════

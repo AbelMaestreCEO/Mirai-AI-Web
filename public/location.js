@@ -90,7 +90,7 @@
 
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,marker&callback=__gmInit`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,marker&loading=async&callback=__gmInit`;
             script.async = true;
             script.defer = true;
             window.__gmInit = () => { delete window.__gmInit; resolve(); };
@@ -112,6 +112,7 @@
     }
 
     function initMap() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         map = new google.maps.Map(document.getElementById('loc-map'), {
             center: DEFAULT_CENTER,
             zoom: DEFAULT_ZOOM,
@@ -122,7 +123,7 @@
             mapTypeControl: false,
             fullscreenControl: false,
             gestureHandling: 'greedy',
-            styles: getMapStyles(),
+            colorScheme: isDark ? 'DARK' : 'LIGHT',
         });
 
         geocoder = new google.maps.Geocoder();
@@ -135,73 +136,101 @@
         initRealtimeLocation();
     }
 
-    function getMapStyles() {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        if (!isDark) return [];
-        return [
-            { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-            { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-            { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-            { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
-            { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
-            { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-            { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#212a37' }] },
-            { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-            { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-        ];
-    }
-
     /* ── Places Search Box ──────────────────────────────────────────────── */
 
     function initSearchBox() {
         const input = document.getElementById('loc-search-box');
         if (!input) return;
 
-        const autocomplete = new google.maps.places.Autocomplete(input, {
-            fields: ['geometry', 'name', 'formatted_address'],
+        const placeAutocomplete = new google.maps.places.PlaceAutocompleteElement({
+            componentRestrictions: undefined,
         });
 
-        autocomplete.bindTo('bounds', map);
+        // Replace the input with the PlaceAutocompleteElement
+        placeAutocomplete.style.cssText = input.style.cssText;
+        placeAutocomplete.id = 'loc-search-box';
+        placeAutocomplete.className = input.className;
+        input.parentNode.replaceChild(placeAutocomplete, input);
 
-        autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace();
-            if (!place.geometry || !place.geometry.location) {
-                showToast('⚠️ No se encontró ese lugar');
-                return;
+        placeAutocomplete.addEventListener('gmp-select', async (event) => {
+            const place = event.placePrediction;
+            if (!place) return;
+
+            try {
+                const placeResult = await place.toPlace();
+                await placeResult.fetchFields({ fields: ['location', 'displayName', 'formattedAddress'] });
+
+                const loc = placeResult.location;
+                if (!loc) { showToast('⚠️ No se encontró ese lugar'); return; }
+
+                map.panTo(loc);
+                map.setZoom(15);
+
+                const latlng = { lat: loc.lat(), lng: loc.lng() };
+                pendingLatlng = latlng;
+                dropPendingPin(latlng);
+                openModal(latlng);
+
+                if (placeResult.displayName) elTitle.value = placeResult.displayName;
+            } catch (err) {
+                console.error('[Places]', err);
+                showToast('⚠️ Error al buscar lugar');
             }
-
-            const loc = place.geometry.location;
-            map.panTo(loc);
-            map.setZoom(15);
-
-            const latlng = { lat: loc.lat(), lng: loc.lng() };
-            pendingLatlng = latlng;
-            dropPendingPin(latlng);
-            openModal(latlng);
-
-            if (place.name) elTitle.value = place.name;
-            input.value = '';
         });
+    }
+
+    /* ── Helpers for AdvancedMarkerElement ───────────────────────────────── */
+
+    function createPinSvg(fillColor, fillOpacity, strokeColor, strokeWidth, strokeDash) {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '26');
+        svg.setAttribute('height', '34');
+        svg.setAttribute('viewBox', '0 0 26 34');
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z');
+        path.setAttribute('fill', fillColor);
+        path.setAttribute('fill-opacity', String(fillOpacity));
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', String(strokeWidth));
+        if (strokeDash) path.setAttribute('stroke-dasharray', strokeDash);
+        svg.appendChild(path);
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '13');
+        circle.setAttribute('cy', '13');
+        circle.setAttribute('r', fillOpacity < 1 ? '4' : '4.5');
+        circle.setAttribute('fill', fillOpacity < 1 ? fillColor : 'white');
+        circle.setAttribute('opacity', fillOpacity < 1 ? '0.75' : '1');
+        svg.appendChild(circle);
+
+        return svg;
+    }
+
+    function createCirclePinEl(color, emoji) {
+        const div = document.createElement('div');
+        div.style.cssText = `width:30px;height:30px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;`;
+        div.textContent = emoji || '🗒️';
+        return div;
+    }
+
+    function createGpsDotEl(accentColor) {
+        const div = document.createElement('div');
+        div.style.cssText = `width:14px;height:14px;border-radius:50%;background:${accentColor};border:2.5px solid white;box-shadow:0 0 0 5px var(--accent-glow);`;
+        return div;
     }
 
     /* ── Pending pin ────────────────────────────────────────────────────── */
 
     function dropPendingPin(latlng) {
-        if (pendingMarker) pendingMarker.setMap(null);
+        if (pendingMarker) pendingMarker.map = null;
         const accent = getAccent();
+        const pinEl = createPinSvg(accent, 0.3, accent, 2.5, '4 3');
 
-        pendingMarker = new google.maps.Marker({
+        pendingMarker = new google.maps.marker.AdvancedMarkerElement({
             position: latlng,
             map: map,
-            icon: {
-                path: 'M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z',
-                fillColor: accent,
-                fillOpacity: 0.3,
-                strokeColor: accent,
-                strokeWeight: 2.5,
-                scale: 1,
-                anchor: new google.maps.Point(13, 34),
-            },
+            content: pinEl,
             zIndex: 1000,
         });
     }
@@ -218,7 +247,6 @@
         elSaveBtn.disabled = false;
         elModalOverlay.classList.add('open');
 
-        // Reverse geocode to prefill description
         if (geocoder && !elDesc.value) {
             geocoder.geocode({ location: latlng }, (results, status) => {
                 if (status === 'OK' && results[0]) {
@@ -229,6 +257,7 @@
         }
 
         setTimeout(() => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (minimapInstance) {
                 minimapInstance.setCenter(latlng);
                 minimapInstance.setZoom(15);
@@ -236,9 +265,10 @@
                 minimapInstance = new google.maps.Map(elModalMinimap, {
                     center: latlng,
                     zoom: 15,
+                    mapId: 'mirai-minimap',
                     disableDefaultUI: true,
                     gestureHandling: 'none',
-                    styles: getMapStyles(),
+                    colorScheme: isDark ? 'DARK' : 'LIGHT',
                 });
             }
             elTitle.focus();
@@ -246,7 +276,7 @@
     }
 
     function clearPending() {
-        if (pendingMarker) { pendingMarker.setMap(null); pendingMarker = null; }
+        if (pendingMarker) { pendingMarker.map = null; pendingMarker = null; }
         pendingLatlng = null;
         elSaveBtn.disabled = true;
         elHint.textContent = 'Toca el mapa para colocar un marcador';
@@ -287,7 +317,7 @@
             fd.append('lng', pendingLatlng.lng);
             pendingImages.forEach(f => fd.append('images', f));
             const marker = await apiLocCreate(fd);
-            if (pendingMarker) { pendingMarker.setMap(null); pendingMarker = null; }
+            if (pendingMarker) { pendingMarker.map = null; pendingMarker = null; }
             addLocMarker(marker);
 
             const all = await apiLocations();
@@ -336,19 +366,12 @@
     function addLocMarker(m) {
         if (locMarkers[m.id]) return;
         const accent = getAccent();
+        const pinEl = createPinSvg(accent, 1, '#ffffff', 1.4);
 
-        const gMarker = new google.maps.Marker({
+        const gMarker = new google.maps.marker.AdvancedMarkerElement({
             position: { lat: Number(m.lat), lng: Number(m.lng) },
             map: map,
-            icon: {
-                path: 'M13 0C5.82 0 0 5.82 0 13c0 9.1 13 21 13 21S26 22.1 26 13C26 5.82 20.18 0 13 0z',
-                fillColor: accent,
-                fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 1.4,
-                scale: 1,
-                anchor: new google.maps.Point(13, 34),
-            },
+            content: pinEl,
             title: m.title,
         });
 
@@ -386,7 +409,7 @@
         try {
             await apiLocDelete(id);
             if (locMarkers[id]) {
-                locMarkers[id].marker.setMap(null);
+                locMarkers[id].marker.map = null;
                 if (locMarkers[id].infoWindow) locMarkers[id].infoWindow.close();
                 delete locMarkers[id];
             }
@@ -404,7 +427,7 @@
     window.locFly = function (id) {
         const entry = locMarkers[id];
         if (!entry) return;
-        map.panTo(entry.marker.getPosition());
+        map.panTo(entry.marker.position);
         map.setZoom(16);
         if (currentInfoWindow) currentInfoWindow.close();
         entry.infoWindow.open(map, entry.marker);
@@ -416,7 +439,7 @@
     /* ── Cargar tareas pendientes con ubicación ──────────────────────────── */
 
     async function loadTaskMarkers() {
-        taskMarkers.forEach(m => m.setMap(null));
+        taskMarkers.forEach(m => { m.map = null; });
         taskMarkers = [];
 
         const tasks = await apiTasks();
@@ -425,19 +448,12 @@
             .filter(t => t.lat != null && t.lng != null && t.status !== 'completado')
             .forEach(t => {
                 const color = PRIORITY_COLOR[t.priority] || '#888';
+                const pinEl = createCirclePinEl(color, '🗒️');
 
-                const gMarker = new google.maps.Marker({
+                const gMarker = new google.maps.marker.AdvancedMarkerElement({
                     position: { lat: Number(t.lat), lng: Number(t.lng) },
                     map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: color,
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2.5,
-                        scale: 14,
-                    },
-                    label: { text: '🗒️', fontSize: '14px' },
+                    content: pinEl,
                     title: t.title,
                 });
 
@@ -511,19 +527,17 @@
                 map.panTo(ll);
                 map.setZoom(17);
 
-                new google.maps.Marker({
+                const dotEl = createGpsDotEl(getAccent());
+                const gpsMkr = new google.maps.marker.AdvancedMarkerElement({
                     position: ll,
                     map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: getAccent(),
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2.5,
-                        scale: 7,
-                    },
+                    content: dotEl,
                     title: 'Mi ubicación actual',
                 });
+
+                const gpsiw = new google.maps.InfoWindow({ content: '<strong>📍 Mi ubicación actual</strong>' });
+                gpsiw.open(map, gpsMkr);
+                gpsMkr.addListener('click', () => gpsiw.open(map, gpsMkr));
 
                 pendingLatlng = ll;
                 dropPendingPin(ll);
