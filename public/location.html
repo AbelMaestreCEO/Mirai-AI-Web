@@ -74,8 +74,8 @@
         /* ── FAB GPS ── */
         #loc-gps-btn {
             position: absolute;
-            bottom: 90px;
-            right: 14px;
+            bottom: 120px;
+            right: 10px;
             z-index: 500;
             width: 46px;
             height: 46px;
@@ -490,28 +490,49 @@
             background: var(--glass-bg) !important;
         }
 
-        /* Places autocomplete styling */
-        #loc-search-box {
+        /* Places autocomplete wrapper */
+        #loc-search-wrap {
             position: absolute;
             top: 10px;
-            left: 50px;
+            left: 10px;
             z-index: 500;
             width: 260px;
-            max-width: calc(100% - 120px);
-            padding: 9px 14px;
-            font-size: 0.82rem;
+            max-width: calc(100% - 80px);
+            background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: 10px;
-            background: var(--glass-bg);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        #loc-search-wrap svg {
+            flex-shrink: 0;
+            color: var(--text-secondary, #888);
+        }
+        #loc-search-wrap input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 9px 8px;
+            font-size: 0.82rem;
             color: var(--text-primary, inherit);
             outline: none;
             font-family: inherit;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.10);
         }
-        #loc-search-box:focus {
-            border-color: var(--accent-color);
+        #loc-search-wrap input::placeholder {
+            color: var(--text-secondary, #999);
+        }
+        /* Hide Google's pac-container default styling overrides */
+        .pac-container {
+            border-radius: 10px !important;
+            border: 1px solid var(--glass-border) !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important;
+            margin-top: 4px !important;
+            font-family: inherit !important;
         }
 
         .loc-pop-title {
@@ -979,7 +1000,10 @@
     <div class="loc-wrapper">
 
         <!-- Buscador Places -->
-        <input type="text" id="loc-search-box" placeholder="🔍 Buscar lugar...">
+        <div id="loc-search-wrap">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM9.5 14C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" id="loc-search-input" placeholder="Buscar lugar..." autocomplete="off">
+        </div>
         <!-- Mapa -->
         <div id="loc-map"></div>
 

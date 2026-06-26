@@ -139,43 +139,32 @@
     /* ── Places Search Box ──────────────────────────────────────────────── */
 
     function initSearchBox() {
-        const input = document.getElementById('loc-search-box');
+        const input = document.getElementById('loc-search-input');
         if (!input) return;
 
-        const placeAutocomplete = new google.maps.places.PlaceAutocompleteElement({
-            componentRestrictions: undefined,
+        const autocomplete = new google.maps.places.Autocomplete(input, {
+            fields: ['geometry', 'name', 'formatted_address'],
         });
+        autocomplete.bindTo('bounds', map);
 
-        // Replace the input with the PlaceAutocompleteElement
-        placeAutocomplete.style.cssText = input.style.cssText;
-        placeAutocomplete.id = 'loc-search-box';
-        placeAutocomplete.className = input.className;
-        input.parentNode.replaceChild(placeAutocomplete, input);
-
-        placeAutocomplete.addEventListener('gmp-select', async (event) => {
-            const place = event.placePrediction;
-            if (!place) return;
-
-            try {
-                const placeResult = await place.toPlace();
-                await placeResult.fetchFields({ fields: ['location', 'displayName', 'formattedAddress'] });
-
-                const loc = placeResult.location;
-                if (!loc) { showToast('⚠️ No se encontró ese lugar'); return; }
-
-                map.panTo(loc);
-                map.setZoom(15);
-
-                const latlng = { lat: loc.lat(), lng: loc.lng() };
-                pendingLatlng = latlng;
-                dropPendingPin(latlng);
-                openModal(latlng);
-
-                if (placeResult.displayName) elTitle.value = placeResult.displayName;
-            } catch (err) {
-                console.error('[Places]', err);
-                showToast('⚠️ Error al buscar lugar');
+        autocomplete.addListener('place_changed', () => {
+            const place = autocomplete.getPlace();
+            if (!place.geometry || !place.geometry.location) {
+                showToast('⚠️ No se encontró ese lugar');
+                return;
             }
+
+            const loc = place.geometry.location;
+            map.panTo(loc);
+            map.setZoom(15);
+
+            const latlng = { lat: loc.lat(), lng: loc.lng() };
+            pendingLatlng = latlng;
+            dropPendingPin(latlng);
+            openModal(latlng);
+
+            if (place.name) elTitle.value = place.name;
+            input.value = '';
         });
     }
 
