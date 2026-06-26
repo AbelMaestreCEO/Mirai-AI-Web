@@ -16,25 +16,28 @@
  *   'chat'        → conversations, messages
  *   'generation'  → gen_history
  *
- * USO EN JS CON type="module" (inventory.js, classroom_admin.js, etc.):
- *   import { MiraiRealtime } from './mirai-realtime.js';
- *   const rt = MiraiRealtime.getInstance();
- *   rt.subscribe('inventory', (changes) => handleChanges(changes));
- *   rt.start();
+ * El polling consulta TODOS los módulos siempre. Los cambios para módulos
+ * sin suscriptores se almacenan en sessionStorage y se entregan cuando
+ * la página del módulo se carga y llama subscribe().
  *
- * USO EN JS SIN type="module" (classroom_admin.js, attendance_admin.js, etc.):
- *   // mirai-realtime.js expone window.MiraiRealtime automáticamente
+ * USO:
  *   const rt = window.MiraiRealtime.getInstance();
- *   rt.subscribe('attendance', (changes) => handleChanges(changes));
+ *   rt.subscribe('classroom', (changes) => handleChanges(changes));
  *   rt.start();
  * ─────────────────────────────────────────────────────────────────
  */
 
-const POLL_INTERVAL_ACTIVE = 5_000;   // 10s — tab visible
-const POLL_INTERVAL_HIDDEN = 60_000;   // 60s — tab en segundo plano
-const POLL_INTERVAL_FOCUS  = 2_000;    // 2s — burst al recuperar foco (3 veces)
+const POLL_INTERVAL_ACTIVE = 5_000;
+const POLL_INTERVAL_HIDDEN = 60_000;
+const POLL_INTERVAL_FOCUS  = 2_000;
 const POLL_ENDPOINT        = '/api/sync/poll';
 const TS_STORAGE_KEY       = 'mirai-rt-last-ts';
+const PENDING_STORAGE_KEY  = 'mirai-rt-pending';
+
+const ALL_MODULES = [
+  'inventory', 'classroom', 'attendance', 'diet', 'tasks',
+  'location', 'courses', 'reports', 'chat', 'generation'
+];
 
 class MiraiRealtimeEngine {
   #subscribers = new Map();  // module → Set<callback>
@@ -42,54 +45,47 @@ class MiraiRealtimeEngine {
   #lastTs      = null;
   #running     = false;
   #hidden      = false;
-  #focusBurst  = 0;          // contador de polls rápidos al recuperar foco
+  #focusBurst  = 0;
 
   constructor() {
-    // Restaurar timestamp — lookback de 30s para no perder cambios entre páginas
     const stored = sessionStorage.getItem(TS_STORAGE_KEY);
     this.#lastTs = stored || new Date(Date.now() - 30_000).toISOString();
 
     document.addEventListener('visibilitychange', () => {
       this.#hidden = document.hidden;
       if (!document.hidden && this.#running) {
-        // Tab recuperó foco → burst de 3 polls rápidos, luego ritmo normal
         this.#focusBurst = 3;
         this.#doPoll();
         this.#resetTimer();
       }
     });
 
-    // Indicador visual en el DOM
     this.#createIndicator();
   }
 
   // ── API PÚBLICA ────────────────────────────────────────────────
 
-  /**
-   * Suscribe un callback a cambios de un módulo.
-   * @param {string} module - Nombre del módulo
-   * @param {function} callback - Recibe array de registros cambiados
-   * @returns {function} Desuscribirse: const unsub = rt.subscribe(...); unsub();
-   */
   subscribe(module, callback) {
     if (!this.#subscribers.has(module)) {
       this.#subscribers.set(module, new Set());
     }
     this.#subscribers.get(module).add(callback);
+
+    // Entregar cambios pendientes acumulados mientras esta página no estaba cargada
+    this.#deliverPending(module);
+
     return () => this.#subscribers.get(module)?.delete(callback);
   }
 
-  /** Inicia el polling. Llamar tras definir todas las suscripciones. */
   start() {
     if (this.#running) return;
     this.#running = true;
     this.#setIndicator('active');
     this.#doPoll();
     this.#resetTimer();
-    console.log('[MiraiRT] ▶ Iniciado —', [...this.#subscribers.keys()].join(', '));
+    console.log('[MiraiRT] ▶ Iniciado — suscriptores:', [...this.#subscribers.keys()].join(', ') || '(ninguno, polling global)');
   }
 
-  /** Detiene el polling. */
   stop() {
     this.#running = false;
     clearInterval(this.#timer);
@@ -97,10 +93,6 @@ class MiraiRealtimeEngine {
     this.#setIndicator('off');
   }
 
-  /**
-   * Poll inmediato — llamar después de guardar datos para ver el cambio
-   * propio sin esperar el ciclo completo.
-   */
   async forceRefresh() {
     await this.#doPoll();
   }
@@ -118,7 +110,7 @@ class MiraiRealtimeEngine {
     this.#timer = setInterval(() => {
       if (this.#focusBurst > 0) {
         this.#focusBurst--;
-        if (this.#focusBurst === 0) this.#resetTimer(); // volver a ritmo normal
+        if (this.#focusBurst === 0) this.#resetTimer();
       }
       this.#doPoll();
     }, interval);
@@ -126,9 +118,6 @@ class MiraiRealtimeEngine {
 
   async #doPoll() {
     if (!this.#running) return;
-
-    const modules = [...this.#subscribers.keys()];
-    if (modules.length === 0) return;
 
     const userDni  = window.miraiUser?.dni;
     const userRole = window.miraiUser?.role;
@@ -139,7 +128,7 @@ class MiraiRealtimeEngine {
     try {
       const params = new URLSearchParams({
         since:   this.#lastTs,
-        modules: modules.join(','),
+        modules: ALL_MODULES.join(','),
         role:    userRole || 'student'
       });
 
@@ -149,10 +138,7 @@ class MiraiRealtimeEngine {
       });
 
       if (!res.ok) {
-        if (res.status === 401) {
-          this.stop();
-          return;
-        }
+        if (res.status === 401) { this.stop(); return; }
         this.#setIndicator('error');
         return;
       }
@@ -168,20 +154,22 @@ class MiraiRealtimeEngine {
 
       if (changes) {
         for (const [module, data] of Object.entries(changes)) {
-          const subs = this.#subscribers.get(module);
-          if (!subs) continue;
-
-          // data puede ser array (ej. tasks, location) u objeto (ej. classroom, diet)
           const isEmpty = Array.isArray(data)
             ? data.length === 0
             : Object.values(data).every(v => Array.isArray(v) ? v.length === 0 : !v);
 
-          if (!isEmpty) {
-            hasChanges = true;
+          if (isEmpty) continue;
+          hasChanges = true;
+
+          const subs = this.#subscribers.get(module);
+          if (subs && subs.size > 0) {
             subs.forEach(cb => {
               try { cb(data); }
               catch (e) { console.error(`[MiraiRT] Error en '${module}':`, e); }
             });
+          } else {
+            // Sin suscriptores activos → guardar para cuando la página se cargue
+            this.#queuePending(module, data);
           }
         }
       }
@@ -194,6 +182,57 @@ class MiraiRealtimeEngine {
       }
       this.#setIndicator('error');
     }
+  }
+
+  // ── PENDING CHANGES (sessionStorage) ───────────────────────────
+
+  #getPendingStore() {
+    try {
+      return JSON.parse(sessionStorage.getItem(PENDING_STORAGE_KEY) || '{}');
+    } catch { return {}; }
+  }
+
+  #savePendingStore(store) {
+    try {
+      sessionStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(store));
+    } catch { /* storage full — discard silently */ }
+  }
+
+  #queuePending(module, data) {
+    const store = this.#getPendingStore();
+    if (!store[module]) {
+      store[module] = [];
+    }
+    store[module].push(data);
+    // Máximo 20 entradas pendientes por módulo para no saturar storage
+    if (store[module].length > 20) {
+      store[module] = store[module].slice(-20);
+    }
+    this.#savePendingStore(store);
+    console.log(`[MiraiRT] Cambio en '${module}' guardado (sin suscriptores activos)`);
+  }
+
+  #deliverPending(module) {
+    const store = this.#getPendingStore();
+    const pending = store[module];
+    if (!pending || pending.length === 0) return;
+
+    const subs = this.#subscribers.get(module);
+    if (!subs || subs.size === 0) return;
+
+    console.log(`[MiraiRT] Entregando ${pending.length} cambio(s) pendiente(s) para '${module}'`);
+
+    // Entregar cada cambio acumulado
+    for (const data of pending) {
+      subs.forEach(cb => {
+        try { cb(data); }
+        catch (e) { console.error(`[MiraiRT] Error entregando pendiente '${module}':`, e); }
+      });
+    }
+
+    // Limpiar pendientes de este módulo
+    delete store[module];
+    this.#savePendingStore(store);
   }
 
   // ── INDICADOR VISUAL ───────────────────────────────────────────
@@ -237,7 +276,6 @@ class MiraiRealtimeEngine {
     if (label) label.textContent = s.text;
     wrap.style.opacity = s.opacity;
 
-    // Auto-ocultar "Actualizado" tras 3s
     if (state === 'updated') {
       clearTimeout(this._hideTimer);
       this._hideTimer = setTimeout(() => {
@@ -281,13 +319,20 @@ function showToast(message, duration = 4000) {
   setTimeout(() => toast.remove(), duration);
 }
 
-// Siempre exponer como global (funciona tanto con como sin type="module")
+// Auto-iniciar polling global cuando el usuario esté autenticado
+if (window.miraiUserReady) {
+  window.miraiUserReady.then(() => {
+    if (window.miraiUser?.dni) {
+      const rt = _getInstance();
+      rt.start();
+    }
+  });
+}
+
 window.MiraiRealtime = { getInstance: _getInstance };
 window.flashElement  = flashElement;
 window.showToast     = showToast;
 
-// Export para cuando se use como ES module (type="module")
-// Wrapped en try/catch para no romper cuando se carga como script normal
 try {
   if (typeof exports !== 'undefined') {
     exports.MiraiRealtime = window.MiraiRealtime;
