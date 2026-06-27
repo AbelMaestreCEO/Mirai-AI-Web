@@ -4736,10 +4736,102 @@ svg {
 .mobile-sidebar.collapsed .sidebar-social,
 .mobile-sidebar.collapsed .sidebar-footer,
 .mobile-sidebar.collapsed .logout-btn span,
-.mobile-sidebar.collapsed .collapsible-content,
+.mobile-sidebar.collapsed .collapsible-content:not(.nav-collapsible-content),
 .mobile-sidebar.collapsed .conversations-list,
-.mobile-sidebar.collapsed .conversations-header h4 {
+.mobile-sidebar.collapsed .conversations-header h4,
+.mobile-sidebar.collapsed .collapsible-header {
   display: none !important;
+}
+
+/* Nav grid en sidebar colapsado: columna única, solo primeros 3 visibles */
+.mobile-sidebar.collapsed .nav-collapsible-content {
+  display: block !important;
+  max-height: none !important;
+  opacity: 1 !important;
+  margin-top: 0 !important;
+}
+
+.mobile-sidebar.collapsed .nav-grid {
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.mobile-sidebar.collapsed .nav-grid-item {
+  padding: 8px 4px;
+}
+
+.mobile-sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.mobile-sidebar.collapsed .nav-grid-item:nth-child(n+4) {
+  display: none;
+}
+
+.mobile-sidebar.collapsed .nav-grid.nav-expanded .nav-grid-item:nth-child(n+4) {
+  display: flex;
+}
+
+/* Botón toggle para mostrar/ocultar iconos extra */
+.nav-toggle-btn {
+  display: none;
+  width: 100%;
+  padding: 6px;
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 4px;
+}
+
+.nav-toggle-btn:hover {
+  background: var(--message-user-bg);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.mobile-sidebar.collapsed .nav-toggle-btn {
+  display: block;
+  padding: 6px 4px;
+  margin: 4px 8px 0;
+  font-size: 1rem;
+}
+
+/* En sidebar expandido: toggle también visible */
+.nav-grid-item:nth-child(n+4) {
+  /* visible por defecto en sidebar expandido */
+}
+
+.nav-grid:not(.nav-expanded) .nav-grid-item.nav-extra {
+  display: none;
+}
+
+.nav-toggle-expanded {
+  display: block;
+  width: 100%;
+  padding: 6px;
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 4px;
+}
+
+.nav-toggle-expanded:hover {
+  background: var(--message-user-bg);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.mobile-sidebar.collapsed .nav-toggle-expanded {
+  display: none;
 }
 
 .mobile-sidebar.collapsed .sidebar-links a {

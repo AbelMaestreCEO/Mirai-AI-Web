@@ -178,6 +178,51 @@ const MiraiApp = (() => {
           ? 'rotate(180deg)'
           : 'rotate(0deg)';
       }
+
+      // Reset nav-grid expansion when toggling sidebar
+      const navGrid = document.querySelector('.nav-grid');
+      if (navGrid) navGrid.classList.remove('nav-expanded');
+      const collapsedToggle = document.querySelector('.nav-toggle-btn');
+      if (collapsedToggle) collapsedToggle.textContent = '···';
+      const expandedToggle = document.querySelector('.nav-toggle-expanded');
+      if (expandedToggle) expandedToggle.textContent = 'Ver más ▾';
+    });
+  }
+
+  /**
+   * Inicializa los toggles para mostrar/ocultar iconos extra en la nav-grid.
+   */
+  function initNavGridToggle() {
+    const navGrid = document.querySelector('.nav-grid');
+    if (!navGrid) return;
+
+    // Mark items after 3rd as extra
+    const items = navGrid.querySelectorAll('.nav-grid-item');
+    items.forEach(function(item, i) {
+      if (i >= 3) item.classList.add('nav-extra');
+    });
+
+    // Toggle for collapsed sidebar
+    var collapsedToggle = document.createElement('button');
+    collapsedToggle.className = 'nav-toggle-btn';
+    collapsedToggle.textContent = '···';
+    collapsedToggle.title = 'Mostrar más';
+    navGrid.parentNode.insertBefore(collapsedToggle, navGrid.nextSibling);
+
+    collapsedToggle.addEventListener('click', function() {
+      var expanded = navGrid.classList.toggle('nav-expanded');
+      collapsedToggle.textContent = expanded ? '✕' : '···';
+    });
+
+    // Toggle for expanded sidebar
+    var expandedToggle = document.createElement('button');
+    expandedToggle.className = 'nav-toggle-expanded';
+    expandedToggle.textContent = 'Ver más ▾';
+    navGrid.parentNode.insertBefore(expandedToggle, navGrid.nextSibling);
+
+    expandedToggle.addEventListener('click', function() {
+      var expanded = navGrid.classList.toggle('nav-expanded');
+      expandedToggle.textContent = expanded ? 'Ver menos ▴' : 'Ver más ▾';
     });
   }
 
@@ -256,6 +301,7 @@ const MiraiApp = (() => {
     initNavGrid();
     initMobileSidebar();
     initSidebarCollapse();
+    initNavGridToggle();
     initThemeToggle();
     setActiveNavByURL();
   }
