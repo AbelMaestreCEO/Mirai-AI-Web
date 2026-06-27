@@ -4032,6 +4032,14 @@ svg {
   fill: currentColor;
 }
 
+/* Nav collapsible siempre visible */
+.collapsible-content.nav-collapsible-content {
+  max-height: 2000px !important;
+  opacity: 1 !important;
+  overflow: visible;
+  margin-top: 0.5rem;
+}
+
 /* Contenido colapsado por defecto */
 .collapsible-content {
   overflow: hidden;
