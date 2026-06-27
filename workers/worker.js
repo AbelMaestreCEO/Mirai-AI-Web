@@ -3833,10 +3833,18 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
 
 const PLAN_LIMITS = {
   basic:       { imagen: 10, musica: 2, video: 1 },
-  students:    { imagen: 20, musica: 4, video: 2 },
-  development: { imagen: 30, musica: 6, video: 3 },
-  designer:    { imagen: 40, musica: 8, video: 4 },
+  students:    { imagen: 25, musica: 5, video: 3 },
+  development: { imagen: 50, musica: 12, video: 8 },
+  designer:    { imagen: 120, musica: 25, video: 15 },
   max:         { imagen: -1, musica: -1, video: -1 },
+};
+
+const PLAN_PRICES = {
+  basic:       0,
+  students:    4.99,
+  development: 9.99,
+  designer:    19.99,
+  max:         49.99,
 };
 
 const DAILY_LIMITS = PLAN_LIMITS.basic;

@@ -136,6 +136,7 @@
                         <a href="location" class="nav-grid-item" data-tooltip="Ubicación"><span class="nav-icon">📍</span><span class="nav-label">Ubicación</span></a>
                         <a href="panel" class="nav-grid-item" data-tooltip="Panel"><span class="nav-icon">🔑</span><span class="nav-label">Panel</span></a>
                         <a href="documentation" class="nav-grid-item" data-tooltip="Documentación"><span class="nav-icon">📖</span><span class="nav-label">Docs</span></a>
+                        <a href="purchase" class="nav-grid-item" data-tooltip="Planes"><span class="nav-icon">💎</span><span class="nav-label">Planes</span></a>
                     </div>
                 </div>
             </section>
@@ -269,6 +270,10 @@
                 { name: 'Tema y colores', key: 'settings-tema' },
                 { name: 'Preferencias IA', key: 'settings-prefs' }
             ]},
+            { icon: '💎', title: 'Planes', desc: 'Suscripciones y tokens de generación', href: 'purchase', subs: [
+                { name: 'Ver planes', key: 'purchase-planes' },
+                { name: 'Costos de API', key: 'purchase-api' }
+            ]},
             { icon: '🔑', title: 'Panel Admin', desc: 'Gestión de usuarios y planes', href: 'panel', subs: [
                 { name: 'Usuarios', key: 'panel-usuarios' },
                 { name: 'Roles', key: 'panel-roles' },
@@ -319,7 +324,9 @@
             'settings-prefs': { title: '🧠 Preferencias IA', body: '<p>Mirai detecta automáticamente tus gustos y preferencias cada 10 mensajes. Puedes ver y entender qué ha aprendido sobre ti en la sección "Tus preferencias".</p>' },
             'panel-usuarios': { title: '👥 Usuarios', body: '<p>Lista todos los usuarios registrados en la plataforma. Busca por nombre, email o DNI.</p>' },
             'panel-roles': { title: '🛡️ Roles', body: '<p>Asigna roles a los usuarios: Estudiante, Profesor o Admin. Cada rol tiene permisos diferentes.</p>' },
-            'panel-planes': { title: '⭐ Planes', body: '<p>Asigna planes de tokens a los usuarios:</p><ul><li><strong>Basic</strong> — 10 imágenes, 2 músicas, 1 video por día</li><li><strong>Students</strong> — Doble de tokens</li><li><strong>Development</strong> — Triple de tokens</li><li><strong>Designer</strong> — Cuádruple de tokens</li><li><strong>Max</strong> — Tokens ilimitados</li></ul>' }
+            'purchase-planes': { title: '💎 Planes disponibles', body: '<p>Mirai AI ofrece 5 planes de suscripción mensual:</p><ul><li><strong>Basic</strong> — 10 imágenes, 2 músicas, 1 video por día. Ideal para explorar la plataforma. (Gratis)</li><li><strong>Students</strong> — 25 imágenes, 5 músicas, 3 videos por día. Pensado para estudiantes con necesidades académicas y creativas. ($4.99/mes)</li><li><strong>Development</strong> — 50 imágenes, 12 músicas, 8 videos por día. Para desarrolladores y profesionales. Incluye acceso a DeepSeek V4-Pro y edición avanzada. ($9.99/mes)</li><li><strong>Designer</strong> — 120 imágenes, 25 músicas, 15 videos por día. Para creativos con alta demanda. Incluye LoRA, Try-On y Video Avatar. ($19.99/mes)</li><li><strong>Max</strong> — Generación ilimitada, todos los modelos, soporte prioritario. ($49.99/mes)</li></ul><p>El chat con IA (texto) es ilimitado en todos los planes.</p>' },
+            'purchase-api': { title: '📊 Costos de API', body: '<p>Los tokens de cada plan se calculan en base al costo real de las APIs:</p><h3>Pruna AI (Generación visual)</h3><ul><li>Imagen: $0.005/imagen</li><li>Edición de imagen: $0.010/imagen</li><li>Video: $0.02/segundo (~$0.10 por video de 5s)</li><li>Upscale: $0.10/imagen 8MP</li><li>Try-On: $0.015/primera prenda</li><li>Entrenamiento LoRA: $1.80/1000 pasos</li></ul><h3>DeepSeek (Chat IA)</h3><ul><li>V4-Flash Input: $0.14/1M tokens (cache miss)</li><li>V4-Flash Output: $0.28/1M tokens</li><li>V4-Pro Input: $0.435/1M tokens</li><li>V4-Pro Output: $0.87/1M tokens</li></ul><div class="doc-tip">El costo de texto por mensaje es mínimo (~$0.0006), por eso el chat es ilimitado en todos los planes.</div>' },
+            'panel-planes': { title: '⭐ Planes', body: '<p>Asigna planes de tokens a los usuarios:</p><ul><li><strong>Basic</strong> — 10 imágenes, 2 músicas, 1 video por día (Gratis)</li><li><strong>Students</strong> — 25 imágenes, 5 músicas, 3 videos por día ($4.99/mes)</li><li><strong>Development</strong> — 50 imágenes, 12 músicas, 8 videos por día ($9.99/mes)</li><li><strong>Designer</strong> — 120 imágenes, 25 músicas, 15 videos por día ($19.99/mes)</li><li><strong>Max</strong> — Tokens ilimitados ($49.99/mes)</li></ul><p>Los tokens se calculan en base al costo de las APIs de Pruna AI y DeepSeek. Texto ilimitado en todos los planes.</p><p><a href=\"purchase\">Ver página de planes →</a></p>' }
         };
 
         function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

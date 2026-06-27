@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Mirai AI - Planes y Suscripciones">
+    <title>Mirai AI - Planes</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script src="mirai-realtime.js"></script>
+    <script>
+        (function () {
+            var COLORS = {
+                purple: { c: '#6750A4', cD: '#D0BCFF', g: 'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', gD: 'linear-gradient(135deg,#D0BCFF,#B69DF8 50%,#9A82DB)', glow: 'rgba(103,80,164,0.18)', glowD: 'rgba(208,188,255,0.15)', sc: '#E8DEF8', scD: '#2A2438', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,27,36,0.96)', bg: '#F5F3F8', bgG: 'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)', bgD: '#141218', bgGD: 'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)', gb: 'rgba(103,80,164,0.12)', gbD: 'rgba(207,188,255,0.10)' },
+                blue: { c: '#1565C0', cD: '#90CAF9', g: 'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', gD: 'linear-gradient(135deg,#90CAF9,#64B5F6 50%,#42A5F5)', glow: 'rgba(21,101,192,0.18)', glowD: 'rgba(144,202,249,0.15)', sc: '#E3F2FD', scD: '#0D1E35', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,21,32,0.96)', bg: '#F3F6FB', bgG: 'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)', bgD: '#121520', bgGD: 'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)', gb: 'rgba(21,101,192,0.12)', gbD: 'rgba(144,202,249,0.10)' },
+                teal: { c: '#00695C', cD: '#80CBC4', g: 'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', gD: 'linear-gradient(135deg,#80CBC4,#4DB6AC 50%,#26C6DA)', glow: 'rgba(0,105,92,0.18)', glowD: 'rgba(128,203,196,0.15)', sc: '#E0F2F1', scD: '#0A1F1D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,26,25,0.96)', bg: '#F2F9F8', bgG: 'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)', bgD: '#121A19', bgGD: 'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)', gb: 'rgba(0,105,92,0.12)', gbD: 'rgba(128,203,196,0.10)' },
+                green: { c: '#2E7D32', cD: '#A5D6A7', g: 'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', gD: 'linear-gradient(135deg,#A5D6A7,#81C784 50%,#66BB6A)', glow: 'rgba(46,125,50,0.18)', glowD: 'rgba(165,214,167,0.15)', sc: '#E8F5E9', scD: '#0D1F0E', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(18,24,18,0.96)', bg: '#F3F9F3', bgG: 'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)', bgD: '#121812', bgGD: 'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)', gb: 'rgba(46,125,50,0.12)', gbD: 'rgba(165,214,167,0.10)' },
+                orange: { c: '#E65100', cD: '#FFB74D', g: 'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', gD: 'linear-gradient(135deg,#FFB74D,#FFA726 50%,#FF8F00)', glow: 'rgba(230,81,0,0.18)', glowD: 'rgba(255,183,77,0.15)', sc: '#FFF3E0', scD: '#271A08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(30,22,16,0.96)', bg: '#FBF6F0', bgG: 'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)', bgD: '#1E1610', bgGD: 'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)', gb: 'rgba(230,81,0,0.12)', gbD: 'rgba(255,183,77,0.10)' },
+                pink: { c: '#AD1457', cD: '#F48FB1', g: 'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', gD: 'linear-gradient(135deg,#F48FB1,#F06292 50%,#EC407A)', glow: 'rgba(173,20,87,0.18)', glowD: 'rgba(244,143,177,0.15)', sc: '#FCE4EC', scD: '#250C18', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,24,0.96)', bg: '#FAF2F6', bgG: 'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)', bgD: '#1C1218', bgGD: 'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)', gb: 'rgba(173,20,87,0.12)', gbD: 'rgba(240,98,146,0.10)' },
+                red: { c: '#B71C1C', cD: '#EF9A9A', g: 'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', gD: 'linear-gradient(135deg,#EF9A9A,#E57373 50%,#EF5350)', glow: 'rgba(183,28,28,0.18)', glowD: 'rgba(239,154,154,0.15)', sc: '#FFEBEE', scD: '#250D0D', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(28,18,18,0.96)', bg: '#FAF2F2', bgG: 'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)', bgD: '#1C1212', bgGD: 'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)', gb: 'rgba(183,28,28,0.12)', gbD: 'rgba(239,83,80,0.10)' },
+                indigo: { c: '#283593', cD: '#9FA8DA', g: 'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', gD: 'linear-gradient(135deg,#9FA8DA,#7986CB 50%,#5C6BC0)', glow: 'rgba(40,53,147,0.18)', glowD: 'rgba(159,168,218,0.15)', sc: '#E8EAF6', scD: '#0E1020', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(19,19,24,0.96)', bg: '#F3F3FA', bgG: 'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)', bgD: '#131318', bgGD: 'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)', gb: 'rgba(40,53,147,0.12)', gbD: 'rgba(121,134,203,0.10)' },
+                yellow: { c: '#F57F17', cD: '#FFF176', g: 'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', gD: 'linear-gradient(135deg,#FFF176,#FFEE58 50%,#FDD835)', glow: 'rgba(245,127,23,0.18)', glowD: 'rgba(255,238,88,0.15)', sc: '#FFFDE7', scD: '#1F1C08', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(29,28,16,0.96)', bg: '#FDFBF0', bgG: 'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)', bgD: '#1D1C10', bgGD: 'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)', gb: 'rgba(245,127,23,0.12)', gbD: 'rgba(255,238,88,0.10)' },
+                slate: { c: '#37474F', cD: '#B0BEC5', g: 'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', gD: 'linear-gradient(135deg,#B0BEC5,#90A4AE 50%,#78909C)', glow: 'rgba(55,71,79,0.18)', glowD: 'rgba(176,190,197,0.15)', sc: '#ECEFF1', scD: '#131618', gbg: 'rgba(255,255,255,0.94)', gbgD: 'rgba(25,28,30,0.96)', bg: '#F3F5F6', bgG: 'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)', bgD: '#131618', bgGD: 'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)', gb: 'rgba(55,71,79,0.12)', gbD: 'rgba(144,164,174,0.10)' }
+            };
+            var s = {};
+            try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch (e) { }
+            var theme = localStorage.getItem('mirai-ai-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            var isDark = theme === 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            if (s.accentColor && COLORS[s.accentColor]) {
+                var c = COLORS[s.accentColor], r = document.documentElement;
+                r.style.setProperty('--accent-color', isDark ? c.cD : c.c);
+                r.style.setProperty('--accent-gradient', isDark ? c.gD : c.g);
+                r.style.setProperty('--accent-glow', isDark ? c.glowD : c.glow);
+                r.style.setProperty('--secondary-container', isDark ? c.scD : c.sc);
+                r.style.setProperty('--glass-bg', isDark ? c.gbgD : c.gbg);
+                r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
+                r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
+                r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
+                r.style.background = isDark ? c.bgD : c.bg;
+                r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
+            }
+            if (s.fontFamily) document.documentElement.style.setProperty('--font-family', s.fontFamily);
+            if (s.fontSize) document.documentElement.style.fontSize = s.fontSize + 'px';
+            if (s.reducedMotion) document.documentElement.classList.add('reduce-motion');
+        })();
+    </script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="transitions.css">
+    <style>
+        .purchase-container { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+        .purchase-hero { text-align: center; padding: 1.5rem 1rem 1rem; }
+        .purchase-hero h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .purchase-hero p { color: var(--text-secondary); font-size: 0.92rem; margin-top: .3rem; }
+
+        .current-plan-banner {
+            background: var(--secondary-container);
+            border: 1px solid var(--accent-color);
+            border-radius: 14px;
+            padding: 1rem 1.5rem;
+            text-align: center;
+            margin: 0 auto 2rem;
+            max-width: 480px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+        .current-plan-banner strong { color: var(--accent-color); text-transform: capitalize; }
+
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .plan-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 1.5rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform .2s, box-shadow .2s;
+            position: relative;
+        }
+        .plan-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px var(--accent-glow); }
+        .plan-card.current { border-color: var(--accent-color); border-width: 2px; }
+        .plan-card.current::after {
+            content: 'Tu plan actual';
+            position: absolute;
+            top: -12px;
+            background: var(--accent-gradient);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 12px;
+            border-radius: 20px;
+        }
+
+        .plan-icon { font-size: 2.2rem; margin-bottom: .6rem; }
+        .plan-name { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); text-transform: capitalize; }
+        .plan-price { font-size: 1.8rem; font-weight: 800; color: var(--accent-color); margin: .6rem 0; }
+        .plan-price span { font-size: 0.8rem; font-weight: 400; color: var(--text-secondary); }
+
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin: .8rem 0 1.2rem;
+            width: 100%;
+            text-align: left;
+        }
+        .plan-features li {
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .plan-features li::before { content: ''; display: none; }
+        .plan-check { color: var(--accent-color); font-size: 0.9rem; flex-shrink: 0; }
+
+        .plan-btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: not-allowed;
+            background: var(--secondary-container);
+            color: var(--text-secondary);
+            transition: all .2s;
+            margin-top: auto;
+        }
+        .plan-card.current .plan-btn {
+            background: var(--accent-gradient);
+            color: #fff;
+            cursor: default;
+        }
+
+        .api-costs-section {
+            margin-top: 2.5rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 1.5rem;
+        }
+        .api-costs-section h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+        .api-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        .api-table th {
+            text-align: left;
+            padding: 8px 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .api-table td {
+            padding: 8px 10px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .api-table tr:last-child td { border-bottom: none; }
+        .api-provider { font-weight: 600; color: var(--accent-color); }
+
+        @media (max-width: 600px) {
+            .plans-grid { grid-template-columns: 1fr; }
+            .purchase-container { padding: 1rem .75rem 3rem; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ===== SIDEBAR ===== -->
+    <nav class="mobile-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-user">
+                <div class="user-avatar-wrapper">
+                    <div class="user-avatar" id="sidebar-avatar"></div>
+                    <div class="avatar-status-dot"></div>
+                </div>
+                <div class="user-info">
+                    <span class="user-name" id="sidebar-name">...</span>
+                    <span class="user-email" id="sidebar-email">...</span>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar-content">
+            <section class="sidebar-section collapsible-section active">
+                <div class="collapsible-header" role="button" tabindex="0">
+                    <h4>Navegación</h4>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+                <div class="collapsible-content" style="max-height:500px;opacity:1;margin-top:.5rem;">
+                    <div class="nav-grid">
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar"><span class="nav-icon">🏠</span><span class="nav-label">Hogar</span></a>
+                        <a href="chat" class="nav-grid-item" data-tooltip="Chat"><span class="nav-icon">💬</span><span class="nav-label">Chat</span></a>
+                        <a href="projects" class="nav-grid-item" data-tooltip="Proyectos"><span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span></a>
+                        <a href="generation" class="nav-grid-item" data-tooltip="Generación con IA"><span class="nav-icon">🖌️</span><span class="nav-label">Generación con IA</span></a>
+                        <a href="course_category" class="nav-grid-item" data-tooltip="Cursos"><span class="nav-icon">📚</span><span class="nav-label">Cursos</span></a>
+                        <a href="classroom" class="nav-grid-item" data-tooltip="Aula"><span class="nav-icon">🏫</span><span class="nav-label">Aula</span></a>
+                        <a href="inventory" class="nav-grid-item" data-tooltip="Inventario"><span class="nav-icon">📦</span><span class="nav-label">Inventario</span></a>
+                        <a href="mirror" class="nav-grid-item" data-tooltip="Organizador"><span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span></a>
+                        <a href="format" class="nav-grid-item" data-tooltip="Formato"><span class="nav-icon">📝</span><span class="nav-label">Formato</span></a>
+                        <a href="apa" class="nav-grid-item" data-tooltip="APA 7"><span class="nav-icon">📄</span><span class="nav-label">APA 7</span></a>
+                        <a href="attendance" class="nav-grid-item" data-tooltip="Asistencia"><span class="nav-icon">✅</span><span class="nav-label">Asistencia</span></a>
+                        <a href="investigation" class="nav-grid-item" data-tooltip="Investigar"><span class="nav-icon">🔭</span><span class="nav-label">Investigar</span></a>
+                        <a href="report" class="nav-grid-item" data-tooltip="Reportes"><span class="nav-icon">📋</span><span class="nav-label">Reportes</span></a>
+                        <a href="task" class="nav-grid-item" data-tooltip="Tareas"><span class="nav-icon">🗒️</span><span class="nav-label">Tareas</span></a>
+                        <a href="diet" class="nav-grid-item" data-tooltip="Dieta"><span class="nav-icon">🥗</span><span class="nav-label">Dieta</span></a>
+                        <a href="location" class="nav-grid-item" data-tooltip="Ubicación"><span class="nav-icon">📍</span><span class="nav-label">Ubicación</span></a>
+                        <a href="panel" class="nav-grid-item" data-tooltip="Panel"><span class="nav-icon">🔑</span><span class="nav-label">Panel</span></a>
+                        <a href="documentation" class="nav-grid-item" data-tooltip="Documentación"><span class="nav-icon">📖</span><span class="nav-label">Docs</span></a>
+                        <a href="purchase" class="nav-grid-item" data-tooltip="Planes"><span class="nav-icon">💎</span><span class="nav-label">Planes</span></a>
+                    </div>
+                </div>
+            </section>
+            <section class="sidebar-section" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                <div class="conversations-header"><h4>Conversaciones</h4>
+                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+                </div>
+                <ul id="conversations-list" class="conversations-list"></ul>
+            </section>
+            <section class="sidebar-section collapsible-section">
+                <div class="collapsible-header" role="button" tabindex="0"><h4>Explorar</h4><svg class="chevron-icon" viewBox="0 0 24 24" width="16" height="16"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg></div>
+                <div class="collapsible-content">
+                    <div class="nested-collapsible"><div class="collapsible-header nested-header" role="button" tabindex="0"><h5>Servicios</h5><svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg></div><div class="collapsible-content nested-content"><ul class="sidebar-links"><li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li><li><a href="https://aberumirai.com#education">Educación</a></li><li><a href="https://aberumirai.com#sweets">Comidas Dulces</a></li><li><a href="https://aberumirai.com#health">Salud y Bienestar</a></li><li><a href="https://aberumirai.com#clothes">Ropa y Artículos</a></li></ul></div></div>
+                    <div class="nested-collapsible"><div class="collapsible-header nested-header" role="button" tabindex="0"><h5>Empresa</h5><svg class="chevron-icon" viewBox="0 0 24 24" width="14" height="14"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg></div><div class="collapsible-content nested-content"><ul class="sidebar-links"><li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li><li><a href="https://aberumirai.com/character_history">Personajes</a></li><li><a href="https://aberumirai.com/mirai_os">MiraiOS 2</a></li><li><a href="#">Quiénes somos</a></li><li><a href="https://aberumirai.com/privacy">Política de privacidad</a></li></ul></div></div>
+                </div>
+            </section>
+            <section class="sidebar-section"><h4>Síguenos</h4><div class="sidebar-social"><a href="https://www.facebook.com/AberuMiraiCompany" aria-label="Facebook"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-facebook-32.webp" alt="Facebook"></a><a href="#" aria-label="Twitter/X"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-twitter-32.webp" alt="Twitter"></a><a href="https://www.tiktok.com/@aberu_mirai_company" aria-label="TikTok"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-tiktok-32.webp" alt="TikTok"></a><a href="https://www.instagram.com/abel_maestre_ceo/" aria-label="Instagram"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-instagram-32.webp" alt="Instagram"></a><a href="https://github.com/AbelMaestreCEO" aria-label="GitHub"><img src="https://assets.aberumirai.com/imgs/icons/32/icons8-github-32.webp" alt="GitHub"></a></div></section>
+            <a href="settings" class="settings-sidebar-btn" title="Configuración"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg><span>Configuración</span></a>
+            <button id="logout-btn" class="logout-btn" title="Cerrar sesión"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:block;"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span>Cerrar Sesión</span></button>
+            <div class="sidebar-logo"><a href="https://aberumirai.com"><img src="https://assets.aberumirai.com/imgs/icon.webp" alt="Logo Aberu & Mirai" style="max-width:80px;max-height:80px;"></a></div>
+        </div>
+        <div class="sidebar-footer"><p>&copy; <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company</p></div>
+    </nav>
+    <div class="mobile-overlay"></div>
+
+    <!-- HEADER -->
+    <header class="header">
+        <button class="mobile-menu-toggle" aria-label="Abrir menú"><span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span></button>
+        <div class="header-title">Planes</div>
+        <div style="width:40px;"></div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="purchase-container">
+        <div class="purchase-hero">
+            <h1>Planes de Mirai AI</h1>
+            <p>Elige el plan que mejor se adapte a tus necesidades de generación con IA.</p>
+        </div>
+
+        <div class="current-plan-banner" id="current-plan-banner">
+            Cargando tu plan actual...
+        </div>
+
+        <div class="plans-grid" id="plans-grid"></div>
+
+        <div class="api-costs-section">
+            <h2>Costos de API por Servicio</h2>
+            <table class="api-table">
+                <thead>
+                    <tr><th>Proveedor</th><th>Servicio</th><th>Costo por uso</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="api-provider" rowspan="12">Pruna AI</td><td>Generar imagen</td><td>$0.005 / imagen</td></tr>
+                    <tr><td>Editar imagen</td><td>$0.010 / imagen</td></tr>
+                    <tr><td>Imagen LoRA</td><td>$0.005 / imagen</td></tr>
+                    <tr><td>Editar imagen LoRA</td><td>$0.010 / imagen</td></tr>
+                    <tr><td>Upscale imagen (8MP)</td><td>$0.10 / imagen</td></tr>
+                    <tr><td>Try-On (primer prenda)</td><td>$0.015 / prenda</td></tr>
+                    <tr><td>Try-On (prenda adicional)</td><td>$0.008 / prenda</td></tr>
+                    <tr><td>Video</td><td>$0.02 / segundo</td></tr>
+                    <tr><td>Video Replace</td><td>$0.03 / segundo</td></tr>
+                    <tr><td>Video Animate</td><td>$0.03 / segundo</td></tr>
+                    <tr><td>Video Avatar</td><td>$0.025 / segundo</td></tr>
+                    <tr><td>Entrenamiento LoRA</td><td>$1.80 / 1000 pasos</td></tr>
+                    <tr><td class="api-provider" rowspan="4">DeepSeek</td><td>V4-Flash Input (cache hit)</td><td>$0.0028 / 1M tokens</td></tr>
+                    <tr><td>V4-Flash Input (cache miss)</td><td>$0.14 / 1M tokens</td></tr>
+                    <tr><td>V4-Flash Output</td><td>$0.28 / 1M tokens</td></tr>
+                    <tr><td>V4-Pro Output</td><td>$0.87 / 1M tokens</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="mirai-boot.js"></script>
+    <script src="auth-guard.js"></script>
+    <script type="module" src="app.js" defer></script>
+    <script src="transitions.js"></script>
+    <script src="js/purchase.js"></script>
+</body>
+</html>
