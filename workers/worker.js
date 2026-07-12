@@ -84,13 +84,6 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, search query if intent 6, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
 
-// --- HELPERS DE COOKIE ---
-function getTokenFromCookie(request) {
-  const cookieHeader = request.headers.get('Cookie') || '';
-  const match = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
-  return match ? match[1] : null;
-}
-
 async function readSSEStream(response) {
   let content = '';
   let reasoning = '';
@@ -232,7 +225,12 @@ function getTokenFromRequest(request) {
   return null;
 }
 
-function makeSessionCookie(token, maxAgeSecs = 7 * 24 * 3600) {
+// Sesiones sin vencimiento por tiempo: el token vive hasta que el usuario cierre sesión.
+// 400 días es el máximo de Max-Age que los navegadores (Chrome/Edge) aceptan en una cookie;
+// pedir más se trunca igualmente, así que es el techo práctico para "no expira".
+const SESSION_MAX_AGE_SECS = 400 * 24 * 3600;
+
+function makeSessionCookie(token, maxAgeSecs = SESSION_MAX_AGE_SECS) {
   return `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSecs}`;
 }
 
@@ -244,8 +242,9 @@ async function requireAuth(request, env) {
   const token = getTokenFromRequest(request);
   if (!token) return null;
 
+  // La sesión no vence por tiempo: solo se invalida con logout (borrado explícito de la fila).
   const session = await env.MIRAI_AI_DB.prepare(
-    "SELECT user_dni FROM sessions WHERE token = ? AND expires_at > datetime('now')"
+    "SELECT user_dni FROM sessions WHERE token = ?"
   ).bind(token).first();
 
   if (!session) return null;
@@ -505,7 +504,7 @@ async function handleVerify(request, env, corsHeaders) {
 
     // Generar Token de Sesión
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECS * 1000).toISOString();
 
     // Guardar sesión
     await env.MIRAI_AI_DB.prepare(
@@ -714,7 +713,7 @@ async function handleLogin(request, env, corsHeaders) {
     if (!twoFactorEnabled) {
       // 2FA desactivado — crear sesión directamente, igual que handleVerify
       const token = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECS * 1000).toISOString();
 
       await env.MIRAI_AI_DB.prepare(
         "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
@@ -1706,7 +1705,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
       // ✨ Usar requireProfessorAuth en lugar de requireAuth
       const authenticatedDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!authenticatedDni) return; // Already returned error
+      if (!authenticatedDni || authenticatedDni instanceof Response) return authenticatedDni; // Already returned error
 
       if (userDni && userDni !== authenticatedDni) {
         return jsonResponse({ error: 'Acceso denegado' }, 403, corsHeaders);
@@ -1730,7 +1729,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path === '/api/create-course' && request.method === 'POST') {
       // ✨ requireProfessorAuth en lugar de requireAuth
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { title, description } = await request.json();
 
@@ -1782,7 +1781,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // Ruta: GET /api/professor-disputes
     if (path === '/api/professor-disputes' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
@@ -1813,7 +1812,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // Ruta: GET /api/professor-submissions
     if (path === '/api/professor-submissions' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const search = (url.searchParams.get('search') || '').trim();
       const sectionId = url.searchParams.get('section_id') || '';
@@ -1958,7 +1957,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     if (path === '/api/admin-tasks' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
@@ -1997,12 +1996,12 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     if (path === '/api/me' && request.method === 'GET') {
       const userDni = await requireAuth(request, env);
-      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, { ...corsHeaders, 'Cache-Control': 'no-store' });
       const user = await env.MIRAI_AI_DB.prepare(
         "SELECT dni, first_name, last_name, role FROM users WHERE dni = ?"
       ).bind(userDni).first();
       if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
-      return jsonResponse({ dni: user.dni, name: `${user.first_name || ''} ${user.last_name || ''}`.trim(), role: user.role }, 200, corsHeaders);
+      return jsonResponse({ dni: user.dni, name: `${user.first_name || ''} ${user.last_name || ''}`.trim(), role: user.role }, 200, { ...corsHeaders, 'Cache-Control': 'no-store' });
     }
 
     if (path === '/api/logout' && request.method === 'POST') {
@@ -2102,7 +2101,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 4. Eliminar Tarea: DELETE /api/delete-assignment
     if (path === '/api/delete-assignment' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const id = url.searchParams.get('id');
       if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
@@ -2123,7 +2122,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 5. Asignar Estudiante: POST /api/assign-student
     if (path === '/api/assign-student' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { assignment_id, user_dni } = await request.json();
 
@@ -2151,7 +2150,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 6. Listar Estudiantes de una Tarea: GET /api/task-students
     if (path === '/api/task-students' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const assignmentId = url.searchParams.get('assignment_id');
       if (!assignmentId) return jsonResponse({ error: 'Falta ID de tarea' }, 400, corsHeaders);
@@ -2179,7 +2178,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // 7. Quitar Estudiante: DELETE /api/unassign-student
     if (path === '/api/unassign-student' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { assignment_id, user_dni } = await request.json();
 
@@ -2300,7 +2299,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // GET /api/sections — lista las secciones del profesor autenticado
     if (path === '/api/sections' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { results } = await env.MIRAI_AI_DB.prepare(`
     SELECT s.id, s.name, s.description, s.course_id, s.created_at,
@@ -2320,7 +2319,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // POST /api/create-section
     if (path === '/api/create-section' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { name, description, course_id } = await request.json();
       if (!name || !course_id) {
@@ -2345,7 +2344,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // DELETE /api/delete-section?id=xxx
     if (path === '/api/delete-section' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const id = url.searchParams.get('id');
       if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
@@ -2366,7 +2365,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     // GET /api/section-students?section_id=xxx
     if (path === '/api/section-students' && request.method === 'GET') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const sectionId = url.searchParams.get('section_id');
       if (!sectionId) return jsonResponse({ error: 'section_id requerido' }, 400, corsHeaders);
@@ -2393,7 +2392,7 @@ ORDER BY u.last_name, u.first_name
     // POST /api/section-add-students-batch
     if (path === '/api/section-add-students-batch' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { section_id, dnis } = await request.json();
       if (!section_id || !Array.isArray(dnis) || dnis.length === 0)
@@ -2437,7 +2436,7 @@ ORDER BY u.last_name, u.first_name
     // POST /api/section-add-student
     if (path === '/api/section-add-student' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { section_id, user_dni } = await request.json();
       if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
@@ -2467,7 +2466,7 @@ ORDER BY u.last_name, u.first_name
     // DELETE /api/section-remove-student
     if (path === '/api/section-remove-student' && request.method === 'DELETE') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { section_id, user_dni } = await request.json();
       if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
@@ -2499,7 +2498,7 @@ ORDER BY u.last_name, u.first_name
     // 1. Crear Tarea: POST /api/create-assignment
     if (path === '/api/create-assignment' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       const { title, description, course_id, due_date, section_id, max_score, submission_type } = await request.json();
 
@@ -3020,7 +3019,7 @@ NO agregues texto adicional fuera del JSON.`;
     // Ruta: POST /api/professor-update-grade
     if (path === '/api/professor-update-grade' && request.method === 'POST') {
       const userDni = await requireProfessorAuth(request, env, corsHeaders);
-      if (!userDni) return;
+      if (!userDni || userDni instanceof Response) return userDni;
 
       try {
         const { submission_id, new_score, feedback } = await request.json();

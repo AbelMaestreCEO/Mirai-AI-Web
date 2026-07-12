@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v280'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v282'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -45,7 +45,6 @@ const STATIC_ASSETS = [
   
   '/js/apa/abstract.js',
   '/app.js',
-  '/js/app.js',
   '/app-mirror.js',
   '/attendance.js',
   '/attendance_admin.js',
@@ -54,7 +53,6 @@ const STATIC_ASSETS = [
   '/classroom.js',
   '/classroom_admin.js',
   '/classroom_details.js',
-  '/js/api/client.js',
   '/code.js',
   '/js/utils/constants.js',
   '/courses.js',
@@ -141,6 +139,15 @@ self.addEventListener('fetch', event => {
 
   // Solo manejar requests del mismo origen
   if (url.origin !== location.origin) return;
+
+  // /api/*: siempre red, nunca caché. Cachear /api/me (u otros endpoints) provocaba que,
+  // al vencer/invalidarse la sesión, el navegador siguiera viendo una respuesta 200 vieja
+  // mientras el servidor ya devolvía 401 — eso generaba el rebote infinito login↔index
+  // entre auth-guard.js y login-guard.js.
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   const isHTML = request.headers.get('accept')?.includes('text/html');
 
