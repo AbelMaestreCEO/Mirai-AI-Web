@@ -20,6 +20,7 @@
         imageStyle: 'cinematografico',
         videoStyle: 'cinematografico',
         musicGenre: 'pop',
+        assetStyle: 'pixelart',
         editAspect: 'match_input_image',
         editImageUrl: '',
         isLoading: false
@@ -31,6 +32,7 @@
     const TAB_LABELS = {
         texto: { icon: '✍️', label: 'Texto' },
         imagen: { icon: '🖼️', label: 'Imagen' },
+        activos: { icon: '🧩', label: 'Activos' },
         video: { icon: '🎬', label: 'Vídeo' },
         musica: { icon: '🎵', label: 'Música' }
     };
@@ -73,6 +75,13 @@
         fotorrealista: 'Fotorrealista'
     };
 
+    const ASSET_STYLE_LABELS = {
+        pixelart: 'Pixel Art',
+        cartoon2d: '2D Cartoon',
+        anime2d: '2D Animé',
+        animechibi: '2D Anime Chibi'
+    };
+
     const GENRE_LABELS = {
         pop: 'Pop',
         rock: 'Rock',
@@ -88,6 +97,15 @@
         anime: 'anime style, detailed, Japanese animation, expressive eyes, clean linework, soft colors, manga aesthetic',
         fotorrealista: 'photorealistic, ultra detailed, 8K resolution, real photography, natural lighting, lifelike textures, DSLR quality'
     };
+
+    const ASSET_STYLE_PROMPTS = {
+        pixelart: 'pixel art style, retro video game sprite, crisp pixel edges, limited color palette, clean silhouette',
+        cartoon2d: '2D cartoon style, bold clean outlines, flat vibrant colors, simple cel shading, game asset illustration',
+        anime2d: '2D anime style, clean linework, cel-shaded coloring, expressive character design',
+        animechibi: '2D chibi anime style, super deformed proportions, big expressive eyes, cute rounded features'
+    };
+
+    const ASSET_QUALITY_SUFFIX = 'isolated on a solid pure white background, no shadows, no extra elements, professional game asset quality, ultra high resolution, sharp clean details';
 
     const MUSIC_GENRE_PROMPTS = {
         pop: 'upbeat pop song, catchy melody, modern production, synth and guitar, radio-friendly, 120 BPM',
@@ -170,6 +188,7 @@
             texto: '¿Qué quieres escribir? Ej: "Escribe un correo solicitando vacaciones"',
             imagen: 'Describe la imagen que quieres generar...',
             editar: 'Describe la edición que quieres aplicar...',
+            activos: 'Describe el activo que quieres generar (personaje, objeto, ícono...)...',
             video: 'Describe el vídeo que quieres generar...',
             musica: 'Describe la música que quieres generar...'
         };
@@ -259,6 +278,10 @@
                 const stylePrompt = IMAGE_STYLE_PROMPTS[genState.imageStyle] || '';
                 return `${userText}, ${stylePrompt}`;
             }
+            case 'activos': {
+                const stylePrompt = ASSET_STYLE_PROMPTS[genState.assetStyle] || '';
+                return `${userText}, ${stylePrompt}, ${ASSET_QUALITY_SUFFIX}`;
+            }
             case 'video': {
                 const stylePrompt = IMAGE_STYLE_PROMPTS[genState.videoStyle] || '';
                 return `${userText}, ${stylePrompt}`;
@@ -276,7 +299,7 @@
     // FORCE_TYPE SEGÚN TAB
     // ============================================
     function getForceType() {
-        const map = { texto: 1, imagen: 2, video: 3, musica: 4 };
+        const map = { texto: 1, imagen: 2, activos: 2, video: 3, musica: 4 };
         return map[genState.activeTab] || 1;
     }
 
@@ -294,6 +317,7 @@
             return `✍️ ${typeLabel}`;
         }
         if (genState.activeTab === 'imagen') return `🖼️ ${STYLE_LABELS[genState.imageStyle] || ''}`;
+        if (genState.activeTab === 'activos') return `🧩 ${ASSET_STYLE_LABELS[genState.assetStyle] || ''}`;
         if (genState.activeTab === 'video') return `🎬 ${STYLE_LABELS[genState.videoStyle] || ''}`;
         if (genState.activeTab === 'musica') return `🎵 ${GENRE_LABELS[genState.musicGenre] || ''}`;
         return tab.label;
@@ -329,6 +353,19 @@
             apiSaveHistory('imagen', badge, _lastUserText, url).then(() => {
                 $('gen-history-section').style.display = 'block';
                 _histPage = 1; _activeHistTab = 'imagen';
+                renderHistory();
+            });
+        }
+        else if (tab === 'activos') {
+            const url = data.image_url || data.url || '';
+            if (!url) { showError('No se recibió URL de imagen.'); return; }
+            showResult({
+                title: '🧩 Activo generado', badge,
+                body: { html: `<img class="gen-image-output" src="${escAttr(url)}" alt="Activo generado" loading="lazy">`, actions: buildDownloadBtn(url, 'activo-mirai.png') + buildCopyUrlBtn(url) + buildEditBtn(url) }
+            });
+            apiSaveHistory('activos', badge, _lastUserText, url).then(() => {
+                $('gen-history-section').style.display = 'block';
+                _histPage = 1; _activeHistTab = 'activos';
                 renderHistory();
             });
         }
@@ -435,8 +472,8 @@
         hideResult();
         $('gen-error').classList.remove('visible');
 
-        const icons = { texto: '✍️', imagen: '🖼️', video: '🎬', musica: '🎵' };
-        const loadMsgs = { texto: 'Redactando texto...', imagen: 'Generando imagen...', video: 'Generando vídeo...', musica: 'Componiendo música...' };
+        const icons = { texto: '✍️', imagen: '🖼️', activos: '🧩', video: '🎬', musica: '🎵' };
+        const loadMsgs = { texto: 'Redactando texto...', imagen: 'Generando imagen...', activos: 'Generando activo...', video: 'Generando vídeo...', musica: 'Componiendo música...' };
         setLoading(true, loadMsgs[tab] || 'Generando...', icons[tab] || '✨');
 
         _lastUserText = userText;
@@ -676,6 +713,9 @@
         } else if (type === 'imagen') {
             preview = item.result ? `<img class="gen-hist-img" src="${escAttr(item.result)}" alt="Imagen" loading="lazy">` : '';
             actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="imagen-mirai.png" target="_blank">Descargar</a><button class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" onclick="window._genEditImage('${escAttr(item.result)}')">Editar</button>` : '';
+        } else if (type === 'activos') {
+            preview = item.result ? `<img class="gen-hist-img" src="${escAttr(item.result)}" alt="Activo" loading="lazy">` : '';
+            actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="activo-mirai.png" target="_blank">Descargar</a><button class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" onclick="window._genEditImage('${escAttr(item.result)}')">Editar</button>` : '';
         } else if (type === 'editar') {
             preview = item.result ? `<img class="gen-hist-img" src="${escAttr(item.result)}" alt="Editada" loading="lazy">` : '';
             actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="editada-mirai.jpg" target="_blank">Descargar</a><button class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" onclick="window._genEditImage('${escAttr(item.result)}')">Re-editar</button>` : '';
@@ -789,6 +829,7 @@
         initTabs();
         initTextOpts();
         initStyleOpts('image-style-opts', 'imageStyle');
+        initStyleOpts('asset-style-opts', 'assetStyle');
         initStyleOpts('video-style-opts', 'videoStyle');
         initStyleOpts('music-genre-opts', 'musicGenre');
         initEditPanel();
