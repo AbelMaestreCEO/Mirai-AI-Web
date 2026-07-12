@@ -3716,7 +3716,7 @@ async function handleGenHistorySave(request, env, corsHeaders) {
   }
 
   const { type, badge, prompt, result } = body;
-  if (!type || !['texto', 'imagen', 'video', 'musica'].includes(type)) {
+  if (!type || !['texto', 'imagen', 'editar', 'activos', 'video', 'musica'].includes(type)) {
     return jsonResponse({ error: 'type inválido' }, 400, corsHeaders);
   }
 
@@ -3775,7 +3775,7 @@ async function handleGenHistoryGet(request, env, corsHeaders) {
     `).run();
 
     let query, params;
-    if (type && ['texto', 'imagen', 'video', 'musica'].includes(type)) {
+    if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'musica'].includes(type)) {
       query = `SELECT id, type, badge, prompt, result, created_at
                FROM gen_history
                WHERE user_dni = ? AND type = ?
@@ -3811,7 +3811,7 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
       await env.MIRAI_AI_DB.prepare(
         `DELETE FROM gen_history WHERE id = ? AND user_dni = ?`
       ).bind(parseInt(id), userDni.toUpperCase()).run();
-    } else if (type && ['texto', 'imagen', 'video', 'musica'].includes(type)) {
+    } else if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'musica'].includes(type)) {
       await env.MIRAI_AI_DB.prepare(
         `DELETE FROM gen_history WHERE user_dni = ? AND type = ?`
       ).bind(userDni.toUpperCase(), type).run();
