@@ -20,6 +20,14 @@ const VIDEO_CONFIG = {
   MAX_PROMPT_LENGTH: 2000,
 };
 
+// ✨ Configuración Vídeo Avatar (Pruna AI P-Video-Avatar)
+const VIDEO_AVATAR_CONFIG = {
+  MODEL: 'pruna/p-video-avatar',
+  DEFAULT_VOICE: 'Zephyr (Female)',
+  DEFAULT_LANGUAGE: 'English (US)',
+  DEFAULT_RESOLUTION: '720p',
+};
+
 // --- RUTAS ---
 const ROUTES = {
   CHAT: '/api/chat',
@@ -3247,6 +3255,16 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/image-edit' && request.method === 'POST')
       return await handleImageEdit(request, env, corsHeaders);
 
+    // ── Vídeo Avatar con Pruna P-Video-Avatar ──
+    if (path === '/api/video-avatar/characters' && request.method === 'POST')
+      return await handleSaveVideoAvatarCharacter(request, env, corsHeaders);
+    if (path === '/api/video-avatar/characters' && request.method === 'GET')
+      return await handleListVideoAvatarCharacters(request, env, corsHeaders);
+    if (path === '/api/video-avatar/characters' && request.method === 'DELETE')
+      return await handleDeleteVideoAvatarCharacter(request, env, corsHeaders);
+    if (path === '/api/generate-video-avatar' && request.method === 'POST')
+      return await handleVideoAvatarGeneration(request, env, corsHeaders);
+
     // ── Tokens / Cuotas diarias ──
     if (path === '/api/user/tokens' && request.method === 'GET')
       return await handleGetTokens(request, env, corsHeaders);
@@ -3716,7 +3734,7 @@ async function handleGenHistorySave(request, env, corsHeaders) {
   }
 
   const { type, badge, prompt, result } = body;
-  if (!type || !['texto', 'imagen', 'editar', 'activos', 'video', 'musica'].includes(type)) {
+  if (!type || !['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'musica'].includes(type)) {
     return jsonResponse({ error: 'type inválido' }, 400, corsHeaders);
   }
 
@@ -3775,7 +3793,7 @@ async function handleGenHistoryGet(request, env, corsHeaders) {
     `).run();
 
     let query, params;
-    if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'musica'].includes(type)) {
+    if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'musica'].includes(type)) {
       query = `SELECT id, type, badge, prompt, result, created_at
                FROM gen_history
                WHERE user_dni = ? AND type = ?
@@ -3811,7 +3829,7 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
       await env.MIRAI_AI_DB.prepare(
         `DELETE FROM gen_history WHERE id = ? AND user_dni = ?`
       ).bind(parseInt(id), userDni.toUpperCase()).run();
-    } else if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'musica'].includes(type)) {
+    } else if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'musica'].includes(type)) {
       await env.MIRAI_AI_DB.prepare(
         `DELETE FROM gen_history WHERE user_dni = ? AND type = ?`
       ).bind(userDni.toUpperCase(), type).run();
@@ -8478,6 +8496,279 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
   } catch (error) {
     console.error('❌ handleVideoGeneration error:', error.message);
     return jsonResponse({ error: 'Error generando video', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// VÍDEO AVATAR (Pruna AI P-Video-Avatar) + PERSONAJES
+// ══════════════════════════════════════════════════
+
+async function ensureVideoAvatarCharactersTable(env) {
+  await env.MIRAI_AI_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS video_avatar_characters (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_dni   TEXT NOT NULL,
+      name       TEXT,
+      image_url  TEXT NOT NULL,
+      r2_key     TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+// Descarga una imagen (URL http(s) o data URI base64) y devuelve un ArrayBuffer
+async function downloadImageAsBuffer(source) {
+  if (source.startsWith('data:')) {
+    const base64 = source.replace(/^data:image\/[a-z0-9.+-]+;base64,/i, '').trim();
+    if (base64.length < 100) throw new Error('Imagen inválida');
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    return bytes.buffer;
+  }
+  const res = await fetch(source, { headers: { 'User-Agent': 'Cloudflare-Worker' } });
+  if (!res.ok) throw new Error(`Error descargando imagen: ${res.status}`);
+  return await res.arrayBuffer();
+}
+
+// Guarda una imagen de personaje en R2 + D1 para poder reutilizarla después
+async function saveVideoAvatarCharacter(userDni, name, imageBuffer, env) {
+  await ensureVideoAvatarCharactersTable(env);
+  const dni = userDni.toUpperCase();
+  const uniqueId = crypto.randomUUID();
+  const r2Key = `characters/${dni.toLowerCase()}/${uniqueId}.jpg`;
+
+  await env.MIRAI_AI_ASSETS.put(r2Key, imageBuffer, {
+    httpMetadata: { contentType: 'image/jpeg' },
+    customMetadata: { userDni: dni, uploadedAt: new Date().toISOString() }
+  });
+
+  const imageUrl = `/api/image/${r2Key}`;
+
+  let finalName = (name || '').trim();
+  if (!finalName) {
+    const countRow = await env.MIRAI_AI_DB.prepare(
+      `SELECT COUNT(*) as c FROM video_avatar_characters WHERE user_dni = ?`
+    ).bind(dni).first();
+    finalName = `Personaje ${(countRow?.c || 0) + 1}`;
+  }
+
+  const { meta } = await env.MIRAI_AI_DB.prepare(`
+    INSERT INTO video_avatar_characters (user_dni, name, image_url, r2_key)
+    VALUES (?, ?, ?, ?)
+  `).bind(dni, finalName, imageUrl, r2Key).run();
+
+  return { id: meta.last_row_id, name: finalName, image_url: imageUrl };
+}
+
+async function handleSaveVideoAvatarCharacter(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const { image, name } = await request.json();
+    if (!image) return jsonResponse({ error: 'Se requiere una imagen' }, 400, corsHeaders);
+
+    const imageBuffer = await downloadImageAsBuffer(image);
+    if (!imageBuffer || imageBuffer.byteLength === 0) {
+      return jsonResponse({ error: 'Imagen inválida' }, 400, corsHeaders);
+    }
+
+    const character = await saveVideoAvatarCharacter(userDni, name, imageBuffer, env);
+    return jsonResponse({ success: true, character }, 201, corsHeaders);
+  } catch (error) {
+    console.error('❌ handleSaveVideoAvatarCharacter error:', error.message);
+    return jsonResponse({ error: 'Error al guardar personaje', details: error.message }, 500, corsHeaders);
+  }
+}
+
+async function handleListVideoAvatarCharacters(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    await ensureVideoAvatarCharactersTable(env);
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, name, image_url, created_at FROM video_avatar_characters
+      WHERE user_dni = ? ORDER BY created_at DESC
+    `).bind(userDni.toUpperCase()).all();
+
+    return jsonResponse({ characters: results || [] }, 200, corsHeaders);
+  } catch (error) {
+    console.error('❌ handleListVideoAvatarCharacters error:', error.message);
+    return jsonResponse({ error: 'Error al obtener personajes', details: error.message }, 500, corsHeaders);
+  }
+}
+
+async function handleDeleteVideoAvatarCharacter(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    if (!id) return jsonResponse({ error: 'Se requiere id' }, 400, corsHeaders);
+
+    await ensureVideoAvatarCharactersTable(env);
+    const row = await env.MIRAI_AI_DB.prepare(
+      `SELECT r2_key FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
+    ).bind(id, userDni.toUpperCase()).first();
+
+    if (row?.r2_key) {
+      await env.MIRAI_AI_ASSETS.delete(row.r2_key).catch(() => null);
+    }
+
+    await env.MIRAI_AI_DB.prepare(
+      `DELETE FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
+    ).bind(id, userDni.toUpperCase()).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('❌ handleDeleteVideoAvatarCharacter error:', error.message);
+    return jsonResponse({ error: 'Error al eliminar personaje', details: error.message }, 500, corsHeaders);
+  }
+}
+
+async function handleVideoAvatarGeneration(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
+
+    const tokenCheck = await checkAndConsumeToken(userDni, 'video', env);
+    if (!tokenCheck.allowed) {
+      return jsonResponse({
+        error: `Has alcanzado el límite diario de ${tokenCheck.limit} videos. Vuelve a intentarlo mañana.`,
+        token_limit_reached: true,
+      }, 429, corsHeaders);
+    }
+
+    const body = await request.json();
+    const {
+      image, character_id, character_name,
+      voice_script, audio, voice, voice_language,
+      resolution, video_prompt, voice_prompt, negative_prompt,
+    } = body;
+
+    if (!voice_script && !audio) {
+      return jsonResponse({ error: 'Se requiere un guion de voz (voice_script) o un audio' }, 400, corsHeaders);
+    }
+
+    const origin = new URL(request.url).origin;
+    await ensureVideoAvatarCharactersTable(env);
+
+    let imageSource = null;
+    let characterInfo = null;
+    const requestedCharacterId = character_id ? parseInt(character_id, 10) : null;
+
+    if (requestedCharacterId) {
+      const row = await env.MIRAI_AI_DB.prepare(
+        `SELECT id, name, image_url FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
+      ).bind(requestedCharacterId, userDni.toUpperCase()).first();
+      if (!row) return jsonResponse({ error: 'Personaje no encontrado' }, 404, corsHeaders);
+      imageSource = origin + row.image_url;
+      characterInfo = { id: row.id, name: row.name, image_url: row.image_url };
+    } else {
+      if (!image) return jsonResponse({ error: 'Se requiere una imagen de personaje' }, 400, corsHeaders);
+      const rawSource = image.startsWith('/api/image/') ? origin + image : image;
+
+      // Se guarda automáticamente como personaje reutilizable para próximas generaciones
+      try {
+        const imageBuffer = await downloadImageAsBuffer(rawSource);
+        const saved = await saveVideoAvatarCharacter(userDni, character_name, imageBuffer, env);
+        characterInfo = saved;
+        imageSource = origin + saved.image_url;
+      } catch (saveErr) {
+        console.warn('⚠️ No se pudo guardar el personaje, se usará la imagen directamente:', saveErr.message);
+        imageSource = rawSource;
+      }
+    }
+
+    const input = {
+      image: imageSource,
+      voice: voice || VIDEO_AVATAR_CONFIG.DEFAULT_VOICE,
+      voice_language: voice_language || VIDEO_AVATAR_CONFIG.DEFAULT_LANGUAGE,
+      resolution: resolution || VIDEO_AVATAR_CONFIG.DEFAULT_RESOLUTION,
+      disable_safety_filter: true,
+    };
+    if (video_prompt) input.video_prompt = video_prompt;
+    if (voice_prompt) input.voice_prompt = voice_prompt;
+    if (negative_prompt) input.negative_prompt = negative_prompt;
+
+    if (audio) {
+      input.audio = audio.startsWith('/api/') ? origin + audio : audio;
+    } else {
+      input.voice_script = voice_script;
+    }
+
+    console.log('🗣️ Invocando pruna/p-video-avatar...');
+    const avatarResult = await env.AI.run(
+      VIDEO_AVATAR_CONFIG.MODEL,
+      input,
+      { gateway: { id: 'default' } }
+    );
+
+    let videoBuffer = null;
+    let videoUrlTarget = null;
+
+    if (avatarResult instanceof ArrayBuffer && avatarResult.byteLength > 0) {
+      videoBuffer = avatarResult;
+    } else if (avatarResult instanceof Uint8Array && avatarResult.byteLength > 0) {
+      videoBuffer = avatarResult.buffer;
+    } else if (avatarResult) {
+      const rawField = avatarResult.video || avatarResult.result?.video || avatarResult.response;
+
+      if (typeof rawField === 'string') {
+        const cleanField = rawField.trim();
+        if (cleanField.startsWith('http://') || cleanField.startsWith('https://')) {
+          videoUrlTarget = cleanField;
+        } else {
+          const binaryString = atob(cleanField.replace(/^data:video\/[a-z0-9]+;base64,/, ''));
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+          videoBuffer = bytes.buffer;
+        }
+      }
+    }
+
+    if (videoUrlTarget) {
+      console.log('🔗 Descargando vídeo avatar desde URL presignada...');
+      const videoFetch = await fetch(videoUrlTarget, {
+        headers: { 'User-Agent': 'Cloudflare-Worker' }
+      });
+      if (!videoFetch.ok) {
+        throw new Error(`Error descargando video: Status ${videoFetch.status}`);
+      }
+      videoBuffer = await videoFetch.arrayBuffer();
+    }
+
+    if (!videoBuffer || videoBuffer.byteLength === 0) {
+      throw new Error(`No se recibió video válido de Pruna. Respuesta: ${JSON.stringify(avatarResult).substring(0, 300)}`);
+    }
+
+    const uniqueId = crypto.randomUUID();
+    const videoFilename = `videos/avatar/${uniqueId}.mp4`;
+
+    await env.MIRAI_AI_ASSETS.put(videoFilename, videoBuffer, {
+      httpMetadata: { contentType: 'video/mp4' },
+      customMetadata: {
+        user_dni: userDni.toUpperCase(),
+        character_id: characterInfo ? String(characterInfo.id) : '',
+        generated_at: new Date().toISOString(),
+        model: VIDEO_AVATAR_CONFIG.MODEL,
+      }
+    });
+
+    const videoUrl = `/api/video/${videoFilename}`;
+
+    return jsonResponse({
+      type: 'video_avatar',
+      video_url: videoUrl,
+      character: characterInfo,
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ handleVideoAvatarGeneration error:', error.message);
+    return jsonResponse({ error: 'Error generando vídeo avatar', details: error.message }, 500, corsHeaders);
   }
 }
 

@@ -23,6 +23,13 @@
         assetStyle: 'pixelart',
         editAspect: 'match_input_image',
         editImageUrl: '',
+        avatarAudioMode: 'script',
+        avatarVoice: 'Zephyr (Female)',
+        avatarLanguage: 'English (US)',
+        avatarResolution: '720p',
+        avatarImageDataUrl: '',
+        avatarCharacterId: null,
+        avatarAudioDataUrl: '',
         isLoading: false
     };
 
@@ -34,6 +41,7 @@
         imagen: { icon: '🖼️', label: 'Imagen' },
         activos: { icon: '🧩', label: 'Activos' },
         video: { icon: '🎬', label: 'Vídeo' },
+        avatar: { icon: '🗣️', label: 'Vídeo Avatar' },
         musica: { icon: '🎵', label: 'Música' }
     };
 
@@ -190,6 +198,7 @@
             editar: 'Describe la edición que quieres aplicar...',
             activos: 'Describe el activo que quieres generar (personaje, objeto, ícono...)...',
             video: 'Describe el vídeo que quieres generar...',
+            avatar: 'Escribe el guion que dirá el personaje (guion de voz)...',
             musica: 'Describe la música que quieres generar...'
         };
         $('gen-input').placeholder = placeholders[genState.activeTab] || '¿Qué quieres generar?';
@@ -319,6 +328,7 @@
         if (genState.activeTab === 'imagen') return `🖼️ ${STYLE_LABELS[genState.imageStyle] || ''}`;
         if (genState.activeTab === 'activos') return `🧩 ${ASSET_STYLE_LABELS[genState.assetStyle] || ''}`;
         if (genState.activeTab === 'video') return `🎬 ${STYLE_LABELS[genState.videoStyle] || ''}`;
+        if (genState.activeTab === 'avatar') return '🗣️ Vídeo Avatar';
         if (genState.activeTab === 'musica') return `🎵 ${GENRE_LABELS[genState.musicGenre] || ''}`;
         return tab.label;
     }
@@ -462,6 +472,10 @@
 
         if (tab === 'editar') {
             return generateEdit(userText);
+        }
+
+        if (tab === 'avatar') {
+            return generateAvatar(userText);
         }
 
         if (!userText.trim()) {
@@ -660,6 +674,247 @@
     }
 
     // ============================================
+    // VÍDEO AVATAR (Pruna P-Video-Avatar) + PERSONAJES
+    // ============================================
+    async function generateAvatar(userText) {
+        const audioMode = genState.avatarAudioMode;
+
+        if (!genState.avatarCharacterId && !genState.avatarImageDataUrl) {
+            showError('Sube o selecciona un personaje primero.');
+            return;
+        }
+        if (audioMode === 'script' && !userText.trim()) {
+            showError('Escribe el guion que dirá el personaje.');
+            return;
+        }
+        if (audioMode === 'audio' && !genState.avatarAudioDataUrl) {
+            showError('Sube un archivo de audio.');
+            return;
+        }
+
+        hideResult();
+        $('gen-error').classList.remove('visible');
+        setLoading(true, 'Generando vídeo avatar...', '🗣️');
+        _lastUserText = audioMode === 'script' ? userText.trim() : '(audio subido)';
+
+        const payload = {
+            voice: genState.avatarVoice,
+            voice_language: genState.avatarLanguage,
+            resolution: genState.avatarResolution,
+        };
+
+        if (genState.avatarCharacterId) {
+            payload.character_id = genState.avatarCharacterId;
+        } else {
+            payload.image = genState.avatarImageDataUrl;
+            const nameInput = $('gen-avatar-name-input');
+            if (nameInput && nameInput.value.trim()) payload.character_name = nameInput.value.trim();
+        }
+
+        if (audioMode === 'audio') {
+            payload.audio = genState.avatarAudioDataUrl;
+        } else {
+            payload.voice_script = userText.trim();
+        }
+
+        const videoPromptVal = ($('avatar-video-prompt-input') || {}).value || '';
+        const voicePromptVal = ($('avatar-voice-prompt-input') || {}).value || '';
+        const negPromptVal = ($('avatar-negative-prompt-input') || {}).value || '';
+        if (videoPromptVal.trim()) payload.video_prompt = videoPromptVal.trim();
+        if (voicePromptVal.trim()) payload.voice_prompt = voicePromptVal.trim();
+        if (negPromptVal.trim()) payload.negative_prompt = negPromptVal.trim();
+
+        try {
+            const res = await fetch('/api/generate-video-avatar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Error ${res.status}`);
+            }
+
+            const data = await res.json();
+            const url = data.video_url || '';
+            if (!url) { showError('No se recibió el vídeo generado.'); return; }
+
+            showResult({
+                title: '🗣️ Vídeo avatar generado', badge: '🗣️ Avatar',
+                body: {
+                    html: `<video class="gen-video-output" controls src="${escAttr(url)}"></video>`,
+                    actions: buildDownloadBtn(url, 'avatar-mirai.mp4')
+                }
+            });
+
+            if (data.character && data.character.id) {
+                genState.avatarCharacterId = data.character.id;
+                genState.avatarImageDataUrl = '';
+                setAvatarPreview(data.character.image_url, data.character.name);
+                loadAvatarCharacters();
+            }
+
+            apiSaveHistory('avatar', '🗣️ Avatar', _lastUserText, url).then(() => {
+                $('gen-history-section').style.display = 'block';
+                _histPage = 1; _activeHistTab = 'avatar';
+                renderHistory();
+            });
+
+        } catch (err) {
+            console.error('❌ video-avatar error:', err);
+            showError('Error al generar el vídeo avatar: ' + (err.message || 'Inténtalo de nuevo.'));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function loadAvatarCharacters() {
+        try {
+            const res = await fetch('/api/video-avatar/characters', { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            renderAvatarCharGrid(data.characters || []);
+        } catch (e) { console.warn('No se pudieron cargar los personajes:', e); }
+    }
+
+    function renderAvatarCharGrid(characters) {
+        const grid = $('gen-avatar-char-grid');
+        if (!grid) return;
+        if (!characters.length) {
+            grid.innerHTML = `<div class="gen-avatar-char-empty" id="gen-avatar-char-empty">Aún no tienes personajes guardados.</div>`;
+            return;
+        }
+        grid.innerHTML = characters.map(c => `
+            <div class="gen-avatar-char-item ${genState.avatarCharacterId === c.id ? 'selected' : ''}" data-char-id="${c.id}" onclick="window._genSelectAvatarChar(${c.id},'${escAttr(c.image_url)}','${escAttr(c.name || '')}')">
+                <img src="${escAttr(c.image_url)}" alt="${escAttr(c.name || 'Personaje')}" loading="lazy">
+                <span>${escAttr(c.name || 'Personaje')}</span>
+                <button class="gen-avatar-char-del" onclick="event.stopPropagation();window._genDeleteAvatarChar(${c.id})" title="Eliminar">✕</button>
+            </div>
+        `).join('');
+    }
+
+    window._genSelectAvatarChar = function (id, imageUrl, name) {
+        genState.avatarCharacterId = id;
+        genState.avatarImageDataUrl = '';
+        setAvatarPreview(imageUrl, name);
+        document.querySelectorAll('.gen-avatar-char-item').forEach(el => {
+            el.classList.toggle('selected', el.dataset.charId === String(id));
+        });
+    };
+
+    window._genDeleteAvatarChar = async function (id) {
+        if (!confirm('¿Eliminar este personaje guardado?')) return;
+        await fetch(`/api/video-avatar/characters?id=${id}`, { method: 'DELETE', credentials: 'same-origin' });
+        if (genState.avatarCharacterId === id) {
+            genState.avatarCharacterId = null;
+            setAvatarPreview('');
+        }
+        loadAvatarCharacters();
+    };
+
+    function setAvatarPreview(url, name) {
+        const preview = $('gen-avatar-preview-img');
+        const wrap = $('gen-avatar-preview-wrap');
+        const uploadWrap = $('gen-avatar-upload');
+        if (!preview || !wrap || !uploadWrap) return;
+        if (url) {
+            preview.src = url;
+            preview.alt = name || 'Personaje';
+            wrap.style.display = 'block';
+            uploadWrap.style.display = 'none';
+        } else {
+            preview.src = '';
+            wrap.style.display = 'none';
+            uploadWrap.style.display = 'block';
+        }
+    }
+
+    function initAvatarPanel() {
+        initStyleOpts('avatar-resolution-opts', 'avatarResolution');
+
+        document.querySelectorAll('#avatar-audio-mode-opts .filter-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                genState.avatarAudioMode = btn.dataset.val;
+                document.querySelectorAll('#avatar-audio-mode-opts .filter-pill').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                $('gen-avatar-script-hint').style.display = genState.avatarAudioMode === 'script' ? 'block' : 'none';
+                $('gen-avatar-audio-upload').style.display = genState.avatarAudioMode === 'audio' ? 'block' : 'none';
+            });
+        });
+
+        const voiceSelect = $('avatar-voice-select');
+        if (voiceSelect) voiceSelect.addEventListener('change', () => { genState.avatarVoice = voiceSelect.value; });
+
+        const langSelect = $('avatar-language-select');
+        if (langSelect) langSelect.addEventListener('change', () => { genState.avatarLanguage = langSelect.value; });
+
+        const changeBtn = $('gen-avatar-change-btn');
+        if (changeBtn) changeBtn.addEventListener('click', () => {
+            genState.avatarCharacterId = null;
+            genState.avatarImageDataUrl = '';
+            setAvatarPreview('');
+            document.querySelectorAll('.gen-avatar-char-item').forEach(el => el.classList.remove('selected'));
+        });
+
+        const dropZone = $('gen-avatar-drop-zone');
+        const fileInput = $('gen-avatar-file-input');
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) handleAvatarFile(file);
+            });
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files[0]) handleAvatarFile(fileInput.files[0]);
+            });
+        }
+
+        const audioDropZone = $('gen-avatar-audio-drop-zone');
+        const audioFileInput = $('gen-avatar-audio-file-input');
+        if (audioDropZone && audioFileInput) {
+            audioDropZone.addEventListener('click', () => audioFileInput.click());
+            audioDropZone.addEventListener('dragover', (e) => { e.preventDefault(); audioDropZone.classList.add('dragover'); });
+            audioDropZone.addEventListener('dragleave', () => audioDropZone.classList.remove('dragover'));
+            audioDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                audioDropZone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('audio/')) handleAvatarAudioFile(file);
+            });
+            audioFileInput.addEventListener('change', () => {
+                if (audioFileInput.files[0]) handleAvatarAudioFile(audioFileInput.files[0]);
+            });
+        }
+    }
+
+    function handleAvatarFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            genState.avatarImageDataUrl = e.target.result;
+            genState.avatarCharacterId = null;
+            setAvatarPreview(e.target.result, 'Nuevo personaje');
+            document.querySelectorAll('.gen-avatar-char-item').forEach(el => el.classList.remove('selected'));
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function handleAvatarAudioFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            genState.avatarAudioDataUrl = e.target.result;
+            const label = $('gen-avatar-audio-filename');
+            if (label) label.textContent = `✓ ${file.name}`;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ============================================
     // HISTORIAL — API D1
     // ============================================
     let _lastUserText = '';
@@ -722,6 +977,9 @@
         } else if (type === 'video') {
             preview = item.result ? `<video style="width:100%;border-radius:8px;max-height:160px" controls src="${escAttr(item.result)}"></video>` : '';
             actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="video-mirai.mp4" target="_blank">Descargar</a>` : '';
+        } else if (type === 'avatar') {
+            preview = item.result ? `<video style="width:100%;border-radius:8px;max-height:160px" controls src="${escAttr(item.result)}"></video>` : '';
+            actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="avatar-mirai.mp4" target="_blank">Descargar</a>` : '';
         } else if (type === 'musica') {
             preview = item.result ? `<audio class="gen-hist-audio" controls src="${escAttr(item.result)}"></audio>` : '';
             actions = item.result ? `<a class="gen-action-btn" style="font-size:0.78rem;padding:5px 12px" href="${escAttr(item.result)}" download="musica-mirai.mp3" target="_blank">Descargar</a>` : '';
@@ -833,8 +1091,10 @@
         initStyleOpts('video-style-opts', 'videoStyle');
         initStyleOpts('music-genre-opts', 'musicGenre');
         initEditPanel();
+        initAvatarPanel();
         initHistoryTabs();
         updatePlaceholder();
+        loadAvatarCharacters();
 
         document.querySelectorAll('.gen-panel').forEach(p => p.style.display = 'none');
         const firstPanel = document.getElementById('panel-' + genState.activeTab);

@@ -612,6 +612,69 @@
         [data-theme="dark"] .gen-edit-url-input { background: #1e1b26; }
         .gen-edit-url-input:focus { border-color: var(--accent-color, #6750A4); }
 
+        /* ── Vídeo Avatar: personajes guardados ── */
+        .gen-avatar-char-section { margin-bottom: 18px; }
+
+        .gen-avatar-char-grid {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .gen-avatar-char-empty {
+            font-size: 0.85rem;
+            color: var(--text-secondary, #999);
+        }
+
+        .gen-avatar-char-item {
+            position: relative;
+            width: 76px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .gen-avatar-char-item img {
+            width: 76px;
+            height: 76px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2.5px solid var(--glass-border, rgba(103, 80, 164, 0.15));
+            display: block;
+            transition: border-color 0.2s;
+        }
+
+        .gen-avatar-char-item.selected img {
+            border-color: var(--accent-color, #6750A4);
+        }
+
+        .gen-avatar-char-item span {
+            display: block;
+            font-size: 0.68rem;
+            color: var(--text-secondary, #999);
+            margin-top: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .gen-avatar-char-del {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            font-size: 0.7rem;
+            cursor: pointer;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         @media (max-width: 480px) {
             .gen-hero-zone { padding: 36px 16px 20px; }
             .gen-result-card { padding: 18px; }
@@ -730,6 +793,7 @@
                         <button class="filter-pill" data-tab="editar">✏️ Editar Imagen</button>
                         <button class="filter-pill" data-tab="activos">🧩 Activos</button>
                         <button class="filter-pill" data-tab="video">🎬 Vídeo</button>
+                        <button class="filter-pill" data-tab="avatar">🗣️ Vídeo Avatar</button>
                         <button class="filter-pill" data-tab="musica">🎵 Música</button>
                     </div>
                 </div>
@@ -966,6 +1030,128 @@
                     <button class="filter-pill" data-val="anime">🌸 Anime</button>
                     <button class="filter-pill" data-val="fotorrealista">📷 Fotorrealista</button>
                 </div>
+            </div>
+
+            <!-- ── PANEL VÍDEO AVATAR ── -->
+            <div class="gen-panel" id="panel-avatar">
+                <div class="gen-avatar-char-section">
+                    <p class="gen-options-label">Mis personajes</p>
+                    <div class="gen-avatar-char-grid" id="gen-avatar-char-grid">
+                        <div class="gen-avatar-char-empty" id="gen-avatar-char-empty">Aún no tienes personajes guardados.</div>
+                    </div>
+                </div>
+
+                <div class="gen-edit-source" id="gen-avatar-preview-wrap" style="display:none;">
+                    <p class="gen-options-label">Personaje seleccionado</p>
+                    <div class="gen-edit-preview-wrap">
+                        <img id="gen-avatar-preview-img" class="gen-edit-preview-img" src="" alt="Personaje">
+                        <button class="gen-edit-change-btn" id="gen-avatar-change-btn" title="Cambiar imagen">✕</button>
+                    </div>
+                </div>
+                <div class="gen-edit-upload" id="gen-avatar-upload">
+                    <p class="gen-options-label">Sube una imagen de retrato (nuevo personaje)</p>
+                    <div class="gen-edit-upload-zone" id="gen-avatar-drop-zone">
+                        <span style="font-size:2rem;">🧑‍🎤</span>
+                        <p style="margin:6px 0 0;font-size:0.88rem;color:var(--text-secondary)">Arrastra un retrato aquí o haz clic para seleccionar</p>
+                        <input type="file" id="gen-avatar-file-input" accept="image/*" style="display:none">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+                        <input type="text" id="gen-avatar-name-input" class="gen-edit-url-input" placeholder="Nombre del personaje (opcional)">
+                    </div>
+                </div>
+
+                <p class="gen-options-label" style="margin-top:16px;">Audio</p>
+                <div class="gen-options-row" id="avatar-audio-mode-opts">
+                    <button class="filter-pill active" data-val="script">✍️ Texto a voz</button>
+                    <button class="filter-pill" data-val="audio">🎙️ Subir audio</button>
+                </div>
+                <div id="gen-avatar-script-hint" style="font-size:0.82rem;color:var(--text-secondary);margin:-8px 0 16px;">
+                    Escribe el guion que dirá el personaje en el campo de texto principal de arriba.
+                </div>
+                <div id="gen-avatar-audio-upload" style="display:none;margin-bottom:16px;">
+                    <div class="gen-edit-upload-zone" id="gen-avatar-audio-drop-zone">
+                        <span style="font-size:1.6rem;">🎧</span>
+                        <p style="margin:6px 0 0;font-size:0.85rem;color:var(--text-secondary)" id="gen-avatar-audio-filename">Arrastra un audio aquí o haz clic para seleccionar</p>
+                        <input type="file" id="gen-avatar-audio-file-input" accept="audio/*" style="display:none">
+                    </div>
+                </div>
+
+                <div class="gen-selects-grid">
+                    <div class="gen-select-group">
+                        <span class="gen-select-label">🗣️ Voz</span>
+                        <select class="gen-select" id="avatar-voice-select">
+                            <option value="Zephyr (Female)">Zephyr (Femenina)</option>
+                            <option value="Puck (Male)">Puck (Masculina)</option>
+                            <option value="Charon (Male)">Charon (Masculina)</option>
+                            <option value="Kore (Female)">Kore (Femenina)</option>
+                            <option value="Fenrir (Male)">Fenrir (Masculina)</option>
+                            <option value="Leda (Female)">Leda (Femenina)</option>
+                            <option value="Orus (Male)">Orus (Masculina)</option>
+                            <option value="Aoede (Female)">Aoede (Femenina)</option>
+                            <option value="Callirrhoe (Female)">Callirrhoe (Femenina)</option>
+                            <option value="Autonoe (Female)">Autonoe (Femenina)</option>
+                            <option value="Enceladus (Male)">Enceladus (Masculina)</option>
+                            <option value="Iapetus (Male)">Iapetus (Masculina)</option>
+                            <option value="Umbriel (Male)">Umbriel (Masculina)</option>
+                            <option value="Algenib (Male)">Algenib (Masculina)</option>
+                            <option value="Despina (Female)">Despina (Femenina)</option>
+                            <option value="Erinome (Female)">Erinome (Femenina)</option>
+                            <option value="Laomedeia (Female)">Laomedeia (Femenina)</option>
+                            <option value="Achernar (Female)">Achernar (Femenina)</option>
+                            <option value="Algieba (Male)">Algieba (Masculina)</option>
+                            <option value="Schedar (Male)">Schedar (Masculina)</option>
+                            <option value="Gacrux (Female)">Gacrux (Femenina)</option>
+                            <option value="Pulcherrima (Female)">Pulcherrima (Femenina)</option>
+                            <option value="Achird (Male)">Achird (Masculina)</option>
+                            <option value="Zubenelgenubi (Male)">Zubenelgenubi (Masculina)</option>
+                            <option value="Vindemiatrix (Female)">Vindemiatrix (Femenina)</option>
+                            <option value="Sadachbia (Male)">Sadachbia (Masculina)</option>
+                            <option value="Sadaltager (Male)">Sadaltager (Masculina)</option>
+                            <option value="Sulafat (Female)">Sulafat (Femenina)</option>
+                            <option value="Alnilam (Male)">Alnilam (Masculina)</option>
+                            <option value="Rasalgethi (Male)">Rasalgethi (Masculina)</option>
+                        </select>
+                    </div>
+                    <div class="gen-select-group">
+                        <span class="gen-select-label">🌐 Idioma</span>
+                        <select class="gen-select" id="avatar-language-select">
+                            <option value="English (US)">Inglés (EE. UU.)</option>
+                            <option value="English (UK)">Inglés (Reino Unido)</option>
+                            <option value="Spanish">Español</option>
+                            <option value="French">Francés</option>
+                            <option value="German">Alemán</option>
+                            <option value="Italian">Italiano</option>
+                            <option value="Portuguese (Brazil)">Portugués (Brasil)</option>
+                            <option value="Japanese">Japonés</option>
+                            <option value="Korean">Coreano</option>
+                            <option value="Hindi">Hindi</option>
+                        </select>
+                    </div>
+                </div>
+
+                <p class="gen-options-label">Resolución</p>
+                <div class="gen-options-row" id="avatar-resolution-opts">
+                    <button class="filter-pill active" data-val="720p">📺 720p</button>
+                    <button class="filter-pill" data-val="1080p">🎞️ 1080p</button>
+                </div>
+
+                <details style="margin-top:8px;">
+                    <summary class="gen-options-label" style="cursor:pointer;display:inline-block;">⚙️ Opciones avanzadas</summary>
+                    <div class="gen-selects-grid" style="margin-top:12px;">
+                        <div class="gen-select-group">
+                            <span class="gen-select-label">🎬 Prompt de vídeo</span>
+                            <input type="text" class="gen-select" id="avatar-video-prompt-input" placeholder="Ej: The person is talking with a friendly smile">
+                        </div>
+                        <div class="gen-select-group">
+                            <span class="gen-select-label">🎭 Estilo de voz</span>
+                            <input type="text" class="gen-select" id="avatar-voice-prompt-input" placeholder="Ej: Say it calmly and warmly">
+                        </div>
+                        <div class="gen-select-group">
+                            <span class="gen-select-label">🚫 Prompt negativo</span>
+                            <input type="text" class="gen-select" id="avatar-negative-prompt-input" placeholder="Ej: subtitles, watermark, blurry">
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- ── PANEL MÚSICA ── -->
