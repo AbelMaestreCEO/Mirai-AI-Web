@@ -3263,7 +3263,9 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/video-avatar/characters' && request.method === 'DELETE')
       return await handleDeleteVideoAvatarCharacter(request, env, corsHeaders);
     if (path === '/api/generate-video-avatar' && request.method === 'POST')
-      return await handleVideoAvatarGeneration(request, env, corsHeaders);
+      return await handleVideoAvatarGeneration(request, env, ctx, corsHeaders);
+    if (path === '/api/video-avatar/jobs' && request.method === 'GET')
+      return await handleGetVideoAvatarJob(request, env, corsHeaders);
 
     // ── Tokens / Cuotas diarias ──
     if (path === '/api/user/tokens' && request.method === 'GET')
@@ -8629,7 +8631,28 @@ async function handleDeleteVideoAvatarCharacter(request, env, corsHeaders) {
   }
 }
 
-async function handleVideoAvatarGeneration(request, env, corsHeaders) {
+// La generación de vídeo avatar (TTS + lip-sync) puede tardar varios minutos.
+// Cloudflare no puede mantener una respuesta HTTP abierta tanto tiempo, así que
+// el trabajo se lanza en segundo plano (ctx.waitUntil) y el cliente hace polling
+// del estado por id, en vez de esperar la respuesta de env.AI.run() en línea.
+async function ensureVideoAvatarJobsTable(env) {
+  await env.MIRAI_AI_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS video_avatar_jobs (
+      id           TEXT PRIMARY KEY,
+      user_dni     TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      video_url    TEXT,
+      error        TEXT,
+      character_id INTEGER,
+      character_name TEXT,
+      character_image_url TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+async function handleVideoAvatarGeneration(request, env, ctx, corsHeaders) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
@@ -8655,6 +8678,7 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
 
     const origin = new URL(request.url).origin;
     await ensureVideoAvatarCharactersTable(env);
+    await ensureVideoAvatarJobsTable(env);
 
     let imageSource = null;
     let characterInfo = null;
@@ -8700,7 +8724,35 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       input.voice_script = voice_script;
     }
 
-    console.log('🗣️ Invocando pruna/p-video-avatar...');
+    const jobId = crypto.randomUUID();
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO video_avatar_jobs (id, user_dni, status, character_id, character_name, character_image_url)
+      VALUES (?, ?, 'pending', ?, ?, ?)
+    `).bind(
+      jobId,
+      userDni.toUpperCase(),
+      characterInfo ? characterInfo.id : null,
+      characterInfo ? characterInfo.name : null,
+      characterInfo ? characterInfo.image_url : null
+    ).run();
+
+    ctx.waitUntil(runVideoAvatarJob(jobId, input, userDni, env));
+
+    return jsonResponse({
+      job_id: jobId,
+      character: characterInfo,
+    }, 202, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ handleVideoAvatarGeneration error:', error.message);
+    return jsonResponse({ error: 'Error generando vídeo avatar', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// Trabajo real (lento) de Pruna P-Video-Avatar, ejecutado en segundo plano.
+async function runVideoAvatarJob(jobId, input, userDni, env) {
+  try {
+    console.log(`🗣️ [job ${jobId}] Invocando pruna/p-video-avatar...`);
     const avatarResult = await env.AI.run(
       VIDEO_AVATAR_CONFIG.MODEL,
       input,
@@ -8715,7 +8767,10 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
     } else if (avatarResult instanceof Uint8Array && avatarResult.byteLength > 0) {
       videoBuffer = avatarResult.buffer;
     } else if (avatarResult) {
-      const rawField = avatarResult.video || avatarResult.result?.video || avatarResult.response;
+      const rawField = avatarResult.video || avatarResult.result?.video || avatarResult.response
+        || avatarResult.output || avatarResult.result?.output
+        || avatarResult.url || avatarResult.result?.url
+        || avatarResult.video_url || avatarResult.result?.video_url;
 
       if (typeof rawField === 'string') {
         const cleanField = rawField.trim();
@@ -8731,7 +8786,7 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
     }
 
     if (videoUrlTarget) {
-      console.log('🔗 Descargando vídeo avatar desde URL presignada...');
+      console.log(`🔗 [job ${jobId}] Descargando vídeo avatar desde URL presignada...`);
       const videoFetch = await fetch(videoUrlTarget, {
         headers: { 'User-Agent': 'Cloudflare-Worker' }
       });
@@ -8752,7 +8807,6 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       httpMetadata: { contentType: 'video/mp4' },
       customMetadata: {
         user_dni: userDni.toUpperCase(),
-        character_id: characterInfo ? String(characterInfo.id) : '',
         generated_at: new Date().toISOString(),
         model: VIDEO_AVATAR_CONFIG.MODEL,
       }
@@ -8760,15 +8814,73 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
 
     const videoUrl = `/api/video/${videoFilename}`;
 
-    return jsonResponse({
-      type: 'video_avatar',
-      video_url: videoUrl,
-      character: characterInfo,
-    }, 200, corsHeaders);
+    await env.MIRAI_AI_DB.prepare(`
+      UPDATE video_avatar_jobs SET status = 'done', video_url = ?, updated_at = datetime('now') WHERE id = ?
+    `).bind(videoUrl, jobId).run();
 
+    // Se guarda también en el historial desde el backend: si el usuario cerró
+    // la pestaña mientras se generaba, el vídeo no se pierde igualmente.
+    try {
+      await env.MIRAI_AI_DB.prepare(`
+        CREATE TABLE IF NOT EXISTS gen_history (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_dni   TEXT    NOT NULL,
+          type       TEXT    NOT NULL,
+          badge      TEXT,
+          prompt     TEXT,
+          result     TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `).run();
+
+      const promptText = input.voice_script ? input.voice_script.substring(0, 500) : '(audio subido)';
+      await env.MIRAI_AI_DB.prepare(`
+        INSERT INTO gen_history (user_dni, type, badge, prompt, result)
+        VALUES (?, 'avatar', '🗣️ Avatar', ?, ?)
+      `).bind(userDni.toUpperCase(), promptText, videoUrl.substring(0, 4000)).run();
+    } catch (histErr) {
+      console.warn(`⚠️ [job ${jobId}] No se pudo guardar en historial:`, histErr.message);
+    }
+
+    console.log(`✅ [job ${jobId}] Vídeo avatar listo: ${videoUrl}`);
   } catch (error) {
-    console.error('❌ handleVideoAvatarGeneration error:', error.message);
-    return jsonResponse({ error: 'Error generando vídeo avatar', details: error.message }, 500, corsHeaders);
+    console.error(`❌ [job ${jobId}] runVideoAvatarJob error:`, error.message);
+    await env.MIRAI_AI_DB.prepare(`
+      UPDATE video_avatar_jobs SET status = 'error', error = ?, updated_at = datetime('now') WHERE id = ?
+    `).bind(String(error.message).substring(0, 500), jobId).run().catch(() => null);
+  }
+}
+
+async function handleGetVideoAvatarJob(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
+
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+    if (!id) return jsonResponse({ error: 'Se requiere id' }, 400, corsHeaders);
+
+    await ensureVideoAvatarJobsTable(env);
+    const job = await env.MIRAI_AI_DB.prepare(
+      `SELECT id, status, video_url, error, character_id, character_name, character_image_url
+       FROM video_avatar_jobs WHERE id = ? AND user_dni = ?`
+    ).bind(id, userDni.toUpperCase()).first();
+
+    if (!job) return jsonResponse({ error: 'Trabajo no encontrado' }, 404, corsHeaders);
+
+    return jsonResponse({
+      status: job.status,
+      video_url: job.video_url || null,
+      error: job.error || null,
+      character: job.character_id ? {
+        id: job.character_id,
+        name: job.character_name,
+        image_url: job.character_image_url
+      } : null,
+    }, 200, corsHeaders);
+  } catch (error) {
+    console.error('❌ handleGetVideoAvatarJob error:', error.message);
+    return jsonResponse({ error: 'Error al consultar el trabajo', details: error.message }, 500, corsHeaders);
   }
 }
 

@@ -738,16 +738,7 @@
             }
 
             const data = await res.json();
-            const url = data.video_url || '';
-            if (!url) { showError('No se recibió el vídeo generado.'); return; }
-
-            showResult({
-                title: '🗣️ Vídeo avatar generado', badge: '🗣️ Avatar',
-                body: {
-                    html: `<video class="gen-video-output" controls src="${escAttr(url)}"></video>`,
-                    actions: buildDownloadBtn(url, 'avatar-mirai.mp4')
-                }
-            });
+            if (!data.job_id) { showError('No se pudo iniciar la generación del vídeo.'); setLoading(false); return; }
 
             if (data.character && data.character.id) {
                 genState.avatarCharacterId = data.character.id;
@@ -756,18 +747,85 @@
                 loadAvatarCharacters();
             }
 
-            apiSaveHistory('avatar', '🗣️ Avatar', _lastUserText, url).then(() => {
-                $('gen-history-section').style.display = 'block';
-                _histPage = 1; _activeHistTab = 'avatar';
-                renderHistory();
-            });
+            await pollAvatarJob(data.job_id);
 
         } catch (err) {
             console.error('❌ video-avatar error:', err);
             showError('Error al generar el vídeo avatar: ' + (err.message || 'Inténtalo de nuevo.'));
-        } finally {
             setLoading(false);
         }
+    }
+
+    // El vídeo avatar (TTS + lip-sync) puede tardar varios minutos, así que el
+    // backend responde de inmediato con un job_id y aquí se consulta su estado
+    // periódicamente en vez de esperar una única petición larga (que Cloudflare
+    // no puede mantener abierta tanto tiempo).
+    const AVATAR_POLL_INTERVAL_MS = 5000;
+    const AVATAR_POLL_MAX_ATTEMPTS = 96; // ~8 minutos
+
+    function pollAvatarJob(jobId) {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const startedAt = Date.now();
+
+            const tick = async () => {
+                attempts++;
+                const elapsed = Math.round((Date.now() - startedAt) / 1000);
+                setLoading(true, `Generando vídeo avatar... (${elapsed}s, esto puede tardar varios minutos)`, '🗣️');
+
+                try {
+                    const res = await fetch(`/api/video-avatar/jobs?id=${encodeURIComponent(jobId)}`, {
+                        credentials: 'same-origin'
+                    });
+                    if (!res.ok) throw new Error(`Error ${res.status}`);
+                    const data = await res.json();
+
+                    if (data.status === 'done' && data.video_url) {
+                        const url = data.video_url;
+                        showResult({
+                            title: '🗣️ Vídeo avatar generado', badge: '🗣️ Avatar',
+                            body: {
+                                html: `<video class="gen-video-output" controls src="${escAttr(url)}"></video>`,
+                                actions: buildDownloadBtn(url, 'avatar-mirai.mp4')
+                            }
+                        });
+                        // El backend ya guarda esta generación en el historial al terminar el job.
+                        $('gen-history-section').style.display = 'block';
+                        _histPage = 1; _activeHistTab = 'avatar';
+                        renderHistory();
+                        setLoading(false);
+                        resolve();
+                        return;
+                    }
+
+                    if (data.status === 'error') {
+                        showError('Error al generar el vídeo avatar: ' + (data.error || 'Inténtalo de nuevo.'));
+                        setLoading(false);
+                        resolve();
+                        return;
+                    }
+
+                    if (attempts >= AVATAR_POLL_MAX_ATTEMPTS) {
+                        showError('La generación está tardando más de lo esperado. Sigue procesándose en segundo plano; revisa tu historial en unos minutos.');
+                        setLoading(false);
+                        resolve();
+                        return;
+                    }
+
+                    setTimeout(tick, AVATAR_POLL_INTERVAL_MS);
+                } catch (e) {
+                    if (attempts >= AVATAR_POLL_MAX_ATTEMPTS) {
+                        showError('No se pudo confirmar el estado del vídeo. Revisa tu historial en unos minutos.');
+                        setLoading(false);
+                        resolve();
+                        return;
+                    }
+                    setTimeout(tick, AVATAR_POLL_INTERVAL_MS);
+                }
+            };
+
+            tick();
+        });
     }
 
     async function loadAvatarCharacters() {
