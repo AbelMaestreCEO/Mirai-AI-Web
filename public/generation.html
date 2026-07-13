@@ -619,6 +619,26 @@
             .gen-history-grid { grid-template-columns: 1fr; }
             .gen-selects-grid { grid-template-columns: 1fr; }
         }
+
+        /* ── Módulos en el panel lateral ── */
+        .sidebar-panel-section {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .sidebar-filter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sidebar-filter-list .filter-pill {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left;
+            justify-content: flex-start;
+        }
     </style>
 </head>
 
@@ -702,15 +722,17 @@
             </section>
 
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="conversations-header">
-                    <h4>Conversaciones</h4>
-                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    </button>
+                <h4>Generar</h4>
+                <div class="sidebar-panel-section">
+                    <div class="sidebar-filter-list filter-pills" id="gen-tabs">
+                        <button class="filter-pill active" data-tab="texto">✍️ Texto</button>
+                        <button class="filter-pill" data-tab="imagen">🖼️ Imagen</button>
+                        <button class="filter-pill" data-tab="editar">✏️ Editar Imagen</button>
+                        <button class="filter-pill" data-tab="activos">🧩 Activos</button>
+                        <button class="filter-pill" data-tab="video">🎬 Vídeo</button>
+                        <button class="filter-pill" data-tab="musica">🎵 Música</button>
+                    </div>
                 </div>
-                <ul id="conversations-list" class="conversations-list"></ul>
             </section>
 <a href="settings" class="settings-sidebar-btn" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -780,18 +802,6 @@
         </div>
 
         <div class="gen-body">
-
-            <!-- Tabs de módulo -->
-            <div class="courses-toolbar" style="margin-bottom: 8px;">
-                <div class="filter-pills gen-tabs" id="gen-tabs">
-                    <button class="filter-pill active" data-tab="texto">✍️ Texto</button>
-                    <button class="filter-pill" data-tab="imagen">🖼️ Imagen</button>
-                    <button class="filter-pill" data-tab="editar">✏️ Editar Imagen</button>
-                    <button class="filter-pill" data-tab="activos">🧩 Activos</button>
-                    <button class="filter-pill" data-tab="video">🎬 Vídeo</button>
-                    <button class="filter-pill" data-tab="musica">🎵 Música</button>
-                </div>
-            </div>
 
             <!-- ── PANEL TEXTO ── -->
             <div class="gen-panel active" id="panel-texto">

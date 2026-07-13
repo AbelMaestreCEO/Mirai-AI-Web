@@ -385,6 +385,50 @@
                 font-size: 0.92rem;
             }
         }
+
+        /* ── Clases y estadísticas en el panel lateral ── */
+        .sidebar-panel-section {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .sidebar-panel-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-tertiary);
+            margin: 4px 0 8px;
+        }
+
+        .sidebar-course-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 22px;
+        }
+
+        .sidebar-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-stats .stat-card {
+            padding: 10px 12px;
+            gap: 10px;
+        }
+
+        .sidebar-stats .stat-icon {
+            width: 36px;
+            height: 36px;
+            font-size: 1.3rem;
+        }
+
+        .sidebar-stats .stat-value {
+            font-size: 1.1rem;
+        }
     </style>
 
     <link rel="stylesheet" href="styles.css">
@@ -484,17 +528,36 @@
 
             <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="conversations-header">
-                    <h4>Conversaciones</h4>
-                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    </button>
+                <h4>Aula</h4>
+                <div class="sidebar-panel-section">
+                    <p class="sidebar-panel-label">Clases</p>
+                    <div id="course-tabs" class="sidebar-course-tabs"></div>
+
+                    <p class="sidebar-panel-label">Resumen</p>
+                    <div class="sidebar-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-content">
+                                <span class="stat-label">Pendientes</span>
+                                <span class="stat-value stat-number" id="pending-count">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <span class="stat-label">Completadas</span>
+                                <span class="stat-value stat-number" id="completed-count">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <span class="stat-label">Promedio</span>
+                                <span class="stat-value stat-number avg" id="avg-score">-</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
             </section>
             <a href="settings" class="settings-sidebar-btn" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -563,34 +626,6 @@
             <button id="professor-btn" class="btn-secondary" title="Acceso para Profesores">
                 👨‍🏫 ¿Es un profesor?
             </button>
-        </div>
-
-        <!-- Tabs de cursos -->
-        <div id="course-tabs" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px;"></div>
-
-        <!-- Stats -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">⏳</div>
-                <div class="stat-content">
-                    <span class="stat-label">Pendientes</span>
-                    <span class="stat-value stat-number" id="pending-count">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">✅</div>
-                <div class="stat-content">
-                    <span class="stat-label">Completadas</span>
-                    <span class="stat-value stat-number" id="completed-count">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📊</div>
-                <div class="stat-content">
-                    <span class="stat-label">Promedio</span>
-                    <span class="stat-value stat-number avg" id="avg-score">-</span>
-                </div>
-            </div>
         </div>
 
         <!-- Contador -->

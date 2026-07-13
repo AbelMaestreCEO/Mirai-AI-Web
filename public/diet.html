@@ -538,6 +538,49 @@
             .add-food-form { grid-template-columns: 1fr 1fr; }
             .add-food-form .aff-btn { grid-column: 1 / -1; }
         }
+
+        /* ── Módulos y filtros en el panel lateral ── */
+        .sidebar-panel-section {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .sidebar-panel-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-tertiary);
+            margin: 4px 0 8px;
+        }
+
+        .sidebar-diet-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-diet-tabs .diet-tab {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left;
+            white-space: normal;
+        }
+
+        .sidebar-filter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sidebar-filter-list .filter-pill {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left;
+            justify-content: flex-start;
+        }
     </style>
 </head>
 
@@ -633,17 +676,29 @@
 
             <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="conversations-header">
-                    <h4>Conversaciones</h4>
-                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    </button>
+                <h4>Dieta</h4>
+                <div class="sidebar-panel-section">
+                    <p class="sidebar-panel-label">Módulos</p>
+                    <div class="sidebar-diet-tabs" id="diet-tabs">
+                        <button class="diet-tab active" data-panel="recetas">🍽️ Recetas</button>
+                        <button class="diet-tab" data-panel="planificador">📅 Planificador</button>
+                        <button class="diet-tab" data-panel="contador">📊 Contador</button>
+                        <button class="diet-tab" data-panel="compras">🛒 Compras</button>
+                        <button class="diet-tab" data-panel="historial">📋 Historial</button>
+                        <button class="diet-tab" data-panel="ia">🤖 IA Nutricional</button>
+                    </div>
+
+                    <p class="sidebar-panel-label">Tipo de dieta</p>
+                    <div class="filter-pills sidebar-filter-list" id="filter-pills-diet">
+                        <button class="filter-pill active" data-category="todos">Todos</button>
+                        <button class="filter-pill" data-category="vegano">🌿 Vegano</button>
+                        <button class="filter-pill" data-category="keto">🥑 Keto</button>
+                        <button class="filter-pill" data-category="proteina">💪 Proteína</button>
+                        <button class="filter-pill" data-category="mediterraneo">🫒 Mediterráneo</button>
+                        <button class="filter-pill" data-category="paleo">🍖 Paleo</button>
+                        <button class="filter-pill" data-category="singluten">🌾 Sin Gluten</button>
+                    </div>
                 </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
             </section>
             <a href="settings" class="settings-sidebar-btn" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -709,43 +764,16 @@
             <p>Planifica tu alimentación, descubre recetas con IA y alcanza tus metas nutricionales.</p>
         </div>
 
-        <!-- Tabs de navegación del módulo -->
-        <div class="diet-tabs" id="diet-tabs">
-            <button class="diet-tab active" data-panel="recetas">🍽️ Recetas</button>
-            <button class="diet-tab" data-panel="planificador">📅 Planificador</button>
-            <button class="diet-tab" data-panel="contador">📊 Contador</button>
-            <button class="diet-tab" data-panel="compras">🛒 Compras</button>
-            <button class="diet-tab" data-panel="historial">📋 Historial</button>
-            <button class="diet-tab" data-panel="ia">🤖 IA Nutricional</button>
-        </div>
-
         <!-- ══════════════════════════════
              PANEL 1 – RECETAS
         ══════════════════════════════ -->
         <div class="diet-panel active" id="panel-recetas">
 
-            <!-- Integraciones rápidas -->
-            <div class="integrations-row">
-                <a href="inventory" class="int-chip">📦 Inventario conectado</a>
-                <a href="mirror" class="int-chip">🖼️ Galería de platos</a>
-                <a href="report" class="int-chip">📋 Evolución nutricional</a>
-                <a href="https://aberumirai.com#sweets" class="int-chip">🍰 Catálogo Aberu Sweets</a>
-            </div>
-
-            <!-- Buscador + filtros (reutiliza clases de courses) -->
+            <!-- Buscador (reutiliza clases de courses) -->
             <div class="courses-toolbar">
                 <div class="courses-search">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                     <input type="text" id="recipe-search" placeholder="Buscar por nombre o ingrediente..." autocomplete="off">
-                </div>
-                <div class="filter-pills" id="filter-pills-diet">
-                    <button class="filter-pill active" data-category="todos">Todos</button>
-                    <button class="filter-pill" data-category="vegano">🌿 Vegano</button>
-                    <button class="filter-pill" data-category="keto">🥑 Keto</button>
-                    <button class="filter-pill" data-category="proteina">💪 Proteína</button>
-                    <button class="filter-pill" data-category="mediterraneo">🫒 Mediterráneo</button>
-                    <button class="filter-pill" data-category="paleo">🍖 Paleo</button>
-                    <button class="filter-pill" data-category="singluten">🌾 Sin Gluten</button>
                 </div>
             </div>
 

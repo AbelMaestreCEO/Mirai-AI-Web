@@ -66,6 +66,37 @@
     </script>
     <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="transitions.css">
+    <style>
+        /* ── Filtros de inventario en el panel lateral ── */
+        .sidebar-panel-section {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .sidebar-panel-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-tertiary);
+            margin: 4px 0 8px;
+        }
+
+        .sidebar-filter-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-filter-list .filter-pill {
+            width: 100%;
+            box-sizing: border-box;
+            text-align: left;
+            justify-content: flex-start;
+        }
+    </style>
 </head>
 
 <body>
@@ -160,17 +191,26 @@
 
             <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="conversations-header">
-                    <h4>Conversaciones</h4>
-                    <button id="new-conversation-btn" class="new-conv-btn" title="Nueva conversación">
-                        <svg viewBox="0 0 24 24" width="16" height="16">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    </button>
+                <h4>Inventario</h4>
+                <div class="sidebar-panel-section">
+                    <p class="sidebar-panel-label">Categoría</p>
+                    <div class="filter-pills sidebar-filter-list" id="filter-pills">
+                        <button class="filter-pill active" data-category="todos">Todos</button>
+                        <button class="filter-pill" data-category="electronica">💻 Electrónica</button>
+                        <button class="filter-pill" data-category="material">📝 Material</button>
+                        <button class="filter-pill" data-category="mobiliario">🪑 Mobiliario</button>
+                        <button class="filter-pill" data-category="consumibles">🧴 Consumibles</button>
+                        <button class="filter-pill" data-category="software">💿 Software</button>
+                    </div>
+
+                    <p class="sidebar-panel-label">Nivel de stock</p>
+                    <div class="filter-pills sidebar-filter-list" id="stock-filter">
+                        <button class="filter-pill active" data-stock="all">Todo</button>
+                        <button class="filter-pill" data-stock="available">Disponible</button>
+                        <button class="filter-pill" data-stock="low">Stock Bajo</button>
+                        <button class="filter-pill" data-stock="critical">Crítico</button>
+                    </div>
                 </div>
-                <ul id="conversations-list" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
-                </ul>
             </section>
             <a href="settings" class="settings-sidebar-btn" title="Configuración">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -281,20 +321,6 @@
                 </svg>
                 <input type="text" id="inventory-search" placeholder="Buscar productos por nombre, SKU o tags..."
                     autocomplete="off">
-            </div>
-            <div class="filter-pills" id="filter-pills">
-                <button class="filter-pill active" data-category="todos">Todos</button>
-                <button class="filter-pill" data-category="electronica">💻 Electrónica</button>
-                <button class="filter-pill" data-category="material">📝 Material</button>
-                <button class="filter-pill" data-category="mobiliario">🪑 Mobiliario</button>
-                <button class="filter-pill" data-category="consumibles">🧴 Consumibles</button>
-                <button class="filter-pill" data-category="software">💿 Software</button>
-            </div>
-            <div class="filter-pills" id="stock-filter">
-                <button class="filter-pill active" data-stock="all">Todo</button>
-                <button class="filter-pill" data-stock="available">Disponible</button>
-                <button class="filter-pill" data-stock="low">Stock Bajo</button>
-                <button class="filter-pill" data-stock="critical">Crítico</button>
             </div>
         </div>
 
