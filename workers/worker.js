@@ -8710,14 +8710,10 @@ async function createPrunaPrediction(env, input) {
 
 async function getPrunaPrediction(env, predictionId) {
   const apiKey = requirePrunaApiKey(env);
-  // El header 'Model' también es obligatorio aquí: sin él, el gateway de Pruna
-  // no puede enrutar la petición y responde 404 "no Route matched with those values"
-  // aunque el id de la predicción sea válido.
-  const res = await fetch(`${PRUNA_API_BASE}/predictions/${predictionId}`, {
-    headers: {
-      'apikey': apiKey,
-      'Model': VIDEO_AVATAR_CONFIG.MODEL_ID,
-    },
+  // Endpoint real según la documentación oficial de Pruna
+  // (https://docs.api.pruna.ai): /v1/predictions/status/{id}, no /v1/predictions/{id}.
+  const res = await fetch(`${PRUNA_API_BASE}/predictions/status/${predictionId}`, {
+    headers: { 'apikey': apiKey },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -8726,11 +8722,12 @@ async function getPrunaPrediction(env, predictionId) {
   return data;
 }
 
-// Extrae una URL (o base64) de vídeo desde una respuesta de predicción de Pruna,
-// cubriendo varios nombres de campo posibles ya que el esquema exacto no está
-// documentado para este modelo.
+// Extrae una URL (o base64) de vídeo desde una respuesta de predicción de Pruna.
+// El campo documentado es 'generation_url'; se dejan otros nombres como respaldo
+// por si el esquema varía entre modelos.
 function extractPrunaOutputUrl(prediction) {
   const candidates = [
+    prediction.generation_url,
     prediction.output,
     prediction.video,
     prediction.video_url,
@@ -8936,7 +8933,13 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
 
       let videoBuffer;
       if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
-        const videoFetch = await fetch(outputRef, { headers: { 'User-Agent': 'Cloudflare-Worker' } });
+        // El endpoint de entrega de Pruna (/v1/predictions/delivery/...) también
+        // exige el header apikey, igual que el resto de su API.
+        const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
+        if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
+          downloadHeaders['apikey'] = requirePrunaApiKey(env);
+        }
+        const videoFetch = await fetch(outputRef, { headers: downloadHeaders });
         if (!videoFetch.ok) throw new Error(`Error descargando video: Status ${videoFetch.status}`);
         videoBuffer = await videoFetch.arrayBuffer();
       } else {
