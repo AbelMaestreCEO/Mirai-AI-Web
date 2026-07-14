@@ -1347,6 +1347,8 @@ export default {
       }
     }
     console.log(`[Scheduled] Format cleanup: ${deleted} archivos eliminados.`);
+
+    await finalizePendingVideoAvatarJobs(env);
   }
 };
 
@@ -8902,95 +8904,131 @@ async function handleGetVideoAvatarJob(request, env, corsHeaders) {
     }
 
     // Sigue pendiente: una única consulta rápida y acotada al estado en Pruna.
-    try {
-      const prediction = await getPrunaPrediction(env, job.pruna_prediction_id);
-      const status = (prediction.status || '').toLowerCase();
-
-      if (status === 'succeeded' || status === 'success' || status === 'completed') {
-        const outputRef = extractPrunaOutputUrl(prediction);
-        if (!outputRef) {
-          throw new Error(`Predicción completada pero sin salida reconocible: ${JSON.stringify(prediction).substring(0, 300)}`);
-        }
-
-        let videoBuffer;
-        if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
-          const videoFetch = await fetch(outputRef, { headers: { 'User-Agent': 'Cloudflare-Worker' } });
-          if (!videoFetch.ok) throw new Error(`Error descargando video: Status ${videoFetch.status}`);
-          videoBuffer = await videoFetch.arrayBuffer();
-        } else {
-          const cleanField = outputRef.replace(/^data:video\/[a-z0-9]+;base64,/, '');
-          const binaryString = atob(cleanField);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-          videoBuffer = bytes.buffer;
-        }
-
-        if (!videoBuffer || videoBuffer.byteLength === 0) {
-          throw new Error('El vídeo descargado desde Pruna está vacío');
-        }
-
-        const videoFilename = `videos/avatar/${crypto.randomUUID()}.mp4`;
-        await env.MIRAI_AI_ASSETS.put(videoFilename, videoBuffer, {
-          httpMetadata: { contentType: 'video/mp4' },
-          customMetadata: {
-            user_dni: userDni.toUpperCase(),
-            generated_at: new Date().toISOString(),
-            model: VIDEO_AVATAR_CONFIG.MODEL_ID,
-          }
-        });
-        const videoUrl = `/api/video/${videoFilename}`;
-
-        await env.MIRAI_AI_DB.prepare(`
-          UPDATE video_avatar_jobs SET status = 'done', video_url = ?, updated_at = datetime('now') WHERE id = ?
-        `).bind(videoUrl, job.id).run();
-
-        // Se guarda también en el historial desde el backend: si el usuario
-        // cerró la pestaña mientras se generaba, el vídeo no se pierde.
-        try {
-          await env.MIRAI_AI_DB.prepare(`
-            CREATE TABLE IF NOT EXISTS gen_history (
-              id         INTEGER PRIMARY KEY AUTOINCREMENT,
-              user_dni   TEXT    NOT NULL,
-              type       TEXT    NOT NULL,
-              badge      TEXT,
-              prompt     TEXT,
-              result     TEXT,
-              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-          `).run();
-          await env.MIRAI_AI_DB.prepare(`
-            INSERT INTO gen_history (user_dni, type, badge, prompt, result)
-            VALUES (?, 'avatar', '🗣️ Avatar', ?, ?)
-          `).bind(userDni.toUpperCase(), '🗣️ Vídeo avatar', videoUrl.substring(0, 4000)).run();
-        } catch (histErr) {
-          console.warn('⚠️ No se pudo guardar en historial:', histErr.message);
-        }
-
-        return jsonResponse({ status: 'done', video_url: videoUrl, error: null, character: characterPayload }, 200, corsHeaders);
-      }
-
-      if (status === 'failed' || status === 'canceled' || status === 'cancelled' || status === 'error') {
-        const errMsg = prediction.error || prediction.detail || 'La generación falló en Pruna';
-        await env.MIRAI_AI_DB.prepare(`
-          UPDATE video_avatar_jobs SET status = 'error', error = ?, updated_at = datetime('now') WHERE id = ?
-        `).bind(String(errMsg).substring(0, 500), job.id).run();
-
-        return jsonResponse({ status: 'error', video_url: null, error: errMsg, character: characterPayload }, 200, corsHeaders);
-      }
-
-      // Todavía procesando (starting/processing/etc.)
-      return jsonResponse({ status: 'pending', video_url: null, error: null, character: characterPayload }, 200, corsHeaders);
-
-    } catch (pollErr) {
-      console.error(`❌ [job ${job.id}] error consultando Pruna:`, pollErr.message);
-      // No marcamos el job como error por un fallo transitorio de red al consultar;
-      // el cliente simplemente reintentará en el siguiente poll.
-      return jsonResponse({ status: 'pending', video_url: null, error: null, character: characterPayload }, 200, corsHeaders);
-    }
+    const result = await checkAndFinalizeVideoAvatarJob(job, userDni, env);
+    return jsonResponse({ ...result, character: characterPayload }, 200, corsHeaders);
 
   } catch (error) {
     console.error('❌ handleGetVideoAvatarJob error:', error.message);
     return jsonResponse({ error: 'Error al consultar el trabajo', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// Consulta el estado de una predicción en Pruna y, si ya terminó, descarga el
+// vídeo y actualiza D1/historial. Se usa tanto desde el polling del cliente
+// (GET /api/video-avatar/jobs) como desde el cron de abajo, que es el que
+// garantiza que el job se complete aunque el usuario haya cerrado la pestaña.
+async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
+  try {
+    const prediction = await getPrunaPrediction(env, job.pruna_prediction_id);
+    const status = (prediction.status || '').toLowerCase();
+
+    if (status === 'succeeded' || status === 'success' || status === 'completed') {
+      const outputRef = extractPrunaOutputUrl(prediction);
+      if (!outputRef) {
+        throw new Error(`Predicción completada pero sin salida reconocible: ${JSON.stringify(prediction).substring(0, 300)}`);
+      }
+
+      let videoBuffer;
+      if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
+        const videoFetch = await fetch(outputRef, { headers: { 'User-Agent': 'Cloudflare-Worker' } });
+        if (!videoFetch.ok) throw new Error(`Error descargando video: Status ${videoFetch.status}`);
+        videoBuffer = await videoFetch.arrayBuffer();
+      } else {
+        const cleanField = outputRef.replace(/^data:video\/[a-z0-9]+;base64,/, '');
+        const binaryString = atob(cleanField);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+        videoBuffer = bytes.buffer;
+      }
+
+      if (!videoBuffer || videoBuffer.byteLength === 0) {
+        throw new Error('El vídeo descargado desde Pruna está vacío');
+      }
+
+      const videoFilename = `videos/avatar/${crypto.randomUUID()}.mp4`;
+      await env.MIRAI_AI_ASSETS.put(videoFilename, videoBuffer, {
+        httpMetadata: { contentType: 'video/mp4' },
+        customMetadata: {
+          user_dni: userDni.toUpperCase(),
+          generated_at: new Date().toISOString(),
+          model: VIDEO_AVATAR_CONFIG.MODEL_ID,
+        }
+      });
+      const videoUrl = `/api/video/${videoFilename}`;
+
+      await env.MIRAI_AI_DB.prepare(`
+        UPDATE video_avatar_jobs SET status = 'done', video_url = ?, updated_at = datetime('now') WHERE id = ?
+      `).bind(videoUrl, job.id).run();
+
+      // Se guarda también en el historial desde el backend: si el usuario
+      // cerró la pestaña mientras se generaba, el vídeo no se pierde.
+      try {
+        await env.MIRAI_AI_DB.prepare(`
+          CREATE TABLE IF NOT EXISTS gen_history (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_dni   TEXT    NOT NULL,
+            type       TEXT    NOT NULL,
+            badge      TEXT,
+            prompt     TEXT,
+            result     TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+        await env.MIRAI_AI_DB.prepare(`
+          INSERT INTO gen_history (user_dni, type, badge, prompt, result)
+          VALUES (?, 'avatar', '🗣️ Avatar', ?, ?)
+        `).bind(userDni.toUpperCase(), '🗣️ Vídeo avatar', videoUrl.substring(0, 4000)).run();
+      } catch (histErr) {
+        console.warn(`⚠️ [job ${job.id}] No se pudo guardar en historial:`, histErr.message);
+      }
+
+      return { status: 'done', video_url: videoUrl, error: null };
+    }
+
+    if (status === 'failed' || status === 'canceled' || status === 'cancelled' || status === 'error') {
+      const errMsg = prediction.error || prediction.detail || 'La generación falló en Pruna';
+      await env.MIRAI_AI_DB.prepare(`
+        UPDATE video_avatar_jobs SET status = 'error', error = ?, updated_at = datetime('now') WHERE id = ?
+      `).bind(String(errMsg).substring(0, 500), job.id).run();
+
+      return { status: 'error', video_url: null, error: errMsg };
+    }
+
+    // Todavía procesando (starting/processing/etc.)
+    return { status: 'pending', video_url: null, error: null };
+
+  } catch (pollErr) {
+    console.error(`❌ [job ${job.id}] error consultando Pruna:`, pollErr.message);
+    // No marcamos el job como error por un fallo transitorio de red al consultar;
+    // se reintentará en el siguiente poll/tick de cron.
+    return { status: 'pending', video_url: null, error: null };
+  }
+}
+
+// Red de seguridad: revisa periódicamente (vía Cron Trigger) los jobs que
+// sigan 'pending' en D1, sin depender de que el cliente siga haciendo polling
+// (si cerró la pestaña, perdió la conexión, etc.). Así ningún vídeo generado
+// por Pruna se pierde aunque nadie esté mirando la pantalla de resultado.
+async function finalizePendingVideoAvatarJobs(env) {
+  try {
+    await ensureVideoAvatarJobsTable(env);
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, user_dni, pruna_prediction_id FROM video_avatar_jobs
+      WHERE status = 'pending' AND pruna_prediction_id IS NOT NULL
+      ORDER BY created_at ASC LIMIT 25
+    `).all();
+
+    if (!results || results.length === 0) return;
+
+    console.log(`[Scheduled] Revisando ${results.length} trabajo(s) de vídeo avatar pendiente(s)...`);
+    for (const job of results) {
+      const result = await checkAndFinalizeVideoAvatarJob(job, job.user_dni, env);
+      if (result.status !== 'pending') {
+        console.log(`[Scheduled] Job ${job.id} → ${result.status}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ finalizePendingVideoAvatarJobs error:', error.message);
   }
 }
 
