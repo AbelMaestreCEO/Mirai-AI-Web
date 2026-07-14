@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v290'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v291'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [

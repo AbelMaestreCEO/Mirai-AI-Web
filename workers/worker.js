@@ -8710,8 +8710,14 @@ async function createPrunaPrediction(env, input) {
 
 async function getPrunaPrediction(env, predictionId) {
   const apiKey = requirePrunaApiKey(env);
+  // El header 'Model' también es obligatorio aquí: sin él, el gateway de Pruna
+  // no puede enrutar la petición y responde 404 "no Route matched with those values"
+  // aunque el id de la predicción sea válido.
   const res = await fetch(`${PRUNA_API_BASE}/predictions/${predictionId}`, {
-    headers: { 'apikey': apiKey },
+    headers: {
+      'apikey': apiKey,
+      'Model': VIDEO_AVATAR_CONFIG.MODEL_ID,
+    },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
