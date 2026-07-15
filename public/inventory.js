@@ -325,15 +325,157 @@ function createProductCard(product) {
         });
     }
 
-    // Listener: Click en toda la tarjeta (excluyendo botones)
+    // Listener: Click en toda la tarjeta (excluyendo botones y swipes)
     card.addEventListener('click', (e) => {
+        if (card.dataset.suppressClick === '1') {
+            delete card.dataset.suppressClick;
+            return;
+        }
         if (!e.target.closest('.product-actions')) {
             showProductDetails(product);
         }
     });
 
-    return card;
+    // --- Envolver en swipe-wrapper con acción "Poner a la venta" ---
+    const wrapper = document.createElement('div');
+    wrapper.className = 'swipe-wrapper';
+
+    const actionLayer = document.createElement('div');
+    actionLayer.className = 'swipe-action-layer';
+    actionLayer.innerHTML = `
+        <button type="button" class="swipe-sell-btn" data-id="${product.id}">
+            <span class="swipe-sell-icon">🏷️</span>
+            <span>Poner a la venta</span>
+        </button>
+    `;
+
+    wrapper.appendChild(actionLayer);
+    wrapper.appendChild(card);
+    attachSwipeHandlers(wrapper, card, actionLayer, product);
+
+    return wrapper;
 }
+
+// ============================================
+// SWIPE — "Poner a la venta" (pointer events)
+// ============================================
+function attachSwipeHandlers(wrapper, card, actionLayer, product) {
+    const OPEN_X = -110;
+    const THRESHOLD = 45;
+    let startX = 0, startY = 0, baseX = 0, dragging = false, moved = false, isOpen = false;
+
+    function setX(x, animate) {
+        card.style.transition = animate ? 'transform .25s ease' : 'none';
+        card.style.transform = `translateX(${x}px)`;
+    }
+
+    function close(animate = true) {
+        setX(0, animate);
+        isOpen = false;
+    }
+
+    function onPointerDown(e) {
+        if (e.target.closest('.product-actions')) return;
+        dragging = true;
+        moved = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        baseX = isOpen ? OPEN_X : 0;
+        try { card.setPointerCapture(e.pointerId); } catch (err) { /* no-op */ }
+    }
+
+    function onPointerMove(e) {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (!moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        if (!moved && Math.abs(dy) > Math.abs(dx)) { dragging = false; return; }
+        moved = true;
+        const x = Math.max(OPEN_X, Math.min(0, baseX + dx));
+        setX(x, false);
+    }
+
+    function onPointerUp(e) {
+        if (!dragging) return;
+        dragging = false;
+        if (!moved) return;
+        const dx = e.clientX - startX;
+        const finalX = baseX + dx;
+        if (finalX < -THRESHOLD) {
+            setX(OPEN_X, true);
+            isOpen = true;
+        } else {
+            close(true);
+        }
+        card.dataset.suppressClick = '1';
+    }
+
+    card.addEventListener('pointerdown', onPointerDown);
+    card.addEventListener('pointermove', onPointerMove);
+    card.addEventListener('pointerup', onPointerUp);
+    card.addEventListener('pointercancel', onPointerUp);
+
+    actionLayer.querySelector('.swipe-sell-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        close(true);
+        openSellModal(product);
+    });
+}
+
+// ============================================
+// MODAL — Poner producto a la venta
+// ============================================
+function openSellModal(product) {
+    const modal = document.getElementById('sell-modal');
+    document.getElementById('sell-product-id').value = product.id;
+    document.getElementById('sell-modal-subtitle').textContent = `${product.name} — ${product.quantity} unidades en inventario`;
+    document.getElementById('sell-quantity').value = product.quantity || 1;
+    document.getElementById('sell-quantity').max = product.quantity || 1;
+    document.getElementById('sell-quantity-hint').textContent = `Máximo disponible: ${product.quantity || 0}`;
+    document.getElementById('sell-price').value = (product.unit_price || 0).toFixed(2);
+    document.getElementById('sell-status').textContent = '';
+    modal.classList.remove('hidden');
+}
+
+function closeSellModal() {
+    document.getElementById('sell-modal').classList.add('hidden');
+}
+
+document.getElementById('sell-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const statusEl = document.getElementById('sell-status');
+    const btn = document.getElementById('btn-submit-sell');
+    const productId = document.getElementById('sell-product-id').value;
+    const quantity = parseInt(document.getElementById('sell-quantity').value, 10);
+    const unitPrice = parseFloat(document.getElementById('sell-price').value);
+
+    if (!quantity || quantity <= 0) {
+        statusEl.textContent = 'Ingresa una cantidad válida.';
+        statusEl.className = 'status-message error';
+        return;
+    }
+
+    btn.disabled = true;
+    try {
+        const response = await fetch('/api/sales/listings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ product_id: productId, quantity, unit_price: unitPrice }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+
+        statusEl.textContent = '✅ Producto puesto a la venta.';
+        statusEl.className = 'status-message success';
+        setTimeout(closeSellModal, 900);
+    } catch (err) {
+        statusEl.textContent = err.message || 'Error al poner el producto a la venta.';
+        statusEl.className = 'status-message error';
+    } finally {
+        btn.disabled = false;
+    }
+});
 
 // --- NIVEL DE STOCK ---
 function getStockLevel(quantity) {
@@ -965,6 +1107,7 @@ function openAddProductModal(product = null) {
 function closeModals() {
     document.getElementById('add-product-modal').classList.add('hidden');
     document.getElementById('product-detail-modal').classList.add('hidden');
+    document.getElementById('sell-modal')?.classList.add('hidden');
     setTimeout(() => {
         resetForm();
     }, 300);

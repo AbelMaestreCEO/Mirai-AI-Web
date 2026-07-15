@@ -2098,6 +2098,61 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         return handleTaskDelete(request, env, corsHeaders, taskId);
     }
 
+    // ── VENTAS (uso interno, aislado por usuario) ───────────────────
+    // GET  /api/sales/listings        → listar artículos puestos a la venta
+    // POST /api/sales/listings        → poner un artículo del inventario a la venta
+    if (path === '/api/sales/listings') {
+      if (request.method === 'GET')
+        return handleSaleListingsList(request, env, corsHeaders);
+      if (request.method === 'POST')
+        return handleSaleListingCreate(request, env, corsHeaders);
+    }
+    // PUT    /api/sales/listings/:id  → actualizar (precio, cantidad, retirar)
+    // DELETE /api/sales/listings/:id  → eliminar listing
+    const saleListingMatch = path.match(/^\/api\/sales\/listings\/([^/]+)$/);
+    if (saleListingMatch) {
+      const listingId = saleListingMatch[1];
+      if (request.method === 'PUT')
+        return handleSaleListingUpdate(request, env, corsHeaders, listingId);
+      if (request.method === 'DELETE')
+        return handleSaleListingDelete(request, env, corsHeaders, listingId);
+    }
+
+    // GET  /api/sales/buyers          → listar compradores registrados
+    // POST /api/sales/buyers          → registrar comprador
+    if (path === '/api/sales/buyers') {
+      if (request.method === 'GET')
+        return handleSaleBuyersList(request, env, corsHeaders);
+      if (request.method === 'POST')
+        return handleSaleBuyerCreate(request, env, corsHeaders);
+    }
+    // PUT    /api/sales/buyers/:id    → actualizar comprador / favorito
+    // DELETE /api/sales/buyers/:id    → eliminar comprador
+    const saleBuyerMatch = path.match(/^\/api\/sales\/buyers\/([^/]+)$/);
+    if (saleBuyerMatch) {
+      const buyerId = saleBuyerMatch[1];
+      if (request.method === 'PUT')
+        return handleSaleBuyerUpdate(request, env, corsHeaders, buyerId);
+      if (request.method === 'DELETE')
+        return handleSaleBuyerDelete(request, env, corsHeaders, buyerId);
+    }
+
+    // GET  /api/sales/transactions    → listar compras/pagos
+    // POST /api/sales/transactions    → registrar compra (descuenta inventario)
+    if (path === '/api/sales/transactions') {
+      if (request.method === 'GET')
+        return handleSaleTransactionsList(request, env, corsHeaders);
+      if (request.method === 'POST')
+        return handleSaleTransactionCreate(request, env, corsHeaders);
+    }
+    // PUT /api/sales/transactions/:id → cambiar estado (pagado / cancelado)
+    const saleTxMatch = path.match(/^\/api\/sales\/transactions\/([^/]+)$/);
+    if (saleTxMatch) {
+      const txId = saleTxMatch[1];
+      if (request.method === 'PUT')
+        return handleSaleTransactionUpdate(request, env, corsHeaders, txId);
+    }
+
     // ── RUTAS APA 7 ────────────────────────────────────────────
     if (path === '/api/apa/upload' && request.method === 'POST') {
       return await handleApaUpload(request, env, corsHeaders);
@@ -4253,6 +4308,486 @@ async function handleTaskDelete(request, env, corsHeaders, taskId) {
   } catch (error) {
     console.error('[Tasks] Error al eliminar:', error);
     return jsonResponse({ error: 'Error al eliminar tarea', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   VENTAS — módulo interno, todos los datos aislados por user_dni
+   Tablas: sale_listings, sale_buyers, sale_transactions (ver db/sales.sql)
+   ══════════════════════════════════════════════════════════════════════ */
+
+const CEDULA_RE = /^[A-Za-z]-\d{5,9}$/;
+
+function normalizeCedula(raw) {
+  const v = (raw || '').trim().toUpperCase().replace(/\s+/g, '');
+  return v;
+}
+
+/**
+ * GET /api/sales/listings
+ * Lista los artículos que el usuario puso a la venta.
+ */
+async function handleSaleListingsList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, product_id, product_name, product_sku, photo_r2_key,
+             quantity, unit_price, status, created_at, updated_at
+      FROM sale_listings
+      WHERE user_dni = ?
+      ORDER BY created_at DESC
+    `).bind(userDni.toUpperCase()).all();
+
+    return jsonResponse(results, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al listar listings:', error);
+    return jsonResponse({ error: 'Error al obtener artículos en venta' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * POST /api/sales/listings
+ * Pone un artículo del inventario a la venta.
+ * Body: { product_id, quantity, unit_price? }
+ */
+async function handleSaleListingCreate(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const { product_id, quantity, unit_price } = body;
+  if (!product_id) return jsonResponse({ error: 'product_id requerido' }, 400, corsHeaders);
+
+  const qty = parseInt(quantity, 10);
+  if (!qty || qty <= 0) return jsonResponse({ error: 'La cantidad debe ser mayor a 0' }, 400, corsHeaders);
+
+  try {
+    const product = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, name, sku, unit_price, photo_r2_key, quantity FROM inventory_products WHERE id = ? AND user_dni = ?'
+    ).bind(product_id, userDni).first();
+
+    if (!product) return jsonResponse({ error: 'Producto no encontrado en tu inventario' }, 404, corsHeaders);
+    if (qty > product.quantity) {
+      return jsonResponse({ error: `Solo hay ${product.quantity} unidades disponibles en inventario` }, 400, corsHeaders);
+    }
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const price = unit_price != null && unit_price !== '' ? parseFloat(unit_price) : (product.unit_price || 0);
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO sale_listings
+        (id, user_dni, product_id, product_name, product_sku, photo_r2_key,
+         quantity, unit_price, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+    `).bind(
+      id, userDni.toUpperCase(), product.id, product.name, product.sku || '',
+      product.photo_r2_key || null, qty, price, now, now
+    ).run();
+
+    return jsonResponse({ success: true, id }, 201, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al crear listing:', error);
+    return jsonResponse({ error: 'Error al poner el artículo a la venta', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * PUT /api/sales/listings/:id
+ * Actualiza cantidad, precio o estado (p. ej. 'retirado') de un listing.
+ */
+async function handleSaleListingUpdate(request, env, corsHeaders, listingId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id FROM sale_listings WHERE id = ? AND user_dni = ?'
+  ).bind(listingId, userDni.toUpperCase()).first();
+  if (!existing) return jsonResponse({ error: 'Artículo en venta no encontrado' }, 404, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const VALID_STATUS = ['active', 'agotado', 'retirado'];
+  if (body.status !== undefined && !VALID_STATUS.includes(body.status)) {
+    return jsonResponse({ error: `Estado inválido: ${body.status}` }, 400, corsHeaders);
+  }
+
+  const fields = [];
+  const values = [];
+  const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
+
+  if (body.quantity !== undefined) addField('quantity', parseInt(body.quantity, 10) || 0);
+  if (body.unit_price !== undefined) addField('unit_price', parseFloat(body.unit_price) || 0);
+  if (body.status !== undefined) addField('status', body.status);
+
+  if (fields.length === 0) return jsonResponse({ error: 'Sin campos para actualizar' }, 400, corsHeaders);
+
+  fields.push('updated_at = ?');
+  values.push(new Date().toISOString());
+  values.push(listingId, userDni.toUpperCase());
+
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `UPDATE sale_listings SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`
+    ).bind(...values).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al actualizar listing:', error);
+    return jsonResponse({ error: 'Error al actualizar artículo en venta', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * DELETE /api/sales/listings/:id
+ */
+async function handleSaleListingDelete(request, env, corsHeaders, listingId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id FROM sale_listings WHERE id = ? AND user_dni = ?'
+  ).bind(listingId, userDni.toUpperCase()).first();
+  if (!existing) return jsonResponse({ error: 'Artículo en venta no encontrado' }, 404, corsHeaders);
+
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      'DELETE FROM sale_listings WHERE id = ? AND user_dni = ?'
+    ).bind(listingId, userDni.toUpperCase()).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al eliminar listing:', error);
+    return jsonResponse({ error: 'Error al eliminar artículo en venta', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/sales/buyers
+ * Lista compradores del usuario. has_account se calcula al vuelo
+ * comprobando si la cédula coincide con el dni de un usuario registrado.
+ */
+async function handleSaleBuyersList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT b.id, b.first_name, b.last_name, b.cedula, b.phone, b.is_favorite,
+             b.created_at, b.updated_at,
+             CASE WHEN u.dni IS NOT NULL THEN 1 ELSE 0 END AS has_account
+      FROM sale_buyers b
+      LEFT JOIN users u ON u.dni = b.cedula
+      WHERE b.user_dni = ?
+      ORDER BY b.is_favorite DESC, b.last_name, b.first_name
+    `).bind(userDni.toUpperCase()).all();
+
+    return jsonResponse(results, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al listar compradores:', error);
+    return jsonResponse({ error: 'Error al obtener compradores' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * POST /api/sales/buyers
+ * Body: { first_name, last_name, cedula, phone? }
+ * cedula debe tener formato V-00000000 (letra de nacionalidad - número).
+ */
+async function handleSaleBuyerCreate(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const { first_name, last_name, phone } = body;
+  const cedula = normalizeCedula(body.cedula);
+
+  if (!first_name || !first_name.trim() || !last_name || !last_name.trim()) {
+    return jsonResponse({ error: 'Nombre y apellido son obligatorios' }, 400, corsHeaders);
+  }
+  if (!CEDULA_RE.test(cedula)) {
+    return jsonResponse({ error: 'Cédula inválida. Formato esperado: V-00000000' }, 400, corsHeaders);
+  }
+
+  try {
+    const dup = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM sale_buyers WHERE user_dni = ? AND cedula = ?'
+    ).bind(userDni.toUpperCase(), cedula).first();
+    if (dup) return jsonResponse({ error: 'Ya registraste un comprador con esa cédula' }, 409, corsHeaders);
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO sale_buyers
+        (id, user_dni, first_name, last_name, cedula, phone, is_favorite, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+    `).bind(
+      id, userDni.toUpperCase(), first_name.trim(), last_name.trim(), cedula, (phone || '').trim(), now, now
+    ).run();
+
+    const hasAccount = await env.MIRAI_AI_DB.prepare('SELECT dni FROM users WHERE dni = ?').bind(cedula).first();
+
+    return jsonResponse({ success: true, id, has_account: !!hasAccount }, 201, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al crear comprador:', error);
+    return jsonResponse({ error: 'Error al registrar comprador', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * PUT /api/sales/buyers/:id
+ * Body: Partial<{ first_name, last_name, cedula, phone, is_favorite }>
+ */
+async function handleSaleBuyerUpdate(request, env, corsHeaders, buyerId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id FROM sale_buyers WHERE id = ? AND user_dni = ?'
+  ).bind(buyerId, userDni.toUpperCase()).first();
+  if (!existing) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const fields = [];
+  const values = [];
+  const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
+
+  if (body.first_name !== undefined) addField('first_name', (body.first_name || '').trim());
+  if (body.last_name !== undefined) addField('last_name', (body.last_name || '').trim());
+  if (body.phone !== undefined) addField('phone', (body.phone || '').trim());
+  if (body.is_favorite !== undefined) addField('is_favorite', body.is_favorite ? 1 : 0);
+  if (body.cedula !== undefined) {
+    const cedula = normalizeCedula(body.cedula);
+    if (!CEDULA_RE.test(cedula)) {
+      return jsonResponse({ error: 'Cédula inválida. Formato esperado: V-00000000' }, 400, corsHeaders);
+    }
+    addField('cedula', cedula);
+  }
+
+  if (fields.length === 0) return jsonResponse({ error: 'Sin campos para actualizar' }, 400, corsHeaders);
+
+  fields.push('updated_at = ?');
+  values.push(new Date().toISOString());
+  values.push(buyerId, userDni.toUpperCase());
+
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `UPDATE sale_buyers SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`
+    ).bind(...values).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al actualizar comprador:', error);
+    return jsonResponse({ error: 'Error al actualizar comprador', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * DELETE /api/sales/buyers/:id
+ */
+async function handleSaleBuyerDelete(request, env, corsHeaders, buyerId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const existing = await env.MIRAI_AI_DB.prepare(
+    'SELECT id FROM sale_buyers WHERE id = ? AND user_dni = ?'
+  ).bind(buyerId, userDni.toUpperCase()).first();
+  if (!existing) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
+
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      'DELETE FROM sale_buyers WHERE id = ? AND user_dni = ?'
+    ).bind(buyerId, userDni.toUpperCase()).run();
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al eliminar comprador:', error);
+    return jsonResponse({ error: 'Error al eliminar comprador', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/sales/transactions?status=pendiente|pagado|cancelado
+ */
+async function handleSaleTransactionsList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const url = new URL(request.url);
+  const status = url.searchParams.get('status');
+  const VALID_STATUS = ['pendiente', 'pagado', 'cancelado'];
+  if (status && !VALID_STATUS.includes(status)) {
+    return jsonResponse({ error: `Estado inválido: ${status}` }, 400, corsHeaders);
+  }
+
+  try {
+    const query = `
+      SELECT t.id, t.buyer_id, t.listing_id, t.product_name, t.quantity,
+             t.unit_price, t.total_amount, t.status, t.notes,
+             t.created_at, t.paid_at,
+             b.first_name AS buyer_first_name, b.last_name AS buyer_last_name,
+             b.cedula AS buyer_cedula, b.phone AS buyer_phone
+      FROM sale_transactions t
+      JOIN sale_buyers b ON b.id = t.buyer_id
+      WHERE t.user_dni = ? ${status ? 'AND t.status = ?' : ''}
+      ORDER BY t.created_at DESC
+    `;
+    const stmt = status
+      ? env.MIRAI_AI_DB.prepare(query).bind(userDni.toUpperCase(), status)
+      : env.MIRAI_AI_DB.prepare(query).bind(userDni.toUpperCase());
+
+    const { results } = await stmt.all();
+    return jsonResponse(results, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al listar transacciones:', error);
+    return jsonResponse({ error: 'Error al obtener compras' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * POST /api/sales/transactions
+ * Registra una compra: descuenta del inventario y del listing.
+ * Body: { listing_id, buyer_id, quantity, notes? }
+ */
+async function handleSaleTransactionCreate(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const { listing_id, buyer_id, notes } = body;
+  const qty = parseInt(body.quantity, 10);
+
+  if (!listing_id || !buyer_id) {
+    return jsonResponse({ error: 'listing_id y buyer_id son obligatorios' }, 400, corsHeaders);
+  }
+  if (!qty || qty <= 0) {
+    return jsonResponse({ error: 'La cantidad debe ser mayor a 0' }, 400, corsHeaders);
+  }
+
+  try {
+    const listing = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, product_id, product_name, quantity, unit_price, status FROM sale_listings WHERE id = ? AND user_dni = ?'
+    ).bind(listing_id, userDni.toUpperCase()).first();
+    if (!listing) return jsonResponse({ error: 'Artículo en venta no encontrado' }, 404, corsHeaders);
+    if (listing.status !== 'active') return jsonResponse({ error: 'Este artículo ya no está disponible para la venta' }, 400, corsHeaders);
+    if (qty > listing.quantity) {
+      return jsonResponse({ error: `Solo hay ${listing.quantity} unidades disponibles` }, 400, corsHeaders);
+    }
+
+    const buyer = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM sale_buyers WHERE id = ? AND user_dni = ?'
+    ).bind(buyer_id, userDni.toUpperCase()).first();
+    if (!buyer) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const totalAmount = qty * listing.unit_price;
+    const newListingQty = listing.quantity - qty;
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO sale_transactions
+        (id, user_dni, buyer_id, listing_id, product_name, quantity,
+         unit_price, total_amount, status, notes, created_at, paid_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, NULL)
+    `).bind(
+      id, userDni.toUpperCase(), buyer_id, listing_id, listing.product_name,
+      qty, listing.unit_price, totalAmount, (notes || '').trim(), now
+    ).run();
+
+    // Descontar del listing y del inventario original
+    await env.MIRAI_AI_DB.prepare(`
+      UPDATE sale_listings SET quantity = ?, status = ?, updated_at = ? WHERE id = ?
+    `).bind(newListingQty, newListingQty <= 0 ? 'agotado' : 'active', now, listing_id).run();
+
+    await env.MIRAI_AI_DB.prepare(`
+      UPDATE inventory_products SET quantity = MAX(0, quantity - ?), updated_at = ? WHERE id = ? AND user_dni = ?
+    `).bind(qty, now, listing.product_id, userDni.toUpperCase()).run();
+
+    return jsonResponse({ success: true, id, total_amount: totalAmount }, 201, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al crear transacción:', error);
+    return jsonResponse({ error: 'Error al registrar la compra', details: error.message }, 500, corsHeaders);
+  }
+}
+
+/**
+ * PUT /api/sales/transactions/:id
+ * Body: { status: 'pagado' | 'cancelado' }
+ * Al cancelar, restaura el stock descontado al listing y al inventario.
+ */
+async function handleSaleTransactionUpdate(request, env, corsHeaders, txId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const tx = await env.MIRAI_AI_DB.prepare(
+    'SELECT id, listing_id, quantity, status FROM sale_transactions WHERE id = ? AND user_dni = ?'
+  ).bind(txId, userDni.toUpperCase()).first();
+  if (!tx) return jsonResponse({ error: 'Transacción no encontrada' }, 404, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch {
+    return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
+  }
+
+  const VALID_STATUS = ['pendiente', 'pagado', 'cancelado'];
+  if (!body.status || !VALID_STATUS.includes(body.status)) {
+    return jsonResponse({ error: 'Estado inválido' }, 400, corsHeaders);
+  }
+  if (tx.status !== 'pendiente') {
+    return jsonResponse({ error: 'Solo se pueden modificar compras pendientes' }, 400, corsHeaders);
+  }
+
+  try {
+    const now = new Date().toISOString();
+
+    if (body.status === 'cancelado') {
+      // Restaurar stock al listing y al producto de inventario
+      const listing = await env.MIRAI_AI_DB.prepare(
+        'SELECT id, product_id, quantity, status FROM sale_listings WHERE id = ?'
+      ).bind(tx.listing_id).first();
+
+      if (listing) {
+        const restoredQty = listing.quantity + tx.quantity;
+        await env.MIRAI_AI_DB.prepare(
+          `UPDATE sale_listings SET quantity = ?, status = 'active', updated_at = ? WHERE id = ?`
+        ).bind(restoredQty, now, listing.id).run();
+
+        await env.MIRAI_AI_DB.prepare(
+          `UPDATE inventory_products SET quantity = quantity + ?, updated_at = ? WHERE id = ? AND user_dni = ?`
+        ).bind(tx.quantity, now, listing.product_id, userDni.toUpperCase()).run();
+      }
+
+      await env.MIRAI_AI_DB.prepare(
+        `UPDATE sale_transactions SET status = 'cancelado' WHERE id = ? AND user_dni = ?`
+      ).bind(txId, userDni.toUpperCase()).run();
+    } else {
+      await env.MIRAI_AI_DB.prepare(
+        `UPDATE sale_transactions SET status = ?, paid_at = ? WHERE id = ? AND user_dni = ?`
+      ).bind(body.status, body.status === 'pagado' ? now : null, txId, userDni.toUpperCase()).run();
+    }
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al actualizar transacción:', error);
+    return jsonResponse({ error: 'Error al actualizar la compra', details: error.message }, 500, corsHeaders);
   }
 }
 

@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#ffffff">
-    <meta name="description" content="Mirai AI - Inventario Inteligente">
+    <meta name="description" content="Mirai AI - Ventas">
 
-    <title>Mirai AI - Inventario</title>
+    <title>Mirai AI - Ventas</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <script src="mirai-realtime.js"></script>
@@ -34,7 +34,6 @@
                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             var isDark = theme === 'dark';
 
-            // Aplicar data-theme inmediatamente para que CSS [data-theme="dark"] funcione
             document.documentElement.setAttribute('data-theme', theme);
 
             if (s.accentColor && COLORS[s.accentColor]) {
@@ -65,86 +64,284 @@
         })();
     </script>
     <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="transitions.css">
+    <link rel="stylesheet" href="transitions.css">
     <style>
-        /* ── Filtros de inventario en el panel lateral ── */
-        .sidebar-panel-section {
-            flex: 1;
-            overflow-y: auto;
-            min-height: 0;
+        /* ===== MÓDULO DE VENTAS ===== */
+        .sales-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 1rem 3rem;
         }
 
-        .sidebar-panel-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-tertiary);
-            margin: 4px 0 8px;
+        @media (min-width: 769px) {
+            .sales-container {
+                margin-left: 280px;
+                padding-left: 2rem;
+                transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
+            }
+
+            .mobile-sidebar.collapsed ~ .sales-container {
+                margin-left: 72px !important;
+            }
         }
 
-        .sidebar-filter-list {
+        .sales-stats {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin-bottom: 20px;
+            gap: .5rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+            margin-bottom: 1rem;
         }
+        .sales-stats::-webkit-scrollbar { display: none; }
 
-        .sidebar-filter-list .filter-pill {
-            width: 100%;
-            box-sizing: border-box;
-            text-align: left;
-            justify-content: flex-start;
-        }
-
-        /* ── Swipe para "Poner a la venta" ── */
-        .swipe-wrapper {
-            position: relative;
-            overflow: hidden;
-            border-radius: 16px;
-            touch-action: pan-y;
-        }
-
-        .swipe-action-layer {
-            position: absolute;
-            inset: 0;
+        .sales-stats .stat-card {
             display: flex;
-            align-items: stretch;
-            justify-content: flex-end;
-        }
-
-        .swipe-sell-btn {
-            width: 110px;
-            border: none;
-            background: linear-gradient(135deg, #16a34a, #22c55e);
-            color: #fff;
-            display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: .5rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: .5rem .85rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .sales-stats .stat-card-value {
+            font-size: 1.15rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+
+        .sales-stats .stat-card-label {
+            font-size: .7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Tabs */
+        .sales-tabs {
+            display: flex;
+            gap: .25rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 1.25rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .sales-tabs::-webkit-scrollbar { display: none; }
+
+        .sales-tab {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap;
+        }
+
+        .sales-tab.active {
+            background: var(--accent-gradient);
+            color: #fff;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        .sales-tab:not(.active):hover {
+            background: var(--secondary-container);
+            color: var(--text-primary);
+        }
+
+        .sales-tab-badge {
+            background: rgba(0, 0, 0, .15);
+            border-radius: 999px;
+            padding: 1px 7px;
+            font-size: .72rem;
+        }
+
+        .sales-view { display: none; }
+        .sales-view.active { display: block; }
+
+        /* Listado de artículos en venta — reusa .course-card */
+        .sale-listing-card .course-meta { margin-top: .4rem; }
+
+        .listing-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: .75rem;
+        }
+
+        .listing-actions button {
+            flex: 1;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .btn-sell {
+            background: var(--accent-gradient);
+            color: #fff;
+            border: none !important;
+        }
+        .btn-sell:hover { opacity: .9; }
+
+        .btn-withdraw {
+            background: var(--secondary-container);
+            color: var(--text-primary);
+        }
+        .btn-withdraw:hover { border-color: #ef4444; color: #ef4444; }
+
+        /* Tablas genéricas (compradores / pagos) */
+        .sales-table-wrap {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .sales-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+        }
+
+        .sales-table th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--glass-border);
+            white-space: nowrap;
+        }
+
+        .sales-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--glass-border);
+            vertical-align: middle;
+        }
+
+        .sales-table tr:last-child td { border-bottom: none; }
+
+        .buyer-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .account-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: .7rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+        .account-badge.yes { background: rgba(34,197,94,.14); color: #16a34a; }
+        .account-badge.no { background: rgba(148,163,184,.14); color: var(--text-tertiary); }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
             gap: 4px;
             font-size: .72rem;
             font-weight: 700;
-            text-align: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+        .status-badge.pendiente { background: rgba(234,179,8,.14); color: #ca8a04; }
+        .status-badge.pagado { background: rgba(34,197,94,.14); color: #16a34a; }
+        .status-badge.cancelado { background: rgba(239,68,68,.14); color: #ef4444; }
+
+        .fav-star {
+            background: none;
+            border: none;
             cursor: pointer;
-            padding: 8px;
+            font-size: 1.05rem;
+            line-height: 1;
+            padding: 2px;
+            opacity: .4;
         }
+        .fav-star.active { opacity: 1; }
 
-        .swipe-sell-btn .swipe-sell-icon {
-            font-size: 1.3rem;
+        .row-actions { display: flex; gap: 6px; }
+
+        .btn-icon-sm {
+            background: var(--secondary-container);
+            border: 1px solid var(--glass-border);
+            border-radius: 7px;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: .85rem;
         }
+        .btn-icon-sm:hover { border-color: var(--accent-color); }
 
-        .swipe-wrapper .course-card {
-            position: relative;
-            background: var(--glass-bg);
-            will-change: transform;
-        }
-
-        .swipe-hint {
+        .empty-view {
             text-align: center;
-            font-size: .78rem;
-            color: var(--text-tertiary);
-            margin: -0.5rem 0 1rem;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+        .empty-view .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+
+        /* Selector de comprador dentro del modal de compra */
+        .buyer-picker {
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .buyer-picker-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: .85rem;
+        }
+        .buyer-picker-item:last-child { border-bottom: none; }
+        .buyer-picker-item:hover { background: var(--secondary-container); }
+        .buyer-picker-item.selected { background: var(--accent-gradient); color: #fff; }
+
+        .purchase-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: var(--secondary-container);
+            border-radius: 10px;
+            font-weight: 700;
+            margin-top: .5rem;
+        }
+
+        .cedula-row {
+            display: grid;
+            grid-template-columns: 90px 1fr;
+            gap: 8px;
         }
     </style>
 </head>
@@ -165,7 +362,6 @@
         </div>
 
         <div class="sidebar-content">
-            <!-- Sección 1: Navegación (Desplegable con Grid de Iconos) -->
             <section class="sidebar-section"><h4>Navegación</h4>
                 <div class="collapsible-content nav-collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem;">
                     <div class="nav-grid">
@@ -193,11 +389,11 @@
                             <span class="nav-icon">🏫</span>
                             <span class="nav-label">Aula</span>
                         </a>
-                        <a href="inventory" class="nav-grid-item active-link" data-tooltip="Inventario">
+                        <a href="inventory" class="nav-grid-item" data-tooltip="Inventario">
                             <span class="nav-icon">📦</span>
                             <span class="nav-label">Inventario</span>
                         </a>
-                        <a href="sales" class="nav-grid-item" data-tooltip="Ventas">
+                        <a href="sales" class="nav-grid-item active-link" data-tooltip="Ventas">
                             <span class="nav-icon">🛒</span>
                             <span class="nav-label">Ventas</span>
                         </a>
@@ -243,26 +439,15 @@
                 </div>
             </section>
 
-            <!-- Sección 2: Conversaciones (Ocupa el máximo espacio) -->
             <section class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <h4>Inventario</h4>
-                <div class="sidebar-panel-section">
-                    <p class="sidebar-panel-label">Categoría</p>
-                    <div class="filter-pills sidebar-filter-list" id="filter-pills">
-                        <button class="filter-pill active" data-category="todos">Todos</button>
-                        <button class="filter-pill" data-category="electronica">💻 Electrónica</button>
-                        <button class="filter-pill" data-category="material">📝 Material</button>
-                        <button class="filter-pill" data-category="mobiliario">🪑 Mobiliario</button>
-                        <button class="filter-pill" data-category="consumibles">🧴 Consumibles</button>
-                        <button class="filter-pill" data-category="software">💿 Software</button>
-                    </div>
-
-                    <p class="sidebar-panel-label">Nivel de stock</p>
-                    <div class="filter-pills sidebar-filter-list" id="stock-filter">
-                        <button class="filter-pill active" data-stock="all">Todo</button>
-                        <button class="filter-pill" data-stock="available">Disponible</button>
-                        <button class="filter-pill" data-stock="low">Stock Bajo</button>
-                        <button class="filter-pill" data-stock="critical">Crítico</button>
+                <h4>Ventas</h4>
+                <div class="sidebar-panel-section" style="flex:1; overflow-y:auto; min-height:0;">
+                    <p class="sidebar-panel-label" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-tertiary);margin:4px 0 8px;">Vista</p>
+                    <div class="filter-pills sidebar-filter-list" id="sidebar-view-pills" style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;">
+                        <button class="filter-pill active" data-view="listings" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">📦 Inventario en Venta</button>
+                        <button class="filter-pill" data-view="pending" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">⏳ Pagos Pendientes</button>
+                        <button class="filter-pill" data-view="paid" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">✅ Pagos Realizados</button>
+                        <button class="filter-pill" data-view="buyers" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">👤 Compradores</button>
                     </div>
                 </div>
             </section>
@@ -298,7 +483,6 @@
             </div>
         </div>
 
-        <!-- Footer del sidebar -->
         <div class="sidebar-footer">
             <p>&copy;
                 <script>document.write(new Date().getFullYear())</script> Aberu & Mirai Company
@@ -315,220 +499,239 @@
             <span class="hamburger-line"></span>
         </button>
 
-        <div class="header-title">Inventario Inteligente</div>
+        <div class="header-title">Ventas</div>
 
-        <button id="add-product-btn" class="btn-primary" title="">
+        <button id="new-purchase-btn" class="btn-primary" title="Registrar compra">
             <svg viewBox="0 0 24 24" width="18" height="18">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
             </svg>
-            <span></span>
+            <span>Nueva Venta</span>
         </button>
     </header>
 
-    <!-- Contenedor Principal -->
-    <div class="courses-container">
+    <div class="sales-container">
 
-        <!-- Hero -->
         <div class="courses-hero">
-            <h1>Inventario Inteligente</h1>
-            <p>Gestión predictiva y automatizada de productos con IA. Sube fotos y deja que Mirai AI haga el resto.</p>
+            <h1>Ventas</h1>
+            <p>Gestiona los artículos que pusiste a la venta desde el inventario, tus compradores y el estado de los pagos. Uso interno — solo tú puedes ver estos datos.</p>
         </div>
 
-        <!-- Estadísticas Rápidas -->
-        <div class="inventory-stats">
+        <!-- Estadísticas -->
+        <div class="sales-stats">
             <div class="stat-card">
                 <div class="stat-icon">📦</div>
                 <div class="stat-content">
-                    <span class="stat-label">Total Productos</span>
-                    <span class="stat-value" id="total-products">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">⚠️</div>
-                <div class="stat-content">
-                    <span class="stat-label">Stock Bajo</span>
-                    <span class="stat-value warning" id="low-stock">0</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🤖</div>
-                <div class="stat-content">
-                    <span class="stat-label">Analizados por IA</span>
-                    <span class="stat-value" id="ai-analyzed">0</span>
+                    <span class="stat-card-label">En Venta</span>
+                    <span class="stat-card-value" id="stat-listings">0</span>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">💰</div>
                 <div class="stat-content">
-                    <span class="stat-label">Valor Total</span>
-                    <span class="stat-value" id="total-value">$0</span>
+                    <span class="stat-card-label">Valor en Venta</span>
+                    <span class="stat-card-value" id="stat-listings-value">$0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-content">
+                    <span class="stat-card-label">Pendientes</span>
+                    <span class="stat-card-value" id="stat-pending">0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <span class="stat-card-label">Cobrado</span>
+                    <span class="stat-card-value" id="stat-paid-value">$0</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👤</div>
+                <div class="stat-content">
+                    <span class="stat-card-label">Compradores</span>
+                    <span class="stat-card-value" id="stat-buyers">0</span>
                 </div>
             </div>
         </div>
 
-        <!-- Barra de Búsqueda y Filtros -->
-        <div class="courses-toolbar">
-            <div class="courses-search">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                </svg>
-                <input type="text" id="inventory-search" placeholder="Buscar productos por nombre, SKU o tags..."
-                    autocomplete="off">
+        <!-- Tabs -->
+        <div class="sales-tabs">
+            <button class="sales-tab active" data-view="listings">📦 Inventario en Venta <span class="sales-tab-badge" id="badge-listings">0</span></button>
+            <button class="sales-tab" data-view="pending">⏳ Pagos Pendientes <span class="sales-tab-badge" id="badge-pending">0</span></button>
+            <button class="sales-tab" data-view="paid">✅ Pagos Realizados <span class="sales-tab-badge" id="badge-paid">0</span></button>
+            <button class="sales-tab" data-view="buyers">👤 Compradores <span class="sales-tab-badge" id="badge-buyers">0</span></button>
+        </div>
+
+        <!-- Vista: Inventario en Venta -->
+        <div class="sales-view active" id="view-listings">
+            <div class="courses-grid" id="listings-grid"></div>
+        </div>
+
+        <!-- Vista: Pagos Pendientes -->
+        <div class="sales-view" id="view-pending">
+            <div class="sales-table-wrap">
+                <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Comprador</th>
+                            <th>Cant.</th>
+                            <th>Total</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-rows"></tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Contador -->
-        <div class="courses-count" id="inventory-count">Mostrando 0 productos</div>
-        <p class="swipe-hint">👈 Desliza un producto hacia la izquierda para ponerlo a la venta</p>
-
-        <!-- Grid de Productos -->
-        <div class="courses-grid" id="inventory-grid">
-
-            <!-- Los productos se cargarán dinámicamente desde inventory.js -->
-
-            <!-- Sin resultados (oculto por defecto) -->
-            <div class="no-results" id="no-results" style="display: none;">
-                <div class="no-results-icon">📦</div>
-                <p>No se encontraron productos con ese filtro</p>
-                <button class="btn-secondary" id="btn-add-first">Agregar tu primer producto</button>
+        <!-- Vista: Pagos Realizados -->
+        <div class="sales-view" id="view-paid">
+            <div class="sales-table-wrap">
+                <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Comprador</th>
+                            <th>Cant.</th>
+                            <th>Total</th>
+                            <th>Pagado el</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paid-rows"></tbody>
+                </table>
             </div>
+        </div>
 
-        </div><!-- /courses-grid -->
+        <!-- Vista: Compradores -->
+        <div class="sales-view" id="view-buyers">
+            <div class="courses-toolbar" style="margin-bottom:1rem;">
+                <div class="courses-search">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                    </svg>
+                    <input type="text" id="buyer-search" placeholder="Buscar por nombre o cédula..." autocomplete="off">
+                </div>
+                <button class="btn-primary" id="new-buyer-btn">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+                    <span>Registrar Comprador</span>
+                </button>
+            </div>
+            <div class="sales-table-wrap">
+                <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Nombre</th>
+                            <th>Cédula</th>
+                            <th>Teléfono</th>
+                            <th>Cuenta</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buyers-rows"></tbody>
+                </table>
+            </div>
+        </div>
 
-    </div><!-- /courses-container -->
+    </div><!-- /sales-container -->
 
-    <!-- Modal para Agregar Producto -->
-    <!-- Modal para Agregar/Editar Producto (Mejorado) -->
-    <div id="add-product-modal" class="modal hidden">
+    <!-- Modal: Registrar / Editar Comprador -->
+    <div id="buyer-modal" class="modal hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content slide-up">
             <button class="modal-close">&times;</button>
-
-            <!-- Cabecera Dinámica -->
             <div class="modal-header">
-                <h2 id="modal-title">📦 Nuevo Producto Inteligente</h2>
-                <p class="modal-subtitle">Sube una foto y deja que la IA analice y genere la descripción</p>
+                <h2 id="buyer-modal-title">👤 Registrar Comprador</h2>
+                <p class="modal-subtitle">Estos datos son privados y solo tú puedes verlos.</p>
             </div>
-
-            <form id="inventory-form">
-                <!-- Zona de Carga de Foto -->
-                <div class="upload-zone" id="inventory-dropzone">
-                    <input type="file" id="inv-photo" accept="image/*" hidden>
-                    <div class="upload-icon">📸</div>
-                    <p class="upload-text">Haz clic o arrastra una foto del producto</p>
-                    <p class="upload-hint">Formatos soportados: JPG, PNG, WEBP (Máx 10MB)</p>
-                    <img id="preview-img"
-                        style="max-width: 100%; display: none; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                </div>
-
-                <!-- Campos del Formulario -->
+            <form id="buyer-form">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="inv-name">Nombre del Producto *</label>
-                        <input type="text" id="inv-name" placeholder="Ej: Laptop Gaming ASUS" required>
+                        <label for="buyer-first-name">Nombre *</label>
+                        <input type="text" id="buyer-first-name" required placeholder="Ej: María">
                     </div>
                     <div class="form-group">
-                        <label for="inv-sku">SKU (Opcional - Se genera automáticamente si está vacío)</label>
-                        <input type="text" id="inv-sku" placeholder="Ej: LAP-ASUS-001 (déjalo vacío para automático)">
-                        <small class="field-hint">Si no lo conoces, déjalo vacío y el sistema generará uno
-                            único.</small>
+                        <label for="buyer-last-name">Apellido *</label>
+                        <input type="text" id="buyer-last-name" required placeholder="Ej: Pérez">
                     </div>
                 </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="inv-category">Categoría</label>
-                        <select id="inv-category">
-                            <option value="electronica">Electrónica</option>
-                            <option value="material">Material</option>
-                            <option value="mobiliario">Mobiliario</option>
-                            <option value="consumibles">Consumibles</option>
-                            <option value="software">Software</option>
+                <div class="form-group">
+                    <label for="buyer-cedula-number">Cédula *</label>
+                    <div class="cedula-row">
+                        <select id="buyer-cedula-nat">
+                            <option value="V">V</option>
+                            <option value="E">E</option>
+                            <option value="J">J</option>
+                            <option value="P">P</option>
+                            <option value="G">G</option>
                         </select>
+                        <input type="text" id="buyer-cedula-number" required placeholder="00000000" inputmode="numeric" pattern="\d{5,9}">
                     </div>
-                    <div class="form-group">
-                        <label for="inv-quantity">Cantidad Inicial</label>
-                        <input type="number" id="inv-quantity" min="0" value="0">
-                    </div>
+                    <small class="field-hint">Formato: V-00000000 (nacionalidad - número de identificación)</small>
                 </div>
-
                 <div class="form-group">
-                    <label for="inv-specs">Especificaciones Técnicas (Opcional)</label>
-                    <textarea id="inv-specs" placeholder="Ej: 16GB RAM, 512GB SSD, Intel i7, Pantalla 15.6&quot;"
-                        rows="3"></textarea>
+                    <label for="buyer-phone">Teléfono</label>
+                    <input type="tel" id="buyer-phone" placeholder="Ej: 0414-1234567">
                 </div>
-
-                <div class="form-group">
-                    <label for="inv-price">Precio Unitario ($)</label>
-                    <input type="number" id="inv-price" min="0" step="0.01" placeholder="0.00">
-                </div>
-
-                <!-- Indicador de Proceso IA -->
-                <div id="ai-processing" class="ai-status hidden">
-                    <div class="ai-spinner"></div>
-                    <div class="ai-text">
-                        <strong>🤖 Mirai AI está analizando...</strong>
-                        <p>Identificando producto, generando descripción y calculando predicción</p>
-                    </div>
-                </div>
-
-                <!-- Botones de Acción -->
+                <div id="buyer-status" class="status-message"></div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary modal-cancel">Cancelar</button>
-                    <button type="submit" class="btn-primary" id="btn-submit-inv">
-                        <span class="btn-text">Registrar y Analizar con IA</span>
-                        <span class="btn-loading hidden">⏳ Procesando...</span>
+                    <button type="submit" class="btn-primary" id="btn-submit-buyer">
+                        <span class="btn-text">Guardar Comprador</span>
                     </button>
                 </div>
-
-                <!-- Mensaje de Estado -->
-                <div id="inv-status" class="status-message"></div>
             </form>
         </div>
     </div>
 
-    <!-- Modal: Poner producto a la venta -->
-    <div id="sell-modal" class="modal hidden">
+    <!-- Modal: Nueva Venta / Compra -->
+    <div id="purchase-modal" class="modal hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content slide-up">
             <button class="modal-close">&times;</button>
             <div class="modal-header">
-                <h2 id="sell-modal-title">🏷️ Poner a la venta</h2>
-                <p class="modal-subtitle" id="sell-modal-subtitle"></p>
+                <h2>🛒 Registrar Venta</h2>
+                <p class="modal-subtitle">Se descontará automáticamente del inventario.</p>
             </div>
-            <form id="sell-form">
-                <input type="hidden" id="sell-product-id">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="sell-quantity">Cantidad a vender *</label>
-                        <input type="number" id="sell-quantity" min="1" required>
-                        <small class="field-hint" id="sell-quantity-hint"></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="sell-price">Precio unitario ($) *</label>
-                        <input type="number" id="sell-price" min="0" step="0.01" required>
-                    </div>
+            <form id="purchase-form">
+                <div class="form-group">
+                    <label for="purchase-listing">Artículo *</label>
+                    <select id="purchase-listing" required></select>
                 </div>
-                <div id="sell-status" class="status-message"></div>
+                <div class="form-group">
+                    <label for="purchase-quantity">Cantidad *</label>
+                    <input type="number" id="purchase-quantity" min="1" value="1" required>
+                    <small class="field-hint" id="purchase-available-hint"></small>
+                </div>
+
+                <div class="form-group">
+                    <label>Comprador *</label>
+                    <input type="text" id="purchase-buyer-search" placeholder="Buscar comprador por nombre o cédula...">
+                    <div class="buyer-picker" id="purchase-buyer-picker"></div>
+                    <button type="button" class="btn-secondary" id="purchase-new-buyer-btn" style="margin-top:8px;width:100%;">+ Registrar nuevo comprador</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="purchase-notes">Notas (opcional)</label>
+                    <textarea id="purchase-notes" rows="2" placeholder="Ej: Pago en 2 partes, entrega el viernes..."></textarea>
+                </div>
+
+                <div class="purchase-total">
+                    <span>Total</span>
+                    <span id="purchase-total-amount">$0.00</span>
+                </div>
+
+                <div id="purchase-status" class="status-message"></div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary modal-cancel">Cancelar</button>
-                    <button type="submit" class="btn-primary" id="btn-submit-sell">
-                        <span class="btn-text">Poner a la Venta</span>
+                    <button type="submit" class="btn-primary" id="btn-submit-purchase">
+                        <span class="btn-text">Confirmar Venta</span>
                     </button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- Modal para Ver Detalles del Producto -->
-    <div id="product-detail-modal" class="modal hidden">
-        <div class="modal-overlay"></div>
-        <div class="modal-content modal-large">
-            <button class="modal-close">&times;</button>
-            <div id="product-detail-content">
-                <!-- Se llenará dinámicamente -->
-            </div>
         </div>
     </div>
 
@@ -536,14 +739,14 @@
     <script src="mirai-boot.js"></script>
     <script src="auth-guard.js"></script>
     <script type="module" src="app.js" defer></script>
-    <script type="module" src="inventory.js" defer></script>
-<script src="transitions.js"></script>
-<script src="notifications.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        miraiEnsureSubscribed();
-    });
-</script>
+    <script type="module" src="sales.js" defer></script>
+    <script src="transitions.js"></script>
+    <script src="notifications.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            miraiEnsureSubscribed();
+        });
+    </script>
 </body>
 
 </html>
