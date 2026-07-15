@@ -778,6 +778,11 @@ function switchTab(tab) {
     // Contenido
     $('#tab-pending').style.display   = tab === 'pending'   ? '' : 'none';
     $('#tab-completed').style.display = tab === 'completed' ? '' : 'none';
+    $('#tab-manage').style.display    = tab === 'manage'    ? '' : 'none';
+
+    if (tab === 'manage' && typeof loadManageReports === 'function') {
+        loadManageReports();
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -826,9 +831,11 @@ async function init() {
     if (window.miraiUserReady) await window.miraiUserReady;
     const user = getUser();
 
-    // Mostrar botón de panel admin si el usuario es profesor
-    if (user.role === 'teacher') {
+    // Mostrar la pestaña "Gestionar" si el usuario es profesor o administrador
+    const canManageReports = user.role === 'teacher' || user.role === 'admin';
+    if (canManageReports) {
         $$('.admin-only').forEach(el => el.style.display = 'inline-flex');
+        bindManageEvents();
     }
 
     // Cargar reportes y enlazar eventos
@@ -873,7 +880,839 @@ function initRealtimeReports() {
         showToast(`📩 Nueva entrega de ${sub.student_dni} en "${sub.report_title}"`);
       }
     });
+
+    // Si la pestaña de gestión está abierta, refrescarla también
+    if (activeTab === 'manage' && typeof loadManageReports === 'function') {
+        loadManageReports();
+    }
   });
- 
+
   rt.start();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GESTIÓN DE REPORTES (profesores y administradores)
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Todo lo que sigue habilita, dentro de esta misma página, crear/editar/eliminar
+// reportes, asignarlos a una sección completa (como en classroom_admin.html) o a
+// personas puntuales, y revisar las respuestas recibidas. Solo se activa para
+// usuarios con role 'teacher' o 'admin' (ver bindManageEvents() en init()).
+
+/** @type {Array<Object>} Reportes visibles en la pestaña "Gestionar" */
+let manageReports = [];
+
+/** @type {Array<Object>} Usuarios (cualquier rol) para el buscador de acceso individual */
+let allUsers = [];
+
+/** @type {Array<Object>} Secciones disponibles para asignar (propias, o todas si es admin) */
+let reportSections = [];
+
+/** @type {string|null} ID del reporte en edición; null = creando uno nuevo */
+let editingReportId = null;
+
+/** Contador incremental para IDs de preguntas dentro del DOM del constructor */
+let qCounter = 0;
+
+function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ── Datos demo (fallback si la API no responde) ────────────────────────────────
+
+function getDemoManageReports() {
+    return [
+        {
+            id: 'r_demo_1',
+            title: 'Reporte de práctica semanal',
+            description: 'Documenta las actividades realizadas durante la semana de práctica.',
+            icon: '📋',
+            deadline: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+            active: true,
+            questions: [
+                { id: 'q1', type: 'text',  label: '¿Qué actividades realizaste esta semana?' },
+                { id: 'q2', type: 'select', label: 'Nivel de dificultad', options: ['Fácil', 'Medio', 'Difícil'] },
+            ],
+            access: ['s_demo_1', 's_demo_2'],
+            individualAccess: ['s_demo_1', 's_demo_2'],
+            sectionId: null,
+            sectionName: null,
+        },
+    ];
+}
+
+function getDemoUsers() {
+    return [
+        { id: 's_demo_1', name: 'Ana García',  email: 'ana@email.com' },
+        { id: 's_demo_2', name: 'Luis Pérez',  email: 'luis@email.com' },
+        { id: 's_demo_3', name: 'María López', email: 'maria@email.com' },
+    ];
+}
+
+function getDemoSubmissionsFor(reportId) {
+    const report = manageReports.find(r => r.id === reportId);
+    if (!report || !report.questions) return [];
+
+    return (report.access || []).slice(0, 1).map(userId => {
+        const u = allUsers.find(s => s.id === userId);
+        const answers = {};
+        report.questions.forEach(q => {
+            if (q.type === 'text')   answers[q.id] = 'Respuesta de ejemplo.';
+            if (q.type === 'select') answers[q.id] = q.options?.[0] || 'Opción 1';
+            if (q.type === 'time')   answers[q.id] = '09:30';
+            if (q.type === 'date')   answers[q.id] = new Date().toISOString().slice(0, 10);
+            if (q.type === 'image')  answers[q.id] = null;
+        });
+        return {
+            id: uid(), reportId, studentId: userId,
+            studentName: u?.name || userId,
+            submittedAt: new Date().toISOString(),
+            answers,
+        };
+    });
+}
+
+// ── Carga de datos ──────────────────────────────────────────────────────────────
+
+async function loadManageReports() {
+    setLoading(true);
+    try {
+        manageReports = await api('/api/reports');
+    } catch (err) {
+        console.warn('[ReportManage] API no disponible, usando demo:', err.message);
+        manageReports = getDemoManageReports();
+        showToast('ℹ️ Modo demo — conecta tu API para persistir datos.');
+    } finally {
+        setLoading(false);
+        renderManageReports();
+    }
+}
+
+async function loadAllUsers() {
+    try {
+        allUsers = await api('/api/students');
+    } catch (err) {
+        allUsers = getDemoUsers();
+    }
+}
+
+async function loadReportSections() {
+    const select = $('#report-section-select');
+    try {
+        reportSections = await api('/api/report-sections');
+    } catch (err) {
+        reportSections = [];
+    }
+
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">Sin sección (solo acceso individual)</option>' +
+        reportSections.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}${s.course_title ? ' — ' + escapeHtml(s.course_title) : ''} (${s.student_count} estudiante${s.student_count !== 1 ? 's' : ''})</option>`).join('');
+    if (current) select.value = current;
+}
+
+// ── Renderizado de la lista ──────────────────────────────────────────────────────
+
+function renderManageReports(filter = '') {
+    const list  = $('#reports-list');
+    const empty = $('#manage-empty-state');
+    if (!list) return;
+
+    const query    = filter.toLowerCase().trim();
+    const filtered = manageReports.filter(r =>
+        r.title.toLowerCase().includes(query) ||
+        (r.description || '').toLowerCase().includes(query)
+    );
+
+    list.innerHTML = '';
+
+    if (filtered.length === 0) {
+        if (empty) empty.style.display = 'block';
+        return;
+    }
+
+    if (empty) empty.style.display = 'none';
+
+    filtered.forEach(r => list.appendChild(buildManageReportCard(r)));
+}
+
+function buildManageReportCard(r) {
+    const accessCount = (r.access || []).length;
+    const qCount      = (r.questions || []).length;
+    const deadlineBadge = r.deadline ? buildManageDeadlineBadge(r.deadline) : '';
+    const sectionChip = r.sectionId
+        ? `<span class="report-meta-chip section-chip">🏫 ${escapeHtml(r.sectionName || 'Sección')}</span>`
+        : '';
+
+    const card = document.createElement('div');
+    card.className  = 'report-card';
+    card.dataset.id = r.id;
+    card.dataset.reportId = r.id;
+
+    card.innerHTML = `
+        <div class="report-card-icon">${escapeHtml(r.icon || '📋')}</div>
+
+        <div class="report-card-info">
+            <div class="report-card-title">${escapeHtml(r.title)}</div>
+            <div class="report-card-meta">
+                <span class="report-meta-chip">❓ ${qCount} pregunta${qCount !== 1 ? 's' : ''}</span>
+                <span class="report-meta-chip">👥 ${accessCount} con acceso</span>
+                ${sectionChip}
+                ${deadlineBadge}
+            </div>
+        </div>
+
+        <label class="status-toggle" title="${r.active ? 'Desactivar' : 'Activar'} reporte">
+            <div class="toggle-switch">
+                <input type="checkbox" class="toggle-active" data-id="${r.id}" ${r.active ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+            </div>
+            <span style="font-size:0.78rem; color:var(--text-secondary,#888);">${r.active ? 'Activo' : 'Inactivo'}</span>
+        </label>
+
+        <div class="report-card-actions">
+            <button class="btn-icon btn-submissions" data-id="${r.id}" title="Ver respuestas" aria-label="Ver respuestas">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+            </button>
+            <button class="btn-icon btn-edit" data-id="${r.id}" title="Editar" aria-label="Editar reporte">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+            </button>
+            <button class="btn-icon danger btn-delete" data-id="${r.id}" title="Eliminar" aria-label="Eliminar reporte">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+            </button>
+        </div>
+    `;
+
+    return card;
+}
+
+function buildManageDeadlineBadge(deadline) {
+    const d    = new Date(deadline + 'T00:00:00');
+    const now  = new Date();
+    const diff = Math.ceil((d - now) / 86400000);
+
+    let style, label;
+    if (diff < 0)        { style = 'background:#FFEBEE;color:#C62828;'; label = 'Vencido'; }
+    else if (diff === 0) { style = 'background:#FFEBEE;color:#C62828;'; label = 'Hoy'; }
+    else if (diff <= 2)  { style = 'background:#FFF8E1;color:#F57F17;'; label = `${diff}d restantes`; }
+    else                 { style = '';                                   label = deadline; }
+
+    return `<span class="report-meta-chip" style="${style}">📅 ${escapeHtml(label)}</span>`;
+}
+
+// ── Modal de crear / editar ──────────────────────────────────────────────────────
+
+async function openReportModal(reportId = null) {
+    editingReportId = reportId;
+    qCounter = 0;
+
+    $('#report-title-input').value = '';
+    $('#report-desc-input').value  = '';
+    $('#report-deadline').value    = '';
+    $('#report-icon').value        = '📋';
+    $('#questions-list').innerHTML = '';
+    $('#report-section-select').value = '';
+
+    await loadReportSections();
+
+    if (reportId) {
+        $('#manage-modal-title').textContent = 'Editar Reporte';
+        const r = manageReports.find(x => x.id === reportId);
+        if (r) {
+            $('#report-title-input').value = r.title       || '';
+            $('#report-desc-input').value  = r.description || '';
+            $('#report-deadline').value    = r.deadline    || '';
+            $('#report-icon').value        = r.icon        || '📋';
+            if (r.sectionId) $('#report-section-select').value = r.sectionId;
+            (r.questions || []).forEach(q => addQuestionToDOM(q.type, q));
+        }
+    } else {
+        $('#manage-modal-title').textContent = 'Crear Reporte';
+    }
+
+    await renderStudentAccessList(reportId);
+    toggleModal('modal-report', true);
+}
+
+function closeReportModal() {
+    toggleModal('modal-report', false);
+    editingReportId = null;
+    window._reportAccessMap = {};
+}
+
+// ── Acceso individual: búsqueda y gestión ─────────────────────────────────────────
+
+function maskEmail(email) {
+    if (!email || !email.includes('@')) return email;
+    const [local, domain] = email.split('@');
+    const [domName, ...domExt] = domain.split('.');
+
+    const maskPart = str => str.length <= 2
+        ? str[0] + '*'.repeat(str.length - 1)
+        : str[0] + '*'.repeat(str.length - 2) + str[str.length - 1];
+
+    return maskPart(local) + '@' + maskPart(domName) + '.' + domExt.join('.');
+}
+
+async function renderStudentAccessList(reportId) {
+    const container = $('#student-list');
+    if (!container) return;
+
+    await loadAllUsers();
+
+    // Al editar, precargar solo el acceso individual (no los de la sección,
+    // esos se gestionan desde el selector de sección de arriba)
+    const currentAccess = reportId
+        ? (manageReports.find(r => r.id === reportId)?.individualAccess || [])
+        : [];
+
+    window._reportAccessMap = {};
+
+    container.innerHTML = `
+        <div style="display:flex; gap:8px; margin-bottom:0.7rem;">
+            <input
+                class="form-input"
+                type="text"
+                id="access-search-dni"
+                placeholder="Buscar por cédula…"
+                maxlength="20"
+                style="flex:1;"
+                aria-label="Buscar usuario por cédula">
+            <button class="btn-save" type="button" id="access-search-btn"
+                style="padding:9px 16px; white-space:nowrap;">
+                Buscar
+            </button>
+        </div>
+        <div id="access-search-result" style="margin-bottom:0.7rem; min-height:36px;"></div>
+        <div id="access-added-list" style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;"></div>
+    `;
+
+    if (currentAccess.length > 0) {
+        currentAccess.forEach(dni => {
+            const found = allUsers.find(s => String(s.id) === String(dni));
+            if (found) {
+                window._reportAccessMap[String(dni)] = {
+                    dni:       String(found.id),
+                    firstName: found.name?.split(' ')[0] || '',
+                    lastName:  found.name?.split(' ').slice(1).join(' ') || '',
+                    email:     found.email || '',
+                };
+            } else {
+                window._reportAccessMap[String(dni)] = { dni: String(dni), firstName: '—', lastName: '', email: '' };
+            }
+        });
+        renderAccessAddedList();
+    }
+
+    $('#access-search-btn').addEventListener('click', searchUserByDni);
+    $('#access-search-dni').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); searchUserByDni(); }
+    });
+}
+
+async function searchUserByDni() {
+    const input    = $('#access-search-dni');
+    const resultEl = $('#access-search-result');
+    const dni      = input?.value.trim();
+
+    if (!dni) { showToast('Escribe una cédula para buscar.'); return; }
+
+    resultEl.innerHTML = `<span style="font-size:0.82rem;color:var(--text-secondary,#888);">Buscando…</span>`;
+
+    try {
+        const user = await api(`/api/users/search?dni=${encodeURIComponent(dni)}`);
+        renderSearchResult(user, resultEl);
+    } catch (err) {
+        resultEl.innerHTML = `<span style="font-size:0.82rem;color:#e53935;">Usuario no encontrado.</span>`;
+    }
+}
+
+function renderSearchResult(user, container) {
+    const dni         = String(user.dni);
+    const already     = !!window._reportAccessMap[dni];
+    const initials    = ((user.first_name?.[0] || '') + (user.last_name?.[0] || '')).toUpperCase() || '?';
+    const maskedEmail = maskEmail(user.email || '');
+
+    container.innerHTML = `
+        <div class="student-row" style="background:var(--secondary-container,#E8DEF8);">
+            <div class="student-avatar">${escapeHtml(initials)}</div>
+            <div style="flex:1; min-width:0;">
+                <div class="student-name">${escapeHtml(user.first_name)} ${escapeHtml(user.last_name)}</div>
+                <div class="student-email">${escapeHtml(maskedEmail)}</div>
+            </div>
+            <button class="btn-save" type="button" id="access-add-btn"
+                style="padding:7px 14px; font-size:0.82rem; ${already ? 'opacity:.5;cursor:not-allowed;' : ''}">
+                ${already ? 'Agregado' : '+ Agregar'}
+            </button>
+        </div>
+    `;
+
+    if (!already) {
+        $('#access-add-btn').addEventListener('click', () => {
+            window._reportAccessMap[dni] = {
+                dni,
+                firstName: user.first_name || '',
+                lastName:  user.last_name  || '',
+                email:     user.email      || '',
+            };
+            renderAccessAddedList();
+            container.innerHTML = '';
+            $('#access-search-dni').value = '';
+            showToast('✅ Usuario agregado al reporte.');
+        });
+    }
+}
+
+function renderAccessAddedList() {
+    const list = $('#access-added-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const entries = Object.values(window._reportAccessMap || {});
+
+    if (entries.length === 0) {
+        list.innerHTML = '<p style="font-size:0.8rem;color:var(--text-secondary,#aaa);text-align:center;padding:0.5rem 0;">Sin usuarios agregados aún.</p>';
+        return;
+    }
+
+    entries.forEach(u => {
+        const initials    = ((u.firstName?.[0] || '') + (u.lastName?.[0] || '')).toUpperCase() || '?';
+        const maskedEmail = maskEmail(u.email || '');
+
+        const row = document.createElement('div');
+        row.className = 'student-row';
+        row.innerHTML = `
+            <div class="student-avatar">${escapeHtml(initials)}</div>
+            <div style="flex:1; min-width:0;">
+                <div class="student-name">${escapeHtml(u.firstName)} ${escapeHtml(u.lastName)}</div>
+                <div class="student-email">${escapeHtml(maskedEmail)}</div>
+            </div>
+            <button class="btn-icon danger btn-remove-access" data-dni="${escapeHtml(u.dni)}" title="Quitar acceso">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+            </button>
+        `;
+
+        row.querySelector('.btn-remove-access').addEventListener('click', () => {
+            delete window._reportAccessMap[u.dni];
+            renderAccessAddedList();
+        });
+
+        list.appendChild(row);
+    });
+}
+
+// ── Constructor de preguntas ──────────────────────────────────────────────────────
+
+const QUESTION_TYPE_LABELS = {
+    text:   'Texto',
+    select: 'Selección',
+    time:   'Hora',
+    date:   'Fecha',
+    image:  'Imagen',
+};
+
+function addQuestionToDOM(type, existing = null) {
+    const domId = `q${++qCounter}`;
+    const item  = document.createElement('div');
+    item.className    = 'question-item';
+    item.dataset.qid   = existing?.id || domId;
+    item.dataset.type  = type;
+
+    let extraHtml = '';
+
+    if (type === 'select') {
+        const opts = existing?.options?.length ? existing.options : ['', ''];
+        const optsHtml = opts.map((o, i) => buildOptionRowHTML(o, i)).join('');
+        extraHtml = `
+            <div class="options-list">${optsHtml}</div>
+            <button class="btn-add-opt" type="button">+ Añadir opción</button>
+        `;
+    } else if (type === 'image') {
+        extraHtml = `<p class="form-hint">El usuario podrá subir una o más imágenes (JPG, PNG, WebP · máx 5 MB c/u).</p>`;
+    } else if (type === 'time') {
+        extraHtml = `<p class="form-hint">Campo de hora (HH:MM).</p>`;
+    } else if (type === 'date') {
+        extraHtml = `<p class="form-hint">Campo de fecha (YYYY-MM-DD).</p>`;
+    }
+
+    item.innerHTML = `
+        <div class="question-item-header">
+            <span class="question-type-badge">${escapeHtml(QUESTION_TYPE_LABELS[type] || type)}</span>
+            <button class="remove-q" type="button" title="Eliminar pregunta" aria-label="Eliminar pregunta">✕</button>
+        </div>
+        <div class="form-group" style="margin-bottom:0.4rem;">
+            <input class="form-input q-label" type="text"
+                placeholder="Escribe la pregunta…"
+                value="${escapeHtml(existing?.label || '')}"
+                aria-label="Texto de la pregunta">
+        </div>
+        ${extraHtml}
+    `;
+
+    item.querySelector('.remove-q').addEventListener('click', () => item.remove());
+
+    const optionsList = item.querySelector('.options-list');
+    if (optionsList) {
+        optionsList.addEventListener('click', e => {
+            const btn = e.target.closest('.btn-remove-opt');
+            if (!btn) return;
+            if (optionsList.children.length <= 2) {
+                showToast('Mínimo 2 opciones requeridas.');
+                return;
+            }
+            btn.closest('.option-row').remove();
+            reindexOptions(optionsList);
+        });
+    }
+
+    const addOptBtn = item.querySelector('.btn-add-opt');
+    if (addOptBtn) {
+        addOptBtn.addEventListener('click', () => {
+            const idx = optionsList.children.length;
+            const row = document.createElement('div');
+            row.className = 'option-row';
+            row.innerHTML = buildOptionRowHTML('', idx);
+            optionsList.appendChild(row);
+        });
+    }
+
+    $('#questions-list').appendChild(item);
+}
+
+function buildOptionRowHTML(value, index) {
+    return `
+        <div class="option-row">
+            <input class="form-input" type="text"
+                placeholder="Opción ${index + 1}"
+                value="${escapeHtml(value)}"
+                aria-label="Opción ${index + 1}">
+            <button class="btn-remove-opt" type="button" title="Quitar opción" aria-label="Quitar opción">✕</button>
+        </div>
+    `;
+}
+
+function reindexOptions(optionsList) {
+    [...optionsList.children].forEach((row, i) => {
+        const input = row.querySelector('input');
+        if (input) {
+            input.placeholder = `Opción ${i + 1}`;
+            input.ariaLabel   = `Opción ${i + 1}`;
+        }
+    });
+}
+
+// ── Guardar reporte ──────────────────────────────────────────────────────────────
+
+async function saveReportItem() {
+    const title = $('#report-title-input').value.trim();
+
+    if (!title) {
+        showToast('⚠️ El título del reporte es obligatorio.');
+        $('#report-title-input').focus();
+        return;
+    }
+
+    const questions = collectQuestionsFromDOM();
+
+    if (questions.length === 0) {
+        showToast('⚠️ Agrega al menos una pregunta al reporte.');
+        return;
+    }
+
+    for (const q of questions) {
+        if (!q.label) {
+            showToast('⚠️ Todas las preguntas deben tener un texto.');
+            return;
+        }
+        if (q.type === 'select' && (!q.options || q.options.filter(Boolean).length < 2)) {
+            showToast(`⚠️ La pregunta "${q.label}" necesita al menos 2 opciones.`);
+            return;
+        }
+    }
+
+    const access    = Object.keys(window._reportAccessMap || {});
+    const sectionId = $('#report-section-select')?.value || null;
+    const sectionName = sectionId
+        ? (reportSections.find(s => s.id === sectionId)?.name || null)
+        : null;
+
+    const payload = {
+        title,
+        description: $('#report-desc-input').value.trim(),
+        icon:        $('#report-icon').value || '📋',
+        deadline:    $('#report-deadline').value || null,
+        questions,
+        access,
+        sectionId,
+        active: true,
+    };
+
+    setLoading(true);
+
+    try {
+        if (editingReportId) {
+            await api(`/api/reports/${editingReportId}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+            showToast('✅ Reporte actualizado correctamente.');
+        } else {
+            await api('/api/reports', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            showToast('✅ Reporte creado correctamente.');
+        }
+        await loadManageReports();
+    } catch (err) {
+        // API no disponible: persistir solo en memoria para no perder el trabajo del usuario
+        console.warn('[ReportManage] API no disponible, guardando en modo demo:', err.message);
+        if (editingReportId) {
+            const idx = manageReports.findIndex(r => r.id === editingReportId);
+            if (idx !== -1) {
+                manageReports[idx] = {
+                    ...manageReports[idx], ...payload,
+                    access: [...new Set(access)], individualAccess: access,
+                    sectionId, sectionName,
+                };
+            }
+        } else {
+            manageReports.unshift({
+                id: uid(), ...payload,
+                access: [...new Set(access)], individualAccess: access,
+                sectionId, sectionName,
+            });
+        }
+        showToast('✅ Guardado en modo demo (sin persistencia).');
+    } finally {
+        setLoading(false);
+        closeReportModal();
+        renderManageReports($('#manage-search-input')?.value || '');
+    }
+}
+
+function collectQuestionsFromDOM() {
+    return $$('.question-item').map(item => {
+        const q = {
+            id:    item.dataset.qid,
+            type:  item.dataset.type,
+            label: item.querySelector('.q-label')?.value.trim() || '',
+        };
+
+        if (q.type === 'select') {
+            q.options = [...item.querySelectorAll('.options-list .form-input')]
+                .map(input => input.value.trim())
+                .filter(Boolean);
+        }
+
+        return q;
+    });
+}
+
+// ── Activar / desactivar ──────────────────────────────────────────────────────────
+
+async function toggleReportActive(reportId, active) {
+    const r = manageReports.find(x => x.id === reportId);
+    if (r) r.active = active;
+
+    const toggleLabel = $(`input.toggle-active[data-id="${reportId}"]`)
+        ?.closest('.status-toggle')
+        ?.querySelector('span');
+    if (toggleLabel) toggleLabel.textContent = active ? 'Activo' : 'Inactivo';
+
+    try {
+        await api(`/api/reports/${reportId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ active }),
+        });
+        showToast(active ? '✅ Reporte activado.' : '⏸ Reporte desactivado.');
+    } catch (err) {
+        console.error('[ReportManage] Error al actualizar estado:', err);
+        if (r) r.active = !active;
+        if (toggleLabel) toggleLabel.textContent = !active ? 'Activo' : 'Inactivo';
+        showToast('❌ Error al cambiar el estado.');
+    }
+}
+
+// ── Eliminar reporte ──────────────────────────────────────────────────────────────
+
+async function deleteReportItem(reportId) {
+    const r = manageReports.find(x => x.id === reportId);
+    const confirmMsg = `¿Eliminar el reporte "${r?.title || reportId}"?\n\nEsta acción no se puede deshacer y eliminará todas las respuestas asociadas.`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setLoading(true);
+
+    try {
+        await api(`/api/reports/${reportId}`, { method: 'DELETE' });
+    } catch (err) {
+        console.error('[ReportManage] Error al eliminar:', err);
+        showToast('❌ Error al eliminar el reporte.');
+        setLoading(false);
+        return;
+    }
+
+    const card = $(`.report-card[data-id="${reportId}"]`, $('#reports-list'));
+    if (card) {
+        card.style.transition = 'opacity .25s, transform .25s';
+        card.style.opacity    = '0';
+        card.style.transform  = 'translateX(20px)';
+    }
+
+    setTimeout(() => {
+        manageReports = manageReports.filter(r => r.id !== reportId);
+        setLoading(false);
+        renderManageReports($('#manage-search-input')?.value || '');
+        showToast('🗑️ Reporte eliminado.');
+    }, 250);
+}
+
+// ── Ver respuestas ──────────────────────────────────────────────────────────────
+
+async function viewManageSubmissions(reportId) {
+    const r = manageReports.find(x => x.id === reportId);
+    $('#submissions-title').textContent = `Respuestas — ${r?.title || ''}`;
+
+    const content = $('#submissions-content');
+    content.innerHTML = `
+        <div style="text-align:center; padding:3rem;">
+            <div class="spinner" style="margin:auto;"></div>
+        </div>`;
+
+    toggleModal('modal-submissions', true);
+
+    try {
+        const subs = await api(`/api/reports/${reportId}/submissions`);
+        renderManageSubmissionsTable(subs, r);
+    } catch {
+        renderManageSubmissionsTable(getDemoSubmissionsFor(reportId), r);
+    }
+}
+
+function renderManageSubmissionsTable(subs, report) {
+    const content = $('#submissions-content');
+
+    if (!subs || subs.length === 0) {
+        content.innerHTML = `
+            <div class="empty-state" style="padding:2.5rem;">
+                <div class="empty-state-icon">📭</div>
+                <h3>Sin respuestas aún</h3>
+                <p>Las personas con acceso aún no han completado este reporte.</p>
+            </div>`;
+        return;
+    }
+
+    const qs = report?.questions || [];
+
+    const colHeaders = ['Persona', 'Enviado', ...qs.map(q => escapeHtml(q.label || q.type))];
+    const thead = colHeaders.map(h => `<th>${h}</th>`).join('');
+
+    const tbody = subs.map(s => {
+        const nameCell      = escapeHtml(s.studentName || s.studentId || '—');
+        const submittedCell = s.submittedAt
+            ? escapeHtml(new Date(s.submittedAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }))
+            : '—';
+
+        const answerCells = qs.map(q => {
+            const ans = s.answers?.[q.id];
+            if (!ans) return '<span style="color:var(--text-secondary,#aaa)">—</span>';
+            if (q.type === 'image') {
+                if (Array.isArray(ans) && ans.length > 0) {
+                    return ans.map((url, i) =>
+                        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">📷 Imagen ${i + 1}</a>`
+                    ).join('<br>');
+                }
+                return '<span style="color:var(--text-secondary,#aaa)">Sin imagen</span>';
+            }
+            return `<span title="${escapeHtml(String(ans))}">${escapeHtml(String(ans).slice(0, 80))}${String(ans).length > 80 ? '…' : ''}</span>`;
+        });
+
+        const cells = [`<strong>${nameCell}</strong>`, submittedCell, ...answerCells];
+        return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+    }).join('');
+
+    const accessCount = (report?.access || []).length;
+    const pct         = accessCount > 0 ? Math.round((subs.length / accessCount) * 100) : 0;
+
+    content.innerHTML = `
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">
+            <div style="flex:1; background:var(--secondary-container,#E8DEF8); border-radius:12px; padding:0.8rem 1rem; text-align:center; min-width:100px;">
+                <div style="font-size:1.4rem; font-weight:700; color:var(--accent-color,#6750A4);">${subs.length}</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary,#777);">Respuestas</div>
+            </div>
+            <div style="flex:1; background:var(--secondary-container,#E8DEF8); border-radius:12px; padding:0.8rem 1rem; text-align:center; min-width:100px;">
+                <div style="font-size:1.4rem; font-weight:700; color:var(--accent-color,#6750A4);">${accessCount}</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary,#777);">Con acceso</div>
+            </div>
+            <div style="flex:1; background:var(--secondary-container,#E8DEF8); border-radius:12px; padding:0.8rem 1rem; text-align:center; min-width:100px;">
+                <div style="font-size:1.4rem; font-weight:700; color:var(--accent-color,#6750A4);">${pct}%</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary,#777);">Completado</div>
+            </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="submissions-table">
+                <thead><tr>${thead}</tr></thead>
+                <tbody>${tbody}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+// ── Binding de eventos de gestión ──────────────────────────────────────────────────
+
+function bindManageEvents() {
+    $('#btn-new-report')?.addEventListener('click', () => openReportModal(null));
+
+    $('#manage-modal-close-btn')?.addEventListener('click', closeReportModal);
+    $('#manage-modal-cancel-btn')?.addEventListener('click', closeReportModal);
+    $('#manage-modal-save-btn')?.addEventListener('click', saveReportItem);
+
+    $('#submissions-close-btn')?.addEventListener('click', () => {
+        toggleModal('modal-submissions', false);
+    });
+
+    [$('#modal-report'), $('#modal-submissions')].forEach(overlay => {
+        overlay?.addEventListener('click', e => {
+            if (e.target !== overlay) return;
+            overlay.classList.remove('open');
+            document.body.style.overflow = '';
+            editingReportId = null;
+        });
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if ($('#modal-report')?.classList.contains('open')) closeReportModal();
+        if ($('#modal-submissions')?.classList.contains('open')) toggleModal('modal-submissions', false);
+    });
+
+    $$('.btn-add-q').forEach(btn => {
+        btn.addEventListener('click', () => addQuestionToDOM(btn.dataset.type));
+    });
+
+    $('#reports-list')?.addEventListener('click', e => {
+        const editBtn = e.target.closest('.btn-edit');
+        const delBtn  = e.target.closest('.btn-delete');
+        const subBtn  = e.target.closest('.btn-submissions');
+        const toggle  = e.target.closest('input.toggle-active');
+
+        if (editBtn) openReportModal(editBtn.dataset.id);
+        if (delBtn)  deleteReportItem(delBtn.dataset.id);
+        if (subBtn)  viewManageSubmissions(subBtn.dataset.id);
+        if (toggle)  toggleReportActive(toggle.dataset.id, toggle.checked);
+    });
+
+    $('#manage-search-input')?.addEventListener('input', e => {
+        renderManageReports(e.target.value);
+    });
 }

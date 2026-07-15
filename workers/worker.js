@@ -1542,6 +1542,16 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     globalThis._migratedSubmissionType = true;
   }
 
+  // Migración: agregar columna section_id a reports (asignación de reportes por sección)
+  if (!globalThis._migratedReportsSection) {
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        "ALTER TABLE reports ADD COLUMN section_id TEXT"
+      ).run();
+    } catch (_) { /* columna ya existe */ }
+    globalThis._migratedReportsSection = true;
+  }
+
   try {
 
     // Ruta: POST /api/chat
@@ -2594,6 +2604,10 @@ ORDER BY u.last_name, u.first_name
       return handleReportDelete(request, env, corsHeaders, path.split('/')[3]);
     if (path.match(/^\/api\/reports\/[^/]+\/submissions$/) && request.method === 'GET')
       return handleReportSubmissions(request, env, corsHeaders, path.split('/')[3]);
+    // GET /api/report-sections — secciones disponibles para asignar un reporte
+    // (profesor: solo las suyas · admin: todas)
+    if (path === '/api/report-sections' && request.method === 'GET')
+      return handleReportSections(request, env, corsHeaders);
     // ── ESTUDIANTES ───────────────────────────────────────────
     if (path === '/api/students' && request.method === 'GET')
       return handleStudentList(request, env, corsHeaders);
@@ -5638,6 +5652,110 @@ async function getOwnedReport(reportId, teacherDni, env) {
     .first();
 }
 
+/**
+ * Devuelve un reporte si el usuario puede gestionarlo:
+ * el profesor que lo creó, o cualquier administrador.
+ * @param {string} reportId
+ * @param {string} userDni
+ * @param {boolean} isAdmin
+ * @param {Object} env
+ * @returns {Promise<Object|null>}
+ */
+async function getManageableReport(reportId, userDni, isAdmin, env) {
+  if (isAdmin) {
+    return env.MIRAI_AI_DB.prepare('SELECT * FROM reports WHERE id = ?').bind(reportId).first();
+  }
+  return getOwnedReport(reportId, userDni, env);
+}
+
+/**
+ * Autoriza la gestión de reportes: profesores activos o administradores (role='admin').
+ * @returns {Promise<{dni:string,isAdmin:boolean}|Response>}
+ */
+async function requireReportManagerAuth(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) {
+    return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+  }
+
+  const dni = userDni.toUpperCase();
+  const row = await env.MIRAI_AI_DB.prepare('SELECT role FROM users WHERE dni = ?').bind(dni).first();
+  const isAdmin = row?.role === 'admin';
+  const isProfessor = isAdmin ? false : await isAuthorizedProfessor(dni, env);
+
+  if (!isAdmin && !isProfessor) {
+    return jsonResponse({ error: 'Acceso denegado. Requiere rol de profesor o administrador.' }, 403, corsHeaders);
+  }
+
+  return { dni, isAdmin };
+}
+
+/**
+ * Carga los DNIs de estudiantes de un conjunto de secciones, agrupados por section_id.
+ * @param {string[]} sectionIds
+ * @param {Object} env
+ * @returns {Promise<Map<string,string[]>>}
+ */
+async function loadSectionMembersMap(sectionIds, env) {
+  const map = new Map();
+  if (!sectionIds || sectionIds.length === 0) return map;
+
+  const placeholders = sectionIds.map(() => '?').join(',');
+  const { results } = await env.MIRAI_AI_DB
+    .prepare(`SELECT section_id, user_dni FROM section_students WHERE section_id IN (${placeholders})`)
+    .bind(...sectionIds)
+    .all();
+
+  for (const row of results) {
+    if (!map.has(row.section_id)) map.set(row.section_id, []);
+    map.get(row.section_id).push(row.user_dni);
+  }
+  return map;
+}
+
+/**
+ * Determina si un estudiante tiene acceso a un reporte: acceso individual
+ * explícito o pertenencia a la sección asignada al reporte.
+ * @param {{access_json:string, section_id:string|null}} report
+ * @param {string} studentDni
+ * @param {Object} env
+ * @returns {Promise<boolean>}
+ */
+async function studentHasReportAccess(report, studentDni, env) {
+  const access = safeJson(report.access_json, []);
+  if (access.includes(studentDni)) return true;
+
+  if (report.section_id) {
+    const row = await env.MIRAI_AI_DB
+      .prepare('SELECT 1 FROM section_students WHERE section_id = ? AND user_dni = ?')
+      .bind(report.section_id, studentDni)
+      .first();
+    if (row) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Valida que una sección exista y sea utilizable por el usuario actual
+ * (el profesor dueño de la sección, o cualquier administrador).
+ * @returns {Promise<string|null>} el section_id validado, o null si no se envió ninguno
+ * @throws {Error} si se envió un sectionId pero no es válido/autorizado
+ */
+async function resolveReportSectionId(sectionId, teacherDni, isAdmin, env) {
+  if (!sectionId) return null;
+
+  const query = isAdmin
+    ? 'SELECT id FROM sections WHERE id = ?'
+    : 'SELECT id FROM sections WHERE id = ? AND professor_dni = ?';
+  const params = isAdmin ? [sectionId] : [sectionId, teacherDni];
+
+  const sec = await env.MIRAI_AI_DB.prepare(query).bind(...params).first();
+  if (!sec) throw new Error('Sección inválida o no autorizada.');
+
+  return sectionId;
+}
+
 
 // ════════════════════════════════════════════════════════════
 // ENDPOINTS — PROFESOR
@@ -5649,37 +5767,56 @@ async function getOwnedReport(reportId, teacherDni, env) {
  * Respuesta: Report[]
  */
 async function handleReportList(request, env, corsHeaders) {
-  // Solo profesores
-  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
-  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+  // Profesores o administradores
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
+  const { dni, isAdmin } = auth;
 
   try {
-    const { results } = await env.MIRAI_AI_DB
-      .prepare(`
-        SELECT
-          id, title, description, icon, deadline,
-          active, questions_json, access_json,
-          created_at, updated_at
-        FROM reports
-        WHERE teacher_dni = ?
-        ORDER BY created_at DESC
-      `)
-      .bind(teacherDni)
-      .all();
+    const baseQuery = `
+      SELECT
+        r.id, r.title, r.description, r.icon, r.deadline,
+        r.active, r.questions_json, r.access_json, r.section_id, r.teacher_dni,
+        s.name AS section_name,
+        r.created_at, r.updated_at
+      FROM reports r
+      LEFT JOIN sections s ON s.id = r.section_id
+    `;
+
+    const { results } = isAdmin
+      ? await env.MIRAI_AI_DB.prepare(`${baseQuery} ORDER BY r.created_at DESC`).all()
+      : await env.MIRAI_AI_DB
+          .prepare(`${baseQuery} WHERE r.teacher_dni = ? ORDER BY r.created_at DESC`)
+          .bind(dni)
+          .all();
+
+    // Resolver acceso efectivo (individual ∪ miembros de la sección asignada)
+    const sectionIds = [...new Set(results.map(r => r.section_id).filter(Boolean))];
+    const sectionMembers = await loadSectionMembersMap(sectionIds, env);
 
     // Deserializar campos JSON
-    const reports = results.map(r => ({
-      id: r.id,
-      title: r.title,
-      description: r.description || '',
-      icon: r.icon || '📋',
-      deadline: r.deadline,
-      active: r.active === 1,
-      questions: safeJson(r.questions_json, []),
-      access: safeJson(r.access_json, []),
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
-    }));
+    const reports = results.map(r => {
+      const individualAccess = safeJson(r.access_json, []);
+      const members = r.section_id ? (sectionMembers.get(r.section_id) || []) : [];
+      const effectiveAccess = [...new Set([...individualAccess, ...members])];
+
+      return {
+        id: r.id,
+        title: r.title,
+        description: r.description || '',
+        icon: r.icon || '📋',
+        deadline: r.deadline,
+        active: r.active === 1,
+        questions: safeJson(r.questions_json, []),
+        access: effectiveAccess,
+        individualAccess,
+        sectionId: r.section_id || null,
+        sectionName: r.section_name || null,
+        teacherDni: r.teacher_dni,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      };
+    });
 
     return jsonResponse(reports, 200, corsHeaders);
 
@@ -5696,14 +5833,15 @@ async function handleReportList(request, env, corsHeaders) {
  * Respuesta: { id, ...reporte }
  */
 async function handleReportCreate(request, env, corsHeaders) {
-  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
-  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
+  const { dni: teacherDni, isAdmin } = auth;
 
   let body;
   try { body = await request.json(); }
   catch { return jsonResponse({ error: 'JSON inválido.' }, 400, corsHeaders); }
 
-  const { title, description, icon, deadline, active, questions, access } = body;
+  const { title, description, icon, deadline, active, questions, access, sectionId } = body;
 
   // Validaciones
   if (!strLen(title, 1, 120)) {
@@ -5729,6 +5867,14 @@ async function handleReportCreate(request, env, corsHeaders) {
     }
   }
 
+  // Validar sección de asignación (opcional)
+  let validSectionId = null;
+  try {
+    validSectionId = await resolveReportSectionId(sectionId, teacherDni, isAdmin, env);
+  } catch (err) {
+    return jsonResponse({ error: err.message }, 403, corsHeaders);
+  }
+
   const parsedAccess = Array.isArray(access) ? access : [];
   const id = newId();
   const now = new Date().toISOString();
@@ -5739,8 +5885,8 @@ async function handleReportCreate(request, env, corsHeaders) {
       .prepare(`
         INSERT INTO reports
           (id, teacher_dni, title, description, icon, deadline, active,
-           questions_json, access_json, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           questions_json, access_json, section_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         id,
@@ -5752,6 +5898,7 @@ async function handleReportCreate(request, env, corsHeaders) {
         activeValue,
         JSON.stringify(parsedQuestions),
         JSON.stringify(parsedAccess),
+        validSectionId,
         now,
         now,
       )
@@ -5766,6 +5913,8 @@ async function handleReportCreate(request, env, corsHeaders) {
       active: activeValue === 1,
       questions: parsedQuestions,
       access: parsedAccess,
+      individualAccess: parsedAccess,
+      sectionId: validSectionId,
       createdAt: now,
       updatedAt: now,
     }, 201, corsHeaders);
@@ -5783,13 +5932,14 @@ async function handleReportCreate(request, env, corsHeaders) {
  * Respuesta: { ok: true }
  */
 async function handleReportUpdate(request, env, corsHeaders, reportId) {
-  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
-  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
+  const { dni: userDni, isAdmin } = auth;
 
   if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
 
-  // Verificar propiedad
-  const existing = await getOwnedReport(reportId, teacherDni, env);
+  // Verificar que puede gestionarlo (dueño, o administrador)
+  const existing = await getManageableReport(reportId, userDni, isAdmin, env);
   if (!existing) return jsonResponse({ error: 'Reporte no encontrado o acceso denegado.' }, 404, corsHeaders);
 
   let body;
@@ -5842,6 +5992,17 @@ async function handleReportUpdate(request, env, corsHeaders, reportId) {
     values.push(JSON.stringify(Array.isArray(body.access) ? body.access : []));
   }
 
+  if (body.sectionId !== undefined) {
+    let validSectionId = null;
+    try {
+      validSectionId = await resolveReportSectionId(body.sectionId, existing.teacher_dni, isAdmin, env);
+    } catch (err) {
+      return jsonResponse({ error: err.message }, 403, corsHeaders);
+    }
+    fields.push('section_id = ?');
+    values.push(validSectionId);
+  }
+
   if (fields.length === 0) {
     return jsonResponse({ error: 'No se enviaron campos para actualizar.' }, 400, corsHeaders);
   }
@@ -5849,11 +6010,10 @@ async function handleReportUpdate(request, env, corsHeaders, reportId) {
   fields.push('updated_at = ?');
   values.push(new Date().toISOString());
   values.push(reportId);
-  values.push(teacherDni);
 
   try {
     await env.MIRAI_AI_DB
-      .prepare(`UPDATE reports SET ${fields.join(', ')} WHERE id = ? AND teacher_dni = ?`)
+      .prepare(`UPDATE reports SET ${fields.join(', ')} WHERE id = ?`)
       .bind(...values)
       .run();
 
@@ -5871,12 +6031,13 @@ async function handleReportUpdate(request, env, corsHeaders, reportId) {
  * Respuesta: { ok: true }
  */
 async function handleReportDelete(request, env, corsHeaders, reportId) {
-  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
-  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
+  const { dni: teacherDni, isAdmin } = auth;
 
   if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
 
-  const existing = await getOwnedReport(reportId, teacherDni, env);
+  const existing = await getManageableReport(reportId, teacherDni, isAdmin, env);
   if (!existing) return jsonResponse({ error: 'Reporte no encontrado o acceso denegado.' }, 404, corsHeaders);
 
   try {
@@ -5885,8 +6046,8 @@ async function handleReportDelete(request, env, corsHeaders, reportId) {
     // await env.MIRAI_AI_DB.prepare('DELETE FROM report_submissions WHERE report_id = ?').bind(reportId).run();
 
     await env.MIRAI_AI_DB
-      .prepare('DELETE FROM reports WHERE id = ? AND teacher_dni = ?')
-      .bind(reportId, teacherDni)
+      .prepare('DELETE FROM reports WHERE id = ?')
+      .bind(reportId)
       .run();
 
     // Limpiar imágenes en R2 (best-effort, no bloquea la respuesta)
@@ -5914,12 +6075,13 @@ async function handleReportDelete(request, env, corsHeaders, reportId) {
  * Respuesta: Submission[]
  */
 async function handleReportSubmissions(request, env, corsHeaders, reportId) {
-  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
-  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
+  const { dni: teacherDni, isAdmin } = auth;
 
   if (!reportId) return jsonResponse({ error: 'ID de reporte requerido.' }, 400, corsHeaders);
 
-  const existing = await getOwnedReport(reportId, teacherDni, env);
+  const existing = await getManageableReport(reportId, teacherDni, isAdmin, env);
   if (!existing) return jsonResponse({ error: 'Reporte no encontrado o acceso denegado.' }, 404, corsHeaders);
 
   try {
@@ -5992,16 +6154,14 @@ async function handleReportImageServe(request, env, corsHeaders, r2Key) {
 
 /**
  * GET /api/students
- * Devuelve todos los usuarios con role 'student' (o sin rol de profesor).
- * Solo accesible para profesores.
+ * Devuelve todos los usuarios verificados (estudiantes, profesores y admins),
+ * ya que cualquiera de los 3 roles puede recibir acceso individual a un reporte.
+ * Solo accesible para profesores o administradores.
  * Respuesta: { id, name, email }[]
- *
- * NOTA: La consulta usa la tabla `users` y excluye a los que están
- * en `professors`. Ajusta si tu esquema tiene un campo `role` directo.
  */
 async function handleStudentList(request, env, corsHeaders) {
-  const teacherDni = await requireProfessorAuth(request, env, corsHeaders);
-  if (!teacherDni || teacherDni instanceof Response) return teacherDni;
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
 
   try {
     const { results } = await env.MIRAI_AI_DB
@@ -6012,7 +6172,6 @@ async function handleStudentList(request, env, corsHeaders) {
           u.email
         FROM users u
         WHERE u.is_verified = 1
-          AND u.dni NOT IN (SELECT dni FROM professors WHERE is_active = 1)
         ORDER BY u.last_name, u.first_name
       `)
       .all();
@@ -6022,6 +6181,41 @@ async function handleStudentList(request, env, corsHeaders) {
   } catch (err) {
     console.error('[Reports] handleStudentList error:', err.message);
     return jsonResponse({ error: 'Error al obtener estudiantes.' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/report-sections
+ * Devuelve las secciones disponibles para asignar un reporte completo:
+ * el profesor ve solo las suyas, el administrador las ve todas.
+ * Respuesta: { id, name, course_id, course_title, student_count }[]
+ */
+async function handleReportSections(request, env, corsHeaders) {
+  const auth = await requireReportManagerAuth(request, env, corsHeaders);
+  if (auth instanceof Response) return auth;
+  const { dni, isAdmin } = auth;
+
+  try {
+    const baseQuery = `
+      SELECT s.id, s.name, s.course_id, uc.title AS course_title,
+             COUNT(ss.user_dni) AS student_count
+      FROM sections s
+      LEFT JOIN user_courses uc ON s.course_id = uc.id
+      LEFT JOIN section_students ss ON s.id = ss.section_id
+    `;
+
+    const { results } = isAdmin
+      ? await env.MIRAI_AI_DB.prepare(`${baseQuery} GROUP BY s.id ORDER BY s.name`).all()
+      : await env.MIRAI_AI_DB
+          .prepare(`${baseQuery} WHERE s.professor_dni = ? GROUP BY s.id ORDER BY s.name`)
+          .bind(dni)
+          .all();
+
+    return jsonResponse(results, 200, corsHeaders);
+
+  } catch (err) {
+    console.error('[Reports] handleReportSections error:', err.message);
+    return jsonResponse({ error: 'Error al obtener secciones.' }, 500, corsHeaders);
   }
 }
 
@@ -6046,17 +6240,25 @@ async function handleMyReports(request, env, corsHeaders) {
       .prepare(`
         SELECT
           r.id, r.title, r.description, r.icon,
-          r.deadline, r.questions_json, r.access_json
+          r.deadline, r.questions_json, r.access_json, r.section_id
         FROM reports r
         WHERE r.active = 1
         ORDER BY r.created_at DESC
       `)
       .all();
 
-    // Filtrar solo aquellos donde el estudiante está en access_json
+    // Secciones a las que pertenece el estudiante (acceso por sección)
+    const { results: mySections } = await env.MIRAI_AI_DB
+      .prepare('SELECT section_id FROM section_students WHERE user_dni = ?')
+      .bind(studentDni)
+      .all();
+    const mySectionIds = new Set(mySections.map(s => s.section_id));
+
+    // Filtrar los reportes donde el estudiante tiene acceso individual o por sección
     const accessible = results.filter(r => {
       const access = safeJson(r.access_json, []);
-      return access.includes(studentDni);
+      if (access.includes(studentDni)) return true;
+      return !!(r.section_id && mySectionIds.has(r.section_id));
     });
 
     if (accessible.length === 0) {
@@ -6111,14 +6313,13 @@ async function handleMySubmission(request, env, corsHeaders, reportId) {
   try {
     // Verificar que el estudiante tiene acceso al reporte
     const report = await env.MIRAI_AI_DB
-      .prepare('SELECT access_json FROM reports WHERE id = ? AND active = 1')
+      .prepare('SELECT access_json, section_id FROM reports WHERE id = ? AND active = 1')
       .bind(reportId)
       .first();
 
     if (!report) return jsonResponse({ error: 'Reporte no encontrado.' }, 404, corsHeaders);
 
-    const access = safeJson(report.access_json, []);
-    if (!access.includes(studentDni)) {
+    if (!(await studentHasReportAccess(report, studentDni, env))) {
       return jsonResponse({ error: 'No tienes acceso a este reporte.' }, 403, corsHeaders);
     }
 
@@ -6174,7 +6375,7 @@ async function handleReportSubmit(request, env, corsHeaders, reportId) {
   try {
     // ── 1. Verificar que el reporte existe, está activo y el alumno tiene acceso ──
     const report = await env.MIRAI_AI_DB
-      .prepare('SELECT id, questions_json, access_json FROM reports WHERE id = ? AND active = 1')
+      .prepare('SELECT id, questions_json, access_json, section_id FROM reports WHERE id = ? AND active = 1')
       .bind(reportId)
       .first();
 
@@ -6182,8 +6383,7 @@ async function handleReportSubmit(request, env, corsHeaders, reportId) {
       return jsonResponse({ error: 'Reporte no encontrado o inactivo.' }, 404, corsHeaders);
     }
 
-    const access = safeJson(report.access_json, []);
-    if (!access.includes(studentDni)) {
+    if (!(await studentHasReportAccess(report, studentDni, env))) {
       return jsonResponse({ error: 'No tienes acceso a este reporte.' }, 403, corsHeaders);
     }
 

@@ -5,13 +5,15 @@ CREATE TABLE IF NOT EXISTS reports (
   title          TEXT    NOT NULL,
   description    TEXT    DEFAULT '',
   icon           TEXT    DEFAULT '📋',
-  deadline       TEXT,           
-  active         INTEGER NOT NULL DEFAULT 1,  
+  deadline       TEXT,
+  active         INTEGER NOT NULL DEFAULT 1,
   questions_json TEXT    NOT NULL DEFAULT '[]',
-  access_json    TEXT    NOT NULL DEFAULT '[]', 
+  access_json    TEXT    NOT NULL DEFAULT '[]',
+  section_id     TEXT,
   created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at     TEXT    NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (teacher_dni) REFERENCES users(dni) ON DELETE CASCADE
+  FOREIGN KEY (teacher_dni) REFERENCES users(dni) ON DELETE CASCADE,
+  FOREIGN KEY (section_id)  REFERENCES sections(id) ON DELETE SET NULL
 );
 
 
@@ -28,6 +30,9 @@ CREATE TABLE IF NOT EXISTS report_submissions (
 
 CREATE INDEX IF NOT EXISTS idx_reports_teacher
   ON reports(teacher_dni);
+
+CREATE INDEX IF NOT EXISTS idx_reports_section
+  ON reports(section_id);
 
 CREATE INDEX IF NOT EXISTS idx_reports_active
   ON reports(active, created_at);

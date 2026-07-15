@@ -580,6 +580,442 @@
         .deadline-badge.soon   { background: #FFF8E1; color: #F57F17; }
         .deadline-badge.ok     { background: #E8F5E9; color: #2E7D32; }
 
+        /* ═══════════════════════════════════════════════════════════════
+           GESTIÓN DE REPORTES (profesores y administradores)
+           ═══════════════════════════════════════════════════════════════ */
+
+        .manage-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .search-bar {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-bar svg {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            fill: var(--text-secondary, #999);
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 12px;
+            background: var(--glass-bg, #fff);
+            color: var(--text-primary, #222);
+            font-size: 0.9rem;
+            transition: border-color .2s, box-shadow .2s;
+            box-sizing: border-box;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: var(--accent-color, #6750A4);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.15));
+        }
+
+        .btn-create {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .15s;
+            box-shadow: 0 2px 12px var(--accent-glow, rgba(103,80,164,0.25));
+            white-space: nowrap;
+        }
+
+        .btn-create:hover { opacity: .88; transform: translateY(-1px); }
+
+        .reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .report-card {
+            background: var(--glass-bg, rgba(255,255,255,0.94));
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+            border-radius: 16px;
+            padding: 1.2rem 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            transition: box-shadow .2s, transform .2s;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 6px 24px var(--accent-glow, rgba(103,80,164,0.15));
+            transform: translateY(-2px);
+        }
+
+        .report-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--secondary-container, #E8DEF8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .report-card-info { flex: 1; min-width: 160px; }
+
+        .report-card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-primary, #1a1a1a);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .report-card-meta {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .report-meta-chip {
+            font-size: 0.75rem;
+            color: var(--text-secondary, #666);
+            background: var(--secondary-container, #E8DEF8);
+            padding: 2px 8px;
+            border-radius: 99px;
+            white-space: nowrap;
+        }
+
+        .report-meta-chip.section-chip {
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            color: #fff;
+        }
+
+        .report-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-icon {
+            background: none;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 10px;
+            padding: 7px;
+            cursor: pointer;
+            color: var(--accent-color, #6750A4);
+            transition: background .15s, transform .15s;
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-icon:hover { background: var(--secondary-container, #E8DEF8); transform: scale(1.1); }
+        .btn-icon.danger { color: #e53935; border-color: rgba(229,57,53,0.2); }
+        .btn-icon.danger:hover { background: #fff0f0; }
+
+        .status-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-switch { position: relative; width: 36px; height: 20px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            border-radius: 99px;
+            background: #ccc;
+            transition: background .3s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            top: 3px;
+            left: 3px;
+            transition: transform .3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent-color, #6750A4); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+        /* Formulario del modal de gestión */
+        .form-group { margin-bottom: 1.1rem; }
+
+        .form-label {
+            display: block;
+            font-size: 0.83rem;
+            font-weight: 600;
+            color: var(--text-secondary, #555);
+            margin-bottom: 5px;
+            letter-spacing: 0.02em;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            border-radius: 10px;
+            background: var(--bg-primary, #F5F3F8);
+            color: var(--text-primary, #1a1a1a);
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color .2s, box-shadow .2s;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--accent-color, #6750A4);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(103,80,164,0.18));
+        }
+
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-hint { font-size: 0.78rem; color: var(--text-secondary, #777); margin-top: 4px; }
+
+        /* Constructor de preguntas */
+        .questions-area { margin-top: 1.2rem; }
+
+        .questions-area-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary, #222);
+            margin-bottom: 0.8rem;
+        }
+
+        .question-type-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .btn-add-q {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 14px;
+            border-radius: 10px;
+            border: 1.5px solid var(--glass-border, rgba(103,80,164,0.2));
+            background: var(--glass-bg, #fff);
+            color: var(--accent-color, #6750A4);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, border-color .15s, transform .1s;
+        }
+
+        .btn-add-q:hover {
+            background: var(--secondary-container, #E8DEF8);
+            border-color: var(--accent-color, #6750A4);
+            transform: translateY(-1px);
+        }
+
+        .questions-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+        .question-item {
+            background: var(--secondary-container, #E8DEF8);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            position: relative;
+            animation: slideDown .2s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .question-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0.6rem;
+        }
+
+        .question-type-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 99px;
+            background: var(--accent-color, #6750A4);
+            color: #fff;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .question-item .remove-q {
+            margin-left: auto;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #e53935;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 2px;
+        }
+
+        .options-list { margin-top: 0.5rem; }
+
+        .option-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 5px;
+            align-items: center;
+        }
+
+        .option-row .form-input { flex: 1; padding: 6px 10px; }
+
+        .btn-remove-opt {
+            background: none;
+            border: none;
+            color: #e53935;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .btn-add-opt {
+            background: none;
+            border: 1px dashed var(--accent-color, #6750A4);
+            color: var(--accent-color, #6750A4);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* Sección de acceso (por sección + individual) */
+        .access-section {
+            margin-top: 1.4rem;
+            padding-top: 1.2rem;
+            border-top: 1px solid var(--glass-border, rgba(103,80,164,0.12));
+        }
+
+        .access-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary, #222);
+            margin-bottom: 0.7rem;
+        }
+
+        .student-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .student-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--glass-bg, #fff);
+            border-radius: 10px;
+            padding: 8px 12px;
+            border: 1px solid var(--glass-border, rgba(103,80,164,0.1));
+        }
+
+        .student-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .student-name { flex: 1; font-size: 0.87rem; color: var(--text-primary, #222); }
+        .student-email { font-size: 0.75rem; color: var(--text-secondary, #888); }
+
+        .btn-save {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 10px;
+            background: var(--accent-gradient, linear-gradient(135deg,#6750A4,#9A82DB));
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .15s;
+            box-shadow: 0 2px 10px var(--accent-glow, rgba(103,80,164,0.25));
+        }
+
+        .btn-save:hover { opacity: .88; transform: translateY(-1px); }
+
+        /* Tabla de respuestas */
+        .submissions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .submissions-table th {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 2px solid var(--glass-border, rgba(103,80,164,0.15));
+            color: var(--text-secondary, #666);
+            font-weight: 600;
+            font-size: 0.78rem;
+            letter-spacing: 0.03em;
+        }
+
+        .submissions-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--glass-border, rgba(103,80,164,0.08));
+            color: var(--text-primary, #222);
+        }
+
+        .submissions-table tr:last-child td { border-bottom: none; }
+        .submissions-table tr:hover td { background: var(--secondary-container, #E8DEF8); }
+
+        @media (max-width: 600px) {
+            .report-card { flex-wrap: wrap; }
+            .report-card-actions { width: 100%; justify-content: flex-end; }
+        }
+
         @media (max-width: 480px) {
             .reports-grid { grid-template-columns: 1fr; }
             .modal-box { padding: 1.2rem; }
@@ -749,20 +1185,14 @@
 
         <div class="reports-hero">
             <h1>Mis Reportes</h1>
-            <p>Completa los reportes asignados por tu profesor.</p>
-            <!-- Botón al módulo administrador (solo visible para profesores) -->
-            <a href="report_admin" class="btn-admin-link admin-only" id="btn-go-admin">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                Panel de Administrador
-            </a>
+            <p>Completa los reportes asignados y, si eres profesor o administrador, créalos y adminístralos.</p>
         </div>
 
         <!-- Tabs -->
         <div class="report-tabs">
             <button class="tab-btn active" data-tab="pending">Pendientes</button>
             <button class="tab-btn" data-tab="completed">Completados</button>
+            <button class="tab-btn admin-only" data-tab="manage" id="tab-btn-manage">🛠️ Gestionar</button>
         </div>
 
         <!-- Pending tab -->
@@ -782,6 +1212,32 @@
                 <div class="empty-state-icon">📋</div>
                 <h3>Sin reportes completados</h3>
                 <p>Aquí aparecerán los reportes que ya hayas enviado.</p>
+            </div>
+        </div>
+
+        <!-- Manage tab (solo profesores / administradores) -->
+        <div id="tab-manage" style="display:none;">
+            <div class="manage-toolbar">
+                <div class="search-bar">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                    <input type="text" id="manage-search-input" placeholder="Buscar reportes..." autocomplete="off">
+                </div>
+                <button class="btn-create" id="btn-new-report">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    Nuevo Reporte
+                </button>
+            </div>
+
+            <div class="reports-list" id="reports-list"></div>
+
+            <div class="empty-state" id="manage-empty-state" style="display:none;">
+                <div class="empty-state-icon">📋</div>
+                <h3>Sin reportes aún</h3>
+                <p>Crea tu primer reporte pulsando "Nuevo Reporte".</p>
             </div>
         </div>
 
@@ -810,6 +1266,108 @@
             <div class="modal-footer">
                 <button class="btn-cancel" id="fill-cancel-btn">Cancelar</button>
                 <button class="btn-submit" id="fill-submit-btn">Enviar reporte</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: CREAR / EDITAR REPORTE (profesor / admin) ===== -->
+    <div class="modal-overlay" id="modal-report" role="dialog" aria-modal="true" aria-labelledby="manage-modal-title">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-title" id="manage-modal-title">Crear Reporte</span>
+                </div>
+                <button class="modal-close" id="manage-modal-close-btn" aria-label="Cerrar">✕</button>
+            </div>
+
+            <!-- Datos básicos -->
+            <div class="form-group">
+                <label class="form-label" for="report-title-input">Título del reporte *</label>
+                <input class="form-input" type="text" id="report-title-input" placeholder="Ej: Reporte de práctica semanal" maxlength="120">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="report-desc-input">Descripción / instrucciones</label>
+                <textarea class="form-textarea" id="report-desc-input" placeholder="Explica qué deben reportar..."></textarea>
+            </div>
+            <div class="form-group" style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:140px;">
+                    <label class="form-label" for="report-deadline">Fecha límite</label>
+                    <input class="form-input" type="date" id="report-deadline">
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <label class="form-label" for="report-icon">Ícono</label>
+                    <select class="form-select" id="report-icon">
+                        <option value="📋">📋 General</option>
+                        <option value="📝">📝 Tarea</option>
+                        <option value="🔬">🔬 Investigación</option>
+                        <option value="📊">📊 Datos</option>
+                        <option value="🏃">🏃 Actividad física</option>
+                        <option value="💡">💡 Proyecto</option>
+                        <option value="📸">📸 Fotográfico</option>
+                        <option value="🧪">🧪 Laboratorio</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Constructor de preguntas -->
+            <div class="questions-area">
+                <div class="questions-area-label">Preguntas del reporte</div>
+                <div class="question-type-btns">
+                    <button class="btn-add-q" type="button" data-type="text">✏️ Texto</button>
+                    <button class="btn-add-q" type="button" data-type="select">☑️ Selección</button>
+                    <button class="btn-add-q" type="button" data-type="time">🕐 Hora</button>
+                    <button class="btn-add-q" type="button" data-type="date">📅 Fecha</button>
+                    <button class="btn-add-q" type="button" data-type="image">🖼️ Imagen</button>
+                </div>
+                <div class="questions-list" id="questions-list">
+                    <!-- Preguntas se agregan dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Asignación por sección -->
+            <div class="access-section">
+                <div class="access-title">🏫 Asignar por sección</div>
+                <p class="form-hint" style="margin-bottom:0.7rem;">
+                    Todos los estudiantes de la sección seleccionada tendrán acceso automáticamente,
+                    incluidos los que se agreguen a la sección más adelante.
+                </p>
+                <select class="form-select" id="report-section-select">
+                    <option value="">Sin sección (solo acceso individual)</option>
+                </select>
+            </div>
+
+            <!-- Control de acceso individual -->
+            <div class="access-section">
+                <div class="access-title">👥 Acceso individual adicional</div>
+                <p class="form-hint" style="margin-bottom:0.7rem;">
+                    Busca por cédula para dar acceso a personas puntuales (de cualquier rol),
+                    además de la sección elegida arriba.
+                </p>
+                <div id="student-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" id="manage-modal-cancel-btn">Cancelar</button>
+                <button class="btn-save" id="manage-modal-save-btn">Guardar reporte</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL: VER RESPUESTAS (profesor / admin) ===== -->
+    <div class="modal-overlay" id="modal-submissions" role="dialog" aria-modal="true">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span class="modal-title" id="submissions-title">Respuestas</span>
+                <button class="modal-close" id="submissions-close-btn" aria-label="Cerrar">✕</button>
+            </div>
+            <div id="submissions-content">
+                <div class="empty-state" style="padding:2rem;">
+                    <div class="empty-state-icon">📭</div>
+                    <h3>Sin respuestas aún</h3>
+                    <p>Nadie ha completado este reporte todavía.</p>
+                </div>
             </div>
         </div>
     </div>
