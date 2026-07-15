@@ -4,6 +4,7 @@
    ============================================ */
 import { processDocxFile, isValidDocx } from './docx-parser.js';
 import { createZipArchive, generateZipName } from './zip-builder.js';
+import { generateInvoicePdf, extractPngFromIco } from './invoice-pdf.js';
 // --- CONFIGURACIÓN ---
 function getAIGatewayURL(env) {
   return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/compat/chat/completions`;
@@ -2151,6 +2152,16 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       const txId = saleTxMatch[1];
       if (request.method === 'PUT')
         return handleSaleTransactionUpdate(request, env, corsHeaders, txId);
+    }
+
+    // GET /api/sales/invoices        → listar facturas generadas
+    if (path === '/api/sales/invoices' && request.method === 'GET') {
+      return handleSaleInvoicesList(request, env, corsHeaders);
+    }
+    // GET /api/sales/invoices/:id/pdf → ver/descargar el PDF de una factura
+    const saleInvoicePdfMatch = path.match(/^\/api\/sales\/invoices\/([^/]+)\/pdf$/);
+    if (saleInvoicePdfMatch && request.method === 'GET') {
+      return handleSaleInvoicePdf(request, env, corsHeaders, saleInvoicePdfMatch[1]);
     }
 
     // ── RUTAS APA 7 ────────────────────────────────────────────
@@ -4692,9 +4703,13 @@ async function handleSaleTransactionCreate(request, env, corsHeaders) {
       return jsonResponse({ error: `Solo hay ${listing.quantity} unidades disponibles` }, 400, corsHeaders);
     }
 
-    const buyer = await env.MIRAI_AI_DB.prepare(
-      'SELECT id FROM sale_buyers WHERE id = ? AND user_dni = ?'
-    ).bind(buyer_id, userDni.toUpperCase()).first();
+    const buyer = await env.MIRAI_AI_DB.prepare(`
+      SELECT b.id, b.first_name, b.last_name, b.cedula, b.phone,
+             CASE WHEN u.dni IS NOT NULL THEN 1 ELSE 0 END AS has_account
+      FROM sale_buyers b
+      LEFT JOIN users u ON u.dni = b.cedula
+      WHERE b.id = ? AND b.user_dni = ?
+    `).bind(buyer_id, userDni.toUpperCase()).first();
     if (!buyer) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
 
     const id = crypto.randomUUID();
@@ -4721,11 +4736,166 @@ async function handleSaleTransactionCreate(request, env, corsHeaders) {
       UPDATE inventory_products SET quantity = MAX(0, quantity - ?), updated_at = ? WHERE id = ? AND user_dni = ?
     `).bind(qty, now, listing.product_id, userDni.toUpperCase()).run();
 
-    return jsonResponse({ success: true, id, total_amount: totalAmount }, 201, corsHeaders);
+    // Generar y guardar la factura PDF (D1 + R2). Un fallo aquí no debe
+    // revertir la venta, que ya quedó registrada arriba.
+    let invoice = null;
+    try {
+      invoice = await createSaleInvoice(env, request, userDni.toUpperCase(), {
+        transactionId: id, listing, buyer, quantity: qty, unitPrice: listing.unit_price,
+      });
+    } catch (invoiceError) {
+      console.error('[Sales] Error al generar la factura:', invoiceError);
+    }
+
+    return jsonResponse({
+      success: true, id, total_amount: totalAmount,
+      invoice_id: invoice?.id || null, invoice_number: invoice?.invoiceNumber || null,
+    }, 201, corsHeaders);
   } catch (error) {
     console.error('[Sales] Error al crear transacción:', error);
     return jsonResponse({ error: 'Error al registrar la compra', details: error.message }, 500, corsHeaders);
   }
+}
+
+/**
+ * Descarga los bytes de un asset estático servido por este mismo Worker
+ * (public/), reutilizando el mecanismo de Cloudflare Workers Assets.
+ */
+async function fetchAssetBytes(request, path) {
+  const url = new URL(path, request.url);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`No se pudo cargar el asset ${path} (HTTP ${res.status})`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * Genera la factura PDF de una venta recién creada, la sube a R2
+ * (bucket MIRAI_AI_ASSETS, prefijo invoices/) y guarda sus metadatos en D1.
+ */
+async function createSaleInvoice(env, request, userDni, { transactionId, listing, buyer, quantity, unitPrice }) {
+  const seller = await env.MIRAI_AI_DB.prepare(
+    'SELECT dni, first_name, last_name FROM users WHERE dni = ?'
+  ).bind(userDni).first();
+  const sellerName = seller ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() : userDni;
+
+  const countRow = await env.MIRAI_AI_DB.prepare(
+    'SELECT COUNT(*) as c FROM sale_invoices WHERE user_dni = ?'
+  ).bind(userDni).first();
+  const invoiceNumber = `FAC-${String((countRow?.c || 0) + 1).padStart(6, '0')}`;
+
+  const subtotal = quantity * unitPrice;
+  const taxAmount = subtotal * 0.16;
+  const total = subtotal + taxAmount;
+
+  let logoPngBytes = null;
+  let companyLogoPngBytes = null;
+  try {
+    const [faviconBytes, corpLogoBytes] = await Promise.all([
+      fetchAssetBytes(request, '/favicon.ico'),
+      fetchAssetBytes(request, '/corp_icon.png'),
+    ]);
+    logoPngBytes = extractPngFromIco(faviconBytes);
+    companyLogoPngBytes = corpLogoBytes;
+  } catch (assetError) {
+    console.error('[Sales] No se pudieron cargar los logos para la factura:', assetError);
+  }
+
+  let productImageBytes = null;
+  let productImageIsPng = true;
+  if (listing.photo_r2_key) {
+    try {
+      const obj = await env.MIRAI_AI_ASSETS.get(listing.photo_r2_key);
+      if (obj) {
+        productImageBytes = new Uint8Array(await obj.arrayBuffer());
+        productImageIsPng = (obj.httpMetadata?.contentType || '').includes('png');
+      }
+    } catch (imgError) {
+      console.error('[Sales] No se pudo cargar la imagen del producto para la factura:', imgError);
+    }
+  }
+
+  const createdAt = new Date().toISOString();
+  const pdfBytes = await generateInvoicePdf({
+    invoiceNumber, transactionId, createdAt,
+    sellerName, sellerDni: userDni,
+    buyer: {
+      first_name: buyer.first_name, last_name: buyer.last_name,
+      cedula: buyer.cedula, phone: buyer.phone, has_account: !!buyer.has_account,
+    },
+    product: { name: listing.product_name, unit_price: unitPrice, quantity },
+    subtotal, taxAmount, total,
+    logoPngBytes, companyLogoPngBytes, productImageBytes, productImageIsPng,
+  });
+
+  const id = crypto.randomUUID();
+  const r2Key = `invoices/${userDni}/${id}.pdf`;
+
+  await env.MIRAI_AI_ASSETS.put(r2Key, pdfBytes, {
+    httpMetadata: { contentType: 'application/pdf' },
+    customMetadata: { transactionId, invoiceNumber, userDni },
+  });
+
+  await env.MIRAI_AI_DB.prepare(`
+    INSERT INTO sale_invoices
+      (id, user_dni, transaction_id, buyer_id, invoice_number, r2_key,
+       product_name, quantity, unit_price, subtotal, tax_amount, total_amount, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    id, userDni, transactionId, buyer.id, invoiceNumber, r2Key,
+    listing.product_name, quantity, unitPrice, subtotal, taxAmount, total, createdAt
+  ).run();
+
+  return { id, invoiceNumber, r2Key };
+}
+
+/**
+ * GET /api/sales/invoices
+ * Lista todas las facturas generadas por el usuario.
+ */
+async function handleSaleInvoicesList(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  try {
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT i.id, i.transaction_id, i.invoice_number, i.product_name, i.quantity,
+             i.unit_price, i.subtotal, i.tax_amount, i.total_amount, i.created_at,
+             b.first_name AS buyer_first_name, b.last_name AS buyer_last_name, b.cedula AS buyer_cedula
+      FROM sale_invoices i
+      JOIN sale_buyers b ON b.id = i.buyer_id
+      WHERE i.user_dni = ?
+      ORDER BY i.created_at DESC
+    `).bind(userDni.toUpperCase()).all();
+
+    return jsonResponse(results, 200, corsHeaders);
+  } catch (error) {
+    console.error('[Sales] Error al listar facturas:', error);
+    return jsonResponse({ error: 'Error al obtener facturas' }, 500, corsHeaders);
+  }
+}
+
+/**
+ * GET /api/sales/invoices/:id/pdf
+ * Sirve el PDF de la factura desde R2. Solo el dueño puede verlo/descargarlo.
+ */
+async function handleSaleInvoicePdf(request, env, corsHeaders, invoiceId) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+  const invoice = await env.MIRAI_AI_DB.prepare(
+    'SELECT r2_key, invoice_number FROM sale_invoices WHERE id = ? AND user_dni = ?'
+  ).bind(invoiceId, userDni.toUpperCase()).first();
+  if (!invoice) return jsonResponse({ error: 'Factura no encontrada' }, 404, corsHeaders);
+
+  const object = await env.MIRAI_AI_ASSETS.get(invoice.r2_key);
+  if (!object) return jsonResponse({ error: 'El archivo de la factura no está disponible' }, 404, corsHeaders);
+
+  const headers = new Headers(corsHeaders);
+  headers.set('Content-Type', 'application/pdf');
+  headers.set('Content-Disposition', `inline; filename="${invoice.invoice_number}.pdf"`);
+  headers.set('Cache-Control', 'private, no-cache');
+
+  return new Response(object.body, { headers });
 }
 
 /**

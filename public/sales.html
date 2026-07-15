@@ -343,6 +343,22 @@
             grid-template-columns: 90px 1fr;
             gap: 8px;
         }
+
+        .btn-view-pdf {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            border-radius: 7px;
+            border: 1px solid var(--glass-border);
+            background: var(--secondary-container);
+            color: var(--accent-color);
+            font-size: .78rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-view-pdf:hover { border-color: var(--accent-color); }
     </style>
 </head>
 
@@ -448,6 +464,7 @@
                         <button class="filter-pill" data-view="pending" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">⏳ Pagos Pendientes</button>
                         <button class="filter-pill" data-view="paid" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">✅ Pagos Realizados</button>
                         <button class="filter-pill" data-view="buyers" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">👤 Compradores</button>
+                        <button class="filter-pill" data-view="invoices" style="width:100%;box-sizing:border-box;text-align:left;justify-content:flex-start;">🧾 Facturas</button>
                     </div>
                 </div>
             </section>
@@ -561,6 +578,7 @@
             <button class="sales-tab" data-view="pending">⏳ Pagos Pendientes <span class="sales-tab-badge" id="badge-pending">0</span></button>
             <button class="sales-tab" data-view="paid">✅ Pagos Realizados <span class="sales-tab-badge" id="badge-paid">0</span></button>
             <button class="sales-tab" data-view="buyers">👤 Compradores <span class="sales-tab-badge" id="badge-buyers">0</span></button>
+            <button class="sales-tab" data-view="invoices">🧾 Facturas <span class="sales-tab-badge" id="badge-invoices">0</span></button>
         </div>
 
         <!-- Vista: Inventario en Venta -->
@@ -632,6 +650,28 @@
                         </tr>
                     </thead>
                     <tbody id="buyers-rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Vista: Facturas -->
+        <div class="sales-view" id="view-invoices">
+            <div class="sales-table-wrap">
+                <table class="sales-table">
+                    <thead>
+                        <tr>
+                            <th>N.º Factura</th>
+                            <th>Producto</th>
+                            <th>Comprador</th>
+                            <th>Cant.</th>
+                            <th>Subtotal</th>
+                            <th>IVA (16%)</th>
+                            <th>Total</th>
+                            <th>Fecha</th>
+                            <th>PDF</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoices-rows"></tbody>
                 </table>
             </div>
         </div>

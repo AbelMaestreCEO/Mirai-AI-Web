@@ -13,6 +13,7 @@
   let BUYERS = [];
   let PENDING_TX = [];
   let PAID_TX = [];
+  let INVOICES = [];
   let activeView = 'listings';
   let selectedBuyerId = null;
   let reopenPurchaseAfterBuyer = false;
@@ -55,8 +56,13 @@
     PAID_TX = Array.isArray(paid) ? paid : (paid?.results || []);
   }
 
+  async function fetchInvoices() {
+    const data = await apiFetch(`${API}/invoices`);
+    INVOICES = Array.isArray(data) ? data : (data?.results || []);
+  }
+
   async function loadAll() {
-    await Promise.all([fetchListings(), fetchBuyers(), fetchTransactions()]);
+    await Promise.all([fetchListings(), fetchBuyers(), fetchTransactions(), fetchInvoices()]);
     renderAll();
   }
 
@@ -69,6 +75,7 @@
     renderBuyers();
     renderTransactions('pendiente');
     renderTransactions('pagado');
+    renderInvoices();
     updateStats();
   }
 
@@ -87,6 +94,7 @@
     setText('badge-pending', PENDING_TX.length);
     setText('badge-paid', PAID_TX.length);
     setText('badge-buyers', BUYERS.length);
+    setText('badge-invoices', INVOICES.length);
   }
 
   function showEmptyStates(message) {
@@ -94,6 +102,7 @@
     document.getElementById('pending-rows').innerHTML = '';
     document.getElementById('paid-rows').innerHTML = '';
     document.getElementById('buyers-rows').innerHTML = '';
+    document.getElementById('invoices-rows').innerHTML = '';
   }
 
   function emptyStateHtml(icon, message) {
@@ -289,6 +298,36 @@
     } catch (err) {
       alert('Error: ' + err.message);
     }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     RENDER — Facturas
+  ══════════════════════════════════════════════════════════ */
+
+  function renderInvoices() {
+    const tbody = document.getElementById('invoices-rows');
+    tbody.innerHTML = '';
+
+    if (INVOICES.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9">${emptyStateHtml('🧾', 'Aún no se ha generado ninguna factura. Se crean automáticamente al registrar una venta.')}</td></tr>`;
+      return;
+    }
+
+    INVOICES.forEach(inv => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(inv.invoice_number)}</td>
+        <td>${escapeHtml(inv.product_name)}</td>
+        <td>${escapeHtml(inv.buyer_first_name)} ${escapeHtml(inv.buyer_last_name)} <span style="color:var(--text-tertiary);font-size:.78rem;">(${escapeHtml(inv.buyer_cedula)})</span></td>
+        <td>${inv.quantity}</td>
+        <td>${formatMoney(inv.subtotal)}</td>
+        <td>${formatMoney(inv.tax_amount)}</td>
+        <td><strong>${formatMoney(inv.total_amount)}</strong></td>
+        <td>${formatDate(inv.created_at)}</td>
+        <td><a class="btn-view-pdf" href="${API}/invoices/${inv.id}/pdf" target="_blank" rel="noopener">🧾 Ver PDF</a></td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
   /* ══════════════════════════════════════════════════════════
