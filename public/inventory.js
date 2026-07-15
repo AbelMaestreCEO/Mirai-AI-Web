@@ -1113,92 +1113,9 @@ window.closeModals = function () {
     setTimeout(() => resetForm(), 300); // ← agrega el resetForm aquí también
 };
 
-// ============================================
-// SOLICITAR SUSCRIPCIÓN A NOTIFICACIONES
-// ============================================
-async function requestNotificationPermission() {
-    if (!('Notification' in window)) {
-        alert('Tu navegador no soporta notificaciones.');
-        return;
-    }
-
-    if (Notification.permission === 'granted') {
-        console.log('✅ Notificaciones ya permitidas.');
-        await subscribeUser();
-        return;
-    }
-
-    if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            console.log('✅ Permiso concedido.');
-            await subscribeUser();
-        } else {
-            console.log('❌ Permiso denegado.');
-        }
-    }
-}
-
-async function subscribeUser() {
-    if (!('PushManager' in window)) {
-        console.warn('❌ Push Manager no soportado.');
-        return;
-    }
-
-    try {
-        const registration = await navigator.serviceWorker.ready;
-
-        // Obtener la clave pública VAPID desde el servidor (permite rotarla sin cambiar código)
-        const vapidRes = await fetch('/api/vapid-key', { credentials: 'same-origin' });
-        if (!vapidRes.ok) throw new Error('No se pudo obtener la clave VAPID');
-        const { publicKey } = await vapidRes.json();
-        const applicationServerKey = urlBase64ToUint8Array(publicKey);
-
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: applicationServerKey
-        });
-
-        const { endpoint, keys } = subscription;
-        const { p256dh, auth } = keys;
-
-        // Enviar al servidor
-        const response = await fetch('/api/notifications/subscribe', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                credentials: 'same-origin'
-            },
-            body: JSON.stringify({ endpoint, p256dh, auth })
-        });
-
-        if (response.ok) {
-            console.log('✅ Suscripción guardada en servidor.');
-            showStatus('🔔 Notificaciones activadas para alertas de stock.', 'success');
-        } else {
-            console.error('❌ Error al suscribirse:', await response.text());
-        }
-
-    } catch (error) {
-        console.error('Error en suscripción:', error);
-    }
-}
-
-// Helper: Convertir Base64 a Uint8Array
-function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
-
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-}
+// Nota: la suscripción a notificaciones push se maneja de forma centralizada
+// en notifications.js (miraiEnsureSubscribed / miraiRequestNotifications),
+// incluido desde inventory.html.
 function initRealtimeInventory() {
   const rt = window.MiraiRealtime.getInstance();
  

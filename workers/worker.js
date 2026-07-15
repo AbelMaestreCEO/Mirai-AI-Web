@@ -7441,7 +7441,7 @@ async function handleInventoryUpdate(request, env, corsHeaders) {
 
     // Después de actualizar el stock
     if (quantity <= 3) {
-      await sendPushNotification(userDni, '⚠️ Stock Crítico', `El producto ${name} tiene solo ${quantity} unidades.`);
+      await sendPushNotification(env, userDni, '⚠️ Stock Crítico', `El producto ${name} tiene solo ${quantity} unidades.`, { category: 'inventory', url: '/inventory', tag: 'inventory-stock' });
     }
 
     return jsonResponse({ success: true, message: 'Producto actualizado' }, 200, corsHeaders);
@@ -7843,7 +7843,7 @@ async function handleSaveUserSettings(request, env, corsHeaders) {
     const body = await request.json();
 
     // Solo guardamos campos permitidos (whitelist)
-    const allowed = ['accentColor', 'fontFamily', 'fontSize', 'reducedMotion', 'themeMode', 'aiModel', 'notifications', 'twoFactor'];
+    const allowed = ['accentColor', 'fontFamily', 'fontSize', 'reducedMotion', 'themeMode', 'aiModel', 'notifications', 'twoFactor', 'notifyGeneration', 'notifyClassroom', 'notifyInventory', 'notifyReport', 'notifyTask'];
     const clean = {};
     for (const key of allowed) {
       if (body[key] !== undefined) clean[key] = body[key];
@@ -10609,16 +10609,160 @@ async function handleSubscribe(request, env, corsHeaders) {
   }
 }
 
-// 2. Enviar Notificación (Trigger manual o automático)
-async function sendPushNotification(userDni, title, body, iconUrl = '/icon.png') {
+// ── Web Push (VAPID + aes128gcm) implementado con Web Crypto API nativa ──
+// Cloudflare Workers no soporta de forma fiable los módulos 'https'/'crypto'
+// de Node de los que depende el paquete npm 'web-push', así que el cifrado
+// (RFC 8291) y la firma VAPID (RFC 8292) se hacen aquí directamente con
+// crypto.subtle, sin dependencias externas.
+
+function b64urlToBytes(b64url) {
+  const pad = '='.repeat((4 - b64url.length % 4) % 4);
+  const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+function bytesToB64url(bytes) {
+  let str = '';
+  for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function concatBytes(...arrays) {
+  const total = arrays.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arrays) { out.set(a, offset); offset += a.length; }
+  return out;
+}
+
+async function hmacSha256(keyBytes, dataBytes) {
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
+  return new Uint8Array(sig);
+}
+
+async function hkdf(salt, ikm, info, length) {
+  const prk = await hmacSha256(salt, ikm);
+  const t = await hmacSha256(prk, concatBytes(info, new Uint8Array([1])));
+  return t.slice(0, length);
+}
+
+async function importVapidPrivateKey(privateKeyB64url, publicKeyB64url) {
+  const d = b64urlToBytes(privateKeyB64url);
+  const pub = b64urlToBytes(publicKeyB64url); // 0x04 || X(32) || Y(32)
+  const jwk = {
+    kty: 'EC', crv: 'P-256',
+    d: bytesToB64url(d), x: bytesToB64url(pub.slice(1, 33)), y: bytesToB64url(pub.slice(33, 65)),
+    ext: true, key_ops: ['sign']
+  };
+  return crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+}
+
+// JWT firmado ES256 requerido por VAPID (RFC 8292) para autenticar al servidor ante el push service
+async function buildVapidJWT(endpoint, publicKeyB64url, privateKeyB64url, subject) {
+  const url = new URL(endpoint);
+  const encoder = new TextEncoder();
+  const headerB64 = bytesToB64url(encoder.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const payloadB64 = bytesToB64url(encoder.encode(JSON.stringify({
+    aud: `${url.protocol}//${url.host}`,
+    exp: Math.floor(Date.now() / 1000) + 12 * 3600,
+    sub: subject
+  })));
+  const unsigned = `${headerB64}.${payloadB64}`;
+  const key = await importVapidPrivateKey(privateKeyB64url, publicKeyB64url);
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, encoder.encode(unsigned));
+  return `${unsigned}.${bytesToB64url(new Uint8Array(sig))}`;
+}
+
+// Cifrado aes128gcm del payload para el destinatario (RFC 8291)
+async function encryptWebPushPayload(subscription, payloadObj) {
+  const uaPublicKey = b64urlToBytes(subscription.keys.p256dh); // 65 bytes
+  const authSecret = b64urlToBytes(subscription.keys.auth);    // 16 bytes
+
+  const uaKey = await crypto.subtle.importKey('raw', uaPublicKey, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const asKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPublicRaw = new Uint8Array(await crypto.subtle.exportKey('raw', asKeyPair.publicKey));
+
+  const sharedSecret = new Uint8Array(
+    await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, asKeyPair.privateKey, 256)
+  );
+
+  const encoder = new TextEncoder();
+  const keyInfo = concatBytes(encoder.encode('WebPush: info\0'), uaPublicKey, asPublicRaw);
+  const ikm = await hkdf(authSecret, sharedSecret, keyInfo, 32);
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, encoder.encode('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(salt, ikm, encoder.encode('Content-Encoding: nonce\0'), 12);
+
+  // 0x02 = delimitador de último (único) registro, requerido por RFC 8188
+  const plaintext = concatBytes(encoder.encode(JSON.stringify(payloadObj)), new Uint8Array([2]));
+
+  const aesKey = await crypto.subtle.importKey('raw', cek, { name: 'AES-GCM' }, false, ['encrypt']);
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, aesKey, plaintext));
+
+  const rs = new Uint8Array(4);
+  new DataView(rs.buffer).setUint32(0, 4096, false);
+
+  return concatBytes(salt, rs, new Uint8Array([asPublicRaw.length]), asPublicRaw, ciphertext);
+}
+
+async function sendWebPush(env, subscription, payloadObj, { ttl = 4 * 3600, urgency = 'high' } = {}) {
+  const publicKey = env.VAPID_PUBLIC_KEY;
+  const privateKey = env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) throw new Error('VAPID keys no configuradas');
+
+  const subject = env.VAPID_SUBJECT || 'mailto:soporte@aberumirai.com';
+  const jwt = await buildVapidJWT(subscription.endpoint, publicKey, privateKey, subject);
+  const body = await encryptWebPushPayload(subscription, payloadObj);
+
+  return fetch(subscription.endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Encoding': 'aes128gcm',
+      'TTL': String(ttl),
+      'Urgency': urgency, // 'high' evita que Android/Doze retrase la entrega
+      'Authorization': `vapid t=${jwt}, k=${publicKey}`
+    },
+    body
+  });
+}
+
+// Mapea cada "categoría" de notificación a la preferencia por-página guardada en settings_json
+const NOTIF_CATEGORY_SETTING_KEY = {
+  generation: 'notifyGeneration',
+  classroom: 'notifyClassroom',
+  inventory: 'notifyInventory',
+  report: 'notifyReport',
+  task: 'notifyTask'
+};
+
+async function shouldSendNotification(env, userDni, category) {
   try {
-    const privateKey = env.VAPID_PRIVATE_KEY;
-    if (!privateKey) {
-      console.error('❌ VAPID_PRIVATE_KEY no configurada en Cloudflare');
+    const row = await env.MIRAI_AI_DB.prepare("SELECT settings_json FROM users WHERE dni = ?").bind(userDni).first();
+    const settings = row?.settings_json ? JSON.parse(row.settings_json) : {};
+    if (settings.notifications === false) return false;
+    const key = NOTIF_CATEGORY_SETTING_KEY[category];
+    if (key && settings[key] === false) return false;
+    return true;
+  } catch (error) {
+    console.error('Error leyendo preferencias de notificación:', error);
+    return true; // no bloquear el envío por un error de lectura de preferencias
+  }
+}
+
+// 2. Enviar Notificación (Trigger manual o automático)
+async function sendPushNotification(env, userDni, title, body, { category, url = '/', tag = 'mirai-alert' } = {}) {
+  try {
+    if (category && !(await shouldSendNotification(env, userDni, category))) {
+      console.log(`ℹ️ Usuario ${userDni} desactivó notificaciones de "${category}".`);
       return;
     }
 
-    // Obtener suscripción del usuario
     const sub = await env.MIRAI_AI_DB.prepare(
       "SELECT subscription_endpoint, subscription_p256dh, subscription_auth FROM user_notifications WHERE user_dni = ?"
     ).bind(userDni).first();
@@ -10630,83 +10774,19 @@ async function sendPushNotification(userDni, title, body, iconUrl = '/icon.png')
 
     const subscription = {
       endpoint: sub.subscription_endpoint,
-      keys: {
-        p256dh: sub.subscription_p256dh,
-        auth: sub.subscription_auth
-      }
+      keys: { p256dh: sub.subscription_p256dh, auth: sub.subscription_auth }
     };
 
-    // Usar web-push (necesitas instalarlo en tu entorno local o usar fetch directo)
-    // Como Cloudflare Workers no soporta npm packages nativamente en todos los casos,
-    // usaremos una implementación manual con fetch o una librería ligera si la tienes.
-    // Para simplificar, aquí usamos una llamada directa al endpoint de Google/Mozilla.
-
-    // NOTA: Para producción, se recomienda usar la librería 'web-push' en un entorno Node.js separado
-    // o implementar la lógica de cifrado en el Worker.
-    // Aquí simulamos la llamada (debes implementar el cifrado JWE/JWK si no usas librería externa).
-
-    // *Alternativa simple*: Usar un servicio externo o una función separada en Node.js.
-    // Para este ejemplo, asumiremos que tienes una función helper `sendPush` que maneja el cifrado.
-    // Si no, te recomiendo usar un servicio como OneSignal o Firebase Cloud Messaging (FCM) que es más fácil en Workers.
-
-    // IMPLEMENTACIÓN MANUAL SIMPLIFICADA (Requiere librería web-push en tu build o implementación manual compleja)
-    // Dado que Cloudflare Workers no tiene 'buffer' nativo fácil para cifrado complejo sin polyfills,
-    // la mejor estrategia es usar FCM (Firebase) o un microservicio Node.js.
-
-    // *Solución recomendada para Workers*: Usar Firebase Cloud Messaging (FCM) que es más sencillo.
-    // Pero si insistes en Web Push puro, necesitas implementar el cifrado.
-
-    // Vamos a usar un enfoque híbrido: Guardamos el trigger y un cron job o evento lo envía.
-    // O simplemente lanzamos un evento al Service Worker del cliente si está activo.
-
-    // *Para este ejemplo, usaremos una llamada directa a la API de Push (requiere librería)*
-    // Si no tienes la librería, te sugiero usar FCM.
-
-    // *Implementación con fetch (simplificada, asumiendo que tienes las claves)*
-    // Esto es complejo sin librería. Te recomiendo usar FCM.
-
-    // *Alternativa: Usar un servicio de terceros como OneSignal o FCM.*
-    // Para mantenerlo simple y funcional en Workers sin dependencias externas complejas:
-    // Usaremos un "Trigger" que el Service Worker escuchará si está activo.
-
-    // *Mejor opción para Workers*: Usar **Firebase Cloud Messaging (FCM)**.
-    // Es más fácil de integrar en Workers que Web Push puro.
-
-    // *Si quieres Web Push puro*, necesitas implementar el cifrado.
-    // Aquí te dejo la estructura para FCM (más fácil):
-
-    const fcmServerKey = env.FCM_SERVER_KEY; // Debes guardar esto en secrets
-    if (!fcmServerKey) {
-      console.error('FCM_SERVER_KEY no configurada');
-      return;
-    }
-
-    const fcmPayload = {
-      to: subscription.endpoint, // En FCM, esto sería el token del dispositivo
-      notification: {
-        title: title,
-        body: body,
-        icon: iconUrl
-      },
-      data: {
-        type: 'inventory_alert',
-        user_dni: userDni
-      }
-    };
-
-    const fcmResp = await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `key=${fcmServerKey}`
-      },
-      body: JSON.stringify(fcmPayload)
+    const resp = await sendWebPush(env, subscription, {
+      notification: { title, body, tag, url }
     });
 
-    if (!fcmResp.ok) {
-      console.error('Error FCM:', await fcmResp.text());
+    if (resp.status === 404 || resp.status === 410) {
+      // Suscripción vencida/inválida según el push service: limpiarla
+      await env.MIRAI_AI_DB.prepare("DELETE FROM user_notifications WHERE user_dni = ?").bind(userDni).run();
+    } else if (!resp.ok) {
+      console.error('Error enviando push:', resp.status, await resp.text());
     }
-
   } catch (error) {
     console.error('Error sending push:', error);
   }
@@ -10717,9 +10797,9 @@ async function handleTriggerNotification(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-  const { title, body } = await request.json();
+  const { title, body, category, url } = await request.json();
 
-  await sendPushNotification(userDni, title, body);
+  await sendPushNotification(env, userDni, title, body, { category, url });
 
   return jsonResponse({ success: true, message: 'Notificación enviada' }, 200, corsHeaders);
 }

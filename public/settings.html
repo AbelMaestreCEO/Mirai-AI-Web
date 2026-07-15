@@ -1597,8 +1597,8 @@
                 </div>
                 <div class="settings-row">
                     <div class="settings-row-info">
-                        <h3>Notificaciones</h3>
-                        <p>Recibe alertas de inventario, aula virtual y tareas</p>
+                        <h3>Notificaciones push</h3>
+                        <p>Activa el permiso del navegador para recibir alertas importantes</p>
                     </div>
                     <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
                         <input type="checkbox" id="btn-enable-notifications" style="opacity:0;width:0;height:0;">
@@ -1607,6 +1607,34 @@
                         <span id="notif-thumb"
                             style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:white;border-radius:50%;transition:transform 0.3s;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></span>
                     </label>
+                </div>
+                <div class="settings-row" id="notif-pages-row" style="flex-direction:column;align-items:stretch;gap:12px;">
+                    <div class="settings-row-info">
+                        <h3 style="font-size:0.92rem;">¿Dónde quieres recibir notificaciones?</h3>
+                        <p>Elige en qué secciones te avisamos con notificaciones push</p>
+                    </div>
+                    <div id="notif-pages-list" style="display:flex;flex-direction:column;gap:10px;padding-left:2px;">
+                        <label class="notif-page-option" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.9rem;color:var(--text-primary);">
+                            <input type="checkbox" class="notif-page-checkbox" id="notif-page-generation" data-key="notifyGeneration" checked style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;">
+                            <span>🎨 Generación de contenido</span>
+                        </label>
+                        <label class="notif-page-option" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.9rem;color:var(--text-primary);">
+                            <input type="checkbox" class="notif-page-checkbox" id="notif-page-classroom" data-key="notifyClassroom" checked style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;">
+                            <span>🎓 Aula virtual</span>
+                        </label>
+                        <label class="notif-page-option" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.9rem;color:var(--text-primary);">
+                            <input type="checkbox" class="notif-page-checkbox" id="notif-page-inventory" data-key="notifyInventory" checked style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;">
+                            <span>📦 Inventario</span>
+                        </label>
+                        <label class="notif-page-option" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.9rem;color:var(--text-primary);">
+                            <input type="checkbox" class="notif-page-checkbox" id="notif-page-report" data-key="notifyReport" checked style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;">
+                            <span>📊 Reportes</span>
+                        </label>
+                        <label class="notif-page-option" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.9rem;color:var(--text-primary);">
+                            <input type="checkbox" class="notif-page-checkbox" id="notif-page-task" data-key="notifyTask" checked style="width:18px;height:18px;accent-color:var(--accent-color);cursor:pointer;">
+                            <span>✅ Tareas</span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1638,6 +1666,7 @@
     <script src="mirai-boot.js" type="module"></script>
     <script src="auth-guard.js"></script>
     <script src="app.js" type="module"></script>
+    <script src="notifications.js"></script>
 
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap"
@@ -2061,8 +2090,9 @@
                     // Cargar perfil desde la API (async, no bloquea el resto)
                     loadProfileFromAPI();
 
-                    // Inicializar toggle de notificaciones
+                    // Inicializar toggle de notificaciones y preferencias por página
                     initNotifToggle();
+                    applyNotifPagePrefs(saved);
 
                     // Cargar settings desde DB (sobrescribe localStorage si hay datos más recientes)
                     loadSettingsFromDB().then(dbSettings => {
@@ -2105,6 +2135,8 @@
                         if (dbSettings.twoFactor !== undefined) {
                             updateTwoFactorToggle(dbSettings.twoFactor);
                         }
+                        // Aplicar preferencias de notificaciones por página
+                        applyNotifPagePrefs(dbSettings);
                         // Sincronizar localStorage
                         saveSettings(dbSettings);
                     });
@@ -2150,34 +2182,15 @@
                 // No hay <input type="checkbox"> para 2FA, se maneja con onclick en el track
                 // (la función toggleTwoFactor() ya fue definida arriba)
                 /* ── NOTIFICACIONES ───────────────────────────────────── */
-                function urlBase64ToUint8Array(base64String) {
-                    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-                    const raw = atob(base64);
-                    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-                }
-
+                // La suscripción real (permiso + PushManager + /api/notifications/subscribe)
+                // vive en notifications.js (miraiSubscribeUser) para no duplicar esa lógica
+                // entre settings.html, task.html e inventory.html.
                 async function subscribeUserToPush() {
-                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
-                    try {
-                        const reg = await navigator.serviceWorker.ready;
-                        const keyRes = await fetch('/api/vapid-key', { credentials: 'same-origin' });
-                        const { publicKey } = await keyRes.json();
-                        const sub = await reg.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(publicKey)
-                        });
-                        const res = await fetch('/api/notifications/subscribe', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'same-origin',
-                            body: JSON.stringify({ subscription: sub })
-                        });
-                        return res.ok;
-                    } catch (err) {
-                        console.error('[Notif] Error al suscribir:', err);
-                        return false;
-                    }
+                    const keyRes = await fetch('/api/vapid-key', { credentials: 'same-origin' });
+                    if (!keyRes.ok) return false;
+                    const { publicKey } = await keyRes.json();
+                    if (!publicKey) return false;
+                    return await miraiSubscribeUser(publicKey);
                 }
 
                 function syncNotifToggle(active) {
@@ -2185,6 +2198,22 @@
                     const thumb = document.getElementById('notif-thumb');
                     if (track) track.style.background = active ? 'var(--accent-color)' : 'var(--glass-border)';
                     if (thumb) thumb.style.transform = active ? 'translateX(20px)' : 'translateX(0)';
+                }
+
+                function setNotifPagesEnabled(enabled) {
+                    const row = document.getElementById('notif-pages-row');
+                    if (row) row.style.opacity = enabled ? '1' : '0.5';
+                    document.querySelectorAll('.notif-page-checkbox').forEach(cb => {
+                        cb.disabled = !enabled;
+                    });
+                }
+
+                function applyNotifPagePrefs(settings) {
+                    document.querySelectorAll('.notif-page-checkbox').forEach(cb => {
+                        const key = cb.dataset.key;
+                        // Por defecto activado (opt-out): solo se desmarca si el usuario lo desactivó explícitamente
+                        cb.checked = settings[key] !== false;
+                    });
                 }
 
                 function initNotifToggle() {
@@ -2195,6 +2224,7 @@
                     const alreadyGranted = ('Notification' in window) && Notification.permission === 'granted';
                     checkbox.checked = alreadyGranted;
                     syncNotifToggle(alreadyGranted);
+                    setNotifPagesEnabled(alreadyGranted);
 
                     checkbox.addEventListener('change', async function () {
                         if (!this.checked) {
@@ -2215,6 +2245,7 @@
                         if (Notification.permission === 'granted') {
                             await subscribeUserToPush();
                             syncNotifToggle(true);
+                            setNotifPagesEnabled(true);
                             showToast('Notificaciones activadas', '✅');
                             return;
                         }
@@ -2231,7 +2262,8 @@
                         if (perm === 'granted') {
                             const ok = await subscribeUserToPush();
                             syncNotifToggle(true);
-                            showToast(ok ? 'Notificaciones activadas para todos los módulos' : 'Permiso concedido pero fallo al registrar', ok ? '✅' : '⚠️');
+                            setNotifPagesEnabled(true);
+                            showToast(ok ? 'Notificaciones activadas' : 'Permiso concedido pero falló el registro', ok ? '✅' : '⚠️');
                         } else {
                             this.checked = false;
                             syncNotifToggle(false);
@@ -2247,7 +2279,16 @@
                     const tm = localStorage.getItem('mirai-ai-theme-mode') || 'auto';
                     const am = localStorage.getItem(MODEL_KEY) || 'deepseek';
                     const notifGranted = ('Notification' in window) && Notification.permission === 'granted';
-                    const payload = { accentColor: sc, fontFamily: sf.replace(/'/g, '').trim(), fontSize: sz, reducedMotion: rm, themeMode: tm, aiModel: am, notifications: notifGranted, twoFactor: _twoFactor };
+                    const notifyGeneration = document.getElementById('notif-page-generation')?.checked !== false;
+                    const notifyClassroom = document.getElementById('notif-page-classroom')?.checked !== false;
+                    const notifyInventory = document.getElementById('notif-page-inventory')?.checked !== false;
+                    const notifyReport = document.getElementById('notif-page-report')?.checked !== false;
+                    const notifyTask = document.getElementById('notif-page-task')?.checked !== false;
+                    const payload = {
+                        accentColor: sc, fontFamily: sf.replace(/'/g, '').trim(), fontSize: sz, reducedMotion: rm,
+                        themeMode: tm, aiModel: am, notifications: notifGranted, twoFactor: _twoFactor,
+                        notifyGeneration, notifyClassroom, notifyInventory, notifyReport, notifyTask
+                    };
                     saveSettings(payload);
                     await saveSettingsToDB(payload);
                     showToast('¡Configuración guardada correctamente!', '✅');

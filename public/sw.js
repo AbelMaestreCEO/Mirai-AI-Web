@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v294'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v296'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -189,11 +189,13 @@ self.addEventListener('fetch', event => {
 });
 
 // ─── Push Notifications ──────────────────────────────────────────────────────
+// requireInteraction + renotify + vibrate: la notificación se queda visible
+// hasta que el usuario interactúa con ella (no desaparece sola).
 self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const title = data.notification?.title || 'Mirai AI';
   const body = data.notification?.body || 'Tienes una nueva notificación.';
-  const icon = data.notification?.icon || '/icon.png';
+  const icon = data.notification?.icon || '/favicon.ico';
   const tag = data.notification?.tag || 'mirai-alert';
   const url = data.notification?.url || '/';
 
@@ -201,10 +203,12 @@ self.addEventListener('push', event => {
     self.registration.showNotification(title, {
       body,
       icon,
-      badge: '/badge.png',
+      badge: '/favicon.ico',
       tag,
-      data: { url },
-      requireInteraction: true
+      renotify: true,
+      requireInteraction: true,
+      vibrate: [200, 100, 200],
+      data: { url }
     })
   );
 });
@@ -213,6 +217,6 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
   event.waitUntil(
-    clients.openWindow('https://ai.aberumirai.com' + url)
+    clients.openWindow(self.location.origin + url)
   );
 });

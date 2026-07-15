@@ -1,6 +1,7 @@
 /* ============================================================
    MIRAI AI — Notificaciones Push reutilizables
-   Usar en: inventory.html, classroom.html, tasks.html
+   Usar en: generation.html, classroom.html, inventory.html,
+            report.html, task.html, settings.html
    ============================================================ */
 
 async function miraiSubscribeUser(vapidKey) {
@@ -14,17 +15,35 @@ async function miraiSubscribeUser(vapidKey) {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(vapidKey)
         });
+        const { endpoint, keys } = sub.toJSON();
+        const { p256dh, auth } = keys;
         const res = await fetch('/api/notifications/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ subscription: sub })
+            body: JSON.stringify({ endpoint, p256dh, auth })
         });
         if (!res.ok) throw new Error('Error al guardar suscripción');
         console.log('[Notif] ✅ Suscripción registrada en servidor');
         return true;
     } catch (err) {
         console.error('[Notif] Error suscribiendo:', err);
+        return false;
+    }
+}
+
+// Si el permiso ya fue concedido (p.ej. desde otra página), re-sincroniza
+// la suscripción silenciosamente sin volver a pedir permiso al usuario.
+async function miraiEnsureSubscribed() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    try {
+        const keyRes = await fetch('/api/vapid-key', { credentials: 'same-origin' });
+        if (!keyRes.ok) return false;
+        const { publicKey } = await keyRes.json();
+        if (!publicKey) return false;
+        return await miraiSubscribeUser(publicKey);
+    } catch (err) {
+        console.error('[Notif] Error re-sincronizando suscripción:', err);
         return false;
     }
 }

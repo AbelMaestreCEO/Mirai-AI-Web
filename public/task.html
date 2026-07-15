@@ -1605,6 +1605,7 @@
     <script src="task.js" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            miraiEnsureSubscribed();
             var toggle = document.getElementById('task-notif-toggle');
             if (!toggle) return;
             if ('Notification' in window && Notification.permission === 'granted') {
