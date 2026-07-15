@@ -55,6 +55,21 @@
             padding: 1rem 1rem 3rem;
         }
 
+        /* En PC, el sidebar es fixed y no reserva espacio: empujamos el
+           contenido igual que .header/.chat-container para que no quede
+           pegado al borde del sidebar. */
+        @media (min-width: 769px) {
+            .tasks-container {
+                margin-left: 280px;
+                padding-left: 2rem;
+                transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
+            }
+
+            .mobile-sidebar.collapsed ~ .tasks-container {
+                margin-left: 72px !important;
+            }
+        }
+
         /* Stats — compact horizontal scroll */
         .tasks-stats {
             display: flex;
