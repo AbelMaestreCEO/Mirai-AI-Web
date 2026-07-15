@@ -291,6 +291,7 @@ function createProductCard(product) {
         
         <div class="product-actions">
             <button class="btn-view-details" data-id="${product.id}">Ver Detalles</button>
+            <button class="btn-sell-item" data-id="${product.id}" title="Poner a la venta">🏷️</button>
             <button class="btn-edit" data-id="${product.id}" title="Editar">✏️</button>
             <button class="btn-delete" data-id="${product.id}" title="Eliminar">🗑️</button>
         </div>
@@ -298,6 +299,7 @@ function createProductCard(product) {
 
     // ✅ AHORA SÍ: Los elementos existen en el DOM, podemos agregar los listeners
     const viewBtn = card.querySelector('.btn-view-details');
+    const sellBtn = card.querySelector('.btn-sell-item');
     const editBtn = card.querySelector('.btn-edit');
     const deleteBtn = card.querySelector('.btn-delete');
 
@@ -306,6 +308,14 @@ function createProductCard(product) {
         viewBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             showProductDetails(product);
+        });
+    }
+
+    // Listener: Poner a la venta
+    if (sellBtn) {
+        sellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openSellModal(product);
         });
     }
 
@@ -325,101 +335,14 @@ function createProductCard(product) {
         });
     }
 
-    // Listener: Click en toda la tarjeta (excluyendo botones y swipes)
+    // Listener: Click en toda la tarjeta (excluyendo botones)
     card.addEventListener('click', (e) => {
-        if (card.dataset.suppressClick === '1') {
-            delete card.dataset.suppressClick;
-            return;
-        }
         if (!e.target.closest('.product-actions')) {
             showProductDetails(product);
         }
     });
 
-    // --- Envolver en swipe-wrapper con acción "Poner a la venta" ---
-    const wrapper = document.createElement('div');
-    wrapper.className = 'swipe-wrapper';
-
-    const actionLayer = document.createElement('div');
-    actionLayer.className = 'swipe-action-layer';
-    actionLayer.innerHTML = `
-        <button type="button" class="swipe-sell-btn" data-id="${product.id}">
-            <span class="swipe-sell-icon">🏷️</span>
-            <span>Poner a la venta</span>
-        </button>
-    `;
-
-    wrapper.appendChild(actionLayer);
-    wrapper.appendChild(card);
-    attachSwipeHandlers(wrapper, card, actionLayer, product);
-
-    return wrapper;
-}
-
-// ============================================
-// SWIPE — "Poner a la venta" (pointer events)
-// ============================================
-function attachSwipeHandlers(wrapper, card, actionLayer, product) {
-    const OPEN_X = -110;
-    const THRESHOLD = 45;
-    let startX = 0, startY = 0, baseX = 0, dragging = false, moved = false, isOpen = false;
-
-    function setX(x, animate) {
-        card.style.transition = animate ? 'transform .25s ease' : 'none';
-        card.style.transform = `translateX(${x}px)`;
-    }
-
-    function close(animate = true) {
-        setX(0, animate);
-        isOpen = false;
-    }
-
-    function onPointerDown(e) {
-        if (e.target.closest('.product-actions')) return;
-        dragging = true;
-        moved = false;
-        startX = e.clientX;
-        startY = e.clientY;
-        baseX = isOpen ? OPEN_X : 0;
-        try { card.setPointerCapture(e.pointerId); } catch (err) { /* no-op */ }
-    }
-
-    function onPointerMove(e) {
-        if (!dragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        if (!moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-        if (!moved && Math.abs(dy) > Math.abs(dx)) { dragging = false; return; }
-        moved = true;
-        const x = Math.max(OPEN_X, Math.min(0, baseX + dx));
-        setX(x, false);
-    }
-
-    function onPointerUp(e) {
-        if (!dragging) return;
-        dragging = false;
-        if (!moved) return;
-        const dx = e.clientX - startX;
-        const finalX = baseX + dx;
-        if (finalX < -THRESHOLD) {
-            setX(OPEN_X, true);
-            isOpen = true;
-        } else {
-            close(true);
-        }
-        card.dataset.suppressClick = '1';
-    }
-
-    card.addEventListener('pointerdown', onPointerDown);
-    card.addEventListener('pointermove', onPointerMove);
-    card.addEventListener('pointerup', onPointerUp);
-    card.addEventListener('pointercancel', onPointerUp);
-
-    actionLayer.querySelector('.swipe-sell-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        close(true);
-        openSellModal(product);
-    });
+    return card;
 }
 
 // ============================================

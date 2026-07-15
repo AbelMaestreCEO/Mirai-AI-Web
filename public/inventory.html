@@ -97,54 +97,24 @@
             justify-content: flex-start;
         }
 
-        /* ── Swipe para "Poner a la venta" ── */
-        .swipe-wrapper {
-            position: relative;
-            overflow: hidden;
-            border-radius: 16px;
-            touch-action: pan-y;
+        /* ── Grid de inventario: 3 columnas en escritorio ── */
+        @media (min-width: 901px) {
+            #inventory-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
 
-        .swipe-action-layer {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: stretch;
-            justify-content: flex-end;
+        /* ── Botón "Poner a la venta" ── */
+        .btn-sell-item {
+            background: rgba(22, 163, 74, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(22, 163, 74, 0.25);
         }
 
-        .swipe-sell-btn {
-            width: 110px;
-            border: none;
-            background: linear-gradient(135deg, #16a34a, #22c55e);
+        .btn-sell-item:hover {
+            background: #16a34a;
             color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            font-size: .72rem;
-            font-weight: 700;
-            text-align: center;
-            cursor: pointer;
-            padding: 8px;
-        }
-
-        .swipe-sell-btn .swipe-sell-icon {
-            font-size: 1.3rem;
-        }
-
-        .swipe-wrapper .course-card {
-            position: relative;
-            background: var(--glass-bg);
-            will-change: transform;
-        }
-
-        .swipe-hint {
-            text-align: center;
-            font-size: .78rem;
-            color: var(--text-tertiary);
-            margin: -0.5rem 0 1rem;
+            border-color: #16a34a;
         }
     </style>
 </head>
@@ -380,7 +350,6 @@
 
         <!-- Contador -->
         <div class="courses-count" id="inventory-count">Mostrando 0 productos</div>
-        <p class="swipe-hint">👈 Desliza un producto hacia la izquierda para ponerlo a la venta</p>
 
         <!-- Grid de Productos -->
         <div class="courses-grid" id="inventory-grid">
