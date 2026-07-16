@@ -30,6 +30,61 @@ const VIDEO_AVATAR_CONFIG = {
   DEFAULT_RESOLUTION: '720p',
 };
 
+// 💵 Precios de referencia en USD para el panel de consumo de APIs externas (/api/admin/api-usage).
+// Verificado 2026-07-16. Fuentes: DeepSeek https://api-docs.deepseek.com/quick_start/pricing/ (oficial),
+// Exa https://exa.ai/pricing, Firecrawl https://firecrawl.dev/pricing (plan Hobby),
+// Pruna https://www.pruna.ai/pricing (p-video-avatar no listado públicamente, ajustar con la cuenta real),
+// Google Maps https://developers.google.com/maps/billing-and-pricing/pricing.
+// Actualizar manualmente cuando cambien los precios oficiales de cada proveedor.
+const API_PRICING = {
+  deepseek: {
+    'deepseek-v4-flash': { input_cache_miss_per_1m: 0.14, input_cache_hit_per_1m: 0.0028, output_per_1m: 0.28 },
+    'deepseek-v4-pro': { input_cache_miss_per_1m: 0.435, input_cache_hit_per_1m: 0.003625, output_per_1m: 0.87 },
+  },
+  pruna: {
+    'p-image': 0.005,
+    'p-image-edit': 0.01,
+    'p-video': 0.005,
+    'p-video-avatar': 0.05, // placeholder, no está en el pricing público de Pruna
+  },
+  resend: { email: 0 }, // dentro del free tier (3,000/mes, 100/día)
+  exa: { search: 0.007 }, // Standard Search, $7 por 1000
+  firecrawl: { scrape: 0.0032 }, // referencia plan Hobby
+  youtube: { call: 0 }, // cuota gratuita de Google
+  google_maps: { map_load: 0.007, places_autocomplete: 0, geocode: 0.005 },
+};
+
+function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0 } = {}) {
+  try {
+    switch (provider) {
+      case 'deepseek': {
+        const p = API_PRICING.deepseek[subType];
+        if (!p) return 0;
+        const cacheMissTokens = Math.max(0, tokensIn - cacheHitTokens);
+        return (cacheMissTokens / 1e6) * p.input_cache_miss_per_1m
+          + (cacheHitTokens / 1e6) * p.input_cache_hit_per_1m
+          + (tokensOut / 1e6) * p.output_per_1m;
+      }
+      case 'pruna':
+        return (API_PRICING.pruna[subType] ?? 0) * units;
+      case 'resend':
+        return API_PRICING.resend.email * units;
+      case 'exa':
+        return API_PRICING.exa.search * units;
+      case 'firecrawl':
+        return API_PRICING.firecrawl.scrape * units;
+      case 'youtube':
+        return API_PRICING.youtube.call * units;
+      case 'google_maps':
+        return (API_PRICING.google_maps[subType] ?? 0) * units;
+      default:
+        return 0;
+    }
+  } catch {
+    return 0;
+  }
+}
+
 // --- RUTAS ---
 const ROUTES = {
   CHAT: '/api/chat',
@@ -94,7 +149,7 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, search query if intent 6, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
 
-async function readSSEStream(response) {
+async function readSSEStream(response, usageOut = null) {
   let content = '';
   let reasoning = '';
   const reader = response.body.getReader();
@@ -119,6 +174,7 @@ async function readSSEStream(response) {
         const delta = chunk.choices?.[0]?.delta;
         if (delta?.content) content += delta.content;
         if (delta?.reasoning_content) reasoning += delta.reasoning_content;
+        if (usageOut && chunk.usage) usageOut.usage = chunk.usage;
       } catch {}
     }
   }
@@ -143,7 +199,8 @@ async function callAI(model, messages, options = {}, env) {
         messages,
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens ?? 2000,
-        stream: true
+        stream: true,
+        stream_options: { include_usage: true }
       })
     });
 
@@ -152,7 +209,21 @@ async function callAI(model, messages, options = {}, env) {
       throw new Error(`DeepSeek error ${response.status}: ${err}`);
     }
 
-    return await readSSEStream(response);
+    const usageOut = {};
+    const result = await readSSEStream(response, usageOut);
+    logApiUsage(env, {
+      provider: 'deepseek',
+      unit_type: 'tokens',
+      sub_type: model,
+      tokens_in: usageOut.usage?.prompt_tokens ?? null,
+      tokens_out: usageOut.usage?.completion_tokens ?? null,
+      cost_usd: calcCost('deepseek', model, {
+        tokensIn: usageOut.usage?.prompt_tokens ?? 0,
+        tokensOut: usageOut.usage?.completion_tokens ?? 0,
+        cacheHitTokens: usageOut.usage?.prompt_cache_hit_tokens ?? 0
+      })
+    });
+    return result;
 
   } catch (err) {
     console.warn(`⚠️ DeepSeek falló: ${err.message}. Usando fallback GLM...`);
@@ -178,7 +249,15 @@ async function callAI(model, messages, options = {}, env) {
       throw new Error(`Fallback GLM error ${fallbackResponse.status}: ${fallbackErr}`);
     }
 
-    return await readSSEStream(fallbackResponse);
+    const fallbackResult = await readSSEStream(fallbackResponse);
+    logApiUsage(env, {
+      provider: 'deepseek_fallback_gateway',
+      unit_type: 'call',
+      sub_type: FALLBACK_MODEL,
+      via_gateway: true,
+      cost_usd: 0
+    });
+    return fallbackResult;
   }
 }
 
@@ -413,6 +492,7 @@ async function sendVerificationEmail(email, code, env) {
       return false;
     }
 
+    logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'verification' });
     return true;
   } catch (error) {
     console.error('Excepción envío correo:', error);
@@ -939,6 +1019,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
     const ytRes = await fetch(searchUrl);
     if (!ytRes.ok) throw new Error(`YouTube API: ${ytRes.status}`);
     const ytData = await ytRes.json();
+    logApiUsage(env, { provider: 'youtube', unit_type: 'call', user_dni: userDni, cost_usd: 0 });
 
     const videos = (ytData.items || []).map(item => ({
       videoId: item.id.videoId,
@@ -2381,6 +2462,60 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       }
     }
 
+    // GET /api/admin/api-usage — consumo mensual de APIs externas de pago
+    if (path === '/api/admin/api-usage' && request.method === 'GET') {
+      const userDni = await requireAdminAuth(request, env, corsHeaders);
+      if (!userDni || userDni instanceof Response) return userDni;
+
+      try {
+        await ensureApiUsageTable(env);
+        const url = new URL(request.url);
+        const month = url.searchParams.get('month') || new Date().toISOString().slice(0, 7);
+
+        const { results } = await env.MIRAI_AI_DB.prepare(`
+          SELECT provider, sub_type, via_gateway,
+                 SUM(units) as total_units, SUM(tokens_in) as total_tokens_in,
+                 SUM(tokens_out) as total_tokens_out, SUM(cost_usd) as total_cost_usd,
+                 COUNT(*) as calls
+          FROM api_usage_log WHERE usage_month = ?
+          GROUP BY provider, sub_type, via_gateway
+          ORDER BY provider, sub_type
+        `).bind(month).all();
+
+        const { results: monthRows } = await env.MIRAI_AI_DB.prepare(
+          `SELECT DISTINCT usage_month FROM api_usage_log ORDER BY usage_month DESC`
+        ).all();
+
+        const providers = {};
+        for (const row of results) {
+          if (!providers[row.provider]) {
+            providers[row.provider] = { total_units: 0, total_cost_usd: 0, total_calls: 0, breakdown: [] };
+          }
+          const p = providers[row.provider];
+          p.total_units += row.total_units || 0;
+          p.total_cost_usd += row.total_cost_usd || 0;
+          p.total_calls += row.calls || 0;
+          p.breakdown.push({
+            sub_type: row.sub_type,
+            via_gateway: !!row.via_gateway,
+            units: row.total_units || 0,
+            tokens_in: row.total_tokens_in || null,
+            tokens_out: row.total_tokens_out || null,
+            cost_usd: row.total_cost_usd || 0,
+            calls: row.calls || 0,
+          });
+        }
+
+        return jsonResponse({
+          month,
+          providers,
+          available_months: monthRows.map(m => m.usage_month)
+        }, 200, corsHeaders);
+      } catch (error) {
+        return jsonResponse({ error: 'Error al obtener consumo de APIs', details: error.message }, 500, corsHeaders);
+      }
+    }
+
     // ── SECCIONES ─────────────────────────────────────────────────────────────
 
     // GET /api/sections — lista las secciones del profesor autenticado
@@ -2635,6 +2770,31 @@ ORDER BY u.last_name, u.first_name
       return new Response(JSON.stringify({ key }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // POST /api/track-maps-usage — beacon desde el frontend (public/location.js) para
+    // aproximar consumo real de Google Maps/Places/Geocoding, que ocurre en el navegador
+    // y nunca pasa por este Worker.
+    if (path === '/api/track-maps-usage' && request.method === 'POST') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      try {
+        const { type } = await request.json();
+        const validTypes = ['map_load', 'places_autocomplete', 'geocode'];
+        if (!validTypes.includes(type)) {
+          return jsonResponse({ error: 'type inválido' }, 400, corsHeaders);
+        }
+        await logApiUsage(env, {
+          provider: 'google_maps',
+          unit_type: type,
+          user_dni: userDni,
+          cost_usd: calcCost('google_maps', type)
+        });
+        return new Response(null, { status: 204, headers: corsHeaders });
+      } catch (error) {
+        return jsonResponse({ error: 'Error registrando uso de Maps', details: error.message }, 500, corsHeaders);
+      }
     }
 
     if (path === '/api/locations' && request.method === 'GET')
@@ -7908,6 +8068,7 @@ async function searchWithExa(question, env) {
     }
 
     const data = await res.json();
+    logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: type, cost_usd: calcCost('exa', null) });
     return (data.results || []).map(r => ({
       url: r.url,
       title: r.title || '',
@@ -7983,6 +8144,7 @@ async function scrapeAllUrls(exaResults, env) {
       if (!res.ok) return { url, markdown: null };
 
       const data = await res.json();
+      logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
       return { url, markdown: data?.data?.markdown || null };
     } catch (err) {
       console.warn(`⚠️ Firecrawl error [${url}]:`, err.message);
@@ -8411,6 +8573,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
         });
         if (exaRes.ok) {
           const exaData = await exaRes.json();
+          logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: 'chat_websearch', cost_usd: calcCost('exa', null) });
           const results = (exaData.results || []).slice(0, 5);
           if (results.length > 0) {
             webContext = '\n\n[CONTEXTO WEB — Resultados de búsqueda recientes]\n' +
@@ -9036,6 +9199,10 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
 
     console.log(`✨ Imagen generada exitosamente: ${imageUrl}`);
+    logApiUsage(env, {
+      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image',
+      via_gateway: true, cost_usd: calcCost('pruna', 'p-image')
+    });
     return imageUrl;
 
   } catch (error) {
@@ -9141,6 +9308,10 @@ async function handleImageEdit(request, env, corsHeaders) {
 
     const editedUrl = `/api/image/${r2Key}`;
     console.log(`✨ Imagen editada exitosamente: ${editedUrl}`);
+    logApiUsage(env, {
+      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image-edit',
+      via_gateway: true, user_dni: userDni, cost_usd: calcCost('pruna', 'p-image-edit')
+    });
 
     return jsonResponse({
       image_url: editedUrl,
@@ -9297,6 +9468,7 @@ async function sendRecoveryEmail(email, token, env) {
     }
 
     console.log(`📧 [Recovery] Correo enviado a ${email}`);
+    logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'recovery' });
     return true;
   } catch (error) {
     console.error('❌ Error enviando correo de recuperación:', error);
@@ -9395,6 +9567,11 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     if (!skipHistory) {
       await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
     }
+
+    logApiUsage(env, {
+      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-video',
+      via_gateway: true, user_dni: userDni, cost_usd: calcCost('pruna', 'p-video')
+    });
 
     return jsonResponse({
       type: 'video',
@@ -9874,6 +10051,11 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
         UPDATE video_avatar_jobs SET status = 'done', video_url = ?, updated_at = datetime('now') WHERE id = ?
       `).bind(videoUrl, job.id).run();
 
+      logApiUsage(env, {
+        provider: 'pruna', unit_type: 'prediction', sub_type: 'p-video-avatar',
+        via_gateway: false, user_dni: userDni, cost_usd: calcCost('pruna', 'p-video-avatar')
+      });
+
       // Se guarda también en el historial desde el backend: si el usuario
       // cerró la pestaña mientras se generaba, el vídeo no se pierde.
       try {
@@ -10345,6 +10527,56 @@ function jsonResponse(data, status = 200, headers = {}) {
       ...headers
     }
   });
+}
+
+// --- CONSUMO DE APIs EXTERNAS (panel de administración) ---
+async function ensureApiUsageTable(env) {
+  await env.MIRAI_AI_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS api_usage_log (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider      TEXT    NOT NULL,
+      unit_type     TEXT    NOT NULL,
+      sub_type      TEXT,
+      units         REAL    NOT NULL DEFAULT 1,
+      tokens_in     INTEGER,
+      tokens_out    INTEGER,
+      cost_usd      REAL    NOT NULL DEFAULT 0,
+      user_dni      TEXT,
+      via_gateway   INTEGER NOT NULL DEFAULT 0,
+      usage_date    TEXT    NOT NULL,
+      usage_month   TEXT    NOT NULL,
+      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+  await env.MIRAI_AI_DB.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_api_usage_month_provider ON api_usage_log (usage_month, provider)`
+  ).run();
+  await env.MIRAI_AI_DB.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_api_usage_month_provider_sub ON api_usage_log (usage_month, provider, sub_type)`
+  ).run();
+}
+
+// Best-effort: un fallo al loguear consumo nunca debe romper la respuesta al usuario.
+async function logApiUsage(env, {
+  provider, unit_type, sub_type = null, units = 1,
+  tokens_in = null, tokens_out = null, cost_usd = 0,
+  user_dni = null, via_gateway = false
+}) {
+  try {
+    await ensureApiUsageTable(env);
+    const usage_date = new Date().toISOString().slice(0, 10);
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO api_usage_log
+        (provider, unit_type, sub_type, units, tokens_in, tokens_out, cost_usd, user_dni, via_gateway, usage_date, usage_month)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      provider, unit_type, sub_type, units, tokens_in, tokens_out, cost_usd,
+      user_dni ? user_dni.toUpperCase() : null, via_gateway ? 1 : 0,
+      usage_date, usage_date.slice(0, 7)
+    ).run();
+  } catch (e) {
+    console.warn('⚠️ logApiUsage falló (no crítico):', e.message);
+  }
 }
 
 

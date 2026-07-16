@@ -76,6 +76,18 @@
         } catch { return []; }
     }
 
+    // Beacon best-effort para el panel de consumo de APIs — las llamadas reales
+    // a Maps/Places/Geocoding ocurren en el navegador, nunca pasan por el Worker.
+    function trackMapsUsage(type) {
+        fetch('/api/track-maps-usage', {
+            method: 'POST',
+            credentials: 'same-origin',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type }),
+        }).catch(() => {});
+    }
+
     /* ── Load Google Maps API ───────────────────────────────────────────── */
 
     async function loadGoogleMaps() {
@@ -93,7 +105,7 @@
             script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,marker&loading=async&callback=__gmInit`;
             script.async = true;
             script.defer = true;
-            window.__gmInit = () => { delete window.__gmInit; resolve(); };
+            window.__gmInit = () => { delete window.__gmInit; trackMapsUsage('map_load'); resolve(); };
             script.onerror = () => reject(new Error('Error cargando Google Maps'));
             document.head.appendChild(script);
         });
@@ -153,6 +165,7 @@
                 showToast('⚠️ No se encontró ese lugar');
                 return;
             }
+            trackMapsUsage('places_autocomplete');
 
             const loc = place.geometry.location;
             map.panTo(loc);
@@ -239,6 +252,7 @@
         if (geocoder && !elDesc.value) {
             geocoder.geocode({ location: latlng }, (results, status) => {
                 if (status === 'OK' && results[0]) {
+                    trackMapsUsage('geocode');
                     const addr = results[0].formatted_address;
                     if (!elDesc.value) elDesc.value = addr;
                 }
