@@ -29,8 +29,10 @@ const VIDEO_AVATAR_CONFIG = {
 // 💵 Precios de referencia en USD para el panel de consumo de APIs externas (/api/admin/api-usage).
 // Verificado 2026-07-16. Fuentes: DeepSeek https://api-docs.deepseek.com/quick_start/pricing/ (oficial),
 // Exa https://exa.ai/pricing, Firecrawl https://firecrawl.dev/pricing (plan Hobby),
-// Pruna https://www.pruna.ai/pricing (p-video-avatar no listado públicamente, ajustar con la cuenta real),
-// Google Maps https://developers.google.com/maps/billing-and-pricing/pricing.
+// Pruna https://docs.pruna.ai (p-image/p-image-edit: precio fijo por salida;
+// p-video/p-video-avatar: $/segundo de video generado, varía por resolución —
+// ver getMp4DurationSeconds()), Google Maps
+// https://developers.google.com/maps/billing-and-pricing/pricing.
 // Actualizar manualmente cuando cambien los precios oficiales de cada proveedor.
 const API_PRICING = {
   deepseek: {
@@ -40,8 +42,11 @@ const API_PRICING = {
   pruna: {
     'p-image': 0.005,
     'p-image-edit': 0.01,
-    'p-video': 0.005,
-    'p-video-avatar': 0.05, // placeholder, no está en el pricing público de Pruna
+    // $ por segundo de video generado (modo estándar, sin draft), por resolución.
+    video_per_second: {
+      'p-video': { '720p': 0.02, '1080p': 0.04 },
+      'p-video-avatar': { '720p': 0.025, '1080p': 0.045 },
+    },
   },
   resend: { email: 0 }, // dentro del free tier (3,000/mes, 100/día)
   exa: { search: 0.007 }, // Standard Search, $7 por 1000
@@ -50,7 +55,7 @@ const API_PRICING = {
   google_maps: { map_load: 0.007, places_autocomplete: 0, geocode: 0.005 },
 };
 
-function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0 } = {}) {
+function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0, durationSeconds = null, resolution = '720p' } = {}) {
   try {
     switch (provider) {
       case 'deepseek': {
@@ -61,8 +66,15 @@ function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, c
           + (cacheHitTokens / 1e6) * p.input_cache_hit_per_1m
           + (tokensOut / 1e6) * p.output_per_1m;
       }
-      case 'pruna':
+      case 'pruna': {
+        const perSecond = API_PRICING.pruna.video_per_second[subType];
+        if (perSecond) {
+          if (durationSeconds == null) return 0; // no se pudo determinar la duración real, no inventar un costo
+          const rate = perSecond[resolution] ?? perSecond['720p'];
+          return durationSeconds * rate;
+        }
         return (API_PRICING.pruna[subType] ?? 0) * units;
+      }
       case 'resend':
         return API_PRICING.resend.email * units;
       case 'exa':
@@ -78,6 +90,64 @@ function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, c
     }
   } catch {
     return 0;
+  }
+}
+
+// Extrae la duración (en segundos) de un archivo MP4 leyendo el box mvhd
+// dentro de moov — sin dependencias externas (Workers no tiene ffprobe).
+// Devuelve null si el archivo no tiene la estructura esperada (nunca lanza).
+function getMp4DurationSeconds(buffer) {
+  try {
+    const view = new DataView(buffer);
+    const total = buffer.byteLength;
+
+    function readBoxes(start, end) {
+      let offset = start;
+      const boxes = [];
+      while (offset + 8 <= end) {
+        let size = view.getUint32(offset);
+        const type = String.fromCharCode(
+          view.getUint8(offset + 4), view.getUint8(offset + 5),
+          view.getUint8(offset + 6), view.getUint8(offset + 7)
+        );
+        let headerSize = 8;
+        if (size === 1) {
+          if (offset + 16 > end) break;
+          const high = view.getUint32(offset + 8);
+          const low = view.getUint32(offset + 12);
+          size = high * 4294967296 + low;
+          headerSize = 16;
+        } else if (size === 0) {
+          size = end - offset;
+        }
+        if (size < headerSize || offset + size > end) break;
+        boxes.push({ type, start: offset, headerSize, size });
+        offset += size;
+      }
+      return boxes;
+    }
+
+    const moov = readBoxes(0, total).find(b => b.type === 'moov');
+    if (!moov) return null;
+
+    const mvhd = readBoxes(moov.start + moov.headerSize, moov.start + moov.size).find(b => b.type === 'mvhd');
+    if (!mvhd) return null;
+
+    const bodyStart = mvhd.start + mvhd.headerSize;
+    const version = view.getUint8(bodyStart);
+    let timescale, duration;
+    if (version === 1) {
+      timescale = view.getUint32(bodyStart + 20);
+      duration = view.getUint32(bodyStart + 24) * 4294967296 + view.getUint32(bodyStart + 28);
+    } else {
+      timescale = view.getUint32(bodyStart + 12);
+      duration = view.getUint32(bodyStart + 16);
+    }
+    if (!timescale) return null;
+    return duration / timescale;
+  } catch (e) {
+    console.warn('⚠️ getMp4DurationSeconds falló:', e.message);
+    return null;
   }
 }
 
@@ -9476,6 +9546,10 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
       throw new Error(`No se recibió video válido de Pruna.`);
     }
 
+    // Duración real del mp4 descargado: p-video cobra por segundo de video
+    // generado, no un precio fijo por generación (ver API_PRICING).
+    const durationSeconds = getMp4DurationSeconds(videoBuffer);
+
     // 5. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const videoFilename = `videos/${uniqueId}.mp4`;
@@ -9498,8 +9572,9 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     }
 
     logApiUsage(env, {
-      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-video',
-      via_gateway: false, user_dni: userDni, cost_usd: calcCost('pruna', 'p-video')
+      provider: 'pruna', unit_type: 'video_seconds', sub_type: 'p-video',
+      units: durationSeconds ?? 0, via_gateway: false, user_dni: userDni,
+      cost_usd: calcCost('pruna', 'p-video', { durationSeconds, resolution: '720p' })
     });
 
     return jsonResponse({
@@ -9679,6 +9754,14 @@ async function ensureVideoAvatarJobsTable(env) {
   try {
     await env.MIRAI_AI_DB.prepare(
       `ALTER TABLE video_avatar_jobs ADD COLUMN pruna_prediction_id TEXT`
+    ).run();
+  } catch (_) { }
+  // La resolución se guarda para poder calcular el costo real ($/segundo
+  // varía por resolución) cuando el job termina, sin depender del input
+  // original que ya no está disponible en ese punto.
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `ALTER TABLE video_avatar_jobs ADD COLUMN resolution TEXT`
     ).run();
   } catch (_) { }
 }
@@ -9907,15 +9990,16 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
     const jobId = crypto.randomUUID();
 
     await env.MIRAI_AI_DB.prepare(`
-      INSERT INTO video_avatar_jobs (id, user_dni, status, pruna_prediction_id, character_id, character_name, character_image_url)
-      VALUES (?, ?, 'pending', ?, ?, ?, ?)
+      INSERT INTO video_avatar_jobs (id, user_dni, status, pruna_prediction_id, character_id, character_name, character_image_url, resolution)
+      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)
     `).bind(
       jobId,
       userDni.toUpperCase(),
       prediction.id,
       characterInfo ? characterInfo.id : null,
       characterInfo ? characterInfo.name : null,
-      characterInfo ? characterInfo.image_url : null
+      characterInfo ? characterInfo.image_url : null,
+      input.resolution
     ).run();
 
     return jsonResponse({
@@ -9940,7 +10024,7 @@ async function handleGetVideoAvatarJob(request, env, corsHeaders) {
 
     await ensureVideoAvatarJobsTable(env);
     const job = await env.MIRAI_AI_DB.prepare(
-      `SELECT id, status, pruna_prediction_id, video_url, error, character_id, character_name, character_image_url
+      `SELECT id, status, pruna_prediction_id, video_url, error, character_id, character_name, character_image_url, resolution
        FROM video_avatar_jobs WHERE id = ? AND user_dni = ?`
     ).bind(id, userDni.toUpperCase()).first();
 
@@ -10011,6 +10095,10 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
         throw new Error('El vídeo descargado desde Pruna está vacío');
       }
 
+      // Duración real del mp4: p-video-avatar cobra por segundo de video
+      // generado (varía con la duración del audio/voz), no un precio fijo.
+      const durationSeconds = getMp4DurationSeconds(videoBuffer);
+
       const videoFilename = `videos/avatar/${crypto.randomUUID()}.mp4`;
       await env.MIRAI_AI_ASSETS.put(videoFilename, videoBuffer, {
         httpMetadata: { contentType: 'video/mp4' },
@@ -10027,8 +10115,11 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
       `).bind(videoUrl, job.id).run();
 
       logApiUsage(env, {
-        provider: 'pruna', unit_type: 'prediction', sub_type: 'p-video-avatar',
-        via_gateway: false, user_dni: userDni, cost_usd: calcCost('pruna', 'p-video-avatar')
+        provider: 'pruna', unit_type: 'video_seconds', sub_type: 'p-video-avatar',
+        units: durationSeconds ?? 0, via_gateway: false, user_dni: userDni,
+        cost_usd: calcCost('pruna', 'p-video-avatar', {
+          durationSeconds, resolution: job.resolution || VIDEO_AVATAR_CONFIG.DEFAULT_RESOLUTION
+        })
       });
 
       // Se guarda también en el historial desde el backend: si el usuario
@@ -10084,7 +10175,7 @@ async function finalizePendingVideoAvatarJobs(env) {
   try {
     await ensureVideoAvatarJobsTable(env);
     const { results } = await env.MIRAI_AI_DB.prepare(`
-      SELECT id, user_dni, pruna_prediction_id FROM video_avatar_jobs
+      SELECT id, user_dni, pruna_prediction_id, resolution FROM video_avatar_jobs
       WHERE status = 'pending' AND pruna_prediction_id IS NOT NULL
       ORDER BY created_at ASC LIMIT 25
     `).all();

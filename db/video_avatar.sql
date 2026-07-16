@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS video_avatar_jobs (
     character_id         INTEGER,
     character_name       TEXT,
     character_image_url  TEXT,
+    resolution           TEXT, -- '720p'/'1080p' usada en la predicción, para calcular el costo real ($/s por resolución) al finalizar el job
     created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
 );
