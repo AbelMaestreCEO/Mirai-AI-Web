@@ -12,12 +12,8 @@ function getAIGatewayURL(env) {
 const AI_MODEL_NORMAL = 'deepseek-v4-flash';
 const AI_MODEL_PRO = 'deepseek-v4-pro';
 
-// ✨ Configuración Video (Pruna AI P-Video)
+// ✨ Configuración Video (Pruna AI P-Video, vía API REST directa — ver resolvePrunaSync)
 const VIDEO_CONFIG = {
-  MODEL: 'pruna/p-video',
-  DEFAULT_DURATION: 5,
-  DEFAULT_RESOLUTION: '480p',
-  ASPECT_RATIO: '16:9',
   MAX_PROMPT_LENGTH: 2000,
 };
 
@@ -9108,79 +9104,53 @@ function updateSendButtonIcon() {
 // --- GENERAR IMAGEN CON PRUNA AI P-IMAGE ---
 async function generateAndStoreImage(prompt, conversationId, env) {
   try {
-    console.log('🖼️ Iniciando generación con pruna/p-image');
+    console.log('🖼️ Iniciando generación con p-image (API directa de Pruna)');
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Llamada a Pruna P-Image via Cloudflare AI Gateway
-    // Docs: { prompt, aspect_ratio?, prompt_upsampling? }
-    // Salida: { image: "data:image/jpeg;base64,..." } o URL presignada
-    const aiResponse = await env.AI.run(
-      'pruna/p-image',
-      {
-        prompt: prompt,
-        aspect_ratio: '1:1',
-        prompt_upsampling: true,
-      },
-      {
-        gateway: { id: 'default' },
-      }
-    );
+    // 1. Llamada directa a la API REST de Pruna (Try-Sync, ver resolvePrunaSync)
+    const outputRef = await resolvePrunaSync(env, 'p-image', {
+      prompt: prompt,
+      aspect_ratio: '1:1',
+    });
 
-    console.log('✅ Pruna P-Image respondió. Tipo:', typeof aiResponse);
-
-    if (!aiResponse) {
-      throw new Error('No se recibió respuesta de Pruna P-Image');
-    }
+    console.log('✅ Pruna P-Image respondió:', outputRef.substring(0, 80));
 
     let imageBuffer = null;
-    let rawString = null;
 
-    // 2. Extraer imagen de la respuesta de Pruna
-    // Pruna devuelve: { image: "data:image/jpeg;base64,..." } o { image: "https://presigned-url..." }
-    if (aiResponse instanceof ArrayBuffer) {
-      imageBuffer = aiResponse;
-    } else if (aiResponse.image && typeof aiResponse.image === 'string') {
-      rawString = aiResponse.image.trim();
-    } else if (aiResponse.result && typeof aiResponse.result.image === 'string') {
-      rawString = aiResponse.result.image.trim();
-    } else if (typeof aiResponse === 'string') {
-      rawString = aiResponse.trim();
-    }
-
-    // 3. Procesar: URL presignada o Base64
-    if (rawString) {
-      if (rawString.startsWith('http://') || rawString.startsWith('https://')) {
-        console.log('🔗 URL presignada detectada, descargando...');
-        const imageFetch = await fetch(rawString, {
-          headers: { 'User-Agent': 'Cloudflare-Worker' }
-        });
-        if (!imageFetch.ok) {
-          throw new Error(`Error descargando imagen: Status ${imageFetch.status}`);
-        }
-        imageBuffer = await imageFetch.arrayBuffer();
-        console.log(`✅ Imagen descargada: ${imageBuffer.byteLength} bytes`);
-      } else {
-        // Base64 (con o sin prefijo data:image/...)
-        const cleanBase64 = rawString.replace(/^data:image\/[a-z]+;base64,/, '').trim();
-        if (cleanBase64.length < 100) {
-          throw new Error('Respuesta de Pruna no contiene imagen válida');
-        }
-        const binaryString = atob(cleanBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        imageBuffer = bytes.buffer;
-        console.log(`✅ Imagen decodificada de Base64: ${imageBuffer.byteLength} bytes`);
+    // 2. Procesar: URL de descarga o Base64
+    if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
+      console.log('🔗 Descargando resultado de Pruna...');
+      const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
+      if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
+        downloadHeaders['apikey'] = requirePrunaApiKey(env);
       }
+      const imageFetch = await fetch(outputRef, { headers: downloadHeaders });
+      if (!imageFetch.ok) {
+        throw new Error(`Error descargando imagen: Status ${imageFetch.status}`);
+      }
+      imageBuffer = await imageFetch.arrayBuffer();
+      console.log(`✅ Imagen descargada: ${imageBuffer.byteLength} bytes`);
+    } else {
+      // Base64 (con o sin prefijo data:image/...)
+      const cleanBase64 = outputRef.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+      if (cleanBase64.length < 100) {
+        throw new Error('Respuesta de Pruna no contiene imagen válida');
+      }
+      const binaryString = atob(cleanBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      imageBuffer = bytes.buffer;
+      console.log(`✅ Imagen decodificada de Base64: ${imageBuffer.byteLength} bytes`);
     }
 
-    // 4. Validar buffer
+    // 3. Validar buffer
     if (!imageBuffer || imageBuffer.byteLength === 0) {
       throw new Error('Buffer de imagen vacío después de procesar respuesta de Pruna');
     }
 
-    // 5. Guardar en R2
+    // 4. Guardar en R2
     const imageId = crypto.randomUUID();
     const r2Key = `generated-images/${conversationId}/${imageId}.jpg`;
 
@@ -9190,18 +9160,18 @@ async function generateAndStoreImage(prompt, conversationId, env) {
         conversation_id: conversationId,
         prompt: prompt.substring(0, 200),
         generated_at: new Date().toISOString(),
-        model: 'pruna/p-image'
+        model: 'p-image'
       }
     });
 
-    // 6. Registrar en D1
+    // 5. Registrar en D1
     const imageUrl = `/api/image/${r2Key}`;
     await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
 
     console.log(`✨ Imagen generada exitosamente: ${imageUrl}`);
     logApiUsage(env, {
       provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image',
-      via_gateway: true, cost_usd: calcCost('pruna', 'p-image')
+      via_gateway: false, cost_usd: calcCost('pruna', 'p-image')
     });
     return imageUrl;
 
@@ -9239,53 +9209,34 @@ async function handleImageEdit(request, env, corsHeaders) {
       imageSource = origin + image_url;
     }
 
-    console.log('✏️ Iniciando edición con pruna/p-image-edit');
+    console.log('✏️ Iniciando edición con p-image-edit (API directa de Pruna)');
     console.log('✏️ Prompt:', prompt.substring(0, 100));
 
-    const aiResponse = await env.AI.run(
-      'pruna/p-image-edit',
-      {
-        prompt: prompt,
-        images: [imageSource],
-        aspect_ratio: aspect_ratio || '1:1',
-      },
-      { gateway: { id: 'default' } }
-    );
-
-    if (!aiResponse) {
-      throw new Error('No se recibió respuesta de Pruna P-Image-Edit');
-    }
+    const outputRef = await resolvePrunaSync(env, 'p-image-edit', {
+      prompt: prompt,
+      images: [imageSource],
+      aspect_ratio: aspect_ratio || '1:1',
+    });
 
     let imageBuffer = null;
-    let rawString = null;
 
-    if (aiResponse instanceof ArrayBuffer) {
-      imageBuffer = aiResponse;
-    } else if (aiResponse.image && typeof aiResponse.image === 'string') {
-      rawString = aiResponse.image.trim();
-    } else if (aiResponse.result && typeof aiResponse.result.image === 'string') {
-      rawString = aiResponse.result.image.trim();
-    } else if (typeof aiResponse === 'string') {
-      rawString = aiResponse.trim();
-    }
-
-    if (rawString) {
-      if (rawString.startsWith('http://') || rawString.startsWith('https://')) {
-        const imageFetch = await fetch(rawString, {
-          headers: { 'User-Agent': 'Cloudflare-Worker' }
-        });
-        if (!imageFetch.ok) throw new Error(`Error descargando imagen editada: ${imageFetch.status}`);
-        imageBuffer = await imageFetch.arrayBuffer();
-      } else {
-        const cleanBase64 = rawString.replace(/^data:image\/[a-z]+;base64,/, '').trim();
-        if (cleanBase64.length < 100) throw new Error('Respuesta no contiene imagen válida');
-        const binaryString = atob(cleanBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        imageBuffer = bytes.buffer;
+    if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
+      const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
+      if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
+        downloadHeaders['apikey'] = requirePrunaApiKey(env);
       }
+      const imageFetch = await fetch(outputRef, { headers: downloadHeaders });
+      if (!imageFetch.ok) throw new Error(`Error descargando imagen editada: ${imageFetch.status}`);
+      imageBuffer = await imageFetch.arrayBuffer();
+    } else {
+      const cleanBase64 = outputRef.replace(/^data:image\/[a-z]+;base64,/, '').trim();
+      if (cleanBase64.length < 100) throw new Error('Respuesta no contiene imagen válida');
+      const binaryString = atob(cleanBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      imageBuffer = bytes.buffer;
     }
 
     if (!imageBuffer || imageBuffer.byteLength === 0) {
@@ -9301,7 +9252,7 @@ async function handleImageEdit(request, env, corsHeaders) {
       customMetadata: {
         prompt: prompt.substring(0, 200),
         generated_at: new Date().toISOString(),
-        model: 'pruna/p-image-edit',
+        model: 'p-image-edit',
         source_image: image_url.substring(0, 200),
       }
     });
@@ -9310,7 +9261,7 @@ async function handleImageEdit(request, env, corsHeaders) {
     console.log(`✨ Imagen editada exitosamente: ${editedUrl}`);
     logApiUsage(env, {
       provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image-edit',
-      via_gateway: true, user_dni: userDni, cost_usd: calcCost('pruna', 'p-image-edit')
+      via_gateway: false, user_dni: userDni, cost_usd: calcCost('pruna', 'p-image-edit')
     });
 
     return jsonResponse({
@@ -9490,64 +9441,42 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     const videoPrompt = simplifyVideoPrompt(prompt);
     console.log('🎬 Video prompt final:', videoPrompt);
 
-    // 2. Llamada a Pruna P-Video via AI Gateway
-    // Docs: { prompt, duration?, aspect_ratio?, resolution? }
-    console.log('🚀 Invocando pruna/p-video...');
-    const videoResult = await env.AI.run(
-      VIDEO_CONFIG.MODEL,
-      {
-        prompt: videoPrompt,
-      },
-      {
-        gateway: { id: 'default' },
-      }
-    );
+    // 2. Llamada directa a la API REST de Pruna (Try-Sync, ver resolvePrunaSync)
+    console.log('🚀 Invocando p-video (API directa de Pruna)...');
+    const outputRef = await resolvePrunaSync(env, 'p-video', {
+      prompt: videoPrompt,
+    });
 
-    console.log('📦 Respuesta de Pruna Video recibida. Tipo:', typeof videoResult);
+    console.log('📦 Resultado de Pruna Video:', outputRef.substring(0, 80));
 
     let videoBuffer = null;
-    let videoUrlTarget = null;
 
-    // 3. Extraer video de la respuesta
-    if (videoResult instanceof ArrayBuffer && videoResult.byteLength > 0) {
-      videoBuffer = videoResult;
-    } else if (videoResult instanceof Uint8Array && videoResult.byteLength > 0) {
-      videoBuffer = videoResult.buffer;
-    } else if (videoResult) {
-      const rawField = videoResult.video || videoResult.result?.video || videoResult.response;
-
-      if (typeof rawField === 'string') {
-        const cleanField = rawField.trim();
-        if (cleanField.startsWith('http://') || cleanField.startsWith('https://')) {
-          videoUrlTarget = cleanField;
-        } else {
-          const binaryString = atob(cleanField.replace(/^data:video\/[a-z0-9]+;base64,/, ''));
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-          videoBuffer = bytes.buffer;
-        }
+    // 3. Descargar o decodificar la salida
+    if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
+      console.log(`🔗 Descargando video desde Pruna...`);
+      const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
+      if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
+        downloadHeaders['apikey'] = requirePrunaApiKey(env);
       }
-    }
-
-    // 4. Descargar si es URL presignada
-    if (videoUrlTarget) {
-      console.log(`🔗 Descargando video desde URL presignada...`);
-      const videoFetch = await fetch(videoUrlTarget, {
-        headers: { 'User-Agent': 'Cloudflare-Worker' }
-      });
+      const videoFetch = await fetch(outputRef, { headers: downloadHeaders });
       if (!videoFetch.ok) {
         throw new Error(`Error descargando video: Status ${videoFetch.status}`);
       }
       videoBuffer = await videoFetch.arrayBuffer();
       console.log(`✅ Video descargado: ${videoBuffer.byteLength} bytes`);
+    } else {
+      const binaryString = atob(outputRef.replace(/^data:video\/[a-z0-9]+;base64,/, ''));
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+      videoBuffer = bytes.buffer;
     }
 
-    // 5. Validar
+    // 4. Validar
     if (!videoBuffer || videoBuffer.byteLength === 0) {
-      throw new Error(`No se recibió video válido de Pruna. Respuesta: ${JSON.stringify(videoResult).substring(0, 300)}`);
+      throw new Error(`No se recibió video válido de Pruna.`);
     }
 
-    // 6. Guardar en R2
+    // 5. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const videoFilename = `videos/${uniqueId}.mp4`;
 
@@ -9557,7 +9486,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
         prompt: prompt.substring(0, 200),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: VIDEO_CONFIG.MODEL
+        model: 'p-video'
       }
     });
 
@@ -9570,7 +9499,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
 
     logApiUsage(env, {
       provider: 'pruna', unit_type: 'prediction', sub_type: 'p-video',
-      via_gateway: true, user_dni: userDni, cost_usd: calcCost('pruna', 'p-video')
+      via_gateway: false, user_dni: userDni, cost_usd: calcCost('pruna', 'p-video')
     });
 
     return jsonResponse({
@@ -9764,18 +9693,26 @@ function requirePrunaApiKey(env) {
   return apiKey;
 }
 
-// Crea la predicción en modo asíncrono (sin header Try-Sync): Pruna la acepta
-// y devuelve enseguida un id + estado inicial, y sigue procesándola en sus
-// propios servidores.
-async function createPrunaPrediction(env, input) {
+// Crea una predicción en la API REST directa de Pruna. Por defecto en modo
+// asíncrono (sin header Try-Sync): Pruna acepta la petición y devuelve
+// enseguida un id + estado inicial, y sigue procesándola en sus propios
+// servidores (usado por el avatar, que tarda varios minutos). Con
+// { trySync: true } agrega el header Try-Sync, que hace que Pruna espere
+// hasta 60s en su propio servidor y devuelva el resultado ya terminado en la
+// misma respuesta — lo usan p-image/p-image-edit/p-video, que generan en
+// segundos.
+async function createPrunaPrediction(env, modelId, input, { trySync = false } = {}) {
   const apiKey = requirePrunaApiKey(env);
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': apiKey,
+    'Model': modelId,
+  };
+  if (trySync) headers['Try-Sync'] = 'true';
+
   const res = await fetch(`${PRUNA_API_BASE}/predictions`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': apiKey,
-      'Model': VIDEO_AVATAR_CONFIG.MODEL_ID,
-    },
+    headers,
     body: JSON.stringify({ input }),
   });
 
@@ -9784,7 +9721,9 @@ async function createPrunaPrediction(env, input) {
     console.error('❌ createPrunaPrediction error:', res.status, JSON.stringify(data).substring(0, 500));
     throw new Error(`Pruna rechazó la predicción (${res.status}): ${data.error || data.detail || JSON.stringify(data).substring(0, 200)}`);
   }
-  if (!data.id) {
+  // En modo Try-Sync, Pruna puede devolver el resultado ya resuelto (status +
+  // generation_url) sin un id de predicción — solo exigir `id` en modo async.
+  if (!data.id && !trySync) {
     throw new Error(`Pruna no devolvió un id de predicción: ${JSON.stringify(data).substring(0, 300)}`);
   }
   return data;
@@ -9827,6 +9766,42 @@ function extractPrunaOutputUrl(prediction) {
     }
   }
   return null;
+}
+
+const PRUNA_TERMINAL_OK = ['succeeded', 'success', 'completed'];
+const PRUNA_TERMINAL_FAIL = ['failed', 'canceled', 'cancelled', 'error'];
+
+// Genera vía la API REST directa de Pruna en modo síncrono (Try-Sync) y
+// devuelve la URL/base64 de salida. p-image/p-image-edit/p-video generan en
+// segundos (muy por debajo del límite de 60s de Try-Sync), así que en el
+// caso normal esto resuelve en una sola llamada HTTP sin ningún polling.
+// Si por lo que sea Pruna todavía no terminó al responder (no garantizado al
+// 100% por su documentación), cae a un polling corto y acotado como red de
+// seguridad antes de fallar.
+async function resolvePrunaSync(env, modelId, input) {
+  let prediction = await createPrunaPrediction(env, modelId, input, { trySync: true });
+  let attempts = 0;
+  while (
+    !PRUNA_TERMINAL_OK.includes((prediction.status || '').toLowerCase()) &&
+    !PRUNA_TERMINAL_FAIL.includes((prediction.status || '').toLowerCase()) &&
+    attempts < 5
+  ) {
+    if (!prediction.id) break; // sin id no hay nada que consultar, cortar acá
+    await new Promise(r => setTimeout(r, 2000));
+    prediction = await getPrunaPrediction(env, prediction.id);
+    attempts++;
+  }
+
+  const status = (prediction.status || '').toLowerCase();
+  if (PRUNA_TERMINAL_FAIL.includes(status)) {
+    throw new Error(prediction.error || prediction.detail || `Pruna (${modelId}) falló la generación`);
+  }
+
+  const outputRef = extractPrunaOutputUrl(prediction);
+  if (!outputRef) {
+    throw new Error(`Pruna (${modelId}) no devolvió una salida reconocible: ${JSON.stringify(prediction).substring(0, 300)}`);
+  }
+  return outputRef;
 }
 
 async function handleVideoAvatarGeneration(request, env, corsHeaders) {
@@ -9928,7 +9903,7 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       input.voice_script = voice_script;
     }
 
-    const prediction = await createPrunaPrediction(env, input);
+    const prediction = await createPrunaPrediction(env, VIDEO_AVATAR_CONFIG.MODEL_ID, input);
     const jobId = crypto.randomUUID();
 
     await env.MIRAI_AI_DB.prepare(`
