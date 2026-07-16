@@ -18,14 +18,14 @@ CREATE TABLE IF NOT EXISTS video_avatar_characters (
 CREATE TABLE IF NOT EXISTS video_avatar_jobs (
     id                   TEXT PRIMARY KEY,
     user_dni             TEXT NOT NULL,
-    status               TEXT NOT NULL DEFAULT 'pending', -- pending | done | error
+    status               TEXT NOT NULL DEFAULT 'pending',
     pruna_prediction_id  TEXT,
     video_url            TEXT,
     error                TEXT,
     character_id         INTEGER,
     character_name       TEXT,
     character_image_url  TEXT,
-    resolution           TEXT, -- '720p'/'1080p' usada en la predicción, para calcular el costo real ($/s por resolución) al finalizar el job
+    resolution           TEXT, 
     created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
 );

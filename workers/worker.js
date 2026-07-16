@@ -277,7 +277,7 @@ async function callAI(model, messages, options = {}, env) {
 
     const usageOut = {};
     const result = await readSSEStream(response, usageOut);
-    logApiUsage(env, {
+    await logApiUsage(env, {
       provider: 'deepseek',
       unit_type: 'tokens',
       sub_type: model,
@@ -316,7 +316,7 @@ async function callAI(model, messages, options = {}, env) {
     }
 
     const fallbackResult = await readSSEStream(fallbackResponse);
-    logApiUsage(env, {
+    await logApiUsage(env, {
       provider: 'deepseek_fallback_gateway',
       unit_type: 'call',
       sub_type: FALLBACK_MODEL,
@@ -558,7 +558,7 @@ async function sendVerificationEmail(email, code, env) {
       return false;
     }
 
-    logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'verification' });
+    await logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'verification' });
     return true;
   } catch (error) {
     console.error('Excepción envío correo:', error);
@@ -1085,7 +1085,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
     const ytRes = await fetch(searchUrl);
     if (!ytRes.ok) throw new Error(`YouTube API: ${ytRes.status}`);
     const ytData = await ytRes.json();
-    logApiUsage(env, { provider: 'youtube', unit_type: 'call', user_dni: userDni, cost_usd: 0 });
+    await logApiUsage(env, { provider: 'youtube', unit_type: 'call', user_dni: userDni, cost_usd: 0 });
 
     const videos = (ytData.items || []).map(item => ({
       videoId: item.id.videoId,
@@ -8134,7 +8134,7 @@ async function searchWithExa(question, env) {
     }
 
     const data = await res.json();
-    logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: type, cost_usd: calcCost('exa', null) });
+    await logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: type, cost_usd: calcCost('exa', null) });
     return (data.results || []).map(r => ({
       url: r.url,
       title: r.title || '',
@@ -8210,7 +8210,7 @@ async function scrapeAllUrls(exaResults, env) {
       if (!res.ok) return { url, markdown: null };
 
       const data = await res.json();
-      logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
+      await logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
       return { url, markdown: data?.data?.markdown || null };
     } catch (err) {
       console.warn(`⚠️ Firecrawl error [${url}]:`, err.message);
@@ -8639,7 +8639,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
         });
         if (exaRes.ok) {
           const exaData = await exaRes.json();
-          logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: 'chat_websearch', cost_usd: calcCost('exa', null) });
+          await logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: 'chat_websearch', cost_usd: calcCost('exa', null) });
           const results = (exaData.results || []).slice(0, 5);
           if (results.length > 0) {
             webContext = '\n\n[CONTEXTO WEB — Resultados de búsqueda recientes]\n' +
@@ -9239,7 +9239,7 @@ async function generateAndStoreImage(prompt, conversationId, env) {
     await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
 
     console.log(`✨ Imagen generada exitosamente: ${imageUrl}`);
-    logApiUsage(env, {
+    await logApiUsage(env, {
       provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image',
       via_gateway: false, cost_usd: calcCost('pruna', 'p-image')
     });
@@ -9329,7 +9329,7 @@ async function handleImageEdit(request, env, corsHeaders) {
 
     const editedUrl = `/api/image/${r2Key}`;
     console.log(`✨ Imagen editada exitosamente: ${editedUrl}`);
-    logApiUsage(env, {
+    await logApiUsage(env, {
       provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image-edit',
       via_gateway: false, user_dni: userDni, cost_usd: calcCost('pruna', 'p-image-edit')
     });
@@ -9489,7 +9489,7 @@ async function sendRecoveryEmail(email, token, env) {
     }
 
     console.log(`📧 [Recovery] Correo enviado a ${email}`);
-    logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'recovery' });
+    await logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'recovery' });
     return true;
   } catch (error) {
     console.error('❌ Error enviando correo de recuperación:', error);
@@ -9571,7 +9571,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
       await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
     }
 
-    logApiUsage(env, {
+    await logApiUsage(env, {
       provider: 'pruna', unit_type: 'video_seconds', sub_type: 'p-video',
       units: durationSeconds ?? 0, via_gateway: false, user_dni: userDni,
       cost_usd: calcCost('pruna', 'p-video', { durationSeconds, resolution: '720p' })
@@ -10114,7 +10114,7 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
         UPDATE video_avatar_jobs SET status = 'done', video_url = ?, updated_at = datetime('now') WHERE id = ?
       `).bind(videoUrl, job.id).run();
 
-      logApiUsage(env, {
+      await logApiUsage(env, {
         provider: 'pruna', unit_type: 'video_seconds', sub_type: 'p-video-avatar',
         units: durationSeconds ?? 0, via_gateway: false, user_dni: userDni,
         cost_usd: calcCost('pruna', 'p-video-avatar', {
