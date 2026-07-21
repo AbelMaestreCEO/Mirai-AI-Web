@@ -8207,7 +8207,11 @@ async function scrapeAllUrls(exaResults, env) {
 
       clearTimeout(timer);
 
-      if (!res.ok) return { url, markdown: null };
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.warn(`⚠️ Firecrawl HTTP ${res.status} [${url}]: ${errBody.substring(0, 300)}`);
+        return { url, markdown: null };
+      }
 
       const data = await res.json();
       await logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
