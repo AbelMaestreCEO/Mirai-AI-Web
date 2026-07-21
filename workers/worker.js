@@ -8200,7 +8200,6 @@ async function scrapeAllUrls(exaResults, env) {
           formats: ['markdown'],
           onlyMainContent: true,          // descarta nav, footer, ads
           excludeTags: ['nav', 'footer', 'aside', 'script', 'style', 'form'],
-          maxLength: 4000,          // cap por página para no saturar el contexto
         }),
         signal: controller.signal,
       });
