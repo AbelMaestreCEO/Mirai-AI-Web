@@ -9,10 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const verifyBtn = document.getElementById('verify-btn');
     const resendLink = document.getElementById('resend-link');
 
-    // Opcional: Pre-rellenar DNI si viene de la sesión anterior (si lo guardaste)
-    // const savedDni = localStorage.getItem('pending_dni');
-    // if (savedDni) dniInput.value = savedDni;
-
     // ============================================
     // VERIFICAR CÓDIGO
     // ============================================
@@ -49,7 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // La cookie de sesión llega automáticamente desde el servidor (HttpOnly)
             verifyForm.reset();
-            sessionStorage.removeItem('pending_dni');
 
             // Redirigir a INDEX (NO a login)
             setTimeout(() => {
@@ -75,22 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
     resendLink.addEventListener('click', async (e) => {
         e.preventDefault();
 
-        const dni = sessionStorage.getItem('pending_dni') || '';
-        if (!dni) {
-            showError(errorMsg, 'No se encontró tu sesión. Vuelve a iniciar sesión.');
-            return;
-        }
-
         setLoading(verifyBtn, true); // Usamos el mismo botón o podríamos crear uno específico
         hideMessage(errorMsg);
         hideMessage(successMsg);
 
         try {
-            const res = await fetch('/api/resend-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dni })
-            });
+            // El servidor identifica el reto por la cookie HttpOnly otp_pending,
+            // que viaja sola al ser una petición del mismo origen.
+            const res = await fetch('/api/resend-otp', { method: 'POST' });
 
             const data = await res.json();
 

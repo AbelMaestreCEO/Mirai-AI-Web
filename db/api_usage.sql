@@ -1,4 +1,4 @@
--- Registro de consumo de APIs externas de pago (DeepSeek, Pruna AI, Resend,
+-- Registro de consumo de APIs externas de pago (DeepSeek, Pruna AI, Cloudflare Email,
 -- Exa, Firecrawl, Google Maps/YouTube), usado por el panel de administración
 -- /api_usage_admin (endpoint GET /api/admin/api-usage).
 --

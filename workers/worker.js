@@ -48,7 +48,7 @@ const API_PRICING = {
       'p-video-avatar': { '720p': 0.025, '1080p': 0.045 },
     },
   },
-  resend: { email: 0 }, // dentro del free tier (3,000/mes, 100/día)
+  cloudflare_email: { email: 0 }, // Email Sending: incluido en el plan Workers de pago
   exa: { search: 0.007 }, // Standard Search, $7 por 1000
   firecrawl: { scrape: 0.0032 }, // referencia plan Hobby
   youtube: { call: 0 }, // cuota gratuita de Google
@@ -75,8 +75,8 @@ function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, c
         }
         return (API_PRICING.pruna[subType] ?? 0) * units;
       }
-      case 'resend':
-        return API_PRICING.resend.email * units;
+      case 'cloudflare_email':
+        return API_PRICING.cloudflare_email.email * units;
       case 'exa':
         return API_PRICING.exa.search * units;
       case 'firecrawl':
@@ -173,23 +173,6 @@ const INTENT_TYPES = {
   TEXT_DEFAULT: 5,
   YOUTUBE: 6
 };
-
-const SMTP_CONFIG = {
-  // Si decides usar una API externa (Recomendado para Workers)
-  // Ejemplo con Resend (gratuito hasta cierto límite):
-  apiKey: 'RESEND_API_KEY',
-  from: 'mirai@aberumirai.com',
-  to: '',
-  subject: 'Verifica tu cuenta Mirai AI',
-};
-
-/**
- * Envía un correo de verificación usando Resend
- * @param {string} email - Destinatario
- * @param {string} code - Código OTP de 6 dígitos
- * @param {Object} env - Environment variables (contiene RESEND_API_KEY)
- * @returns {Promise<boolean>} - True si se envió, False si falló
- */
 
 const CLASSIFICATION_PROMPT = `You are an intent classifier for a multimodal AI assistant. Analyze the user's message and determine what type of response they need.
 
@@ -405,172 +388,220 @@ async function requireAuth(request, env) {
   if (!session) return null;
   return session.user_dni;
 }
-async function sendVerificationEmail(email, code, env) {
-  const RESEND_API_KEY = env.RESEND_API_KEY;
+// ── CORREO TRANSACCIONAL (Cloudflare Email Sending, binding EMAIL) ────────
+// El dominio remitente debe estar onboarded en Email Sending:
+//   npx wrangler email sending enable aberumirai.com
+const EMAIL_FROM = { email: 'mirai@aberumirai.com', name: 'Mirai AI' };
 
-  if (!RESEND_API_KEY) {
-    console.error('RESEND_API_KEY no configurada');
+/**
+ * Plantilla base de los correos. Pensada para clientes de correo, no para el
+ * navegador: tablas, estilos en línea y cero JavaScript. Gmail y Outlook
+ * descartan <style> y <script>, y un correo con scripts dentro puntúa como
+ * phishing en los filtros antispam.
+ */
+function renderEmailShell({ title, intro, bodyHtml, outro }) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<title>${title}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#0d1117;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0d1117" style="background-color:#0d1117;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px; background-color:#161b22; border:1px solid #30363d; border-radius:12px;">
+        <tr>
+          <td style="padding:36px 32px; font-family:Arial,Helvetica,sans-serif;">
+            <p style="margin:0 0 26px; font-size:20px; font-weight:bold; color:#e6edf3; text-align:center;">${title}</p>
+            <p style="margin:0 0 20px; font-size:15px; line-height:1.6; color:#c9d1d9;">${intro}</p>
+${bodyHtml}
+            <p style="margin:26px 0 0; font-size:13px; line-height:1.6; color:#8b949e;">${outro}</p>
+            <p style="margin:28px 0 0; padding-top:16px; border-top:1px solid #30363d; font-size:11px; line-height:1.6; color:#6e7681; text-align:center;">
+              Mirai AI &middot; aberumirai.com<br>Correo automático, no respondas a este mensaje.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
+/**
+ * Envío transaccional vía el binding send_email de Cloudflare.
+ * @returns {Promise<boolean>} true si Cloudflare aceptó el mensaje.
+ */
+async function sendEmail(env, { to, subject, html, text, kind }) {
+  if (!env.EMAIL) {
+    console.error('Binding EMAIL (send_email) no configurado en wrangler.toml');
     return false;
   }
-
-  const htmlBody = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: 'Roboto', sans-serif; background: #0d1117; padding: 20px; margin: 0; }
-        .container { max-width: 520px; margin: 0 auto; background: #161b22; padding: 40px 30px; border-radius: 12px; border: 1px solid #30363d; }
-        h1 { color: #e6edf3; text-align: center; font-size: 22px; margin-bottom: 8px; }
-        .brand { color: #58a6ff; }
-        p { color: #8b949e; line-height: 1.7; font-size: 14px; }
-        .code-box {
-          background: #0d1117;
-          border: 2px dashed #30363d;
-          padding: 18px;
-          font-size: 32px;
-          font-weight: 700;
-          text-align: center;
-          letter-spacing: 8px;
-          border-radius: 8px;
-          margin: 25px 0;
-          color: #58a6ff;
-          font-family: 'Courier New', monospace;
-        }
-        .warning { font-size: 12px; color: #484f58; text-align: center; margin-top: 30px; }
-        .warning strong { color: #8b949e; }
-      </style>
-    <script>
-// Restaura el color de acento completo (incluye fondo de página)
-// — colocar al inicio del <head>, antes del primer <link rel="stylesheet">
-(function () {
-    var COLORS = {
-        purple:  { c:'#6750A4', g:'linear-gradient(135deg,#6750A4,#7F67BE 50%,#9A82DB)', glow:'rgba(103,80,164,0.18)', sc:'#E8DEF8',
-                   bg:'#F5F3F8', bgG:'linear-gradient(145deg,#F5F3F8 0%,#EDE7F6 40%,#E8EAF6 100%)',
-                   bgD:'#141218', bgGD:'linear-gradient(145deg,#141218 0%,#1D1A22 40%,#211F26 100%)',
-                   gb:'rgba(103,80,164,0.12)', gbD:'rgba(207,188,255,0.10)' },
-        blue:    { c:'#1565C0', g:'linear-gradient(135deg,#1565C0,#2196F3 50%,#42A5F5)', glow:'rgba(21,101,192,0.18)', sc:'#E3F2FD',
-                   bg:'#F3F6FB', bgG:'linear-gradient(145deg,#F3F6FB 0%,#E3F2FD 40%,#E8EAF6 100%)',
-                   bgD:'#121520', bgGD:'linear-gradient(145deg,#121520 0%,#181E2E 40%,#1A1F30 100%)',
-                   gb:'rgba(21,101,192,0.12)', gbD:'rgba(144,202,249,0.10)' },
-        teal:    { c:'#00695C', g:'linear-gradient(135deg,#00695C,#009688 50%,#26C6DA)', glow:'rgba(0,105,92,0.18)', sc:'#E0F2F1',
-                   bg:'#F2F9F8', bgG:'linear-gradient(145deg,#F2F9F8 0%,#E0F2F1 40%,#E0F7FA 100%)',
-                   bgD:'#121A19', bgGD:'linear-gradient(145deg,#121A19 0%,#172320 40%,#162527 100%)',
-                   gb:'rgba(0,105,92,0.12)', gbD:'rgba(128,203,196,0.10)' },
-        green:   { c:'#2E7D32', g:'linear-gradient(135deg,#2E7D32,#388E3C 50%,#66BB6A)', glow:'rgba(46,125,50,0.18)', sc:'#E8F5E9',
-                   bg:'#F3F9F3', bgG:'linear-gradient(145deg,#F3F9F3 0%,#E8F5E9 40%,#F1F8E9 100%)',
-                   bgD:'#121812', bgGD:'linear-gradient(145deg,#121812 0%,#182018 40%,#192218 100%)',
-                   gb:'rgba(46,125,50,0.12)', gbD:'rgba(165,214,167,0.10)' },
-        orange:  { c:'#E65100', g:'linear-gradient(135deg,#E65100,#F57C00 50%,#FFA726)', glow:'rgba(230,81,0,0.18)', sc:'#FFF3E0',
-                   bg:'#FBF6F0', bgG:'linear-gradient(145deg,#FBF6F0 0%,#FFF3E0 40%,#FFF8E1 100%)',
-                   bgD:'#1E1610', bgGD:'linear-gradient(145deg,#1E1610 0%,#271C12 40%,#281E14 100%)',
-                   gb:'rgba(230,81,0,0.12)', gbD:'rgba(255,183,77,0.10)' },
-        pink:    { c:'#AD1457', g:'linear-gradient(135deg,#AD1457,#D81B60 50%,#F06292)', glow:'rgba(173,20,87,0.18)', sc:'#FCE4EC',
-                   bg:'#FAF2F6', bgG:'linear-gradient(145deg,#FAF2F6 0%,#FCE4EC 40%,#F8EAF6 100%)',
-                   bgD:'#1C1218', bgGD:'linear-gradient(145deg,#1C1218 0%,#251520 40%,#261525 100%)',
-                   gb:'rgba(173,20,87,0.12)', gbD:'rgba(240,98,146,0.10)' },
-        red:     { c:'#B71C1C', g:'linear-gradient(135deg,#B71C1C,#D32F2F 50%,#EF5350)', glow:'rgba(183,28,28,0.18)', sc:'#FFEBEE',
-                   bg:'#FAF2F2', bgG:'linear-gradient(145deg,#FAF2F2 0%,#FFEBEE 40%,#FFEAEA 100%)',
-                   bgD:'#1C1212', bgGD:'linear-gradient(145deg,#1C1212 0%,#251515 40%,#271616 100%)',
-                   gb:'rgba(183,28,28,0.12)', gbD:'rgba(239,83,80,0.10)' },
-        indigo:  { c:'#283593', g:'linear-gradient(135deg,#283593,#3F51B5 50%,#7986CB)', glow:'rgba(40,53,147,0.18)', sc:'#E8EAF6',
-                   bg:'#F3F3FA', bgG:'linear-gradient(145deg,#F3F3FA 0%,#E8EAF6 40%,#EDE7F6 100%)',
-                   bgD:'#131318', bgGD:'linear-gradient(145deg,#131318 0%,#191A25 40%,#1B1A28 100%)',
-                   gb:'rgba(40,53,147,0.12)', gbD:'rgba(121,134,203,0.10)' },
-        yellow:  { c:'#F57F17', g:'linear-gradient(135deg,#F57F17,#FBC02D 50%,#FFEE58)', glow:'rgba(245,127,23,0.18)', sc:'#FFFDE7',
-                   bg:'#FDFBF0', bgG:'linear-gradient(145deg,#FDFBF0 0%,#FFFDE7 40%,#FFF9C4 100%)',
-                   bgD:'#1D1C10', bgGD:'linear-gradient(145deg,#1D1C10 0%,#262512 40%,#282714 100%)',
-                   gb:'rgba(245,127,23,0.12)', gbD:'rgba(255,238,88,0.10)' },
-        slate:   { c:'#37474F', g:'linear-gradient(135deg,#37474F,#546E7A 50%,#90A4AE)', glow:'rgba(55,71,79,0.18)', sc:'#ECEFF1',
-                   bg:'#F3F5F6', bgG:'linear-gradient(145deg,#F3F5F6 0%,#ECEFF1 40%,#E8EDF0 100%)',
-                   bgD:'#131618', bgGD:'linear-gradient(145deg,#131618 0%,#1A1F22 40%,#1C2125 100%)',
-                   gb:'rgba(55,71,79,0.12)', gbD:'rgba(144,164,174,0.10)' }
-    };
- 
-    var s = {};
-    try { s = JSON.parse(localStorage.getItem('mirai-settings')) || {}; } catch(e) {}
-    var theme = localStorage.getItem('mirai-ai-theme') ||
-                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    var isDark = theme === 'dark';
- 
-    if (s.accentColor && COLORS[s.accentColor]) {
-        var c = COLORS[s.accentColor];
-        var r = document.documentElement;
-        r.style.setProperty('--accent-color', c.c);
-        r.style.setProperty('--accent-gradient', c.g);
-        r.style.setProperty('--accent-glow', c.glow);
-        r.style.setProperty('--secondary-container', c.sc);
-        r.style.setProperty('--message-user-bg', c.glow.replace('0.18','0.08'));
-        r.style.setProperty('--message-user-border', c.glow);
-        // Fondo completo
-        r.style.setProperty('--bg-primary', isDark ? c.bgD : c.bg);
-        r.style.setProperty('--bg-gradient', isDark ? c.bgGD : c.bgG);
-        r.style.setProperty('--glass-border', isDark ? c.gbD : c.gb);
-        // Aplicar fondo directamente al html para evitar flash
-        r.style.background = isDark ? c.bgD : c.bg;
-        r.style.backgroundImage = isDark ? c.bgGD : c.bgG;
-    }
-    if (s.fontFamily) {
-        document.documentElement.style.setProperty('--font-family', s.fontFamily);
-    }
-    if (s.fontSize) {
-        document.documentElement.style.fontSize = s.fontSize + 'px';
-    }
-    if (s.reducedMotion) {
-        document.documentElement.classList.add('reduce-motion');
-    }
-})();
-</script>
-</head>
-    <body>
-      <div class="container">
-        <h1>🔐 <span class="brand">Mirai AI</span></h1>
-        <p>Hola,</p>
-        <p>Para completar tu registro, ingresa el siguiente código en la página de verificación:</p>
-        <div class="code-box">${code}</div>
-        <p>Este código expira en <strong>10 minutos</strong>. Si no solicitaste este correo, puedes ignorarlo.</p>
-        <div class="warning">
-          © 2026 Mirai AI · Powered by <strong>Proton</strong> & <strong>Cloudflare</strong>
-        </div>
-      </div>
-    <script src="transitions.js"></script>
-</body>
-    </html>
-  `;
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'Mirai AI <mirai@aberumirai.com>',
-        to: email,
-        subject: 'Tu código de verificación — Mirai AI 🔐',
-        html: htmlBody
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Error Resend:', err);
-      return false;
-    }
-
-    await logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'verification' });
+    const res = await env.EMAIL.send({ from: EMAIL_FROM, to, subject, html, text });
+    await logApiUsage(env, { provider: 'cloudflare_email', unit_type: 'email', sub_type: kind });
+    console.log(`📧 [${kind}] enviado a ${to} (${res?.messageId || 'sin id'})`);
     return true;
   } catch (error) {
-    console.error('Excepción envío correo:', error);
+    // error.code trae los E_* de Email Sending (E_SENDER_NOT_VERIFIED,
+    // E_DAILY_LIMIT_EXCEEDED, E_RECIPIENT_SUPPRESSED...): sin él no hay forma
+    // de distinguir "dominio mal configurado" de "cuota agotada".
+    console.error(`❌ Email Sending [${kind}] falló: ${error.code || 'sin código'} — ${error.message}`);
     return false;
   }
+}
+
+/**
+ * Envía el código de verificación en dos pasos.
+ * @param {string} email - Destinatario
+ * @param {string} code  - Código OTP de 6 dígitos
+ * @param {Object} env   - Bindings del Worker (necesita EMAIL)
+ * @returns {Promise<boolean>}
+ */
+async function sendVerificationEmail(email, code, env) {
+  const bodyHtml = `            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" style="padding:6px 0;">
+                  <div style="display:inline-block; padding:16px 26px; background-color:#0d1117; border:1px solid #30363d; border-radius:8px; font-family:'Courier New',Courier,monospace; font-size:32px; font-weight:bold; letter-spacing:8px; color:#58a6ff;">${code}</div>
+                </td>
+              </tr>
+            </table>`;
+
+  const html = renderEmailShell({
+    title: '🔐 Tu código de Mirai AI',
+    intro: 'Introduce este código en la página de verificación para continuar:',
+    bodyHtml,
+    outro: 'El código caduca en 10 minutos y solo sirve en el navegador desde el que lo pediste. Si no has sido tú, ignora este correo y cambia tu contraseña.'
+  });
+
+  const text = [
+    'Tu código de Mirai AI',
+    '',
+    `Código: ${code}`,
+    '',
+    'Caduca en 10 minutos y solo sirve en el navegador desde el que lo pediste.',
+    'Si no has sido tú, ignora este correo y cambia tu contraseña.',
+    '',
+    'Mirai AI · aberumirai.com'
+  ].join('\n');
+
+  return sendEmail(env, {
+    to: email,
+    subject: `${code} es tu código de verificación — Mirai AI`,
+    html,
+    text,
+    kind: 'verification'
+  });
+}
+
+// ── RETO DE VERIFICACIÓN EN DOS PASOS ─────────────────────────────────────
+// El código de 6 dígitos nunca identifica por sí solo a un usuario: va siempre
+// acompañado de un token opaco que vive en una cookie HttpOnly de 10 minutos.
+// Sin ese token, acertar el código no sirve de nada.
+const OTP_TTL_SECS = 10 * 60;
+const OTP_MAX_ATTEMPTS = 5;
+
+function makePendingCookie(token) {
+  return `otp_pending=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${OTP_TTL_SECS}`;
+}
+
+function clearPendingCookie() {
+  return `otp_pending=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+}
+
+function getPendingToken(request) {
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const match = cookieHeader.match(/(?:^|;\s*)otp_pending=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+function clientIp(request) {
+  return request.headers.get('CF-Connecting-IP') || 'desconocida';
+}
+
+/**
+ * Contador de ventana fija sobre KV_RATE.
+ * Si KV falla deja pasar: es una capa de contención, no la defensa principal.
+ * La protección real del OTP es otp_attempts en D1, que sí es consistente.
+ * @returns {Promise<boolean>} true si la petición se permite.
+ */
+async function rateLimit(env, key, limit, windowSecs) {
+  if (!env.KV_RATE) return true;
+
+  const bucket = Math.floor(Date.now() / (windowSecs * 1000));
+  const kvKey = `rl:${key}:${bucket}`;
+
+  try {
+    const current = parseInt(await env.KV_RATE.get(kvKey), 10) || 0;
+    if (current >= limit) return false;
+    await env.KV_RATE.put(kvKey, String(current + 1), { expirationTtl: Math.max(60, windowSecs * 2) });
+    return true;
+  } catch (e) {
+    console.warn('rateLimit: KV_RATE no disponible —', e.message);
+    return true;
+  }
+}
+
+/** Comparación en tiempo constante: no filtra cuántos dígitos se acertaron. */
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // crypto.getRandomValues en lugar de Math.random: un OTP predecible no es un
+  // OTP. El rechazo por encima de `limit` evita el sesgo del módulo.
+  const buf = new Uint32Array(1);
+  const limit = Math.floor(0xFFFFFFFF / 900000) * 900000;
+  do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
+  return String(100000 + (buf[0] % 900000));
 }
+
+/**
+ * Crea (o renueva) el reto OTP de un usuario y le envía el correo.
+ * La expiración se calcula con datetime() de SQLite para que quede en el mismo
+ * formato que datetime('now'); guardarla como ISO de JS hacía que la
+ * comparación de texto fuese siempre verdadera dentro del mismo día.
+ * @returns {Promise<{token: string, sent: boolean}>}
+ */
+async function issueOtpChallenge(env, user) {
+  const code = generateOTP();
+  const token = crypto.randomUUID();
+
+  await env.MIRAI_AI_DB.prepare(
+    `UPDATE users
+        SET otp_code = ?, otp_token = ?, otp_attempts = 0,
+            otp_expires = datetime('now', '+${OTP_TTL_SECS} seconds')
+      WHERE dni = ?`
+  ).bind(code, token, user.dni).run();
+
+  const sent = await sendVerificationEmail(user.email, code, env);
+  return { token, sent };
+}
+
+/** Consume/anula el reto pendiente de un usuario. */
+async function clearOtpChallenge(env, dni) {
+  await env.MIRAI_AI_DB.prepare(
+    `UPDATE users
+        SET otp_code = NULL, otp_expires = NULL, otp_token = NULL, otp_attempts = 0
+      WHERE dni = ?`
+  ).bind(dni).run();
+}
+
 async function handleRegister(request, env, corsHeaders) {
   try {
+    // Cada alta dispara un correo: sin techo por IP es un vector de spam.
+    if (!await rateLimit(env, `register:${clientIp(request)}`, 5, 3600)) {
+      return jsonResponse({ error: 'Demasiados registros desde esta conexión. Inténtalo más tarde.' }, 429, corsHeaders);
+    }
+
     const { dni, email, password, first_name, last_name } = await request.json();
 
     // Validaciones básicas
@@ -600,76 +631,107 @@ async function handleRegister(request, env, corsHeaders) {
     const salt = generateSalt();
     const passwordHash = await hashPassword(password, salt);
 
-    // 🆕 Generar OTP y fecha de expiración
-    const otp = generateOTP();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutos
-
-    // 🆕 INSERT con campos de verificación
+    // Alta sin reto: el OTP lo emite issueOtpChallenge justo después.
     await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO users (dni, email, password_hash, first_name, last_name, is_verified, otp_code, otp_expires)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+      `INSERT INTO users (dni, email, password_hash, first_name, last_name, is_verified)
+       VALUES (?, ?, ?, ?, ?, 0)`
     ).bind(
       dni.toUpperCase(),
       email.toLowerCase(),
       `${salt}:${passwordHash}`,
       first_name.trim(),
-      last_name.trim(),
-      otp,
-      otpExpires
+      last_name.trim()
     ).run();
 
-    // 🆕 Enviar correo de verificación
-    const emailSent = await sendVerificationEmail(email.toLowerCase(), otp, env);
+    // El token del reto viaja en cookie HttpOnly; el código, por correo.
+    // Se envía siempre, aunque el correo falle, para que "Reenviar código"
+    // pueda funcionar sin volver a pedir la contraseña.
+    const { token: pendingToken, sent } = await issueOtpChallenge(env, {
+      dni: dni.toUpperCase(),
+      email: email.toLowerCase()
+    });
 
-    if (!emailSent) {
-      // El usuario se creó pero el correo falló — aún puede reenviar luego
-      return jsonResponse({
-        success: true,
-        needs_verification: true,
-        warning: 'Registro exitoso, pero no pudimos enviar el correo. Usa "Reenviar código" en la página de verificación.'
-      }, 201, corsHeaders);
-    }
+    const headers = new Headers({ ...corsHeaders, 'Content-Type': 'application/json' });
+    headers.append('Set-Cookie', makePendingCookie(pendingToken));
 
-    return jsonResponse({
+    return new Response(JSON.stringify({
       success: true,
       needs_verification: true,
-      message: 'Registro exitoso. Revisa tu correo para verificar tu cuenta.'
-    }, 201, corsHeaders);
+      message: sent
+        ? 'Registro exitoso. Revisa tu correo para verificar tu cuenta.'
+        : 'Registro exitoso, pero no pudimos enviar el correo. Usa "Reenviar código" en la página de verificación.',
+      warning: sent ? undefined : 'No se pudo enviar el correo de verificación.'
+    }), { status: 201, headers });
 
   } catch (error) {
     console.error('Error registro:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }
+
 async function handleVerify(request, env, corsHeaders) {
   try {
-    const { code } = await request.json();
-
-    if (!code) {
-      return jsonResponse({ error: 'El código es requerido' }, 400, corsHeaders);
+    // El reto se identifica por la cookie HttpOnly emitida al iniciar sesión,
+    // no por el código. Un código suelto ya no abre la sesión de nadie.
+    const pendingToken = getPendingToken(request);
+    if (!pendingToken) {
+      return jsonResponse({ error: 'No hay una verificación en curso. Vuelve a iniciar sesión.' }, 401, corsHeaders);
     }
 
-    // Buscar usuario solo por código OTP válido
-    const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT * FROM users WHERE otp_code = ? AND otp_expires > datetime('now')"
-    ).bind(code).first();
+    // Techo por IP: aunque el atacante rote tokens, no puede probar en volumen.
+    if (!await rateLimit(env, `verify:${clientIp(request)}`, 20, 600)) {
+      return jsonResponse({ error: 'Demasiados intentos. Espera unos minutos.' }, 429, corsHeaders);
+    }
 
-    if (!user) {
+    const { code } = await request.json();
+    const submitted = String(code || '').trim();
+
+    if (!/^\d{6}$/.test(submitted)) {
+      return jsonResponse({ error: 'El código debe tener 6 dígitos' }, 400, corsHeaders);
+    }
+
+    const user = await env.MIRAI_AI_DB.prepare(
+      `SELECT *, (otp_expires > datetime('now')) AS otp_valid
+         FROM users
+        WHERE otp_token = ?`
+    ).bind(pendingToken).first();
+
+    // Mismo mensaje para "token desconocido", "caducado" y "código erróneo":
+    // distinguirlos le diría al atacante qué parte acertó.
+    if (!user || !user.otp_code || !user.otp_valid) {
+      if (user) await clearOtpChallenge(env, user.dni);
       return jsonResponse({ error: 'Código inválido o expirado.' }, 401, corsHeaders);
     }
 
-    // Generar Token de Sesión
+    if ((user.otp_attempts || 0) >= OTP_MAX_ATTEMPTS) {
+      await clearOtpChallenge(env, user.dni);
+      return jsonResponse({ error: 'Demasiados intentos fallidos. Solicita un código nuevo.' }, 429, corsHeaders);
+    }
+
+    if (!safeEqual(submitted, user.otp_code)) {
+      // El contador vive en D1, que es consistente: es el límite que de verdad
+      // frena la fuerza bruta, KV solo amortigua el volumen.
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE users SET otp_attempts = otp_attempts + 1 WHERE dni = ?"
+      ).bind(user.dni).run();
+
+      return jsonResponse({ error: 'Código inválido o expirado.' }, 401, corsHeaders);
+    }
+
+    // ✅ Código correcto: se consume el reto y se abre la sesión.
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECS * 1000).toISOString();
 
-    // Guardar sesión
     await env.MIRAI_AI_DB.prepare(
       "INSERT INTO sessions (token, user_dni, expires_at) VALUES (?, ?, ?)"
     ).bind(token, user.dni, expiresAt).run();
 
-    // Actualizar último login
     await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
+      `UPDATE users
+          SET last_login = datetime('now'),
+              is_verified = 1,
+              otp_code = NULL, otp_expires = NULL, otp_token = NULL, otp_attempts = 0
+        WHERE dni = ?`
     ).bind(user.dni).run();
 
     // Asignar retroactivamente las tareas de secciones donde el DNI ya estaba registrado
@@ -691,24 +753,21 @@ async function handleVerify(request, env, corsHeaders) {
       console.warn('No se pudieron asignar tareas retroactivas al verificar:', e.message);
     }
 
-    // DESPUÉS — pon esto:
+    // Dos Set-Cookie: abre la sesión y borra el reto ya consumido.
+    const headers = new Headers({ ...corsHeaders, 'Content-Type': 'application/json' });
+    headers.append('Set-Cookie', makeSessionCookie(token));
+    headers.append('Set-Cookie', clearPendingCookie());
+
     return new Response(JSON.stringify({
       success: true,
-      token: token,          // lo dejamos en el body para compatibilidad con verify.js
       dni: user.dni.toUpperCase(),
       first_name: user.first_name,
       last_name: user.last_name,
       avatar_url: user.avatar_r2_key ? `/api/user/avatar/${user.dni.toUpperCase()}` : null,
       role: user.role,
       message: '¡Verificación exitosa! Redirigiendo...'
-    }), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Set-Cookie': makeSessionCookie(token)
-      }
-    });
+    }), { status: 200, headers });
+
   } catch (error) {
     console.error('Error verificación:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
@@ -717,45 +776,48 @@ async function handleVerify(request, env, corsHeaders) {
 
 async function handleResendOTP(request, env, corsHeaders) {
   try {
-    const { dni } = await request.json();
-
-    if (!dni) {
-      return jsonResponse({ error: 'DNI es requerido' }, 400, corsHeaders);
+    // El destinatario sale del reto en curso, nunca del cuerpo de la petición.
+    // Aceptar un DNI arbitrario permitía mandarle correos a cualquiera.
+    const pendingToken = getPendingToken(request);
+    if (!pendingToken) {
+      return jsonResponse({ error: 'No hay una verificación en curso. Vuelve a iniciar sesión.' }, 401, corsHeaders);
     }
 
     const user = await env.MIRAI_AI_DB.prepare(
-      "SELECT * FROM users WHERE dni = ?"
-    ).bind(dni.toUpperCase()).first();
+      "SELECT dni, email FROM users WHERE otp_token = ?"
+    ).bind(pendingToken).first();
 
     if (!user) {
-      // Por seguridad, no revelamos si el usuario existe o no
-      return jsonResponse({ success: true, message: 'Si la cuenta existe, se enviará un nuevo código.' }, 200, corsHeaders);
+      return jsonResponse({ error: 'La verificación caducó. Vuelve a iniciar sesión.' }, 401, corsHeaders);
     }
 
-    // Rate limiting básico: no reenviar si el OTP anterior tiene menos de 2 minutos
-    if (user.otp_expires) {
-      const elapsed = Date.now() - new Date(user.otp_expires).getTime() + (10 * 60 * 1000);
-      if (elapsed < 2 * 60 * 1000) {
-        return jsonResponse({ error: 'Espera unos segundos antes de solicitar otro código.' }, 429, corsHeaders);
-      }
+    // El enfriamiento se ancla al DNI, no al token: el token rota en cada
+    // reenvío, así que contar por token daría un cubo nuevo cada vez.
+    const allowed = await rateLimit(env, `resend-dni:${user.dni}`, 1, 60)
+      && await rateLimit(env, `resend-ip:${clientIp(request)}`, 5, 3600);
+
+    if (!allowed) {
+      return jsonResponse({ error: 'Espera un momento antes de solicitar otro código.' }, 429, corsHeaders);
     }
 
-    // Generar nuevo OTP
-    const newOtp = generateOTP();
-    const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    // El token rota en cada reenvío, así que la cookie se actualiza aunque el
+    // correo falle: si no, el usuario se quedaría sin poder reintentar.
+    const { token, sent } = await issueOtpChallenge(env, user);
 
-    await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
-    ).bind(newOtp, newExpires, dni.toUpperCase()).run();
+    const headers = new Headers({ ...corsHeaders, 'Content-Type': 'application/json' });
+    headers.append('Set-Cookie', makePendingCookie(token));
 
-    // Enviar correo
-    const emailSent = await sendVerificationEmail(user.email, newOtp, env);
-
-    if (!emailSent) {
-      return jsonResponse({ error: 'Error al enviar el correo. Intenta de nuevo.' }, 500, corsHeaders);
+    if (!sent) {
+      return new Response(
+        JSON.stringify({ error: 'No pudimos enviar el correo. Inténtalo de nuevo en unos minutos.' }),
+        { status: 502, headers }
+      );
     }
 
-    return jsonResponse({ success: true, message: 'Nuevo código enviado a tu correo.' }, 200, corsHeaders);
+    return new Response(
+      JSON.stringify({ success: true, message: 'Nuevo código enviado a tu correo.' }),
+      { status: 200, headers }
+    );
 
   } catch (error) {
     console.error('Error reenvío OTP:', error);
@@ -766,6 +828,11 @@ async function handleResendOTP(request, env, corsHeaders) {
 // --- NUEVO: SOLICITAR RECUPERACIÓN ---
 async function handleForgotPassword(request, env, corsHeaders) {
   try {
+    // También manda correo, así que también necesita techo.
+    if (!await rateLimit(env, `forgot:${clientIp(request)}`, 5, 3600)) {
+      return jsonResponse({ error: 'Demasiadas solicitudes. Inténtalo más tarde.' }, 429, corsHeaders);
+    }
+
     const { email } = await request.json();
 
     if (!email || !isValidEmail(email)) {
@@ -840,10 +907,20 @@ async function handleResetPassword(request, env, corsHeaders) {
 
 async function handleLogin(request, env, corsHeaders) {
   try {
+    if (!await rateLimit(env, `login-ip:${clientIp(request)}`, 15, 600)) {
+      return jsonResponse({ error: 'Demasiados intentos. Espera unos minutos.' }, 429, corsHeaders);
+    }
+
     const { email, password } = await request.json();
 
     if (!email || !password) {
       return jsonResponse({ error: 'Correo y contraseña son requeridos' }, 400, corsHeaders);
+    }
+
+    // Techo por cuenta además del de IP: si no, una botnet repartiría la fuerza
+    // bruta contra un mismo correo sin llegar nunca al límite por IP.
+    if (!await rateLimit(env, `login-acct:${email.toLowerCase()}`, 10, 600)) {
+      return jsonResponse({ error: 'Demasiados intentos. Espera unos minutos.' }, 429, corsHeaders);
     }
 
     const user = await env.MIRAI_AI_DB.prepare(
@@ -876,7 +953,10 @@ async function handleLogin(request, env, corsHeaders) {
       ).bind(token, user.dni, expiresAt).run();
 
       await env.MIRAI_AI_DB.prepare(
-        "UPDATE users SET last_login = datetime('now'), otp_code = NULL, otp_expires = NULL WHERE dni = ?"
+        `UPDATE users
+            SET last_login = datetime('now'),
+                otp_code = NULL, otp_expires = NULL, otp_token = NULL, otp_attempts = 0
+          WHERE dni = ?`
       ).bind(user.dni).run();
 
       return new Response(JSON.stringify({
@@ -894,35 +974,32 @@ async function handleLogin(request, env, corsHeaders) {
       });
     }
 
-    // 2FA activo — generar OTP y enviar correo
-    const newOtp = generateOTP();
-    const newExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    // 2FA activo — emitir el reto y devolver su token en cookie HttpOnly.
+    const { token: pendingToken, sent } = await issueOtpChallenge(env, user);
 
-    await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET otp_code = ?, otp_expires = ? WHERE dni = ?"
-    ).bind(newOtp, newExpires, user.dni).run();
+    // 403 + needs_verification es lo que login.js espera para redirigir a /verify.
+    const headers = new Headers({ ...corsHeaders, 'Content-Type': 'application/json' });
+    headers.append('Set-Cookie', makePendingCookie(pendingToken));
 
-    const emailSent = await sendVerificationEmail(user.email, newOtp, env);
-
-    if (!emailSent) {
-      return jsonResponse({
-        error: 'Error al enviar el código de verificación.',
+    if (!sent) {
+      return new Response(JSON.stringify({
+        error: 'No pudimos enviar el código de verificación. Prueba con "Reenviar código".',
         needs_verification: true
-      }, 500, corsHeaders);
+      }), { status: 403, headers });
     }
 
-    return jsonResponse({
-      error: 'Credenciales correctas. Se ha enviado un código de verificación a tu correo.',
+    return new Response(JSON.stringify({
+      error: 'Verificación necesaria: te hemos enviado un código a tu correo.',
       needs_verification: true,
-      message_sent: true,
-      dni: user.dni,
-    }, 403, corsHeaders);
+      message_sent: true
+    }), { status: 403, headers });
 
   } catch (error) {
     console.error('Error login:', error);
     return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
   }
 }
+
 // --- CLASIFICAR INTENCIÓN DEL USUARIO ---
 async function classifyIntent(message, env) {
   try {
@@ -9416,88 +9493,44 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
 
 // --- ENVIAR CORREO DE RECUPERACIÓN ---
 async function sendRecoveryEmail(email, token, env) {
-  const RESEND_API_KEY = env.RESEND_API_KEY;
+  const recoveryLink = `https://aberumirai.com/reset-password.html?token=${encodeURIComponent(token)}`;
 
-  if (!RESEND_API_KEY) {
-    console.error('RESEND_API_KEY no configurada');
-    return false;
-  }
+  const bodyHtml = `            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:6px auto;">
+              <tr>
+                <td align="center" bgcolor="#58a6ff" style="border-radius:8px;">
+                  <a href="${recoveryLink}" style="display:inline-block; padding:14px 28px; font-family:Arial,Helvetica,sans-serif; font-size:15px; font-weight:bold; color:#0d1117; text-decoration:none;">Restablecer contraseña</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:16px 0 0; font-size:11px; line-height:1.5; color:#6e7681; text-align:center; word-break:break-all;">
+              Si el botón no funciona, copia este enlace:<br>${recoveryLink}
+            </p>`;
 
-  const recoveryLink = `https://aberumirai.com/reset-password.html?token=${token}`;
+  const html = renderEmailShell({
+    title: '🔑 Restablecer tu contraseña',
+    intro: 'Recibimos una solicitud para restablecer la contraseña de tu cuenta de Mirai AI.',
+    bodyHtml,
+    outro: 'El enlace caduca en 1 hora. Si no has sido tú, ignora este correo: tu contraseña no cambiará.'
+  });
 
-  const htmlBody = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: 'Roboto', sans-serif; background: #0d1117; padding: 20px; margin: 0; }
-        .container { max-width: 520px; margin: 0 auto; background: #161b22; padding: 40px 30px; border-radius: 12px; border: 1px solid #30363d; }
-        h1 { color: #e6edf3; text-align: center; font-size: 22px; margin-bottom: 8px; }
-        .brand { color: #58a6ff; }
-        p { color: #8b949e; line-height: 1.7; font-size: 14px; }
-        .btn {
-          display: block;
-          width: 100%;
-          max-width: 280px;
-          margin: 25px auto;
-          padding: 14px 24px;
-          background: #58a6ff;
-          color: #0d1117;
-          text-align: center;
-          text-decoration: none;
-          font-weight: 700;
-          font-size: 15px;
-          border-radius: 8px;
-        }
-        .link-fallback { font-size: 12px; color: #484f58; word-break: break-all; text-align: center; margin-top: 10px; }
-        .warning { font-size: 12px; color: #484f58; text-align: center; margin-top: 30px; }
-        .warning strong { color: #8b949e; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>🔑 <span class="brand">Mirai AI</span></h1>
-        <p>Hola,</p>
-        <p>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para crear una nueva:</p>
-        <a href="${recoveryLink}" class="btn">Restablecer contraseña</a>
-        <p class="link-fallback">Si el botón no funciona, copia y pega este enlace en tu navegador:<br>${recoveryLink}</p>
-        <p>Este enlace expira en <strong>1 hora</strong>. Si no solicitaste este correo, puedes ignorarlo.</p>
-        <div class="warning">
-          © 2026 Mirai AI · Powered by <strong>Proton</strong> & <strong>Cloudflare</strong>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  const text = [
+    'Restablecer tu contraseña de Mirai AI',
+    '',
+    'Abre este enlace para crear una nueva contraseña:',
+    recoveryLink,
+    '',
+    'El enlace caduca en 1 hora. Si no has sido tú, ignora este correo.',
+    '',
+    'Mirai AI · aberumirai.com'
+  ].join('\n');
 
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: 'Mirai AI <mirai@aberumirai.com>',
-        to: email,
-        subject: 'Restablecer contraseña — Mirai AI 🔑',
-        html: htmlBody
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      console.error('Error Resend (recovery):', err);
-      return false;
-    }
-
-    console.log(`📧 [Recovery] Correo enviado a ${email}`);
-    await logApiUsage(env, { provider: 'resend', unit_type: 'email', sub_type: 'recovery' });
-    return true;
-  } catch (error) {
-    console.error('❌ Error enviando correo de recuperación:', error);
-    return false;
-  }
+  return sendEmail(env, {
+    to: email,
+    subject: 'Restablecer tu contraseña — Mirai AI',
+    html,
+    text,
+    kind: 'recovery'
+  });
 }
 
 async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false) {

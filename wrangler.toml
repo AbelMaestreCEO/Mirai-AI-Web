@@ -1,6 +1,13 @@
 name = "mirai-ai-web"
 main = "workers/worker.js"
 compatibility_date = "2024-01-01"
+# El binding send_email se expone como stub RPC: sin este flag, env.EMAIL.send
+# ni siquiera existe (wrangler avisa: "Tried to access method 'send' on a
+# Service Binding... enable the 'rpc' compat flag"). Se activa el flag suelto en
+# vez de mover compatibility_date para no arrastrar dos años de cambios de
+# runtime en el resto del Worker. No hay service bindings ni Durable Objects,
+# así que su único efecto aquí es habilitar EMAIL.
+compatibility_flags = [ "rpc" ]
 
 # Configuración de Assets Estáticos (Frontend)
 # Esto sirve automáticamente los archivos de la carpeta 'public/'
@@ -37,6 +44,14 @@ bucket_name = 'mirai-photos'
 
 [ai]
 binding = "AI"
+
+# --- ENVÍO DE CORREO (Cloudflare Email Sending) ---
+# El dominio remitente ya está onboarded; para reprovisionarlo:
+#   npx wrangler email sending enable aberumirai.com
+# allowed_sender_addresses limita el binding a esa única dirección.
+[[send_email]]
+name = "EMAIL"
+allowed_sender_addresses = [ "mirai@aberumirai.com" ]
 
 [vars]
 VAPID_PUBLIC_KEY = "BAgXM-Oiko7pyU-1nXGvuq5MQhtH_ms27367O08dfcUA8eG3ba-ykgoidpfyI6D2KOZO6vr0hzV3a9D0fGsZLTQ" # tu clave actual

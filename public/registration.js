@@ -146,8 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showSuccess(successMsg, '✅ ¡Registro exitoso! Redirigiendo...');
             hideMessage(errorMsg);
 
-            sessionStorage.setItem('pending_dni', dni);
-
             document.querySelector('.auth-card').animate([
                 { transform: 'scale(1)' },
                 { transform: 'scale(1.02)' },

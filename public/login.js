@@ -43,8 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         showError(errorMsg, data.error);
                     }
 
-                    sessionStorage.setItem('pending_dni', data.dni || '');
-
                     setTimeout(() => {
                         window.location.href = 'verify';
                     }, 2500);
