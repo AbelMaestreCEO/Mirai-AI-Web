@@ -2425,14 +2425,20 @@ function formatMessageContent(content) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-  // Restaurar bloques de código (ahora seguros)
+  // Restaurar bloques de código.
+  // El contenido del bloque se extrajo ANTES del escapado de arriba, así que
+  // aquí sigue siendo texto crudo: hay que escaparlo explícitamente antes de
+  // meterlo en innerHTML. Sin esto, un ``` que contuviera
+  // <img src=x onerror=...> ejecutaba script al renderizar el mensaje.
   const codeBlocksHTML = [];
   codeBlocks.forEach(block => {
     const encodedCode = encodeURIComponent(block.code);
+    const safeCode = escapeHtml(block.code);
+    const safeLang = String(block.lang || '').replace(/[^\w-]/g, '');
     const html = `<div class="code-block-wrapper">
-      <pre class="code-block"><code class="language-${block.lang}">${block.code}</code></pre>
+      <pre class="code-block"><code class="language-${safeLang}">${safeCode}</code></pre>
       <div class="code-header">
-        <span class="code-lang">${block.lang || 'plaintext'}</span>
+        <span class="code-lang">${safeLang || 'plaintext'}</span>
         <button class="copy-code-btn" data-code="${encodedCode}" title="Copiar código">
           <svg viewBox="0 0 24 24" width="16" height="16"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
           <span>Copiar</span>

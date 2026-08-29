@@ -930,11 +930,21 @@ function parseBatchFile() {
         // Separar por comas, tabulaciones y saltos de línea
         const tokens = text.split(/[\n\r,\t]+/).map(t => t.trim()).filter(Boolean);
 
-        // Validar que cada token sea solo dígitos
-        const invalid = tokens.filter(t => !/^\d+$/.test(t));
+        // Se acepta tanto la cédula pelada ("30840119") como el formato canónico
+        // ("V-30840119") y se normaliza al segundo, que es el que guarda
+        // users.dni. Antes solo se admitían dígitos y se enviaban tal cual, con
+        // lo que los alumnos importados no casaban con ninguna cuenta real.
+        const normalizeDni = (raw) => {
+            const value = String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+            if (!value) return null;
+            const candidate = /^\d+$/.test(value) ? `V-${value}` : value;
+            return /^[A-Z]{1,5}-[A-Z0-9]{5,15}$/.test(candidate) ? candidate : null;
+        };
+
+        const invalid = tokens.filter(t => !normalizeDni(t));
 
         if (invalid.length > 0) {
-            errorEl.textContent = `❌ El archivo contiene valores no numéricos: ${invalid.slice(0, 5).join(', ')}${invalid.length > 5 ? '...' : ''}. Corrige el archivo e intenta de nuevo.`;
+            errorEl.textContent = `❌ El archivo contiene cédulas inválidas: ${invalid.slice(0, 5).join(', ')}${invalid.length > 5 ? '...' : ''}. Corrige el archivo e intenta de nuevo.`;
             errorEl.style.display = 'block';
             return;
         }
@@ -945,8 +955,8 @@ function parseBatchFile() {
             return;
         }
 
-        // Deduplicar
-        batchValidDnis = [...new Set(tokens)];
+        // Normalizar y deduplicar
+        batchValidDnis = [...new Set(tokens.map(normalizeDni))];
 
         previewValid.textContent = batchValidDnis.join('  ·  ');
         countEl.textContent = `${batchValidDnis.length} DNI${batchValidDnis.length !== 1 ? 's' : ''} detectado${batchValidDnis.length !== 1 ? 's' : ''} (sin duplicados)`;

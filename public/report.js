@@ -1641,7 +1641,7 @@ function renderManageSubmissionsTable(subs, report) {
     }).join('');
 
     const accessCount = (report?.access || []).length;
-    const pct         = accessCount > 0 ? Math.round((subs.length / accessCount) * 100) : 0;
+    const pct         = accessCount > 0 ? Math.min(100, Math.round((subs.length / accessCount) * 100)) : 0;
 
     content.innerHTML = `
         <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;">

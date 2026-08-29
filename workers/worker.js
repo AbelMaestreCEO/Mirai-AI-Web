@@ -160,6 +160,7 @@ const ROUTES = {
 
 const MIRROR_CONFIG = {
   MAX_FILES: 200,
+  MAX_FILE_SIZE: 15 * 1024 * 1024,
   ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'],
   CLEANUP_DAYS: 7
 };
@@ -236,6 +237,9 @@ async function callAI(model, messages, options = {}, env) {
 
   console.log(`🚀 Llamando DeepSeek directo: ${model}`);
 
+  let deepseekResult = null;
+  let deepseekUsage = null;
+
   try {
     const response = await fetch(DEEPSEEK_URL, {
       method: 'POST',
@@ -260,19 +264,13 @@ async function callAI(model, messages, options = {}, env) {
 
     const usageOut = {};
     const result = await readSSEStream(response, usageOut);
-    await logApiUsage(env, {
-      provider: 'deepseek',
-      unit_type: 'tokens',
-      sub_type: model,
-      tokens_in: usageOut.usage?.prompt_tokens ?? null,
-      tokens_out: usageOut.usage?.completion_tokens ?? null,
-      cost_usd: calcCost('deepseek', model, {
-        tokensIn: usageOut.usage?.prompt_tokens ?? 0,
-        tokensOut: usageOut.usage?.completion_tokens ?? 0,
-        cacheHitTokens: usageOut.usage?.prompt_cache_hit_tokens ?? 0
-      })
-    });
-    return result;
+
+    // El registro de consumo va FUERA del try que dispara el fallback: si D1
+    // fallaba al anotar el gasto, el catch descartaba una respuesta ya generada
+    // y volvía a generarla entera con GLM — el doble de coste y de latencia por
+    // un fallo de contabilidad. logApiUsage ya es best-effort por dentro.
+    deepseekResult = result;
+    deepseekUsage = usageOut.usage;
 
   } catch (err) {
     console.warn(`⚠️ DeepSeek falló: ${err.message}. Usando fallback GLM...`);
@@ -308,6 +306,21 @@ async function callAI(model, messages, options = {}, env) {
     });
     return fallbackResult;
   }
+
+  await logApiUsage(env, {
+    provider: 'deepseek',
+    unit_type: 'tokens',
+    sub_type: model,
+    tokens_in: deepseekUsage?.prompt_tokens ?? null,
+    tokens_out: deepseekUsage?.completion_tokens ?? null,
+    cost_usd: calcCost('deepseek', model, {
+      tokensIn: deepseekUsage?.prompt_tokens ?? 0,
+      tokensOut: deepseekUsage?.completion_tokens ?? 0,
+      cacheHitTokens: deepseekUsage?.prompt_cache_hit_tokens ?? 0
+    })
+  });
+
+  return deepseekResult;
 }
 
 // Hash de contraseña usando PBKDF2 nativo
@@ -388,6 +401,72 @@ async function requireAuth(request, env) {
   if (!session) return null;
   return session.user_dni;
 }
+
+/** ¿El usuario tiene rol 'admin' en la tabla users? */
+async function isAdminUser(userDni, env) {
+  try {
+    const row = await env.MIRAI_AI_DB.prepare(
+      'SELECT role FROM users WHERE dni = ?'
+    ).bind(userDni.toUpperCase()).first();
+    return row?.role === 'admin';
+  } catch (error) {
+    console.error('isAdminUser error:', error.message);
+    return false;
+  }
+}
+
+/**
+ * ¿`userDni` es el profesor dueño del curso al que pertenece la tarea, o un admin?
+ * Se usa para cerrar los IDOR entre profesores: ser profesor activo no basta,
+ * la tarea tiene que colgar de un curso suyo.
+ */
+async function canManageAssignment(assignmentId, userDni, env) {
+  if (await isAdminUser(userDni, env)) return true;
+  const row = await env.MIRAI_AI_DB.prepare(`
+    SELECT a.id
+    FROM assignments a
+    JOIN user_courses uc ON uc.id = a.course_id
+    WHERE a.id = ? AND uc.user_dni = ?
+  `).bind(assignmentId, userDni.toUpperCase()).first();
+  return !!row;
+}
+
+/**
+ * ¿`userDni` puede ver/gestionar esta entrega? El estudiante que la hizo,
+ * el profesor dueño del curso de la tarea, o un admin.
+ * @returns {Promise<{allowed:boolean, isOwner:boolean, submission:Object|null}>}
+ */
+async function canAccessSubmission(submissionId, userDni, env) {
+  const dni = userDni.toUpperCase();
+  const submission = await env.MIRAI_AI_DB.prepare(
+    'SELECT id, assignment_id, user_dni, file_url FROM submissions WHERE id = ?'
+  ).bind(submissionId).first();
+
+  if (!submission) return { allowed: false, isOwner: false, submission: null };
+
+  const isOwner = (submission.user_dni || '').toUpperCase() === dni;
+  if (isOwner) return { allowed: true, isOwner: true, submission };
+
+  const canManage = await canManageAssignment(submission.assignment_id, dni, env);
+  return { allowed: canManage, isOwner: false, submission };
+}
+
+/**
+ * Autoriza la lectura de una clave de R2 concreta bajo el prefijo submissions/.
+ * Las claves tienen la forma submissions/<dni>/<assignmentId>/<uuid>.<ext>, así que
+ * el dueño se deduce de la propia clave sin tocar D1.
+ */
+async function canReadSubmissionKey(r2Key, userDni, env) {
+  const parts = r2Key.split('/');
+  if (parts[0] !== 'submissions' || parts.length < 3) return false;
+
+  const ownerDni = (parts[1] || '').toUpperCase();
+  const assignmentId = parts[2];
+  if (ownerDni === userDni.toUpperCase()) return true;
+
+  return canManageAssignment(assignmentId, userDni, env);
+}
+
 // ── CORREO TRANSACCIONAL (Cloudflare Email Sending, binding EMAIL) ────────
 // El dominio remitente debe estar onboarded en Email Sending:
 //   npx wrangler email sending enable aberumirai.com
@@ -839,6 +918,14 @@ async function handleForgotPassword(request, env, corsHeaders) {
       return jsonResponse({ error: 'Correo inválido' }, 400, corsHeaders);
     }
 
+    // Techo por cuenta además del de IP: solo con el límite por IP, rotando
+    // direcciones se podía inundar el buzón de una víctima con correos de
+    // recuperación. Se responde igual que en el caso correcto para no revelar
+    // si la cuenta existe.
+    if (!await rateLimit(env, `forgot-acct:${email.toLowerCase()}`, 3, 3600)) {
+      return jsonResponse({ success: true, message: 'Si el correo existe, recibirás instrucciones.' }, 200, corsHeaders);
+    }
+
     // Buscar usuario
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT dni, first_name FROM users WHERE email = ?"
@@ -852,12 +939,19 @@ async function handleForgotPassword(request, env, corsHeaders) {
 
     // Generar token
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
 
-    // Guardar token en DB
+    // La expiración se calcula con datetime() de SQLite, igual que en
+    // issueOtpChallenge(). Guardarla como ISO de JavaScript
+    // ("2026-08-29T13:00:00.000Z") hacía que la comparación de texto contra
+    // datetime('now') ("2026-08-29 13:00:00") fuese siempre verdadera dentro del
+    // mismo día UTC — la 'T' (0x54) ordena por encima del espacio (0x20) —, así
+    // que el enlace de recuperación no caducaba en 1 hora sino al cambiar de día.
     await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET recovery_token = ?, recovery_expires_at = ? WHERE email = ?"
-    ).bind(token, expiresAt, email.toLowerCase()).run();
+      `UPDATE users
+          SET recovery_token = ?,
+              recovery_expires_at = datetime('now', '+3600 seconds')
+        WHERE email = ?`
+    ).bind(token, email.toLowerCase()).run();
 
     // Enviar correo
     await sendRecoveryEmail(email, token, env);
@@ -892,12 +986,27 @@ async function handleResetPassword(request, env, corsHeaders) {
     const salt = generateSalt();
     const newHash = await hashPassword(new_password, salt);
 
-    // Actualizar contraseña y limpiar token
+    // Actualizar contraseña, limpiar el token de recuperación y anular también
+    // cualquier reto OTP pendiente de la cuenta.
     await env.MIRAI_AI_DB.prepare(
-      "UPDATE users SET password_hash = ?, recovery_token = NULL, recovery_expires_at = NULL WHERE dni = ?"
+      `UPDATE users
+          SET password_hash = ?, recovery_token = NULL, recovery_expires_at = NULL,
+              otp_code = NULL, otp_expires = NULL, otp_token = NULL, otp_attempts = 0
+        WHERE dni = ?`
     ).bind(`${salt}:${newHash}`, user.dni).run();
 
-    return jsonResponse({ success: true, message: 'Contraseña actualizada correctamente' }, 200, corsHeaders);
+    // Cerrar todas las sesiones abiertas. Las sesiones no vencen por tiempo
+    // (ver requireAuth), así que sin este borrado quien hubiese robado una
+    // cookie la conservaba para siempre — justo el escenario en el que la
+    // víctima cambia la contraseña para recuperar la cuenta.
+    await env.MIRAI_AI_DB.prepare(
+      'DELETE FROM sessions WHERE user_dni = ?'
+    ).bind(user.dni).run();
+
+    return jsonResponse({
+      success: true,
+      message: 'Contraseña actualizada correctamente. Vuelve a iniciar sesión.'
+    }, 200, { ...corsHeaders, 'Set-Cookie': clearSessionCookie() });
 
   } catch (error) {
     console.error('Error reset password:', error);
@@ -932,10 +1041,17 @@ async function handleLogin(request, env, corsHeaders) {
     }
 
     // 2. Validar Contraseña
-    const [storedSalt, storedHash] = user.password_hash.split(':');
+    // password_hash puede venir vacío (alumnos dados de alta por un profesor
+    // antes de registrarse): sin esto, el split lanzaba y devolvía un 500.
+    const [storedSalt, storedHash] = String(user.password_hash || '').split(':');
+    if (!storedSalt || !storedHash) {
+      return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
+    }
+
     const inputHash = await hashPassword(password, storedSalt);
 
-    if (inputHash !== storedHash) {
+    // safeEqual en lugar de !==, igual que en la verificación del OTP.
+    if (!safeEqual(inputHash, storedHash)) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);
     }
 
@@ -1561,9 +1677,41 @@ export default {
     }
   },
   async scheduled(event, env) {
-    const listed = await env.MIRAI_AI_ASSETS.list({ prefix: 'format/' });
-    const now = Date.now();
-    let deleted = 0;
+    // Los dos crons de wrangler.toml entraban por aquí sin mirar event.cron, así
+    // que la "limpieza horaria" de format/ corría en realidad cada 2 minutos.
+    // Además, un fallo del list() de R2 impedía que llegase a ejecutarse
+    // finalizePendingVideoAvatarJobs, que es la red de seguridad de los vídeos.
+    const HOURLY_CRON = '0 * * * *';
+
+    if (event.cron === HOURLY_CRON) {
+      try {
+        await cleanupExpiredFormatFiles(env);
+      } catch (error) {
+        console.error('❌ [Scheduled] Format cleanup falló:', error.message);
+      }
+    }
+
+    try {
+      await finalizePendingVideoAvatarJobs(env);
+    } catch (error) {
+      console.error('❌ [Scheduled] finalizePendingVideoAvatarJobs falló:', error.message);
+    }
+  }
+};
+
+/**
+ * Borra de R2 los ficheros de format/ cuyo customMetadata.expiresAt ya pasó.
+ * list() devuelve como máximo 1000 objetos por página: sin recorrer el cursor,
+ * todo lo que pasara de ahí no se borraba nunca.
+ */
+async function cleanupExpiredFormatFiles(env) {
+  const now = Date.now();
+  let deleted = 0;
+  let cursor;
+
+  do {
+    const listed = await env.MIRAI_AI_ASSETS.list({ prefix: 'format/', cursor });
+
     for (const obj of listed.objects) {
       const exp = obj.customMetadata?.expiresAt;
       if (exp && now > new Date(exp).getTime()) {
@@ -1571,11 +1719,12 @@ export default {
         deleted++;
       }
     }
-    console.log(`[Scheduled] Format cleanup: ${deleted} archivos eliminados.`);
 
-    await finalizePendingVideoAvatarJobs(env);
-  }
-};
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+
+  console.log(`[Scheduled] Format cleanup: ${deleted} archivos eliminados.`);
+}
 
 
 // --- PARSEAR RESPUESTA DE CLASIFICACIÓN ---
@@ -1613,7 +1762,10 @@ function parseClassification(content) {
   const numberMatch = content.match(/"intent"\s*:\s*(\d)/);
   if (numberMatch) {
     const intent = parseInt(numberMatch[1]);
-    if (intent >= 1 && intent <= 5) {
+    // El rango era 1..5, dejando fuera el intent 6 (YOUTUBE) que sí aceptan los
+    // dos caminos anteriores: una respuesta de YouTube que solo casara por este
+    // patrón terminaba cayendo al texto por defecto.
+    if (intent >= 1 && intent <= 6) {
       const promptMatch = content.match(/"prompt"\s*:\s*"([^"]*)"/);
       return {
         intent,
@@ -2225,19 +2377,25 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       }
     }
 
-    // GET /api/users/search?dni=30840119
+    // GET /api/users/search?dni=V-30840119
+    // Solo profesores/administradores: es la búsqueda para asignar alumnos a una
+    // sección. Sin autenticación era enumeración de usuarios y fuga de correos
+    // para cualquier visitante anónimo.
     if (url.pathname === '/api/users/search' && request.method === 'GET') {
+      const auth = await requireReportManagerAuth(request, env, corsHeaders);
+      if (auth instanceof Response) return auth;
+
       const dni = url.searchParams.get('dni');
-      if (!dni) return Response.json({ error: 'dni requerido' }, { status: 400 });
+      if (!dni) return jsonResponse({ error: 'dni requerido' }, 400, corsHeaders);
 
       const user = await env.MIRAI_AI_DB
         .prepare('SELECT dni, first_name, last_name, email FROM users WHERE dni = ?')
-        .bind(dni)
+        .bind(dni.toUpperCase().trim())
         .first();
 
-      if (!user) return Response.json({ error: 'Usuario no encontrado' }, { status: 404 });
+      if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
 
-      return Response.json(user);
+      return jsonResponse(user, 200, corsHeaders);
     }
 
     if (path === '/api/me' && request.method === 'GET') {
@@ -2281,7 +2439,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     }
 
     if (path === '/api/mirror/session' && request.method === 'POST') {
-      return await mirrorCreateSession(env, corsHeaders);
+      return await mirrorCreateSession(request, env, corsHeaders);
     }
     if (path === '/api/mirror/upload' && request.method === 'POST') {
       return await mirrorUploadImage(request, env, corsHeaders);
@@ -2395,7 +2553,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     if (path.startsWith('/api/apa/download/') && request.method === 'GET') {
       const fileId = path.replace('/api/apa/download/', '');
-      return await handleApaDownload(fileId, env, corsHeaders);
+      return await handleApaDownload(fileId, request, env, corsHeaders);
     }
 
     if (path === '/api/apa/history' && request.method === 'GET') {
@@ -2404,7 +2562,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     if (path.startsWith('/api/apa/delete/') && request.method === 'DELETE') {
       const fileId = path.replace('/api/apa/delete/', '');
-      return await handleApaDelete(fileId, env, corsHeaders);
+      return await handleApaDelete(fileId, request, env, corsHeaders);
     }
     // ── FIN RUTAS APA ──────────────────────────────────────────
     // --- RUTAS COMPLETADAS PARA ADMIN (Continuación) ---
@@ -2416,6 +2574,12 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
       const id = url.searchParams.get('id');
       if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+
+      // La tarea tiene que ser de un curso del profesor: antes cualquier profesor
+      // activo podía borrar las tareas (y las entregas) de cualquier otro.
+      if (!await canManageAssignment(id, userDni, env)) {
+        return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+      }
 
       try {
         // Eliminación en cascada manual
@@ -2441,15 +2605,19 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
         return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
       }
 
-      try {
-        // Verificar que la tarea existe
-        const task = await env.MIRAI_AI_DB.prepare("SELECT id FROM assignments WHERE id = ?").bind(assignment_id).first();
-        if (!task) return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+      const studentDni = normalizeDni(user_dni);
+      if (!studentDni) return jsonResponse({ error: 'DNI inválido' }, 400, corsHeaders);
 
+      // La tarea tiene que pertenecer a un curso del profesor.
+      if (!await canManageAssignment(assignment_id, userDni, env)) {
+        return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+      }
+
+      try {
         // Insertar en tabla intermedia (ignora duplicados)
         await env.MIRAI_AI_DB.prepare(`
             INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)
-        `).bind(assignment_id, user_dni.toUpperCase()).run();
+        `).bind(assignment_id, studentDni).run();
 
         return jsonResponse({ success: true }, 200, corsHeaders);
       } catch (error) {
@@ -2465,6 +2633,10 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
 
       const assignmentId = url.searchParams.get('assignment_id');
       if (!assignmentId) return jsonResponse({ error: 'Falta ID de tarea' }, 400, corsHeaders);
+
+      if (!await canManageAssignment(assignmentId, userDni, env)) {
+        return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+      }
 
       try {
         const { results } = await env.MIRAI_AI_DB.prepare(`
@@ -2492,11 +2664,21 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (!userDni || userDni instanceof Response) return userDni;
 
       const { assignment_id, user_dni } = await request.json();
+      if (!assignment_id || !user_dni) {
+        return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
+      }
+
+      const studentDni = normalizeDni(user_dni);
+      if (!studentDni) return jsonResponse({ error: 'DNI inválido' }, 400, corsHeaders);
+
+      if (!await canManageAssignment(assignment_id, userDni, env)) {
+        return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+      }
 
       try {
         await env.MIRAI_AI_DB.prepare(`
             DELETE FROM assignment_students WHERE assignment_id = ? AND user_dni = ?
-        `).bind(assignment_id, user_dni.toUpperCase()).run();
+        `).bind(assignment_id, studentDni).run();
 
         return jsonResponse({ success: true }, 200, corsHeaders);
       } catch (error) {
@@ -2763,9 +2945,21 @@ ORDER BY u.last_name, u.first_name
       if (!section_id || !Array.isArray(dnis) || dnis.length === 0)
         return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
 
-      // Validar que todos sean numéricos (segunda capa de seguridad)
-      if (dnis.some(d => !/^\d+$/.test(d)))
-        return jsonResponse({ error: 'DNIs inválidos detectados' }, 400, corsHeaders);
+      // Se normalizan al formato canónico (V-30840119). Antes se exigía
+      // /^\d+$/ y se insertaba el número pelado, que nunca casaba con users.dni.
+      const normalized = [];
+      const invalid = [];
+      for (const raw of dnis) {
+        const dni = normalizeDni(raw);
+        if (dni) normalized.push(dni);
+        else invalid.push(String(raw));
+      }
+
+      if (invalid.length > 0) {
+        return jsonResponse({
+          error: `DNIs inválidos detectados: ${invalid.slice(0, 5).join(', ')}${invalid.length > 5 ? '…' : ''}`
+        }, 400, corsHeaders);
+      }
 
       const sec = await env.MIRAI_AI_DB.prepare(
         'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
@@ -2778,17 +2972,17 @@ ORDER BY u.last_name, u.first_name
       ).bind(section_id).all();
 
       let inserted = 0, skipped = 0;
-      for (const dni of dnis) {
+      for (const dni of [...new Set(normalized)]) {
         const result = await env.MIRAI_AI_DB.prepare(
           'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
-        ).bind(section_id, dni.toUpperCase()).run();
+        ).bind(section_id, dni).run();
         if (result.meta?.changes > 0) {
           inserted++;
           // Auto-asignar tareas existentes al nuevo estudiante
           for (const task of sectionTasks) {
             await env.MIRAI_AI_DB.prepare(
               'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
-            ).bind(task.id, dni.toUpperCase()).run();
+            ).bind(task.id, dni).run();
           }
         } else {
           skipped++;
@@ -2806,6 +3000,11 @@ ORDER BY u.last_name, u.first_name
       const { section_id, user_dni } = await request.json();
       if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
 
+      // Misma normalización que la importación por lotes, para que ambos caminos
+      // guarden el DNI en el mismo formato que users.dni.
+      const studentDni = normalizeDni(user_dni);
+      if (!studentDni) return jsonResponse({ error: 'DNI inválido' }, 400, corsHeaders);
+
       const sec = await env.MIRAI_AI_DB.prepare(
         'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
       ).bind(section_id, userDni).first();
@@ -2813,7 +3012,7 @@ ORDER BY u.last_name, u.first_name
 
       await env.MIRAI_AI_DB.prepare(
         'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
-      ).bind(section_id, user_dni.toUpperCase()).run();
+      ).bind(section_id, studentDni).run();
 
       // Auto-asignar tareas existentes de esta sección al nuevo estudiante
       const { results: sectionTasks } = await env.MIRAI_AI_DB.prepare(
@@ -2822,7 +3021,7 @@ ORDER BY u.last_name, u.first_name
       for (const task of sectionTasks) {
         await env.MIRAI_AI_DB.prepare(
           'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
-        ).bind(task.id, user_dni.toUpperCase()).run();
+        ).bind(task.id, studentDni).run();
       }
 
       return jsonResponse({ success: true }, 200, corsHeaders);
@@ -2871,6 +3070,15 @@ ORDER BY u.last_name, u.first_name
         return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
       }
 
+      // El curso tiene que ser del profesor. Se validaba section_id pero NO
+      // course_id, así que se podían colgar tareas del curso de otro profesor.
+      const ownCourse = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM user_courses WHERE id = ? AND user_dni = ?'
+      ).bind(course_id, userDni).first();
+      if (!ownCourse) {
+        return jsonResponse({ error: 'Materia inválida o no autorizada' }, 403, corsHeaders);
+      }
+
       // Si viene section_id, validar que pertenece al profesor
       if (section_id) {
         const sec = await env.MIRAI_AI_DB.prepare(
@@ -2908,11 +3116,14 @@ ORDER BY u.last_name, u.first_name
       return await handleServeAudio(path, env);
     }
 
+    // La clave de Google Maps solo se entrega a usuarios con sesión: antes
+    // cualquier visitante anónimo podía pedirla y consumir la cuota facturable.
     if (path === '/api/maps-key' && request.method === 'GET') {
+      const userDni = await requireAuth(request, env);
+      if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
       const key = env.GOOGLE_MAPS_KEY || '';
-      return new Response(JSON.stringify({ key }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ key }, 200, { ...corsHeaders, 'Cache-Control': 'no-store' });
     }
 
     // POST /api/track-maps-usage — beacon desde el frontend (public/location.js) para
@@ -3160,6 +3371,19 @@ ORDER BY u.last_name, u.first_name
 
         if (!submissionData) {
           return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+        }
+
+        // Solo el dueño de la entrega, el profesor del curso o un admin pueden
+        // lanzar la evaluación: esta ruta SOBRESCRIBE la nota en BD, así que sin
+        // esta comprobación cualquier usuario logueado podía recalificar (o
+        // arruinar) la entrega de otro, o repetir la suya hasta que le gustara.
+        const evalAccess = await canAccessSubmission(submission_id, userDni, env);
+        if (!evalAccess.allowed) {
+          return jsonResponse({ error: 'No tienes acceso a esta entrega' }, 403, corsHeaders);
+        }
+
+        if (!submissionData.file_url) {
+          return jsonResponse({ error: 'La entrega no tiene un archivo asociado' }, 422, corsHeaders);
         }
 
         const r2Key = submissionData.file_url.replace('/api/file/', '');
@@ -3431,6 +3655,12 @@ NO agregues texto adicional fuera del JSON.`;
           return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
         }
 
+        // Ser profesor activo no basta: la tarea tiene que colgar de un curso
+        // suyo. Sin esto cualquier profesor podía cambiar las notas de otro.
+        if (!await canManageAssignment(submission.assignment_id, userDni, env)) {
+          return jsonResponse({ error: 'Esta entrega no pertenece a un curso tuyo' }, 403, corsHeaders);
+        }
+
         // Obtener max_score de la tarea
         const assignment = await env.MIRAI_AI_DB.prepare(`
             SELECT max_score FROM assignments WHERE id = ?
@@ -3440,15 +3670,22 @@ NO agregues texto adicional fuera del JSON.`;
           return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
         }
 
-        // Validar nota
-        const finalScore = Math.min(Math.max(new_score, 0), assignment.max_score);
+        // Validar nota. Number() explícito: con un string o un valor no numérico,
+        // Math.min/Math.max devolvían NaN y se guardaba una nota corrupta.
+        const parsedScore = Number(new_score);
+        if (!Number.isFinite(parsedScore)) {
+          return jsonResponse({ error: 'La nota debe ser un número' }, 400, corsHeaders);
+        }
+        const finalScore = Math.min(Math.max(parsedScore, 0), assignment.max_score);
 
-        // Actualizar nota y resolver disputa si existe
+        // Actualizar nota y resolver disputa si existe.
+        // professor_note recibía finalScore por un copy-paste: es el comentario
+        // del profesor (lo que lee /api/professor-disputes), no la nota.
         await env.MIRAI_AI_DB.prepare(`
-            UPDATE submissions 
+            UPDATE submissions
             SET score = ?, professor_note = ?, professor_feedback = ?, dispute_status = 'resolved'
             WHERE id = ?
-        `).bind(finalScore, finalScore, feedback || null, submission_id).run();
+        `).bind(finalScore, feedback || null, feedback || null, submission_id).run();
 
         return jsonResponse({ success: true, new_score: finalScore }, 200, corsHeaders);
 
@@ -3474,9 +3711,37 @@ NO agregues texto adicional fuera del JSON.`;
 
         // Obtener el tipo de entrega configurado por el profesor
         const assignmentData = await env.MIRAI_AI_DB.prepare(
-          'SELECT submission_type FROM assignments WHERE id = ?'
+          'SELECT id, submission_type FROM assignments WHERE id = ?'
         ).bind(assignmentId).first();
-        const submissionType = assignmentData?.submission_type || 'document';
+        if (!assignmentData) {
+          return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+        }
+        const submissionType = assignmentData.submission_type || 'document';
+
+        // El alumno tiene que estar asignado a la tarea (individualmente o vía
+        // sección). Sin esto, cualquier usuario logueado podía entregar contra
+        // cualquier assignment_id.
+        const isAssigned = await env.MIRAI_AI_DB.prepare(`
+          SELECT 1 FROM assignment_students
+           WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)
+          UNION
+          SELECT 1 FROM assignments a
+            JOIN section_students ss ON ss.section_id = a.section_id
+           WHERE a.id = ? AND UPPER(ss.user_dni) = UPPER(?)
+        `).bind(assignmentId, userDni, assignmentId, userDni).first();
+
+        if (!isAssigned) {
+          return jsonResponse({ error: 'No tienes esta tarea asignada' }, 403, corsHeaders);
+        }
+
+        // Una entrega por alumno y tarea: antes se acumulaban duplicados sin límite.
+        const alreadySubmitted = await env.MIRAI_AI_DB.prepare(
+          'SELECT id FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
+        ).bind(assignmentId, userDni).first();
+
+        if (alreadySubmitted) {
+          return jsonResponse({ error: 'Ya entregaste esta tarea' }, 409, corsHeaders);
+        }
 
         const extension = file.name.split('.').pop().toLowerCase();
         const isImageExt = ['png', 'jpg', 'jpeg', 'webp'].includes(extension);
@@ -3497,14 +3762,17 @@ NO agregues texto adicional fuera del JSON.`;
           return jsonResponse({ error: 'El archivo excede el límite de 10MB' }, 400, corsHeaders);
         }
         // 1. Subir a R2
+        // El DNI se normaliza a mayúsculas tanto en la clave R2 como en la fila:
+        // canReadSubmissionKey() deduce el dueño del segundo segmento de la clave.
+        const ownerDni = userDni.toUpperCase();
         const uniqueId = crypto.randomUUID();
         const fileExtension = file.name.split('.').pop().toLowerCase();
-        const r2Key = `submissions/${userDni}/${assignmentId}/${uniqueId}.${fileExtension}`;
+        const r2Key = `submissions/${ownerDni}/${assignmentId}/${uniqueId}.${fileExtension}`;
 
         await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
           httpMetadata: { contentType: file.type },
           customMetadata: {
-            user_dni: userDni,
+            user_dni: ownerDni,
             assignment_id: assignmentId,
             original_filename: file.name,
             file_extension: fileExtension
@@ -3516,7 +3784,7 @@ NO agregues texto adicional fuera del JSON.`;
         await env.MIRAI_AI_DB.prepare(`
             INSERT INTO submissions (id, assignment_id, user_dni, file_url, status, submitted_at)
             VALUES (?, ?, ?, ?, 'pending', datetime('now'))
-        `).bind(submissionId, assignmentId, userDni, `/api/file/${r2Key}`).run();
+        `).bind(submissionId, assignmentId, ownerDni, `/api/file/${r2Key}`).run();
 
         return jsonResponse({ success: true, submission_id: submissionId }, 200, corsHeaders);
 
@@ -3527,8 +3795,20 @@ NO agregues texto adicional fuera del JSON.`;
     }
 
     // Ruta: GET /api/file/:path (Para descargar trabajos)
+    // Solo el estudiante que entregó el archivo, el profesor dueño del curso de
+    // la tarea, o un admin. Antes esta ruta servía CUALQUIER clave del bucket a
+    // cualquiera, con lo que todas las entregas eran públicas para quien
+    // conociese (o adivinase) la clave.
     if (path.startsWith('/api/file/') && request.method === 'GET') {
-      const r2Key = path.replace('/api/file/', '');
+      const r2Key = decodeURIComponent(path.replace('/api/file/', ''));
+
+      const requesterDni = await requireAuth(request, env);
+      if (!requesterDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      if (!await canReadSubmissionKey(r2Key, requesterDni, env)) {
+        return jsonResponse({ error: 'No tienes acceso a este archivo' }, 403, corsHeaders);
+      }
+
       const object = await env.MIRAI_AI_ASSETS.get(r2Key);
 
       if (!object) return new Response('Archivo no encontrado', { status: 404 });
@@ -3538,6 +3818,35 @@ NO agregues texto adicional fuera del JSON.`;
       headers.set('Content-Type', contentType);
       const isInlineType = contentType.startsWith('image/');
       headers.set('Content-Disposition', `${isInlineType ? 'inline' : 'attachment'}; filename="${r2Key.split('/').pop()}"`);
+      // Contenido con permisos: nunca en cachés compartidas.
+      headers.set('Cache-Control', 'private, no-store');
+
+      return new Response(object.body, { headers });
+    }
+
+    // Ruta: GET /api/attachment/:key — adjunto de chat subido con /api/upload.
+    // Las claves son attachments/<dni>/<conversationId>/<uuid>.<ext>, así que el
+    // dueño se deduce del segundo segmento.
+    if (path.startsWith('/api/attachment/') && request.method === 'GET') {
+      const r2Key = decodeURIComponent(path.replace('/api/attachment/', ''));
+
+      const requesterDni = await requireAuth(request, env);
+      if (!requesterDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+      const parts = r2Key.split('/');
+      if (parts[0] !== 'attachments' || parts.length < 3
+        || parts[1].toUpperCase() !== requesterDni.toUpperCase()) {
+        return jsonResponse({ error: 'No tienes acceso a este archivo' }, 403, corsHeaders);
+      }
+
+      const object = await env.MIRAI_AI_ASSETS.get(r2Key);
+      if (!object) return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
+
+      const headers = new Headers();
+      headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
+      headers.set('Content-Disposition',
+        `attachment; filename="${object.customMetadata?.original_name || r2Key.split('/').pop()}"`);
+      headers.set('Cache-Control', 'private, no-store');
 
       return new Response(object.body, { headers });
     }
@@ -3588,17 +3897,30 @@ NO agregues texto adicional fuera del JSON.`;
     }
 
     // NUEVA RUTA: Guardar texto extraído del documento
+    // Solo el dueño de la entrega (o el profesor del curso). Sin esta comprobación
+    // cualquiera podía reescribir el texto que la IA evalúa en la entrega de otro.
     if (path === '/api/save-extracted-text' && request.method === 'POST') {
       try {
+        const requesterDni = await requireAuth(request, env);
+        if (!requesterDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
         const { submission_id, extracted_text } = await request.json();
 
         if (!submission_id || !extracted_text) {
           return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
         }
 
+        const access = await canAccessSubmission(submission_id, requesterDni, env);
+        if (!access.submission) {
+          return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
+        }
+        if (!access.allowed) {
+          return jsonResponse({ error: 'No tienes acceso a esta entrega' }, 403, corsHeaders);
+        }
+
         // Actualizar la entrega con el texto extraído
         await env.MIRAI_AI_DB.prepare(`
-      UPDATE submissions 
+      UPDATE submissions
       SET extracted_text = ?, status = 'submitted'
       WHERE id = ?
     `).bind(extracted_text.substring(0, 15000), submission_id).run();
@@ -3745,14 +4067,16 @@ async function handleSyncPoll(request, env, corsHeaders) {
       const isTeacherOrAdmin = effectiveRole === 'teacher' || effectiveRole === 'admin';
 
       if (isTeacherOrAdmin) {
-        // Profesor: secciones que creó
+        // Profesor: secciones que creó.
+        // Antes esta consulta era una copia de la del estudiante (JOIN contra
+        // section_students con ss.user_dni = ?), así que devolvía las secciones
+        // donde el PROFESOR estuviera inscrito como alumno — es decir, ninguna.
         const sections = await env.MIRAI_AI_DB.prepare(`
           SELECT s.id, s.name, s.course_id, s.description, s.created_at,
                  p.full_name AS professor_name
           FROM   sections s
-          JOIN   section_students ss ON ss.section_id = s.id
-          LEFT JOIN professors p     ON p.dni = s.professor_dni
-          WHERE  ss.user_dni = ? AND s.created_at > ?
+          LEFT JOIN professors p ON p.dni = s.professor_dni
+          WHERE  s.professor_dni = ? AND s.created_at > ?
           ORDER  BY s.created_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
@@ -3769,15 +4093,20 @@ async function handleSyncPoll(request, env, corsHeaders) {
           LIMIT  20
         `).bind(userDni, since).all();
 
-        // Entregas nuevas para calificar
+        // Entregas nuevas para calificar.
+        // Igual que arriba, el filtro era sub.user_dni = ? (las entregas DEL
+        // profesor) en vez de las entregas de sus alumnos. Se resuelve subiendo
+        // por la tarea hasta el curso del profesor.
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT sub.id, sub.assignment_id, sub.status,
                  sub.submitted_at, sub.score,
                  sub.feedback, sub.dispute_status,
+                 sub.user_dni AS student_dni,
                  a.title AS assignment_title
           FROM   submissions sub
-          JOIN   assignments a ON a.id = sub.assignment_id
-          WHERE  sub.user_dni = ? AND sub.submitted_at > ?
+          JOIN   assignments a   ON a.id = sub.assignment_id
+          JOIN   user_courses uc ON uc.id = a.course_id
+          WHERE  uc.user_dni = ? AND sub.submitted_at > ?
           ORDER  BY sub.submitted_at DESC
           LIMIT  20
         `).bind(userDni, since).all();
@@ -4303,31 +4632,41 @@ async function checkAndConsumeToken(userDni, type, env) {
   if (limit === undefined) return { allowed: true };
   if (limit === -1) return { allowed: true, used: 0, limit: -1 };
 
+  // `type` viene siempre de las claves de PLAN_LIMITS (comprobado arriba con
+  // limits[type]), pero se valida igualmente porque se interpola en el SQL.
+  if (!Object.prototype.hasOwnProperty.call(PLAN_LIMITS.basic, type)) {
+    return { allowed: true };
+  }
+
   await ensureTokensTable(env);
   const today = new Date().toISOString().slice(0, 10);
   const dni = userDni.toUpperCase();
 
+  // Consumo atómico: antes se leía el contador, se comparaba con el límite y se
+  // incrementaba en tres pasos sueltos, así que varias peticiones simultáneas
+  // leían el mismo valor y se saltaban la cuota diaria. Ahora el INSERT crea la
+  // fila si no existe y el UPDATE solo incrementa mientras siga por debajo del
+  // límite: quien no consiga cambiar la fila es que ya no tenía cupo.
+  await env.MIRAI_AI_DB.prepare(
+    `INSERT OR IGNORE INTO daily_tokens (user_dni, token_date) VALUES (?, ?)`
+  ).bind(dni, today).run();
+
+  const consumed = await env.MIRAI_AI_DB.prepare(
+    `UPDATE daily_tokens SET ${type} = ${type} + 1
+      WHERE user_dni = ? AND token_date = ? AND ${type} < ?`
+  ).bind(dni, today, limit).run();
+
   const row = await env.MIRAI_AI_DB.prepare(
-    `SELECT imagen, musica, video FROM daily_tokens WHERE user_dni = ? AND token_date = ?`
+    `SELECT ${type} AS used FROM daily_tokens WHERE user_dni = ? AND token_date = ?`
   ).bind(dni, today).first();
 
-  const used = row ? row[type] : 0;
+  const used = row?.used ?? 0;
 
-  if (used >= limit) {
+  if (!consumed.meta?.changes) {
     return { allowed: false, used, limit };
   }
 
-  if (!row) {
-    await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO daily_tokens (user_dni, token_date, ${type}) VALUES (?, ?, 1)`
-    ).bind(dni, today).run();
-  } else {
-    await env.MIRAI_AI_DB.prepare(
-      `UPDATE daily_tokens SET ${type} = ${type} + 1 WHERE user_dni = ? AND token_date = ?`
-    ).bind(dni, today).run();
-  }
-
-  return { allowed: true, used: used + 1, limit };
+  return { allowed: true, used, limit };
 }
 
 async function handleGetTokens(request, env, corsHeaders) {
@@ -4635,6 +4974,31 @@ const CEDULA_RE = /^[A-Za-z]-\d{5,9}$/;
 function normalizeCedula(raw) {
   const v = (raw || '').trim().toUpperCase().replace(/\s+/g, '');
   return v;
+}
+
+/** Formato canónico del DNI, el mismo que exige handleRegister. */
+const DNI_PATTERN = /^[A-Z]{1,5}-[A-Z0-9]{5,15}$/;
+
+/**
+ * Lleva un DNI a la forma canónica con la que se guarda en users.dni.
+ *
+ * La importación por lotes de alumnos exigía /^\d+$/ (solo dígitos) e insertaba
+ * el número tal cual en section_students, pero el registro guarda "V-30840119"
+ * (y db/V.sql migró los sueltos a ese formato). Resultado: los alumnos
+ * importados por lote nunca hacían match con users.dni, así que salían sin
+ * nombre en la sección y no recibían ninguna tarea. Aquí se acepta tanto
+ * "30840119" como "V-30840119" y siempre se devuelve la forma con prefijo.
+ *
+ * @returns {string|null} el DNI canónico, o null si no es válido
+ */
+function normalizeDni(raw) {
+  const value = (raw == null ? '' : String(raw)).trim().toUpperCase().replace(/\s+/g, '');
+  if (!value) return null;
+
+  // Solo dígitos → se asume cédula venezolana y se le antepone "V-"
+  const candidate = /^\d+$/.test(value) ? `V-${value}` : value;
+
+  return DNI_PATTERN.test(candidate) ? candidate : null;
 }
 
 /**
@@ -5020,24 +5384,27 @@ async function handleSaleTransactionCreate(request, env, corsHeaders) {
     const totalAmount = qty * listing.unit_price;
     const newListingQty = listing.quantity - qty;
 
-    await env.MIRAI_AI_DB.prepare(`
-      INSERT INTO sale_transactions
-        (id, user_dni, buyer_id, listing_id, product_name, quantity,
-         unit_price, total_amount, status, notes, created_at, paid_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, NULL)
-    `).bind(
-      id, userDni.toUpperCase(), buyer_id, listing_id, listing.product_name,
-      qty, listing.unit_price, totalAmount, (notes || '').trim(), now
-    ).run();
-
-    // Descontar del listing y del inventario original
-    await env.MIRAI_AI_DB.prepare(`
-      UPDATE sale_listings SET quantity = ?, status = ?, updated_at = ? WHERE id = ?
-    `).bind(newListingQty, newListingQty <= 0 ? 'agotado' : 'active', now, listing_id).run();
-
-    await env.MIRAI_AI_DB.prepare(`
-      UPDATE inventory_products SET quantity = MAX(0, quantity - ?), updated_at = ? WHERE id = ? AND user_dni = ?
-    `).bind(qty, now, listing.product_id, userDni.toUpperCase()).run();
+    // Los tres escritos van en un batch: D1 lo ejecuta como una transacción
+    // única, así que ya no puede quedar la venta registrada sin descontar el
+    // stock (o al revés) si algo falla a mitad.
+    await env.MIRAI_AI_DB.batch([
+      env.MIRAI_AI_DB.prepare(`
+        INSERT INTO sale_transactions
+          (id, user_dni, buyer_id, listing_id, product_name, quantity,
+           unit_price, total_amount, status, notes, created_at, paid_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, NULL)
+      `).bind(
+        id, userDni.toUpperCase(), buyer_id, listing_id, listing.product_name,
+        qty, listing.unit_price, totalAmount, (notes || '').trim(), now
+      ),
+      // Descontar del listing y del inventario original
+      env.MIRAI_AI_DB.prepare(`
+        UPDATE sale_listings SET quantity = ?, status = ?, updated_at = ? WHERE id = ?
+      `).bind(newListingQty, newListingQty <= 0 ? 'agotado' : 'active', now, listing_id),
+      env.MIRAI_AI_DB.prepare(`
+        UPDATE inventory_products SET quantity = MAX(0, quantity - ?), updated_at = ? WHERE id = ? AND user_dni = ?
+      `).bind(qty, now, listing.product_id, userDni.toUpperCase()),
+    ]);
 
     // Generar y guardar la factura PDF (D1 + R2). Un fallo aquí no debe
     // revertir la venta, que ya quedó registrada arriba.
@@ -5081,10 +5448,15 @@ async function createSaleInvoice(env, request, userDni, { transactionId, listing
   ).bind(userDni).first();
   const sellerName = seller ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() : userDni;
 
-  const countRow = await env.MIRAI_AI_DB.prepare(
-    'SELECT COUNT(*) as c FROM sale_invoices WHERE user_dni = ?'
+  // El correlativo salía de COUNT(*)+1, así que borrar una factura reutilizaba
+  // su número y dos ventas simultáneas obtenían el mismo. Ahora se toma el mayor
+  // correlativo ya emitido: monótono y estable frente a borrados.
+  const lastRow = await env.MIRAI_AI_DB.prepare(
+    `SELECT MAX(CAST(SUBSTR(invoice_number, 5) AS INTEGER)) AS last_seq
+       FROM sale_invoices
+      WHERE user_dni = ? AND invoice_number LIKE 'FAC-%'`
   ).bind(userDni).first();
-  const invoiceNumber = `FAC-${String((countRow?.c || 0) + 1).padStart(6, '0')}`;
+  const invoiceNumber = `FAC-${String((lastRow?.last_seq || 0) + 1).padStart(6, '0')}`;
 
   const subtotal = quantity * unitPrice;
   const taxAmount = subtotal * 0.16;
@@ -5237,20 +5609,30 @@ async function handleSaleTransactionUpdate(request, env, corsHeaders, txId) {
         'SELECT id, product_id, quantity, status FROM sale_listings WHERE id = ?'
       ).bind(tx.listing_id).first();
 
+      const statements = [];
+
       if (listing) {
         const restoredQty = listing.quantity + tx.quantity;
-        await env.MIRAI_AI_DB.prepare(
-          `UPDATE sale_listings SET quantity = ?, status = 'active', updated_at = ? WHERE id = ?`
-        ).bind(restoredQty, now, listing.id).run();
+        // Se reactivaba el listing incondicionalmente: si el vendedor lo había
+        // retirado a mano, cancelar una compra se lo volvía a publicar. Solo se
+        // reactiva lo que estaba 'agotado' por esta misma venta.
+        const restoredStatus = listing.status === 'agotado' ? 'active' : listing.status;
 
-        await env.MIRAI_AI_DB.prepare(
+        statements.push(env.MIRAI_AI_DB.prepare(
+          `UPDATE sale_listings SET quantity = ?, status = ?, updated_at = ? WHERE id = ?`
+        ).bind(restoredQty, restoredStatus, now, listing.id));
+
+        statements.push(env.MIRAI_AI_DB.prepare(
           `UPDATE inventory_products SET quantity = quantity + ?, updated_at = ? WHERE id = ? AND user_dni = ?`
-        ).bind(tx.quantity, now, listing.product_id, userDni.toUpperCase()).run();
+        ).bind(tx.quantity, now, listing.product_id, userDni.toUpperCase()));
       }
 
-      await env.MIRAI_AI_DB.prepare(
+      statements.push(env.MIRAI_AI_DB.prepare(
         `UPDATE sale_transactions SET status = 'cancelado' WHERE id = ? AND user_dni = ?`
-      ).bind(txId, userDni.toUpperCase()).run();
+      ).bind(txId, userDni.toUpperCase()));
+
+      // En un único batch: cancelar y devolver el stock no pueden quedar a medias.
+      await env.MIRAI_AI_DB.batch(statements);
     } else {
       await env.MIRAI_AI_DB.prepare(
         `UPDATE sale_transactions SET status = ?, paid_at = ? WHERE id = ? AND user_dni = ?`
@@ -6027,6 +6409,17 @@ async function handleInventoryUpload(request, env, ctx, corsHeaders) {
 
   } catch (error) {
     console.error('Error uploading inventory:', error);
+
+    // inventory_products.sku es UNIQUE a nivel global en el esquema, pero el
+    // código valida el duplicado solo dentro del inventario del usuario: dos
+    // usuarios con el mismo SKU chocaban con un 500 genérico e incomprensible.
+    // Ver db/inventory_sku_per_user.sql para migrar la constraint a (user_dni, sku).
+    if (String(error.message || '').includes('UNIQUE constraint failed')) {
+      return jsonResponse({
+        error: 'Ese SKU ya está en uso. Prueba con otro código o deja el campo vacío para generarlo automáticamente.'
+      }, 409, corsHeaders);
+    }
+
     return jsonResponse({ error: 'Error al registrar producto', details: error.message }, 500, corsHeaders);
   }
 }
@@ -6402,6 +6795,41 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 // Este wrapper devuelve { dni, errorResponse } para un manejo limpio.
 // ════════════════════════════════════════════════════════════
 // AGREGAR esto en su lugar:
+// ── FECHA Y HORA LOCALES DEL MÓDULO DE ASISTENCIA ────────────────────────
+// Los Workers corren en UTC, así que new Date().toISOString() daba ya el día
+// siguiente a partir de las 19:00 hora local, y los QR "válidos hasta las
+// 23:59:59" caducaban de hecho a las 19:00. Venezuela (VET) y Perú (PET) están
+// ambos en UTC-5 fijo y sin horario de verano, así que basta un desplazamiento
+// constante.
+const ATT_UTC_OFFSET_HOURS = -5;
+
+/** Fecha local (YYYY-MM-DD) del instante dado. */
+function attLocalDate(date = new Date()) {
+  const shifted = new Date(date.getTime() + ATT_UTC_OFFSET_HOURS * 3600 * 1000);
+  return shifted.toISOString().slice(0, 10);
+}
+
+/**
+ * Hora local en HH:MM de 24 horas.
+ * Antes se usaba toLocaleTimeString('es-PE', ...), que devuelve formato de 12h
+ * ("03:45 p. m."). Como att_records.time es TEXT y el tipo entrada/salida se
+ * decide con ORDER BY time DESC, ese formato ordenaba mal ("01:00 p. m." va
+ * antes que "11:00 a. m."): el registro alternaba de forma impredecible.
+ */
+function attLocalTime(date = new Date()) {
+  const shifted = new Date(date.getTime() + ATT_UTC_OFFSET_HOURS * 3600 * 1000);
+  return shifted.toISOString().slice(11, 16);
+}
+
+/**
+ * Instante UTC (formato de datetime() de SQLite) en el que termina el día local
+ * `localDate`, para comparar contra datetime('now') sin desfase.
+ */
+function attLocalEndOfDayUtc(localDate) {
+  const endLocal = Date.parse(`${localDate}T23:59:59Z`) - ATT_UTC_OFFSET_HOURS * 3600 * 1000;
+  return new Date(endLocal).toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function attRequireAdmin(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni || typeof userDni !== 'string') {
@@ -6544,8 +6972,7 @@ async function handleAttRecord(request, env, corsHeaders) {
         `).bind(staff.id, session.date).first();
     const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
 
-    const now = new Date();
-    const time = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+    const time = attLocalTime();
 
     // 4. Insertar registro
     await env.MIRAI_AI_DB.prepare(`
@@ -7138,14 +7565,36 @@ async function handleReportImageServe(request, env, corsHeaders, r2Key) {
   if (!r2Key) return jsonResponse({ error: 'Clave de imagen requerida.' }, 400, corsHeaders);
 
   try {
-    const obj = await env.MIRAI_AI_ASSETS.get(r2Key);
+    const key = decodeURIComponent(r2Key);
+
+    // Antes esta ruta servía cualquier clave bajo report-images/ sin sesión, así
+    // que las fotos que los alumnos suben en sus reportes eran públicas.
+    const requesterDni = await requireAuth(request, env);
+    if (!requesterDni) return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
+
+    // Las claves tienen la forma report-images/<reportId>/<studentDni>/<id>.<ext>
+    const parts = key.split('/');
+    if (parts[0] !== 'report-images' || parts.length < 4) {
+      return jsonResponse({ error: 'Clave de imagen inválida.' }, 400, corsHeaders);
+    }
+    const [, reportId, ownerDni] = parts;
+
+    let allowed = ownerDni.toUpperCase() === requesterDni.toUpperCase();
+    if (!allowed) {
+      // El profesor dueño del reporte (o un admin) también puede verla.
+      const isAdmin = await isAdminUser(requesterDni, env);
+      const report = await getManageableReport(reportId, requesterDni.toUpperCase(), isAdmin, env);
+      allowed = !!report;
+    }
+    if (!allowed) return jsonResponse({ error: 'No tienes acceso a esta imagen.' }, 403, corsHeaders);
+
+    const obj = await env.MIRAI_AI_ASSETS.get(key);
     if (!obj) return jsonResponse({ error: 'Imagen no encontrada.' }, 404, corsHeaders);
 
     const headers = new Headers();
     obj.writeHttpMetadata(headers);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    // Propagar CORS solo Content-Type; las imágenes no necesitan JSON headers
-    headers.set('Access-Control-Allow-Origin', '*');
+    // Contenido con permisos: cacheable solo en el navegador del usuario.
+    headers.set('Cache-Control', 'private, max-age=3600');
 
     return new Response(obj.body, { headers });
 
@@ -7383,7 +7832,7 @@ async function handleReportSubmit(request, env, corsHeaders, reportId) {
   try {
     // ── 1. Verificar que el reporte existe, está activo y el alumno tiene acceso ──
     const report = await env.MIRAI_AI_DB
-      .prepare('SELECT id, questions_json, access_json, section_id FROM reports WHERE id = ? AND active = 1')
+      .prepare('SELECT id, questions_json, access_json, section_id, deadline FROM reports WHERE id = ? AND active = 1')
       .bind(reportId)
       .first();
 
@@ -7393,6 +7842,18 @@ async function handleReportSubmit(request, env, corsHeaders, reportId) {
 
     if (!(await studentHasReportAccess(report, studentDni, env))) {
       return jsonResponse({ error: 'No tienes acceso a este reporte.' }, 403, corsHeaders);
+    }
+
+    // La fecha límite se guardaba y se pintaba en la tarjeta, pero nunca se
+    // comprobaba al enviar: se podía entregar semanas después de vencida.
+    // deadline es YYYY-MM-DD e incluye el día entero.
+    if (report.deadline) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (today > report.deadline) {
+        return jsonResponse({
+          error: `El plazo para este reporte venció el ${report.deadline}.`
+        }, 403, corsHeaders);
+      }
     }
 
     // ── 2. Verificar que no lo haya enviado ya ─────────────────────────────────
@@ -7493,7 +7954,7 @@ async function handleAttActiveQr(request, env, corsHeaders) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(request.url);
-  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = url.searchParams.get('date') || attLocalDate();
   try {
     const session = await env.MIRAI_AI_DB.prepare(
       'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ? AND class_id IS NULL'
@@ -7511,9 +7972,9 @@ async function handleAttGenerateQr(request, env, corsHeaders) {
 
   let body;
   try { body = await request.json(); } catch (_) { body = {}; }
-  const targetDate = body.date || new Date().toISOString().split('T')[0];
+  const targetDate = body.date || attLocalDate();
   const token = crypto.randomUUID();
-  const expiresAt = `${targetDate} 23:59:59`;
+  const expiresAt = attLocalEndOfDayUtc(targetDate);
 
   try {
     // Reemplazar sesión previa del mismo día (solo QR general, sin clase)
@@ -7540,7 +8001,7 @@ async function handleAttAdminRecords(request, env, corsHeaders) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(request.url);
-  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = url.searchParams.get('date') || attLocalDate();
   const type = url.searchParams.get('type');
   const classId = url.searchParams.get('class_id');
   const dateFrom = url.searchParams.get('date_from');
@@ -7583,7 +8044,7 @@ async function handleAttAdminStats(request, env, corsHeaders) {
   if (errorResponse) return errorResponse;
 
   const url = new URL(request.url);
-  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = url.searchParams.get('date') || attLocalDate();
 
   try {
     const totalStaff = await env.MIRAI_AI_DB.prepare(
@@ -7826,7 +8287,7 @@ async function handleAttClassActiveQr(request, env, corsHeaders, classId) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   const url = new URL(request.url);
-  const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = url.searchParams.get('date') || attLocalDate();
   try {
     const session = await env.MIRAI_AI_DB.prepare(
       'SELECT id, token, date, expires_at, scan_count, class_id FROM att_qr_sessions WHERE date = ? AND class_id = ?'
@@ -7840,9 +8301,9 @@ async function handleAttClassGenerateQr(request, env, corsHeaders, classId) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   let body; try { body = await request.json(); } catch (_) { body = {}; }
-  const targetDate = body.date || new Date().toISOString().split('T')[0];
+  const targetDate = body.date || attLocalDate();
   const token = crypto.randomUUID();
-  const expiresAt = `${targetDate} 23:59:59`;
+  const expiresAt = attLocalEndOfDayUtc(targetDate);
   try {
     await env.MIRAI_AI_DB.prepare('DELETE FROM att_qr_sessions WHERE date = ? AND class_id = ?').bind(targetDate, classId).run();
     await env.MIRAI_AI_DB.prepare(`
@@ -10103,6 +10564,28 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
     const status = (prediction.status || '').toLowerCase();
 
     if (status === 'succeeded' || status === 'success' || status === 'completed') {
+      // El polling del cliente y el cron pueden entrar aquí a la vez sobre el
+      // mismo job: sin este cierre atómico se descargaba el vídeo dos veces, se
+      // escribían dos objetos en R2, dos filas en gen_history y se cobraba dos
+      // veces en api_usage_log. El UPDATE condicionado a status='pending' solo
+      // deja pasar al primero que llegue.
+      const claim = await env.MIRAI_AI_DB.prepare(
+        `UPDATE video_avatar_jobs SET status = 'finalizing', updated_at = datetime('now')
+          WHERE id = ? AND status = 'pending'`
+      ).bind(job.id).run();
+
+      if (!claim.meta?.changes) {
+        // Otro proceso ya lo está finalizando (o lo finalizó): devolver su estado.
+        const current = await env.MIRAI_AI_DB.prepare(
+          'SELECT status, video_url, error FROM video_avatar_jobs WHERE id = ?'
+        ).bind(job.id).first();
+        return {
+          status: current?.status === 'done' ? 'done' : (current?.status === 'error' ? 'error' : 'pending'),
+          video_url: current?.video_url || null,
+          error: current?.error || null,
+        };
+      }
+
       const outputRef = extractPrunaOutputUrl(prediction);
       if (!outputRef) {
         throw new Error(`Predicción completada pero sin salida reconocible: ${JSON.stringify(prediction).substring(0, 300)}`);
@@ -10197,6 +10680,16 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
 
   } catch (pollErr) {
     console.error(`❌ [job ${job.id}] error consultando Pruna:`, pollErr.message);
+    // Si el fallo ocurrió después de reclamar el job, hay que devolverlo a
+    // 'pending' o se quedaría en 'finalizing' y el cron (que solo mira
+    // 'pending') no volvería a tocarlo nunca.
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        `UPDATE video_avatar_jobs SET status = 'pending', updated_at = datetime('now')
+          WHERE id = ? AND status = 'finalizing'`
+      ).bind(job.id).run();
+    } catch (_) { /* best-effort */ }
+
     // No marcamos el job como error por un fallo transitorio de red al consultar;
     // se reintentará en el siguiente poll/tick de cron.
     return { status: 'pending', video_url: null, error: null };
@@ -10207,9 +10700,39 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
 // sigan 'pending' en D1, sin depender de que el cliente siga haciendo polling
 // (si cerró la pestaña, perdió la conexión, etc.). Así ningún vídeo generado
 // por Pruna se pierde aunque nadie esté mirando la pantalla de resultado.
+// Un job de avatar tarda minutos, no horas. Pasado este plazo se da por perdido
+// en vez de reconsultarlo a Pruna cada 2 minutos indefinidamente: sin este tope,
+// un job cuya predicción ya no existe (o cuya descarga falla siempre) se
+// reintentaba para siempre, porque el catch del poll lo devuelve a 'pending'.
+const VIDEO_AVATAR_JOB_MAX_AGE_HOURS = 2;
+
 async function finalizePendingVideoAvatarJobs(env) {
   try {
     await ensureVideoAvatarJobsTable(env);
+
+    // 1. Cerrar los jobs demasiado viejos, y rescatar los que se quedaron en
+    //    'finalizing' porque el proceso que los reclamó murió a medias.
+    await env.MIRAI_AI_DB.prepare(`
+      UPDATE video_avatar_jobs
+         SET status = 'pending', updated_at = datetime('now')
+       WHERE status = 'finalizing'
+         AND updated_at < datetime('now', '-10 minutes')
+    `).run();
+
+    const expired = await env.MIRAI_AI_DB.prepare(`
+      UPDATE video_avatar_jobs
+         SET status = 'error',
+             error = 'La generación superó el tiempo máximo de espera.',
+             updated_at = datetime('now')
+       WHERE status IN ('pending', 'finalizing')
+         AND created_at < datetime('now', '-${VIDEO_AVATAR_JOB_MAX_AGE_HOURS} hours')
+    `).run();
+
+    if (expired.meta?.changes) {
+      console.log(`[Scheduled] ${expired.meta.changes} trabajo(s) de vídeo avatar caducado(s).`);
+    }
+
+    // 2. Revisar los que siguen vivos.
     const { results } = await env.MIRAI_AI_DB.prepare(`
       SELECT id, user_dni, pruna_prediction_id, resolution FROM video_avatar_jobs
       WHERE status = 'pending' AND pruna_prediction_id IS NOT NULL
@@ -10554,69 +11077,112 @@ function buildDeepseekMessages(userMessage, history, customSystemPrompt) {
 }
 
 // --- SER ARCHIVOS ESTÁTICOS ---
+/**
+ * Fallback para rutas que no son /api/ y que Workers Assets no resolvió.
+ *
+ * Antes esta función buscaba la ruta pedida como clave en el bucket R2
+ * MIRAI_AI_ASSETS. Ese bucket NO es el de los ficheros públicos: contiene
+ * submissions/, invoices/, apa/, report-images/, inventory/ y videos/, así que
+ * un GET a /invoices/<dni>/<uuid>.pdf devolvía el PDF sin pedir sesión — una
+ * segunda puerta al almacenamiento privado que ni siquiera pasaba por
+ * /api/file/. Los ficheros de public/ los sirve la plataforma (assets = {
+ * directory = "./public" } en wrangler.toml) antes de ejecutar este Worker, así
+ * que llegar aquí significa que la ruta simplemente no existe.
+ *
+ * Todo contenido de R2 se sirve exclusivamente por sus rutas /api/... que sí
+ * comprueban permisos.
+ */
 async function serveStatic(url, env, corsHeaders) {
-  const path = url.pathname;
+  return jsonResponse({ error: 'Recurso no encontrado' }, 404, {
+    ...corsHeaders,
+    'Cache-Control': 'no-store',
+  });
+}
 
-  // Ruta raíz: servir index.html
-  if (path === '/' || path === '') {
-    try {
-      const object = await env.MIRAI_AI_ASSETS.get('/');
+/**
+ * POST /api/upload — adjunta un archivo a una conversación del chat.
+ *
+ * La ruta existía en el router desde siempre, pero la función nunca llegó a
+ * escribirse: la llamada lanzaba un ReferenceError que el try/catch de
+ * handleApiRequest convertía en un 500 genérico, así que adjuntar archivos en
+ * el chat estaba roto de forma silenciosa. public/app.js espera { r2_key, url }.
+ */
+const UPLOAD_ALLOWED_EXTENSIONS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'];
+const UPLOAD_MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-      if (object === null) {
-        return jsonResponse({ error: 'index.html no encontrado en R2' }, 404, corsHeaders);
-      }
-
-      const headers = new Headers(object.httpHeaders);
-      headers.set('Content-Type', 'text/html');
-      headers.set('Cache-Control', 'public, max-age=3600');
-
-      // ✨ CSP ACTUALIZADA CON TU DOMINIO R2
-      headers.set('Content-Security-Policy',
-        "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdnjs.cloudflare.com; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "connect-src 'self' https://api.deepseek.com https://ai.aberumirai.com https://aiassets.aberumirai.com blob:; " + // ✨ Agregado tu dominio R2
-        "img-src 'self' data: https://aiassets.aberumirai.com; " +
-        "media-src 'self' blob: https://aiassets.aberumirai.com; " + // ✨ Permitir audio desde R2
-        "font-src 'self';"
-      );
-
-      return new Response(object.body, { headers });
-
-    } catch (error) {
-      console.error('Error serving index.html:', error);
-      return jsonResponse({ error: 'Error cargando página principal' }, 500, corsHeaders);
-    }
-  }
-
-  // Otras rutas estáticas (CSS, JS, imágenes)
+async function handleUpload(request, env, corsHeaders) {
   try {
-    const assetPath = path.startsWith('/') ? path.slice(1) : path;
-    const object = await env.MIRAI_AI_ASSETS.get(assetPath);
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    if (object === null) {
-      return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
+    let formData;
+    try { formData = await request.formData(); } catch {
+      return jsonResponse({ error: 'FormData inválido' }, 400, corsHeaders);
     }
 
-    const headers = new Headers(object.httpHeaders);
-    headers.set('Cache-Control', 'public, max-age=3600');
+    const file = formData.get('file');
+    const conversationId = formData.get('conversation_id');
 
-    // ✨ MISMA CSP PARA TODOS LOS ARCHIVOS
-    headers.set('Content-Security-Policy',
-      "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://cdnjs.cloudflare.com; " +
-      "style-src 'self' 'unsafe-inline'; " +
-      "connect-src 'self' https://api.deepseek.com https://ai.aberumirai.com https://aiassets.aberumirai.com blob:; " +
-      "img-src 'self' data: https://aiassets.aberumirai.com; " +
-      "media-src 'self' blob: https://aiassets.aberumirai.com; " +
-      "font-src 'self';"
-    );
+    if (!file || typeof file === 'string') {
+      return jsonResponse({ error: 'Archivo requerido' }, 400, corsHeaders);
+    }
 
-    return new Response(object.body, { headers });
+    const extension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!UPLOAD_ALLOWED_EXTENSIONS.includes(extension)) {
+      return jsonResponse({ error: `El formato .${extension} no está permitido` }, 400, corsHeaders);
+    }
+    if (file.size > UPLOAD_MAX_FILE_SIZE) {
+      return jsonResponse({ error: 'El archivo excede el límite de 10MB' }, 400, corsHeaders);
+    }
+
+    // Si se indica conversación, tiene que ser del usuario: la clave R2 y la
+    // fila de attachments cuelgan de ella.
+    if (conversationId) {
+      const conv = await env.MIRAI_AI_DB.prepare(
+        'SELECT id, user_dni FROM conversations WHERE id = ?'
+      ).bind(conversationId).first();
+
+      if (conv && (conv.user_dni || '').toUpperCase() !== userDni.toUpperCase()) {
+        return jsonResponse({ error: 'No tienes acceso a esta conversación' }, 403, corsHeaders);
+      }
+    }
+
+    const attachmentId = crypto.randomUUID();
+    const r2Key = `attachments/${userDni.toUpperCase()}/${conversationId || 'sin-conversacion'}/${attachmentId}.${extension}`;
+
+    await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
+      httpMetadata: { contentType: file.type || 'application/octet-stream' },
+      customMetadata: {
+        user_dni: userDni.toUpperCase(),
+        conversation_id: conversationId || '',
+        original_name: file.name,
+      },
+    });
+
+    // El registro en D1 es best-effort: la tabla attachments exige
+    // conversation_id NOT NULL, así que sin conversación se omite la fila pero
+    // el adjunto ya está en R2 y la respuesta sigue siendo válida.
+    if (conversationId) {
+      try {
+        await env.MIRAI_AI_DB.prepare(
+          `INSERT INTO attachments (id, conversation_id, r2_key, original_name, file_type)
+           VALUES (?, ?, ?, ?, ?)`
+        ).bind(attachmentId, conversationId, r2Key, file.name, extension).run();
+      } catch (dbError) {
+        console.warn('⚠️ No se pudo registrar el adjunto en D1:', dbError.message);
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      id: attachmentId,
+      r2_key: r2Key,
+      url: `/api/attachment/${r2Key}`,
+    }, 201, corsHeaders);
 
   } catch (error) {
-    console.error('Error serving static file:', error);
-    return jsonResponse({ error: 'Error cargando archivo estático' }, 500, corsHeaders);
+    console.error('Error en handleUpload:', error);
+    return jsonResponse({ error: 'Error al subir el archivo' }, 500, corsHeaders);
   }
 }
 
@@ -11847,15 +12413,44 @@ async function handleTriggerNotification(request, env, corsHeaders) {
 // MIRROR — Subida individual + empaquetado
 // ============================================
 
-async function mirrorCreateSession(env, corsHeaders) {
-  const sessionId = `mirai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// El sessionId viaja en el cuerpo de las peticiones, así que por sí solo no
+// prueba nada: la sesión se ata al DNI que la creó y todas las rutas del módulo
+// comprueban esa propiedad. Antes bastaba conocer (o adivinar) un sessionId
+// ajeno para descargarse el ZIP de fotos de otro o borrárselo.
+async function ensureMirrorSessionOwnerColumn(env) {
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `ALTER TABLE photo_sessions ADD COLUMN user_dni TEXT`
+    ).run();
+  } catch (_) { /* la columna ya existe */ }
+}
+
+/** Devuelve la sesión de fotos si pertenece al usuario; si no, null. */
+async function getOwnedMirrorSession(sessionId, userDni, env) {
+  await ensureMirrorSessionOwnerColumn(env);
+  const row = await env.MIRAI_AI_DB.prepare(
+    'SELECT session_id, user_dni FROM photo_sessions WHERE session_id = ?'
+  ).bind(sessionId).first();
+  if (!row) return null;
+  return (row.user_dni || '').toUpperCase() === userDni.toUpperCase() ? row : null;
+}
+
+async function mirrorCreateSession(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ success: false, error: 'No autorizado' }, 401, corsHeaders);
+
+  // crypto.randomUUID en vez de Math.random: un identificador de sesión
+  // predecible no protege nada.
+  const sessionId = `mirai_${crypto.randomUUID()}`;
   if (env.MIRAI_AI_DB) {
     try {
+      await ensureMirrorSessionOwnerColumn(env);
       await env.MIRAI_AI_DB.prepare(
-        `INSERT INTO photo_sessions (session_id, image_count, created_at) VALUES (?, 0, ?)`
-      ).bind(sessionId, new Date().toISOString()).run();
+        `INSERT INTO photo_sessions (session_id, image_count, created_at, user_dni) VALUES (?, 0, ?, ?)`
+      ).bind(sessionId, new Date().toISOString(), userDni.toUpperCase()).run();
     } catch (e) {
-      console.warn('D1 session insert error (non-blocking):', e.message);
+      console.error('D1 session insert error:', e.message);
+      return jsonResponse({ success: false, error: 'No se pudo crear la sesión' }, 500, corsHeaders);
     }
   }
   return jsonResponse({ success: true, sessionId }, 200, corsHeaders);
@@ -11865,6 +12460,9 @@ async function mirrorUploadImage(request, env, corsHeaders) {
   if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
     return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
   }
+
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ success: false, error: 'No autorizado' }, 401, corsHeaders);
 
   let formData;
   try { formData = await request.formData(); } catch (e) {
@@ -11879,9 +12477,30 @@ async function mirrorUploadImage(request, env, corsHeaders) {
     return jsonResponse({ success: false, error: 'Missing image or sessionId' }, 400, corsHeaders);
   }
 
-  const ALLOWED_TYPES = ['image/jpeg','image/png','image/gif','image/webp','image/heic'];
-  if (file.type && !ALLOWED_TYPES.includes(file.type.toLowerCase())) {
+  const session = await getOwnedMirrorSession(sessionId, userDni, env);
+  if (!session) {
+    return jsonResponse({ success: false, error: 'Sesión no encontrada' }, 404, corsHeaders);
+  }
+
+  // MIRROR_CONFIG.ALLOWED_TYPES / MAX_FILES estaban declarados pero nunca se
+  // aplicaban: la subida era anónima, ilimitada y sin límite de tamaño.
+  const ALLOWED_TYPES = MIRROR_CONFIG.ALLOWED_TYPES;
+  if (!file.type || !ALLOWED_TYPES.includes(file.type.toLowerCase())) {
     return jsonResponse({ success: false, error: 'Invalid file type' }, 400, corsHeaders);
+  }
+
+  if (file.size > MIRROR_CONFIG.MAX_FILE_SIZE) {
+    return jsonResponse({ success: false, error: 'La imagen excede el límite de 15MB' }, 400, corsHeaders);
+  }
+
+  const countRow = await env.MIRAI_AI_DB.prepare(
+    'SELECT COUNT(*) AS c FROM photos WHERE session_id = ?'
+  ).bind(sessionId).first();
+  if ((countRow?.c || 0) >= MIRROR_CONFIG.MAX_FILES) {
+    return jsonResponse(
+      { success: false, error: `Máximo ${MIRROR_CONFIG.MAX_FILES} imágenes por sesión` },
+      400, corsHeaders
+    );
   }
 
   let dateStr = await extractEXIFDate(file);
@@ -11893,9 +12512,11 @@ async function mirrorUploadImage(request, env, corsHeaders) {
   const folderName = `${day}-${month}-${year}`;
 
   const imageBuffer = await file.arrayBuffer();
-  const fileId = Math.random().toString(36).substr(2, 12);
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const baseName = file.name.replace(/\.[^.]+$/, '');
+  const fileId = crypto.randomUUID();
+  // El nombre original del fichero va a la clave de R2: sin sanear, un nombre
+  // con "/" o ".." reorganiza claves ajenas dentro del bucket.
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const baseName = file.name.replace(/\.[^.]+$/, '').replace(/[^\w\-. ]/g, '_').slice(0, 80) || 'imagen';
   const r2Key = `${sessionId}/${folderName}/${baseName}_${fileId}.${ext}`;
 
   await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
@@ -11922,6 +12543,9 @@ async function mirrorPackageSession(request, env, corsHeaders) {
     return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
   }
 
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ success: false, error: 'No autorizado' }, 401, corsHeaders);
+
   let body;
   try { body = await request.json(); } catch (e) {
     return jsonResponse({ success: false, error: 'Invalid JSON' }, 400, corsHeaders);
@@ -11930,6 +12554,11 @@ async function mirrorPackageSession(request, env, corsHeaders) {
   const { sessionId } = body;
   if (!sessionId) {
     return jsonResponse({ success: false, error: 'Missing sessionId' }, 400, corsHeaders);
+  }
+
+  const session = await getOwnedMirrorSession(sessionId, userDni, env);
+  if (!session) {
+    return jsonResponse({ success: false, error: 'Sesión no encontrada' }, 404, corsHeaders);
   }
 
   const photos = await env.MIRAI_AI_DB.prepare(
@@ -11941,7 +12570,10 @@ async function mirrorPackageSession(request, env, corsHeaders) {
   }
 
   const filesForZip = [];
-  const usedNames = {};
+  // Map en vez de objeto plano: con {} un archivo llamado "constructor.jpg" o
+  // "__proto__.jpg" leía una propiedad heredada de Object.prototype y el
+  // contador salía NaN, corrompiendo el nombre dentro del ZIP.
+  const usedNames = new Map();
 
   for (const row of photos.results) {
     const obj = await env.MIRAI_PHOTOS.get(row.r2_key);
@@ -11953,9 +12585,10 @@ async function mirrorPackageSession(request, env, corsHeaders) {
     const ext = (row.original_name.split('.').pop() || 'jpg').toLowerCase();
     const baseName = row.original_name.replace(/\.[^.]+$/, '');
     const nameKey = `${folder}/${baseName}`;
-    usedNames[nameKey] = (usedNames[nameKey] || 0) + 1;
-    const finalName = usedNames[nameKey] > 1
-      ? `${baseName}_${usedNames[nameKey]}.${ext}`
+    const seen = (usedNames.get(nameKey) || 0) + 1;
+    usedNames.set(nameKey, seen);
+    const finalName = seen > 1
+      ? `${baseName}_${seen}.${ext}`
       : `${baseName}.${ext}`;
 
     filesForZip.push({
@@ -11994,6 +12627,9 @@ async function mirrorCleanupSession(request, env, corsHeaders) {
     return jsonResponse({ success: true }, 200, corsHeaders);
   }
 
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ success: false, error: 'No autorizado' }, 401, corsHeaders);
+
   let body;
   try { body = await request.json(); } catch (e) {
     return jsonResponse({ success: false, error: 'Invalid JSON' }, 400, corsHeaders);
@@ -12001,6 +12637,10 @@ async function mirrorCleanupSession(request, env, corsHeaders) {
 
   const { sessionId } = body;
   if (!sessionId) return jsonResponse({ success: false, error: 'Missing sessionId' }, 400, corsHeaders);
+
+  // Sin esta comprobación, cualquiera borraba la sesión de fotos de cualquiera.
+  const session = await getOwnedMirrorSession(sessionId, userDni, env);
+  if (!session) return jsonResponse({ success: false, error: 'Sesión no encontrada' }, 404, corsHeaders);
 
   const photos = await env.MIRAI_AI_DB.prepare(
     `SELECT r2_key FROM photos WHERE session_id = ?`
@@ -12236,7 +12876,23 @@ function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, local
   return central;
 }
 
+// El tempId lo genera el cliente y viaja en cada petición, así que por sí solo
+// no identifica a nadie: el prefijo de R2 se namespacea con el DNI de la sesión
+// para que un tempId ajeno no dé acceso a los documentos de otro usuario.
+function formatPrefix(kind, userDni, tempId) {
+  // El tempId también entra en la clave: se restringe a UUID/alfanumérico para
+  // que no pueda escaparse del prefijo con "/" o "..".
+  const safeTempId = String(tempId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  return `format/${kind}/${userDni.toUpperCase()}/${safeTempId}/`;
+}
+
+const FORMAT_MAX_FILES = 30;
+const FORMAT_MAX_FILE_SIZE = 25 * 1024 * 1024;
+
 async function handleFormatUpload(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
   const formData = await request.formData();
   const tempId = formData.get('tempId') || crypto.randomUUID();
   const files = formData.getAll('files');
@@ -12244,11 +12900,18 @@ async function handleFormatUpload(request, env, corsHeaders) {
   if (!files || files.length === 0)
     return jsonResponse({ error: 'No se enviaron archivos.' }, 400, corsHeaders);
 
+  if (files.length > FORMAT_MAX_FILES)
+    return jsonResponse({ error: `Máximo ${FORMAT_MAX_FILES} archivos por lote.` }, 400, corsHeaders);
+
+  const prefix = formatPrefix('temp', userDni, tempId);
   const keys = [];
   for (const file of files) {
+    if (file.size > FORMAT_MAX_FILE_SIZE) continue;
     const buf = await file.arrayBuffer();
     if (!isValidDocx(buf)) continue;
-    const key = `format/temp/${tempId}/${file.name}`;
+    // El nombre original entra en la clave: se sanea para no salirse del prefijo.
+    const safeName = (file.name || 'documento.docx').replace(/[^\w\-. ]/g, '_').slice(0, 120);
+    const key = `${prefix}${safeName}`;
     await env.MIRAI_AI_ASSETS.put(key, buf, {
       httpMetadata: { contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
       customMetadata: { tempId, expiresAt: new Date(Date.now() + 3_600_000).toISOString() }
@@ -12263,12 +12926,15 @@ async function handleFormatUpload(request, env, corsHeaders) {
 }
 
 async function handleFormatProcess(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
   const { tempId, rules } = await request.json();
 
   if (!tempId || !Array.isArray(rules) || rules.length === 0)
     return jsonResponse({ error: 'Faltan tempId o rules.' }, 400, corsHeaders);
 
-  const listed = await env.MIRAI_AI_ASSETS.list({ prefix: `format/temp/${tempId}/` });
+  const listed = await env.MIRAI_AI_ASSETS.list({ prefix: formatPrefix('temp', userDni, tempId) });
   if (listed.objects.length === 0)
     return jsonResponse({ error: 'Archivos no encontrados.' }, 404, corsHeaders);
 
@@ -12278,7 +12944,7 @@ async function handleFormatProcess(request, env, corsHeaders) {
       const fileObj = await env.MIRAI_AI_ASSETS.get(obj.key);
       const buf = await fileObj.arrayBuffer();
       const result = await processDocxFile(buf, rules);
-      const modKey = `format/modified/${tempId}/${obj.key.split('/').pop()}`;
+      const modKey = `${formatPrefix('modified', userDni, tempId)}${obj.key.split('/').pop()}`;
       const modBuf = await result.blob.arrayBuffer();
 
       await env.MIRAI_AI_ASSETS.put(modKey, modBuf, {
@@ -12296,11 +12962,14 @@ async function handleFormatProcess(request, env, corsHeaders) {
 }
 
 async function handleFormatDownload(request, env, corsHeaders) {
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
   const url = new URL(request.url);
   const tempId = url.searchParams.get('tempId');
   if (!tempId) return jsonResponse({ error: 'Falta tempId.' }, 400, corsHeaders);
 
-  const listed = await env.MIRAI_AI_ASSETS.list({ prefix: `format/modified/${tempId}/` });
+  const listed = await env.MIRAI_AI_ASSETS.list({ prefix: formatPrefix('modified', userDni, tempId) });
   if (listed.objects.length === 0)
     return jsonResponse({ error: 'Sin archivos procesados.' }, 404, corsHeaders);
 
@@ -12334,6 +13003,12 @@ async function handleFormatDownload(request, env, corsHeaders) {
 
 async function handleApaUpload(request, env, corsHeaders) {
   try {
+    // El módulo APA guardaba y servía documentos sin ninguna autenticación, y el
+    // dueño salía de metadata.userId enviado por el cliente (falsificable). Ahora
+    // el dueño es siempre el DNI de la sesión.
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
     const formData = await request.formData();
     const file = formData.get('file');
     const metadataRaw = formData.get('metadata');
@@ -12353,26 +13028,33 @@ async function handleApaUpload(request, env, corsHeaders) {
 
     const fileId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
+    const ownerDni = userDni.toUpperCase();
     let metadata = {};
     try { metadata = JSON.parse(metadataRaw || '{}'); } catch (_) { }
+
+    // customMetadata de R2 solo admite valores string: un objeto anidado dentro
+    // de `metadata` hacía fallar el put(). Se aplanan a string y se descarta
+    // cualquier intento del cliente de sobreescribir owner/originalName.
+    const safeCustomMetadata = { originalName: file.name, uploadedAt: timestamp, ownerDni };
+    for (const [key, value] of Object.entries(metadata)) {
+      if (key === 'originalName' || key === 'uploadedAt' || key === 'ownerDni') continue;
+      if (value == null) continue;
+      safeCustomMetadata[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    }
 
     // Guardar en R2 (bucket MIRAI_AI_ASSETS, prefijo apa/)
     await env.MIRAI_AI_ASSETS.put(`apa/${fileId}`, file.stream(), {
       httpMetadata: {
         contentType: file.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       },
-      customMetadata: {
-        originalName: file.name,
-        uploadedAt: timestamp,
-        ...metadata
-      }
+      customMetadata: safeCustomMetadata
     });
 
-    // Registrar en D1
+    // Registrar en D1 — user_id sale de la sesión, no del cuerpo de la petición.
     await env.MIRAI_AI_DB
       .prepare(`INSERT INTO apa_files (id, original_name, file_type, size, uploaded_at, user_id, metadata_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind(fileId, file.name, file.type, file.size, timestamp, metadata.userId || null, JSON.stringify(metadata))
+      .bind(fileId, file.name, file.type, file.size, timestamp, ownerDni, JSON.stringify(metadata))
       .run();
 
     return jsonResponse({
@@ -12389,17 +13071,37 @@ async function handleApaUpload(request, env, corsHeaders) {
   }
 }
 
-async function handleApaDownload(fileId, env, corsHeaders) {
+/** Devuelve la fila apa_files si pertenece al usuario (o si es admin); si no, null. */
+async function getOwnedApaFile(fileId, userDni, env) {
+  const row = await env.MIRAI_AI_DB.prepare(
+    'SELECT id, user_id, original_name FROM apa_files WHERE id = ?'
+  ).bind(fileId).first();
+  if (!row) return null;
+
+  const dni = userDni.toUpperCase();
+  if ((row.user_id || '').toUpperCase() === dni) return row;
+  return (await isAdminUser(dni, env)) ? row : null;
+}
+
+async function handleApaDownload(fileId, request, env, corsHeaders) {
   if (!fileId) return jsonResponse({ error: 'File ID required' }, 400, corsHeaders);
 
   try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    // Sin esta comprobación, conocer un fileId bastaba para descargar el
+    // documento de cualquier usuario.
+    const owned = await getOwnedApaFile(fileId, userDni, env);
+    if (!owned) return jsonResponse({ error: 'File not found' }, 404, corsHeaders);
+
     const object = await env.MIRAI_AI_ASSETS.get(`apa/${fileId}`);
     if (!object) return jsonResponse({ error: 'File not found' }, 404, corsHeaders);
 
     const headers = new Headers(corsHeaders);
     object.writeHttpMetadata(headers);
     headers.set('Content-Disposition', `attachment; filename="${object.customMetadata?.originalName || 'documento.docx'}"`);
-    headers.set('Cache-Control', 'no-cache');
+    headers.set('Cache-Control', 'private, no-store');
 
     return new Response(object.body, { headers });
   } catch (error) {
@@ -12410,25 +13112,21 @@ async function handleApaDownload(fileId, env, corsHeaders) {
 
 async function handleApaHistory(request, env, corsHeaders) {
   try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
     const url = new URL(request.url);
-    const userId = url.searchParams.get('userId');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const offset = parseInt(url.searchParams.get('offset') || '0');
+    // El historial siempre se acota al usuario de la sesión. Antes, llamar sin
+    // ?userId devolvía los documentos de TODOS los usuarios con su downloadUrl,
+    // y el parámetro userId permitía leer el historial de cualquier otro.
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10) || 10));
+    const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
 
-    let query, bindings;
-    if (userId) {
-      query = `SELECT id, original_name, file_type, size, uploaded_at
-               FROM apa_files WHERE user_id = ?
-               ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`;
-      bindings = [userId, limit, offset];
-    } else {
-      query = `SELECT id, original_name, file_type, size, uploaded_at
-               FROM apa_files
-               ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`;
-      bindings = [limit, offset];
-    }
-
-    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
+    const { results } = await env.MIRAI_AI_DB.prepare(
+      `SELECT id, original_name, file_type, size, uploaded_at
+         FROM apa_files WHERE user_id = ?
+        ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`
+    ).bind(userDni.toUpperCase(), limit, offset).all();
 
     return jsonResponse({
       files: results.map(r => ({
@@ -12447,10 +13145,17 @@ async function handleApaHistory(request, env, corsHeaders) {
   }
 }
 
-async function handleApaDelete(fileId, env, corsHeaders) {
+async function handleApaDelete(fileId, request, env, corsHeaders) {
   if (!fileId) return jsonResponse({ error: 'File ID required' }, 400, corsHeaders);
 
   try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    // Antes cualquiera podía borrar el archivo de cualquiera con solo su ID.
+    const owned = await getOwnedApaFile(fileId, userDni, env);
+    if (!owned) return jsonResponse({ error: 'File not found' }, 404, corsHeaders);
+
     await env.MIRAI_AI_ASSETS.delete(`apa/${fileId}`);
     await env.MIRAI_AI_DB.prepare('DELETE FROM apa_files WHERE id = ?').bind(fileId).run();
     return jsonResponse({ success: true, message: 'Archivo eliminado correctamente' }, 200, corsHeaders);
