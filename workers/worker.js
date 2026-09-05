@@ -12,6 +12,11 @@ function getAIGatewayURL(env) {
 const AI_MODEL_NORMAL = 'deepseek-v4-flash';
 const AI_MODEL_PRO = 'deepseek-v4-pro';
 
+// Techo de salida del chat de texto. Tiene que dar para el razonamiento Y la
+// respuesta: con 2000 el modelo se quedaba sin espacio deliberando y terminaba
+// sin escribir nada. Sólo se factura lo que realmente genera, no el techo.
+const CHAT_MAX_TOKENS = 4000;
+
 // ✨ Configuración Video (Pruna AI P-Video, vía API REST directa — ver resolvePrunaSync)
 const VIDEO_CONFIG = {
   MAX_PROMPT_LENGTH: 2000,
@@ -207,6 +212,7 @@ Respond ONLY with valid JSON, nothing else:
 async function readSSEStream(response, usageOut = null, onDelta = null) {
   let content = '';
   let reasoning = '';
+  let finishReason = null;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -226,7 +232,10 @@ async function readSSEStream(response, usageOut = null, onDelta = null) {
       if (payload === '[DONE]') continue;
       try {
         const chunk = JSON.parse(payload);
-        const delta = chunk.choices?.[0]?.delta;
+        const choice = chunk.choices?.[0];
+        const delta = choice?.delta;
+        // 'length' significa que se agotó max_tokens: la respuesta viene cortada.
+        if (choice?.finish_reason) finishReason = choice.finish_reason;
         // reasoning_content: DeepSeek. reasoning: GLM y otros proveedores OpenAI-like.
         const thought = delta?.reasoning_content ?? delta?.reasoning;
         if (thought) {
@@ -241,19 +250,24 @@ async function readSSEStream(response, usageOut = null, onDelta = null) {
       } catch {}
     }
   }
-  return { content, reasoning };
+  return { content, reasoning, finishReason };
 }
 
-// Si el modelo sólo devolvió razonamiento, ese razonamiento pasa a ser la
-// respuesta (comportamiento histórico) y deja de anunciarse como pensamiento,
-// para no mostrar el mismo texto dos veces.
-function splitAIResult({ content, reasoning }) {
-  const text = (content && content.trim()) ? content : (reasoning || '');
-  return { text, reasoning: (content && content.trim()) ? (reasoning || '') : '' };
+// Razonamiento y respuesta se mantienen SEPARADOS. Antes, si el modelo se
+// quedaba sin tokens razonando y no llegaba a escribir nada, el monólogo interno
+// se promocionaba a respuesta y el usuario veía en pantalla "We need to parse the
+// user's message...". Ahora ese caso devuelve texto vacío y quien llama decide
+// qué hacer (en el chat: pedirle la conclusión, ver completeTruncatedAnswer).
+function splitAIResult({ content, reasoning, finishReason }) {
+  return {
+    text: content || '',
+    reasoning: reasoning || '',
+    finishReason: finishReason || null
+  };
 }
 
 // options.onDelta(tipo, texto) — se invoca por cada trozo recibido del modelo.
-// options.reasoningOut — objeto donde se deja {text: <cadena de pensamiento>}.
+// options.metaOut — objeto donde se dejan {reasoning, finishReason} de la llamada.
 async function callAI(model, messages, options = {}, env) {
   const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
   const FALLBACK_MODEL = '@cf/zai-org/glm-5.2';
@@ -261,8 +275,9 @@ async function callAI(model, messages, options = {}, env) {
   console.log(`🚀 Llamando DeepSeek directo: ${model}`);
 
   const onDelta = typeof options.onDelta === 'function' ? options.onDelta : null;
-  const reasoningOut = options.reasoningOut || {};
-  reasoningOut.text = '';
+  const metaOut = options.metaOut || {};
+  metaOut.reasoning = '';
+  metaOut.finishReason = null;
 
   let deepseekResult = null;
   let deepseekUsage = null;
@@ -298,7 +313,8 @@ async function callAI(model, messages, options = {}, env) {
     // y volvía a generarla entera con GLM — el doble de coste y de latencia por
     // un fallo de contabilidad. logApiUsage ya es best-effort por dentro.
     deepseekResult = result.text;
-    reasoningOut.text = result.reasoning;
+    metaOut.reasoning = result.reasoning;
+    metaOut.finishReason = result.finishReason;
     deepseekUsage = usageOut.usage;
 
   } catch (err) {
@@ -330,7 +346,8 @@ async function callAI(model, messages, options = {}, env) {
     }
 
     const fallbackResult = splitAIResult(await readSSEStream(fallbackResponse, null, onDelta));
-    reasoningOut.text = fallbackResult.reasoning;
+    metaOut.reasoning = fallbackResult.reasoning;
+    metaOut.finishReason = fallbackResult.finishReason;
     await logApiUsage(env, {
       provider: 'deepseek_fallback_gateway',
       unit_type: 'call',
@@ -355,6 +372,71 @@ async function callAI(model, messages, options = {}, env) {
   });
 
   return deepseekResult;
+}
+
+// ── GARANTÍA DE RESPUESTA ─────────────────────────────────────
+// Los modelos con cadena de pensamiento pueden gastar todo max_tokens razonando
+// y terminar sin escribir una sola palabra para el usuario. Antes eso se veía en
+// pantalla como un monólogo en inglés ("We need to parse the user's message…").
+// Aquí se detecta y se le pide la conclusión, con su propio razonamiento delante.
+
+const REASONING_STYLE_NOTE = `
+
+[ESTILO DE RAZONAMIENTO]
+Piensa lo justo antes de responder y escribe siempre una respuesta. No deliberes contigo misma sobre tus propias reglas ni sobre cómo cumplirlas: aplícalas directamente. Si dos instrucciones parecen chocar, elige la más específica, sigue adelante y responde; jamás te quedes sin contestar por haber pensado de más.`;
+
+// El reintento reescribe el último turno en lugar de añadir uno nuevo: así se
+// mantiene la alternancia usuario/asistente que exigen los modelos razonadores.
+function buildAnswerRetryMessages(aiMessages, reasoning) {
+  const lastTurn = aiMessages[aiMessages.length - 1];
+  // La conclusión suele estar al final del razonamiento, así que se conserva
+  // la cola y no la cabeza.
+  const tail = reasoning.slice(-3000);
+
+  return [
+    ...aiMessages.slice(0, -1),
+    {
+      role: lastTurn.role,
+      content: `${lastTurn.content}
+
+[AVISO DEL SISTEMA] En tu intento anterior gastaste todo el espacio razonando y no llegaste a escribir nada para el usuario. Este era tu razonamiento:
+"""
+${tail}
+"""
+Escribe AHORA únicamente la respuesta final para el usuario, en su idioma y respetando todas tus reglas. No razones más, no expliques este aviso y no menciones que hubo ningún problema.`
+    }
+  ];
+}
+
+// Envoltura de callAI para las rutas de conversación: garantiza que se devuelve
+// texto visible o se lanza un error, nunca el monólogo interno.
+async function callAIEnsuringAnswer({ aiModel, aiMessages, aiOptions, env, onDelta = null }) {
+  const meta = {};
+  let text = await callAI(aiModel, aiMessages, { ...aiOptions, onDelta, metaOut: meta }, env);
+  let reasoning = meta.reasoning || '';
+
+  if (meta.finishReason === 'length') {
+    console.warn('⚠️ El modelo cortó por límite de tokens (finish_reason=length).');
+  }
+
+  if (!text.trim() && reasoning.trim()) {
+    console.warn(`⚠️ Respuesta vacía (finish_reason=${meta.finishReason}); pidiendo la conclusión al modelo.`);
+    const retryMeta = {};
+    const retryOptions = { ...aiOptions, max_tokens: Math.max(aiOptions.max_tokens ?? 2000, 3000) };
+    text = await callAI(
+      aiModel,
+      buildAnswerRetryMessages(aiMessages, reasoning),
+      { ...retryOptions, onDelta, metaOut: retryMeta },
+      env
+    );
+    reasoning = [reasoning, retryMeta.reasoning].filter(part => part && part.trim()).join('\n\n');
+  }
+
+  if (!text.trim()) {
+    throw new Error('El modelo terminó sin escribir una respuesta. Vuelve a intentarlo.');
+  }
+
+  return { text, reasoning };
 }
 
 // ── MEMORIA TEMPORAL ──────────────────────────────────────────
@@ -9307,7 +9389,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
           "SELECT first_name, last_name, dni, ai_preferences_json FROM users WHERE dni = ?"
         ).bind(userDni).first();
         if (userData) {
-          const personalInfo = `\n\n[DATOS DEL USUARIO] El usuario con quien hablas se llama ${userData.first_name || ''} ${userData.last_name || ''}, su documento de identidad (DNI) es ${userData.dni}. Usa su nombre para personalizar tus respuestas, salúdalo por su nombre cuando sea apropiado.`;
+          const personalInfo = `\n\n[DATOS DEL USUARIO] El usuario con quien hablas se llama ${userData.first_name || ''} ${userData.last_name || ''}, su documento de identidad (DNI) es ${userData.dni}. Usa su nombre para personalizar tus respuestas, salúdalo por su nombre cuando sea apropiado. Si el usuario se presenta con otro nombre o te pide que lo llames de otra forma, respeta su preferencia sin discutir ni darle vueltas.`;
           systemPrompt += personalInfo;
 
           if (userData.ai_preferences_json) {
@@ -9328,6 +9410,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     // Explicación del sellado temporal: texto fijo, así que el prefijo del
     // prompt sigue siendo idéntico entre mensajes y la caché aguanta.
     systemPrompt += TEMPORAL_PROMPT_NOTE;
+    systemPrompt += REASONING_STYLE_NOTE;
 
     console.log('System prompt activo:', systemPrompt.substring(0, 80) + '...');
 
@@ -9385,7 +9468,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
         ...historyTurns,
         { role: 'user', content: stampedMessage }
       ];
-      aiOptions = { temperature: 0.7, max_tokens: 2000 };
+      aiOptions = { temperature: 0.7, max_tokens: CHAT_MAX_TOKENS };
 
     } else if (model === 'deepseek-reasoner') {
       console.log('🧠 Usando modelo DeepSeek Reasoner (Pro)');
@@ -9407,7 +9490,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
         ...historyTurns,
         { role: "user", content: stampedMessage }
       ];
-      aiOptions = { temperature: 0.7, max_tokens: 2000 };
+      aiOptions = { temperature: 0.7, max_tokens: CHAT_MAX_TOKENS };
     }
 
     // 5.b Modo streaming (SSE): el cliente pinta pensamiento y respuesta trozo a
@@ -9420,8 +9503,9 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       });
     }
 
-    const reasoningOut = {};
-    const aiResponse = await callAI(aiModel, aiMessages, { ...aiOptions, reasoningOut }, env);
+    const { text: aiResponse, reasoning: aiReasoning } = await callAIEnsuringAnswer({
+      aiModel, aiMessages, aiOptions, env
+    });
 
     // 6. Procesar respuesta
     const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
@@ -9432,12 +9516,12 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     }
 
     await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
-    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url, null, null, userDni, AI_MODEL_NORMAL, reasoningOut.text || null);
+    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url, null, null, userDni, AI_MODEL_NORMAL, aiReasoning || null);
     await updateConversationTimestamp(conversation_id, env);
 
     return jsonResponse({
       response: cleanResponse,
-      reasoning: reasoningOut.text || null,
+      reasoning: aiReasoning || null,
       audio_url: audio_url,
       suggestions: suggestions
     }, 200, corsHeaders);
@@ -9519,10 +9603,11 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
     };
 
     try {
-      const reasoningOut = {};
-      const aiResponse = await callAI(aiModel, aiMessages, { ...aiOptions, onDelta, reasoningOut }, env);
+      const { text: aiResponse, reasoning: aiReasoning } = await callAIEnsuringAnswer({
+        aiModel, aiMessages, aiOptions, env, onDelta
+      });
       const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
-      const reasoning = reasoningOut.text || null;
+      const reasoning = aiReasoning || null;
 
       try {
         await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
