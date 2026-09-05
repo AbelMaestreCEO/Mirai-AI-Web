@@ -40,6 +40,10 @@
   --message-ai-bg: rgba(255, 255, 255, 0.96);
   --message-ai-border: rgba(103, 80, 164, 0.08);
 
+  /* Bloque de razonamiento (translúcido sobre la burbuja) */
+  --reasoning-bg: rgba(103, 80, 164, 0.055);
+  --reasoning-border: rgba(103, 80, 164, 0.13);
+
   /* Bordes y Radio — Más contenidos que Liquid Glass */
   --border-radius-lg: 24px;
   --border-radius-md: 16px;
@@ -80,6 +84,9 @@
   --message-user-border: rgba(208, 188, 255, 0.16);
   --message-ai-bg: rgba(33, 30, 38, 0.96);
   --message-ai-border: rgba(208, 188, 255, 0.06);
+
+  --reasoning-bg: rgba(208, 188, 255, 0.06);
+  --reasoning-border: rgba(208, 188, 255, 0.13);
 }
 
 /* --- RESET & BASE --- */
@@ -400,6 +407,132 @@ body::before {
   margin-top: 6px;
   text-align: right;
   opacity: 0.8;
+}
+
+/* --- RAZONAMIENTO (cadena de pensamiento plegable) --- */
+.message-reasoning {
+  margin: 0 0 12px;
+  border: 1px solid var(--reasoning-border);
+  border-radius: var(--border-radius-sm);
+  background: var(--reasoning-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow: hidden;
+}
+
+.reasoning-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.reasoning-toggle:hover {
+  background: var(--reasoning-border);
+}
+
+.reasoning-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.reasoning-label {
+  flex: 1;
+  opacity: 0.85;
+}
+
+.reasoning-chevron {
+  fill: currentColor;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 0.25s var(--ease-smooth);
+}
+
+.message-reasoning:not(.collapsed) .reasoning-chevron {
+  transform: rotate(180deg);
+}
+
+.reasoning-body {
+  padding: 0 12px 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-y: auto;
+  max-height: 320px;
+  scrollbar-width: thin;
+}
+
+/* Plegado: exactamente 3 líneas (3 × 1.5em) con desvanecido al pie */
+.message-reasoning.collapsed .reasoning-body {
+  max-height: 4.5em;
+  overflow: hidden;
+  /* El desvanecido no debe empezar antes de la tercera línea: sólo insinúa que
+     hay más texto detrás. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, rgba(0, 0, 0, 0.35) 100%);
+  mask-image: linear-gradient(to bottom, #000 72%, rgba(0, 0, 0, 0.35) 100%);
+}
+
+/* Mientras escribe se sigue la última línea, así que el desvanecido va arriba
+   (lo viejo se va) y no abajo. */
+.message-reasoning.streaming.collapsed .reasoning-body {
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0%, #000 32%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0%, #000 32%);
+}
+
+.reasoning-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.reasoning-body::-webkit-scrollbar-thumb {
+  background: var(--reasoning-border);
+  border-radius: 2px;
+}
+
+/* Mientras piensa, la etiqueta late suavemente */
+.message-reasoning.streaming .reasoning-label {
+  animation: reasoningPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes reasoningPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Cursor de escritura durante el streaming */
+.stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent-color);
+  border-radius: 1px;
+  animation: caretBlink 1s steps(2, start) infinite;
+}
+
+@keyframes caretBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-reasoning.streaming .reasoning-label,
+  .stream-caret {
+    animation: none;
+  }
 }
 
 /* --- INPUT AREA --- */

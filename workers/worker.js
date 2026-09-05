@@ -199,7 +199,12 @@ Rules:
 Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, search query if intent 6, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
 
-async function readSSEStream(response, usageOut = null) {
+// Lee un stream SSE estilo OpenAI separando la cadena de pensamiento
+// (reasoning_content) del texto final (content). Devuelve ambos por separado:
+// antes se concatenaba `content || reasoning`, de modo que cuando el modelo sólo
+// emitía razonamiento el usuario veía el monólogo interno como si fuese la
+// respuesta. `onDelta` permite reenviar cada trozo al cliente en vivo.
+async function readSSEStream(response, usageOut = null, onDelta = null) {
   let content = '';
   let reasoning = '';
   const reader = response.body.getReader();
@@ -222,20 +227,42 @@ async function readSSEStream(response, usageOut = null) {
       try {
         const chunk = JSON.parse(payload);
         const delta = chunk.choices?.[0]?.delta;
-        if (delta?.content) content += delta.content;
-        if (delta?.reasoning_content) reasoning += delta.reasoning_content;
+        // reasoning_content: DeepSeek. reasoning: GLM y otros proveedores OpenAI-like.
+        const thought = delta?.reasoning_content ?? delta?.reasoning;
+        if (thought) {
+          reasoning += thought;
+          if (onDelta) await onDelta('reasoning', thought);
+        }
+        if (delta?.content) {
+          content += delta.content;
+          if (onDelta) await onDelta('content', delta.content);
+        }
         if (usageOut && chunk.usage) usageOut.usage = chunk.usage;
       } catch {}
     }
   }
-  return content || reasoning || '';
+  return { content, reasoning };
 }
 
+// Si el modelo sólo devolvió razonamiento, ese razonamiento pasa a ser la
+// respuesta (comportamiento histórico) y deja de anunciarse como pensamiento,
+// para no mostrar el mismo texto dos veces.
+function splitAIResult({ content, reasoning }) {
+  const text = (content && content.trim()) ? content : (reasoning || '');
+  return { text, reasoning: (content && content.trim()) ? (reasoning || '') : '' };
+}
+
+// options.onDelta(tipo, texto) — se invoca por cada trozo recibido del modelo.
+// options.reasoningOut — objeto donde se deja {text: <cadena de pensamiento>}.
 async function callAI(model, messages, options = {}, env) {
   const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
   const FALLBACK_MODEL = '@cf/zai-org/glm-5.2';
 
   console.log(`🚀 Llamando DeepSeek directo: ${model}`);
+
+  const onDelta = typeof options.onDelta === 'function' ? options.onDelta : null;
+  const reasoningOut = options.reasoningOut || {};
+  reasoningOut.text = '';
 
   let deepseekResult = null;
   let deepseekUsage = null;
@@ -263,17 +290,23 @@ async function callAI(model, messages, options = {}, env) {
     }
 
     const usageOut = {};
-    const result = await readSSEStream(response, usageOut);
+    const raw = await readSSEStream(response, usageOut, onDelta);
+    const result = splitAIResult(raw);
 
     // El registro de consumo va FUERA del try que dispara el fallback: si D1
     // fallaba al anotar el gasto, el catch descartaba una respuesta ya generada
     // y volvía a generarla entera con GLM — el doble de coste y de latencia por
     // un fallo de contabilidad. logApiUsage ya es best-effort por dentro.
-    deepseekResult = result;
+    deepseekResult = result.text;
+    reasoningOut.text = result.reasoning;
     deepseekUsage = usageOut.usage;
 
   } catch (err) {
     console.warn(`⚠️ DeepSeek falló: ${err.message}. Usando fallback GLM...`);
+
+    // El fallback regenera la respuesta desde cero: si ya se habían enviado
+    // trozos al cliente hay que decirle que descarte lo pintado hasta ahora.
+    if (onDelta) await onDelta('reset', '');
 
     const gwUrl = getAIGatewayURL(env);
     const fallbackResponse = await fetch(gwUrl, {
@@ -296,7 +329,8 @@ async function callAI(model, messages, options = {}, env) {
       throw new Error(`Fallback GLM error ${fallbackResponse.status}: ${fallbackErr}`);
     }
 
-    const fallbackResult = await readSSEStream(fallbackResponse);
+    const fallbackResult = splitAIResult(await readSSEStream(fallbackResponse, null, onDelta));
+    reasoningOut.text = fallbackResult.reasoning;
     await logApiUsage(env, {
       provider: 'deepseek_fallback_gateway',
       unit_type: 'call',
@@ -304,7 +338,7 @@ async function callAI(model, messages, options = {}, env) {
       via_gateway: true,
       cost_usd: 0
     });
-    return fallbackResult;
+    return fallbackResult.text;
   }
 
   await logApiUsage(env, {
@@ -1319,7 +1353,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
   }
 }
 
-async function handleChat(request, env, corsHeaders) {
+async function handleChat(request, env, corsHeaders, ctx = null) {
   // 1. Autenticar
   const userDni = await requireAuth(request, env);
   if (!userDni) {
@@ -1331,7 +1365,7 @@ async function handleChat(request, env, corsHeaders) {
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -1471,7 +1505,9 @@ async function handleChat(request, env, corsHeaders) {
           env,
           corsHeaders,
           userDni,
-          !!web_search
+          !!web_search,
+          !!stream,
+          ctx
         );
     }
 
@@ -1929,11 +1965,22 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     globalThis._migratedReportsSection = true;
   }
 
+  // Migración: columna reasoning en messages (cadena de pensamiento del modelo,
+  // que se muestra plegada encima de la respuesta)
+  if (!globalThis._migratedMessagesReasoning) {
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        "ALTER TABLE messages ADD COLUMN reasoning TEXT"
+      ).run();
+    } catch (_) { /* columna ya existe */ }
+    globalThis._migratedMessagesReasoning = true;
+  }
+
   try {
 
     // Ruta: POST /api/chat
     if (path === ROUTES.CHAT && request.method === 'POST') {
-      return await handleChat(request, env, corsHeaders);
+      return await handleChat(request, env, corsHeaders, ctx);
     }
 
     if (url.pathname === '/api/get-or-create-learning-chat' && request.method === 'GET') {
@@ -9086,7 +9133,7 @@ async function handleUploadUserAudio(request, env, corsHeaders) {
   }
 }
 
-async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false) {
+async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false, stream = false, ctx = null) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -9200,37 +9247,55 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     const finalMessage = webContext ? message + webContext : message;
 
     // 5. ENRUTAR SEGÚN EL MODELO
-    let aiResponse = '';
+    let aiModel;
+    let aiMessages;
+    let aiOptions;
 
     if (model === 'llama') {
       console.log('🦙 Usando DeepLlama (Gateway)');
-      const messages = [
+      aiModel = AI_MODEL_NORMAL;
+      aiMessages = [
         { role: 'system', content: systemPrompt },
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
         { role: 'user', content: finalMessage }
       ];
-      aiResponse = await callAI(AI_MODEL_NORMAL, messages, { temperature: 0.7, max_tokens: 2000 }, env);
+      aiOptions = { temperature: 0.7, max_tokens: 2000 };
 
     } else if (model === 'deepseek-reasoner') {
       console.log('🧠 Usando modelo DeepSeek Reasoner (Pro)');
-      const reasonerMessages = [
+      aiModel = AI_MODEL_PRO;
+      aiMessages = [
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
         { role: "user", content: finalMessage }
       ];
-      if (reasonerMessages.length === 1) {
-        reasonerMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${finalMessage}`;
+      if (aiMessages.length === 1) {
+        aiMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${finalMessage}`;
       }
-      aiResponse = await callAI(AI_MODEL_PRO, reasonerMessages, { temperature: 0.6, max_tokens: 8000 }, env);
+      aiOptions = { temperature: 0.6, max_tokens: 8000 };
 
     } else {
       console.log('🚀 Usando modelo DeepSeek');
-      const deepseekMessages = [
+      aiModel = AI_MODEL_NORMAL;
+      aiMessages = [
         { role: "system", content: systemPrompt },
         ...history.map(msg => ({ role: msg.role, content: msg.content })),
         { role: "user", content: finalMessage }
       ];
-      aiResponse = await callAI(AI_MODEL_NORMAL, deepseekMessages, { temperature: 0.7, max_tokens: 2000 }, env);
+      aiOptions = { temperature: 0.7, max_tokens: 2000 };
     }
+
+    // 5.b Modo streaming (SSE): el cliente pinta pensamiento y respuesta trozo a
+    // trozo. Con audio_mode 'always' se responde en JSON como siempre, porque el
+    // TTS sólo puede generarse cuando el texto está completo.
+    if (stream && audio_mode !== 'always') {
+      return streamTextChat({
+        aiModel, aiMessages, aiOptions,
+        message, conversation_id, env, corsHeaders, userDni, ctx
+      });
+    }
+
+    const reasoningOut = {};
+    const aiResponse = await callAI(aiModel, aiMessages, { ...aiOptions, reasoningOut }, env);
 
     // 6. Procesar respuesta
     const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
@@ -9241,11 +9306,12 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     }
 
     await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
-    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url, null, null, userDni);
+    await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url, null, null, userDni, AI_MODEL_NORMAL, reasoningOut.text || null);
     await updateConversationTimestamp(conversation_id, env);
 
     return jsonResponse({
       response: cleanResponse,
+      reasoning: reasoningOut.text || null,
       audio_url: audio_url,
       suggestions: suggestions
     }, 200, corsHeaders);
@@ -9254,6 +9320,118 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
     console.error('❌ Error en handleTextChatInternal:', error.message);
     return jsonResponse({ error: 'Error procesando mensaje', details: error.message }, 500, corsHeaders);
   }
+}
+
+// ── CHAT DE TEXTO EN STREAMING (SSE) ──────────────────────────
+// Devuelve de inmediato una respuesta cuyo cuerpo se va llenando con eventos:
+//   {type:'reasoning', delta}  trozo de la cadena de pensamiento
+//   {type:'content',   delta}  trozo de la respuesta visible
+//   {type:'reset'}             descartar lo pintado (entró el modelo de respaldo)
+//   {type:'done', response, reasoning, suggestions}
+//   {type:'error', error}
+// El bloque [SUGGESTIONS]…[/SUGGESTIONS] se retiene en el servidor para que no
+// aparezca a medio escribir dentro de la burbuja.
+function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_id, env, corsHeaders, userDni, ctx }) {
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  // Si el usuario cierra la pestaña, escribir en el stream falla. Ese fallo NO
+  // debe propagarse a callAI: allí un error se interpreta como caída de DeepSeek
+  // y dispararía una segunda generación completa con el modelo de respaldo.
+  let clientGone = false;
+  const send = async (payload) => {
+    if (clientGone) return;
+    try {
+      await writer.write(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+    } catch (_) {
+      clientGone = true;
+    }
+  };
+
+  const SUG_OPEN = '[SUGGESTIONS]';
+
+  // Cuánto del buffer puede emitirse sin riesgo de partir el marcador de
+  // sugerencias por la mitad.
+  const safeLength = (buf) => {
+    const i = buf.lastIndexOf('[');
+    if (i === -1) return buf.length;
+    const tail = buf.slice(i);
+    if (tail.length >= SUG_OPEN.length) return tail.startsWith(SUG_OPEN) ? i : buf.length;
+    return SUG_OPEN.startsWith(tail) ? i : buf.length;
+  };
+
+  const run = async () => {
+    // Primer evento inmediato: abre el stream sin esperar al primer token del
+    // modelo y evita que un intermediario lo mantenga en buffer.
+    await send({ type: 'start' });
+
+    let contentBuffer = '';
+    let emitted = 0;
+    let suggestionsStarted = false;
+
+    const onDelta = async (type, text) => {
+      if (type === 'reset') {
+        contentBuffer = '';
+        emitted = 0;
+        suggestionsStarted = false;
+        await send({ type: 'reset' });
+        return;
+      }
+      if (type === 'reasoning') {
+        await send({ type: 'reasoning', delta: text });
+        return;
+      }
+      contentBuffer += text;
+      if (suggestionsStarted) return;
+      if (contentBuffer.includes(SUG_OPEN)) suggestionsStarted = true;
+      const limit = safeLength(contentBuffer);
+      if (limit > emitted) {
+        await send({ type: 'content', delta: contentBuffer.slice(emitted, limit) });
+        emitted = limit;
+      }
+    };
+
+    try {
+      const reasoningOut = {};
+      const aiResponse = await callAI(aiModel, aiMessages, { ...aiOptions, onDelta, reasoningOut }, env);
+      const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
+      const reasoning = reasoningOut.text || null;
+
+      try {
+        await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
+        await saveMessage(conversation_id, 'assistant', cleanResponse, env, null, null, null, userDni, AI_MODEL_NORMAL, reasoning);
+        await updateConversationTimestamp(conversation_id, env);
+      } catch (dbError) {
+        // La respuesta ya se entregó al usuario: un fallo al persistirla no debe
+        // convertirse en un error visible en pantalla.
+        console.error('❌ Error guardando mensajes del stream:', dbError.message);
+      }
+
+      await send({ type: 'done', response: cleanResponse, reasoning, suggestions, audio_url: null });
+    } catch (error) {
+      console.error('❌ Error en streamTextChat:', error.message);
+      await send({ type: 'error', error: error.message || 'Error procesando mensaje' });
+    } finally {
+      try { await writer.close(); } catch (_) { /* ya cerrado */ }
+    }
+  };
+
+  // waitUntil mantiene vivo el worker aunque el cliente cierre la conexión, de
+  // modo que la respuesta acabe guardándose en la conversación.
+  const task = run();
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(task);
+
+  return new Response(readable, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    }
+  });
 }
 
 // ── BLOQUE 2: handleGetProfile ────────────────────────────────
@@ -10922,19 +11100,31 @@ async function handleHistory(request, conversationId, env, corsHeaders) {
     }
 
     // 3. OBTENER HISTORIAL COMPLETO para el frontend
-    const stmt = env.MIRAI_AI_DB.prepare(`
-      SELECT id, role, content, audio_url, video_url, created_at
-      FROM messages
-      WHERE conversation_id = ?
-      ORDER BY created_at ASC
-    `);
-    const { results } = await stmt.bind(conversationId).all();
+    // `reasoning` puede no existir todavía si la migración aún no ha corrido en
+    // este aislado, así que se consulta con reserva.
+    let results;
+    try {
+      ({ results } = await env.MIRAI_AI_DB.prepare(`
+        SELECT id, role, content, audio_url, video_url, reasoning, created_at
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY created_at ASC
+      `).bind(conversationId).all());
+    } catch (columnError) {
+      ({ results } = await env.MIRAI_AI_DB.prepare(`
+        SELECT id, role, content, audio_url, video_url, created_at
+        FROM messages
+        WHERE conversation_id = ?
+        ORDER BY created_at ASC
+      `).bind(conversationId).all());
+    }
     const messages = results.map(row => ({
       id: row.id,
       role: row.role,
       content: row.content,
       audio_url: row.audio_url,
       video_url: row.video_url,
+      reasoning: row.reasoning ?? null,
       created_at: row.created_at
     }));
 
@@ -10967,7 +11157,7 @@ async function getConversationHistory(conversationId, env, limit = 20) {
 }
 
 // --- GUARDAR MENSAJE (CORREGIDO) ---
-async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null, userDni = null, model = AI_MODEL_NORMAL) {
+async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null, userDni = null, model = AI_MODEL_NORMAL, reasoning = null) {
   try {
     await ensureConversationExists(conversationId, content, env, null, null, userDni, model);
 
@@ -10988,11 +11178,22 @@ async function saveMessage(conversationId, role, content, env, audioUrl = null, 
 
     const messageId = crypto.randomUUID();
 
-    const stmt = env.MIRAI_AI_DB.prepare(`
-      INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `);
-    await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl).run();
+    try {
+      const stmt = env.MIRAI_AI_DB.prepare(`
+        INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, reasoning, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `);
+      await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl, reasoning).run();
+    } catch (columnError) {
+      // Base de datos aún sin la columna 'reasoning' (la migración corre en
+      // handleApiRequest): guardar el mensaje sin el pensamiento antes que perderlo.
+      console.warn('⚠️ INSERT con reasoning falló, reintentando sin la columna:', columnError.message);
+      const legacyStmt = env.MIRAI_AI_DB.prepare(`
+        INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `);
+      await legacyStmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl).run();
+    }
 
     return messageId;
   } catch (error) {

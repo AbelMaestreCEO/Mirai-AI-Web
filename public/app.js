@@ -957,6 +957,8 @@ async function handleSendMessage() {
   const isImageRequest = detectImageRequest(userInput);
   showTypingIndicator(isVideoRequest ? 'video' : (isMusicRequest ? 'music' : (isImageRequest ? 'image' : 'text')));
 
+  let streamController = null;
+
   try {
     const selectedModel = elements.modelSelector?.value || 'deepseek';
     const response = await fetch(CONFIG.API_ENDPOINT, {
@@ -968,11 +970,30 @@ async function handleSendMessage() {
         audio_mode: state.audioMode || 'auto',
         force_type: null,
         model: selectedModel,
-        web_search: !!document.getElementById('web-search-btn')?.classList.contains('active')
+        web_search: !!document.getElementById('web-search-btn')?.classList.contains('active'),
+        stream: true
       })
     });
 
     if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+
+    // El servidor sólo responde en SSE para las respuestas de texto; imagen,
+    // música, vídeo y YouTube siguen llegando como JSON de una pieza.
+    if ((response.headers.get('content-type') || '').includes('text/event-stream')) {
+      streamController = createStreamingMessage();
+      const done = await consumeChatStream(response, streamController);
+      const finalText = streamController.finish({
+        response: done.response,
+        reasoning: done.reasoning,
+        audioUrl: done.audio_url
+      });
+      streamController = null;
+
+      loadConversations();
+      if (finalText) saveToLocalHistory(finalText);
+      return;
+    }
+
     const responseData = await response.json();
 
     // ✨ MANEJAR SEGÚN TIPO DE RESPUESTA
@@ -1011,7 +1032,7 @@ async function handleSendMessage() {
     } else if (responseData.type === 'video') {
       appendMessage('assistant', responseData.response || '🎬 Video no disponible', true, null);
     } else if (responseData.response) {
-      appendMessage('assistant', responseData.response, true, responseData.audio_url || null);
+      appendMessage('assistant', responseData.response, true, responseData.audio_url || null, responseData.reasoning || null);
     } else {
       throw new Error('No se recibió respuesta válida');
     }
@@ -1023,6 +1044,12 @@ async function handleSendMessage() {
 
   } catch (error) {
     console.error('Error enviando mensaje:', error);
+    // Si el stream se cortó a mitad, se conserva lo ya escrito; si no había
+    // nada, se retira la burbuja vacía.
+    if (streamController) {
+      if (streamController.hasContent()) streamController.finish({});
+      else streamController.remove();
+    }
     appendMessage('system', `⚠️ Error: ${error.message}`);
   } finally {
     hideTypingIndicator();
@@ -1590,9 +1617,9 @@ async function loadConversationHistory(conversationId) {
           const prompt = msg.content.replace('🎬 Aquí tienes el video que pediste:\n\n_Prompt: ', '').replace('_$', '');
           appendVideoMessage(msg.video_url, msg.thumbnail_url, prompt);
         } else if (msg.audio_url) {
-          appendMessage('assistant', msg.content, true, msg.audio_url);
+          appendMessage('assistant', msg.content, true, msg.audio_url, msg.reasoning || null);
         } else {
-          appendMessage('assistant', msg.content, true, null);
+          appendMessage('assistant', msg.content, true, null, msg.reasoning || null);
         }
       }
     });
@@ -1738,8 +1765,80 @@ function initAvatarSyncListener() {
   });
 }
 
+// ============================================
+// BLOQUE DE RAZONAMIENTO (cadena de pensamiento)
+// ============================================
+
+// Cuadro translúcido que se muestra ENCIMA de la respuesta. Plegado deja ver
+// 3 líneas; la flecha lo despliega.
+function buildReasoningBlock(reasoning, streaming = false) {
+  return `
+    <div class="message-reasoning collapsed${streaming ? ' streaming' : ''}">
+      <button type="button" class="reasoning-toggle" aria-expanded="false">
+        <span class="reasoning-icon">🧠</span>
+        <span class="reasoning-label">${streaming ? 'Pensando…' : 'Razonamiento'}</span>
+        <svg class="reasoning-chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
+        </svg>
+      </button>
+      <div class="reasoning-body">${escapeHtml(reasoning || '')}</div>
+    </div>
+  `;
+}
+
+function wireReasoningToggle(scope) {
+  const block = scope.querySelector('.message-reasoning');
+  if (!block || block.dataset.wired === '1') return;
+  block.dataset.wired = '1';
+
+  const toggle = block.querySelector('.reasoning-toggle');
+  const body = block.querySelector('.reasoning-body');
+
+  toggle.addEventListener('click', () => {
+    const collapsed = block.classList.toggle('collapsed');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    // Al plegar se vuelve al principio del pensamiento; al desplegar se
+    // respeta dónde estaba mirando el usuario.
+    if (collapsed) body.scrollTop = 0;
+  });
+}
+
+// Fila de acciones de un mensaje de la IA (copiar, regenerar, menú).
+// `escapedContent` sólo se incrusta cuando el texto no está visible en la
+// burbuja (respuestas de voz), para que el botón de copiar tenga qué copiar.
+function buildAssistantMetaRow(time, escapedContent = null) {
+  const copyBtn = escapedContent !== null
+    ? `<button class="msg-action copy-full-btn" title="Copiar texto original" data-content="${escapedContent}">`
+    : `<button class="msg-action copy-full-btn" title="Copiar respuesta">`;
+
+  return `
+      <div class="message-meta">
+        <span class="message-time">${time}</span>
+        <div class="message-actions">
+          ${copyBtn}
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+          <button class="msg-action regenerate-btn" title="Regenerar respuesta">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          </button>
+          <div class="options-wrapper">
+            <button class="msg-action options-btn" title="Más opciones">
+              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            </button>
+            <div class="action-menu hidden">
+              <button class="menu-item" data-action="summarize"><span>📝</span> Resumir</button>
+              <button class="menu-item" data-action="extend"><span>📈</span> Extender</button>
+              <button class="menu-item" data-action="formal"><span>👔</span> Tono Formal</button>
+              <button class="menu-item" data-action="friendly"><span>😊</span> Tono Amigable</button>
+            </div>
+          </div>
+        </div>
+      </div>
+  `;
+}
+
 // --- APENDAR MENSAJE CON SOPORTE DE AUDIO ---
-function appendMessage(role, content, animate = true, audioUrl = null) {
+function appendMessage(role, content, animate = true, audioUrl = null, reasoning = null) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${role}`;
 
@@ -1773,57 +1872,11 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
     `;
 
     // Meta row para IA (botones de acción)
-    metaRow = `
-      <div class="message-meta">
-        <span class="message-time">${time}</span>
-        <div class="message-actions">
-          <button class="msg-action copy-full-btn" title="Copiar texto original" data-content="${escapedContent}">
-            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-          </button>
-          <button class="msg-action regenerate-btn" title="Regenerar respuesta">
-            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-          </button>
-          <div class="options-wrapper">
-            <button class="msg-action options-btn" title="Más opciones">
-              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-            </button>
-            <div class="action-menu hidden">
-              <button class="menu-item" data-action="summarize"><span>📝</span> Resumir</button>
-              <button class="menu-item" data-action="extend"><span>📈</span> Extender</button>
-              <button class="menu-item" data-action="formal"><span>👔</span> Tono Formal</button>
-              <button class="menu-item" data-action="friendly"><span>😊</span> Tono Amigable</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+    metaRow = buildAssistantMetaRow(time, escapedContent);
   } else if (role === 'assistant') {
     // CASO: Respuesta de IA solo texto (fallback)
     contentDisplay = formattedContent;
-    metaRow = `
-      <div class="message-meta">
-        <span class="message-time">${time}</span>
-        <div class="message-actions">
-          <button class="msg-action copy-full-btn" title="Copiar respuesta">
-            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-          </button>
-          <button class="msg-action regenerate-btn" title="Regenerar respuesta">
-            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-          </button>
-          <div class="options-wrapper">
-            <button class="msg-action options-btn" title="Más opciones">
-              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-            </button>
-            <div class="action-menu hidden">
-              <button class="menu-item" data-action="summarize"><span>📝</span> Resumir</button>
-              <button class="menu-item" data-action="extend"><span>📈</span> Extender</button>
-              <button class="menu-item" data-action="formal"><span>👔</span> Tono Formal</button>
-              <button class="menu-item" data-action="friendly"><span>😊</span> Tono Amigable</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+    metaRow = buildAssistantMetaRow(time);
   } else if (role === 'user') {
     // CASO: Mensaje de usuario
     contentDisplay = formattedContent;
@@ -1849,9 +1902,14 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
     `;
   }
 
+  const reasoningBlock = (role === 'assistant' && reasoning && reasoning.trim())
+    ? buildReasoningBlock(reasoning)
+    : '';
+
   messageDiv.innerHTML = `
     ${role !== 'system' ? `<div class="message-avatar" style="${role === 'user' ? 'padding:0;overflow:hidden;' : ''}">${avatar}</div>` : ''}
     <div class="message-content">
+      ${reasoningBlock}
       ${contentDisplay}
       ${metaRow}
     </div>
@@ -1867,7 +1925,240 @@ function appendMessage(role, content, animate = true, audioUrl = null) {
   // Agregar listeners para botones y reproductor
   addCopyButtons();
   addActionButtonsListeners(messageDiv, content);
+  wireReasoningToggle(messageDiv);
   setupAudioPlayer(messageDiv.querySelector('audio'));
+
+  return messageDiv;
+}
+
+// ============================================
+// MENSAJE EN STREAMING (se escribe por trozos)
+// ============================================
+
+// Un bloque de código a medio llegar deja el ``` sin cerrar y el formateador lo
+// pintaría como texto suelto hasta que llegase el cierre. Se cierra en falso
+// mientras dura el streaming.
+function balanceCodeFences(text) {
+  const fences = (text.match(/```/g) || []).length;
+  return fences % 2 === 1 ? `${text}\n\`\`\`` : text;
+}
+
+function isChatNearBottom(threshold = 120) {
+  const el = elements.chatMessages;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+}
+
+// Crea la burbuja vacía de la IA y devuelve el control para irla rellenando.
+function createStreamingMessage() {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message assistant fade-in';
+  messageDiv.innerHTML = `
+    <div class="message-avatar">M</div>
+    <div class="message-content">
+      <div class="reasoning-slot"></div>
+      <div class="stream-body"><span class="stream-caret"></span></div>
+    </div>
+  `;
+
+  elements.chatMessages.appendChild(messageDiv);
+  scrollToBottom();
+
+  const contentEl = messageDiv.querySelector('.message-content');
+  const slot = messageDiv.querySelector('.reasoning-slot');
+  const body = messageDiv.querySelector('.stream-body');
+
+  let reasoningText = '';
+  let contentText = '';
+  let reasoningBody = null;
+  let renderQueued = false;
+  let finished = false;
+  let sawContent = false;
+  const startedAt = Date.now();
+
+  const renderContent = (withCaret = true) => {
+    const stick = isChatNearBottom();
+    body.innerHTML = formatMessageContent(escapeHtml(balanceCodeFences(contentText)))
+      + (withCaret ? '<span class="stream-caret"></span>' : '');
+    if (stick) scrollToBottom();
+  };
+
+  // Un render por frame: con trozos de pocos caracteres, reformatear el markdown
+  // en cada uno satura el hilo principal.
+  const queueRender = () => {
+    if (renderQueued || finished) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      // Un render en cola no debe volver a pintar el cursor sobre el mensaje ya
+      // cerrado.
+      if (!finished) renderContent();
+    });
+  };
+
+  const ensureReasoningBlock = () => {
+    if (reasoningBody) return;
+    slot.innerHTML = buildReasoningBlock('', true);
+    wireReasoningToggle(slot);
+    reasoningBody = slot.querySelector('.reasoning-body');
+  };
+
+  return {
+    element: messageDiv,
+
+    pushReasoning(delta) {
+      ensureReasoningBlock();
+      reasoningText += delta;
+      reasoningBody.textContent = reasoningText;
+      // Plegado, se sigue la última línea escrita (como una consola).
+      reasoningBody.scrollTop = reasoningBody.scrollHeight;
+      if (isChatNearBottom()) scrollToBottom();
+    },
+
+    pushContent(delta) {
+      sawContent = true;
+      contentText += delta;
+      queueRender();
+    },
+
+    // El modelo de respaldo reescribe la respuesta desde cero.
+    reset() {
+      reasoningText = '';
+      contentText = '';
+      sawContent = false;
+      reasoningBody = null;
+      slot.innerHTML = '';
+      renderContent();
+    },
+
+    hasContent() {
+      return contentText.length > 0;
+    },
+
+    remove() {
+      messageDiv.remove();
+    },
+
+    finish({ response, reasoning, audioUrl } = {}) {
+      finished = true;
+      if (typeof response === 'string' && response.trim()) contentText = response;
+
+      const serverReasoning = (typeof reasoning === 'string' && reasoning.trim()) ? reasoning : '';
+
+      // Cuando el modelo sólo emite pensamiento, el servidor lo asciende a
+      // respuesta; en ese caso el cuadro sobra, porque diría exactamente lo
+      // mismo que la burbuja.
+      if (!sawContent && !serverReasoning && reasoningText) {
+        slot.innerHTML = '';
+        reasoningBody = null;
+        reasoningText = '';
+      } else if (serverReasoning) {
+        ensureReasoningBlock();
+        reasoningText = serverReasoning;
+        reasoningBody.textContent = reasoningText;
+      }
+
+      renderContent(false);
+
+      const block = slot.querySelector('.message-reasoning');
+      if (block) {
+        block.classList.remove('streaming');
+        const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+        block.querySelector('.reasoning-label').textContent = `Razonó durante ${seconds} s`;
+        block.querySelector('.reasoning-body').scrollTop = 0;
+      } else {
+        slot.remove();
+      }
+
+      if (audioUrl) {
+        const player = document.createElement('div');
+        player.innerHTML = `
+          <div class="audio-player-container">
+            <div class="audio-player-header">
+              <span class="audio-icon">🎵</span>
+              <span class="audio-label">Mensaje de voz</span>
+            </div>
+            <audio controls class="custom-audio-player" preload="metadata">
+              <source src="${audioUrl}" type="audio/mpeg">
+              Tu navegador no soporta el elemento de audio.
+            </audio>
+            <div class="audio-duration">
+              <span class="audio-time-current">0:00</span>
+              <span class="audio-time-total">--:--</span>
+            </div>
+          </div>
+        `;
+        contentEl.appendChild(player.firstElementChild);
+      }
+
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      contentEl.insertAdjacentHTML('beforeend', buildAssistantMetaRow(time));
+
+      addCopyButtons();
+      addActionButtonsListeners(messageDiv, contentText);
+      setupAudioPlayer(messageDiv.querySelector('audio'));
+      if (isChatNearBottom()) scrollToBottom();
+
+      return contentText;
+    }
+  };
+}
+
+// Lee la respuesta SSE de /api/chat y va alimentando la burbuja.
+// Devuelve el evento 'done' del servidor.
+async function consumeChatStream(response, controller) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result = null;
+  let streamError = null;
+
+  const handleEvent = (payload) => {
+    if (payload.type === 'reasoning') {
+      if (payload.delta) {
+        hideTypingIndicator();
+        controller.pushReasoning(payload.delta);
+      }
+    } else if (payload.type === 'content') {
+      if (payload.delta) {
+        hideTypingIndicator();
+        controller.pushContent(payload.delta);
+      }
+    } else if (payload.type === 'reset') {
+      controller.reset();
+    } else if (payload.type === 'done') {
+      result = payload;
+    } else if (payload.type === 'error') {
+      streamError = new Error(payload.error || 'Error procesando el mensaje');
+    }
+  };
+
+  const processLines = (chunk) => {
+    buffer += chunk;
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+      try {
+        handleEvent(JSON.parse(trimmed.slice(5).trim()));
+      } catch (e) {
+        console.warn('Evento SSE ilegible:', e.message);
+      }
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    processLines(decoder.decode(value, { stream: true }));
+  }
+  // Último evento sin salto de línea final.
+  processLines(decoder.decode() + '\n');
+
+  if (streamError) throw streamError;
+  if (!result) throw new Error('La respuesta se interrumpió antes de completarse');
+  return result;
 }
 
 async function syncAvatarFromAPI() {
@@ -2251,7 +2542,11 @@ async function regenerateResponse(messageDiv, originalContent) {
     if (data.response) {
       // Reconstruir mensaje completo con nueva respuesta
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      contentEl.innerHTML = formatMessageContent(data.response);
+      const newReasoning = (data.reasoning && data.reasoning.trim())
+        ? buildReasoningBlock(data.reasoning)
+        : '';
+      contentEl.innerHTML = newReasoning + formatMessageContent(data.response);
+      wireReasoningToggle(contentEl);
 
       // Re-agregar meta row
       const newMeta = document.createElement('div');
