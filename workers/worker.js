@@ -357,6 +357,120 @@ async function callAI(model, messages, options = {}, env) {
   return deepseekResult;
 }
 
+// ── MEMORIA TEMPORAL ──────────────────────────────────────────
+// El modelo no tiene reloj: sin esto no sabe qué día es, ni cuánto tiempo ha
+// pasado desde la última vez que hablaron, ni cuándo se dijo cada cosa.
+//
+// Reparto deliberado para no romper la caché de prompt de DeepSeek (un acierto
+// de caché cuesta 50 veces menos que un fallo, ver API_PRICING):
+//   · system prompt   → sólo la explicación del formato, texto CONSTANTE.
+//   · turnos pasados  → sello absoluto [dd/mm/aaaa hh:mm], estable entre peticiones.
+//   · turno actual    → fecha de hoy y tiempo transcurrido, lo único volátil,
+//                       y va al final del prompt, que nunca se cachea.
+
+const DEFAULT_TIME_ZONE = 'UTC';
+
+const TEMPORAL_PROMPT_NOTE = `
+
+[MEMORIA TEMPORAL — metadatos del sistema]
+Cada mensaje del usuario llega precedido, entre corchetes, por la fecha y hora en que lo envió, con el formato [dd/mm/aaaa hh:mm]. El mensaje más reciente incluye además la fecha y hora actuales y el tiempo transcurrido desde el mensaje anterior. Ese prefijo lo añade el sistema, NO lo escribe el usuario: sirve para que sepas en qué momento estás, cuánto tiempo ha pasado desde la última vez que hablasteis y cuándo se dijo cada cosa. Está PROHIBIDO que repitas ese prefijo, que escribas corchetes con fechas en tus respuestas o que menciones que existe; habla del tiempo con naturalidad, como una persona que mira el reloj y el calendario. Si el usuario pregunta qué hora o qué día es, responde con esa información.`;
+
+// La zona horaria llega del navegador del usuario: hay que validarla antes de
+// pasársela a Intl, que lanza con cualquier cadena inventada.
+function normalizeTimeZone(timeZone) {
+  if (!timeZone || typeof timeZone !== 'string') return DEFAULT_TIME_ZONE;
+  try {
+    new Intl.DateTimeFormat('es-ES', { timeZone }).format(new Date());
+    return timeZone;
+  } catch (_) {
+    return DEFAULT_TIME_ZONE;
+  }
+}
+
+// created_at se guarda con datetime('now') de SQLite: 'YYYY-MM-DD HH:MM:SS' en
+// UTC y sin marca de zona. Sin añadirle la Z, new Date() lo interpretaría como
+// hora local y los "hace X" saldrían desplazados.
+function parseDbTimestamp(value) {
+  if (!value) return null;
+  const text = String(value).trim();
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(text)
+    ? `${text.replace(' ', 'T')}Z`
+    : text;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// '05/09/2026 13:45'
+function formatShortStamp(date, timeZone) {
+  return new Intl.DateTimeFormat('es-ES', {
+    timeZone,
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(date).replace(',', '');
+}
+
+// 'viernes, 5 de septiembre de 2026, 13:45'
+function formatFullStamp(date, timeZone) {
+  return new Intl.DateTimeFormat('es-ES', {
+    timeZone,
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(date);
+}
+
+function describeElapsed(fromDate, now) {
+  const seconds = Math.max(0, Math.floor((now.getTime() - fromDate.getTime()) / 1000));
+  const plural = (n, singular, pl) => `${n} ${n === 1 ? singular : pl}`;
+
+  if (seconds < 60) return 'hace unos segundos';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${plural(minutes, 'minuto', 'minutos')}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${plural(hours, 'hora', 'horas')}`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `hace ${plural(days, 'día', 'días')}`;
+  const weeks = Math.floor(days / 7);
+  if (days < 30) return `hace ${plural(weeks, 'semana', 'semanas')}`;
+  const months = Math.floor(days / 30);
+  if (days < 365) return `hace ${plural(months, 'mes', 'meses')}`;
+  return `hace ${plural(Math.floor(days / 365), 'año', 'años')}`;
+}
+
+// Sella los turnos del usuario con su fecha de envío. Los turnos de la IA se
+// dejan intactos a propósito: si viera el prefijo en su propia voz acabaría
+// imitándolo y escribiendo corchetes con fechas en sus respuestas.
+function annotateHistoryTurns(history, timeZone) {
+  return history.map(msg => {
+    if (msg.role !== 'user') return { role: msg.role, content: msg.content };
+    const sentAt = parseDbTimestamp(msg.created_at);
+    return {
+      role: 'user',
+      content: sentAt ? `[${formatShortStamp(sentAt, timeZone)}] ${msg.content}` : msg.content
+    };
+  });
+}
+
+// Cabecera del mensaje que se está respondiendo: el "ahora" del modelo.
+function buildCurrentTurnHeader(now, timeZone, history) {
+  const parts = [`Fecha y hora actuales: ${formatFullStamp(now, timeZone)} (zona horaria ${timeZone})`];
+
+  const lastUser = [...history].reverse().find(msg => msg.role === 'user');
+  const lastUserAt = lastUser ? parseDbTimestamp(lastUser.created_at) : null;
+  if (lastUserAt) {
+    parts.push(`el mensaje anterior del usuario fue ${describeElapsed(lastUserAt, now)}`);
+  }
+
+  const firstAt = history.length ? parseDbTimestamp(history[0].created_at) : null;
+  if (firstAt) {
+    parts.push(`esta conversación empezó ${describeElapsed(firstAt, now)}`);
+  } else {
+    parts.push('es el primer mensaje de esta conversación');
+  }
+
+  const sentences = parts.map(part => part.charAt(0).toUpperCase() + part.slice(1));
+  return `[${sentences.join('. ')}.]`;
+}
+
 // Hash de contraseña usando PBKDF2 nativo
 async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
@@ -1365,7 +1479,7 @@ async function handleChat(request, env, corsHeaders, ctx = null) {
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -1507,7 +1621,8 @@ async function handleChat(request, env, corsHeaders, ctx = null) {
           userDni,
           !!web_search,
           !!stream,
-          ctx
+          ctx,
+          time_zone
         );
     }
 
@@ -9133,7 +9248,7 @@ async function handleUploadUserAudio(request, env, corsHeaders) {
   }
 }
 
-async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false, stream = false, ctx = null) {
+async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false, stream = false, ctx = null, timeZone = null) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -9210,6 +9325,10 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       }
     }
 
+    // Explicación del sellado temporal: texto fijo, así que el prefijo del
+    // prompt sigue siendo idéntico entre mensajes y la caché aguanta.
+    systemPrompt += TEMPORAL_PROMPT_NOTE;
+
     console.log('System prompt activo:', systemPrompt.substring(0, 80) + '...');
 
     // 4. Obtener historial
@@ -9246,6 +9365,13 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
 
     const finalMessage = webContext ? message + webContext : message;
 
+    // 4.6 Sellado temporal
+    const zone = normalizeTimeZone(timeZone);
+    const now = new Date();
+    const historyTurns = annotateHistoryTurns(history, zone);
+    const stampedMessage = `${buildCurrentTurnHeader(now, zone, history)}\n${finalMessage}`;
+    console.log(`🕒 Contexto temporal: ${formatShortStamp(now, zone)} (${zone})`);
+
     // 5. ENRUTAR SEGÚN EL MODELO
     let aiModel;
     let aiMessages;
@@ -9256,8 +9382,8 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       aiModel = AI_MODEL_NORMAL;
       aiMessages = [
         { role: 'system', content: systemPrompt },
-        ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: 'user', content: finalMessage }
+        ...historyTurns,
+        { role: 'user', content: stampedMessage }
       ];
       aiOptions = { temperature: 0.7, max_tokens: 2000 };
 
@@ -9265,11 +9391,11 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       console.log('🧠 Usando modelo DeepSeek Reasoner (Pro)');
       aiModel = AI_MODEL_PRO;
       aiMessages = [
-        ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: "user", content: finalMessage }
+        ...historyTurns,
+        { role: "user", content: stampedMessage }
       ];
       if (aiMessages.length === 1) {
-        aiMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${finalMessage}`;
+        aiMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${stampedMessage}`;
       }
       aiOptions = { temperature: 0.6, max_tokens: 8000 };
 
@@ -9278,8 +9404,8 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
       aiModel = AI_MODEL_NORMAL;
       aiMessages = [
         { role: "system", content: systemPrompt },
-        ...history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: "user", content: finalMessage }
+        ...historyTurns,
+        { role: "user", content: stampedMessage }
       ];
       aiOptions = { temperature: 0.7, max_tokens: 2000 };
     }

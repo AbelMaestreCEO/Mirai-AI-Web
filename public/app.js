@@ -348,6 +348,16 @@ const CONFIG = {
   TTS_MODE_KEY: 'mirai-ai-audio-mode',
 };
 
+// Zona horaria del navegador (IANA, p. ej. 'America/Caracas'). El Worker la usa
+// para sellar cada mensaje con la hora local del usuario; sin ella cae a UTC.
+function getClientTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // --- ELEMENTOS DEL DOM ---
 const elements = {
   chatMessages: document.getElementById('chat-messages'),
@@ -971,7 +981,8 @@ async function handleSendMessage() {
         force_type: null,
         model: selectedModel,
         web_search: !!document.getElementById('web-search-btn')?.classList.contains('active'),
-        stream: true
+        stream: true,
+        time_zone: getClientTimeZone()
       })
     });
 
@@ -1009,7 +1020,8 @@ async function handleSendMessage() {
               message: `[SYSTEM_IMAGE_COMMENT] El usuario pidió esta imagen: "${userInput}". Reacciona y admírala brevemente con tu personalidad, en el mismo idioma del usuario. Máximo 2 frases. No describas la imagen técnicamente, sé espontánea y emotiva.`,
               conversation_id: state.currentConversationId,
               audio_mode: 'never',
-              force_type: 1
+              force_type: 1,
+              time_zone: getClientTimeZone()
             })
           });
           if (commentRes.ok) {
@@ -1239,7 +1251,8 @@ async function sendTextToAI(text) {
         conversation_id: state.currentConversationId,
         audio_mode: state.audioMode || 'auto',
         force_type: null,
-        model: selectedModel  // ← Usar la variable declarada
+        model: selectedModel,  // ← Usar la variable declarada
+        time_zone: getClientTimeZone()
       })
     });
 
@@ -2441,7 +2454,8 @@ async function modifyResponse(messageDiv, originalContent, action) {
       body: JSON.stringify({
         message: prompt,
         conversation_id: state.currentConversationId,
-        audio_mode: state.audioMode || 'auto'
+        audio_mode: state.audioMode || 'auto',
+        time_zone: getClientTimeZone()
       })
     });
 
@@ -2531,7 +2545,8 @@ async function regenerateResponse(messageDiv, originalContent) {
       body: JSON.stringify({
         message: userContent + '\n\n(Por favor, genera una respuesta diferente)',
         conversation_id: state.currentConversationId,
-        audio_mode: state.audioMode || 'auto'
+        audio_mode: state.audioMode || 'auto',
+        time_zone: getClientTimeZone()
       })
     });
 
@@ -3531,7 +3546,8 @@ async function sendMessageToAPI(message, conversationId) {
   const requestBody = {
     message: message,
     conversation_id: conversationId,
-    audio_mode: state.audioMode || 'auto'
+    audio_mode: state.audioMode || 'auto',
+    time_zone: getClientTimeZone()
   };
 
   // ✅ Incluir contexto educativo si está activo
@@ -3604,7 +3620,8 @@ async function sendEducationWelcome() {
         conversation_id: state.currentConversationId,
         course_id: educationContext.courseId,  // ← AGREGAR
         lesson_id: educationContext.lessonId,  // ← AGREGAR
-        audio_mode: state.audioMode || 'auto'
+        audio_mode: state.audioMode || 'auto',
+        time_zone: getClientTimeZone()
       })
     });
 
