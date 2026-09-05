@@ -60,6 +60,7 @@
         .doc-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
         .doc-card-header { display: flex; align-items: center; gap: .6rem; padding: 1rem 1.1rem; cursor: pointer; }
         .doc-card-icon { font-size: 1.6rem; flex-shrink: 0; }
+        img.doc-card-icon, img.doc-modal-icon { width: 28px; height: 28px; object-fit: contain; display: block; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.18)); }
         .doc-card-info { flex: 1; min-width: 0; }
         .doc-card-title { font-size: .95rem; font-weight: 700; color: var(--text-primary); }
         .doc-card-desc { font-size: .75rem; color: var(--text-secondary); margin-top: 2px; }
@@ -113,29 +114,29 @@
             <section class="sidebar-section"><h4>Navegación</h4>
                 <div class="collapsible-content nav-collapsible-content" style="max-height:500px;opacity:1;margin-top:.5rem;">
                     <div class="nav-grid">
-                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar"><span class="nav-icon">🏠</span><span class="nav-label">Hogar</span></a>
-                        <a href="chat" class="nav-grid-item" data-tooltip="Chat"><span class="nav-icon">💬</span><span class="nav-label">Chat</span></a>
-                        <a href="projects" class="nav-grid-item" data-tooltip="Proyectos"><span class="nav-icon">🗂️</span><span class="nav-label">Proyectos</span></a>
-                        <a href="generation" class="nav-grid-item" data-tooltip="Generación con IA"><span class="nav-icon">🖌️</span><span class="nav-label">Generación con IA</span></a>
-                        <a href="course_category" class="nav-grid-item" data-tooltip="Cursos"><span class="nav-icon">📚</span><span class="nav-label">Cursos</span></a>
-                        <a href="classroom" class="nav-grid-item" data-tooltip="Aula"><span class="nav-icon">🏫</span><span class="nav-label">Aula</span></a>
-                        <a href="inventory" class="nav-grid-item" data-tooltip="Inventario"><span class="nav-icon">📦</span><span class="nav-label">Inventario</span></a>
+                        <a href="https://ai.aberumirai.com/" class="nav-grid-item" data-tooltip="Hogar"><img class="nav-icon" src="/icons/ui/home-48.png" srcset="/icons/ui/home-48.png 1x, /icons/ui/home-96.png 2x" alt="Hogar" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Hogar</span></a>
+                        <a href="chat" class="nav-grid-item" data-tooltip="Chat"><img class="nav-icon" src="/icons/ui/chat-48.png" srcset="/icons/ui/chat-48.png 1x, /icons/ui/chat-96.png 2x" alt="Chat" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Chat</span></a>
+                        <a href="projects" class="nav-grid-item" data-tooltip="Proyectos"><img class="nav-icon" src="/icons/ui/projects-48.png" srcset="/icons/ui/projects-48.png 1x, /icons/ui/projects-96.png 2x" alt="Proyectos" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Proyectos</span></a>
+                        <a href="generation" class="nav-grid-item" data-tooltip="Generación con IA"><img class="nav-icon" src="/icons/ui/generation-48.png" srcset="/icons/ui/generation-48.png 1x, /icons/ui/generation-96.png 2x" alt="Generación con IA" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Generación con IA</span></a>
+                        <a href="course_category" class="nav-grid-item" data-tooltip="Cursos"><img class="nav-icon" src="/icons/ui/courses-48.png" srcset="/icons/ui/courses-48.png 1x, /icons/ui/courses-96.png 2x" alt="Cursos" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Cursos</span></a>
+                        <a href="classroom" class="nav-grid-item" data-tooltip="Aula"><img class="nav-icon" src="/icons/ui/classroom-48.png" srcset="/icons/ui/classroom-48.png 1x, /icons/ui/classroom-96.png 2x" alt="Aula" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Aula</span></a>
+                        <a href="inventory" class="nav-grid-item" data-tooltip="Inventario"><img class="nav-icon" src="/icons/ui/inventory-48.png" srcset="/icons/ui/inventory-48.png 1x, /icons/ui/inventory-96.png 2x" alt="Inventario" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Inventario</span></a>
                         <a href="sales" class="nav-grid-item" data-tooltip="Ventas">
-                            <span class="nav-icon">🛒</span>
+                            <img class="nav-icon" src="/icons/ui/sales-48.png" srcset="/icons/ui/sales-48.png 1x, /icons/ui/sales-96.png 2x" alt="Ventas" width="26" height="26" loading="lazy" decoding="async">
                             <span class="nav-label">Ventas</span>
                         </a>
-                        <a href="mirror" class="nav-grid-item" data-tooltip="Organizador"><span class="nav-icon">🖼️</span><span class="nav-label">Fotos</span></a>
-                        <a href="format" class="nav-grid-item" data-tooltip="Formato"><span class="nav-icon">📝</span><span class="nav-label">Formato</span></a>
-                        <a href="apa" class="nav-grid-item" data-tooltip="APA 7"><span class="nav-icon">📄</span><span class="nav-label">APA 7</span></a>
-                        <a href="attendance" class="nav-grid-item" data-tooltip="Asistencia"><span class="nav-icon">✅</span><span class="nav-label">Asistencia</span></a>
-                        <a href="investigation" class="nav-grid-item" data-tooltip="Investigar"><span class="nav-icon">🔭</span><span class="nav-label">Investigar</span></a>
-                        <a href="report" class="nav-grid-item" data-tooltip="Reportes"><span class="nav-icon">📋</span><span class="nav-label">Reportes</span></a>
-                        <a href="task" class="nav-grid-item" data-tooltip="Tareas"><span class="nav-icon">🗒️</span><span class="nav-label">Tareas</span></a>
-                        <a href="diet" class="nav-grid-item" data-tooltip="Dieta"><span class="nav-icon">🥗</span><span class="nav-label">Dieta</span></a>
-                        <a href="location" class="nav-grid-item" data-tooltip="Ubicación"><span class="nav-icon">📍</span><span class="nav-label">Ubicación</span></a>
-                        <a href="panel" class="nav-grid-item" data-tooltip="Panel"><span class="nav-icon">🔑</span><span class="nav-label">Panel</span></a>
-                        <a href="documentation" class="nav-grid-item" data-tooltip="Documentación"><span class="nav-icon">📖</span><span class="nav-label">Docs</span></a>
-                        <a href="purchase" class="nav-grid-item" data-tooltip="Planes"><span class="nav-icon">💎</span><span class="nav-label">Planes</span></a>
+                        <a href="mirror" class="nav-grid-item" data-tooltip="Organizador"><img class="nav-icon" src="/icons/ui/photos-48.png" srcset="/icons/ui/photos-48.png 1x, /icons/ui/photos-96.png 2x" alt="Fotos" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Fotos</span></a>
+                        <a href="format" class="nav-grid-item" data-tooltip="Formato"><img class="nav-icon" src="/icons/ui/format-48.png" srcset="/icons/ui/format-48.png 1x, /icons/ui/format-96.png 2x" alt="Formato" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Formato</span></a>
+                        <a href="apa" class="nav-grid-item" data-tooltip="APA 7"><img class="nav-icon" src="/icons/ui/apa-48.png" srcset="/icons/ui/apa-48.png 1x, /icons/ui/apa-96.png 2x" alt="APA 7" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">APA 7</span></a>
+                        <a href="attendance" class="nav-grid-item" data-tooltip="Asistencia"><img class="nav-icon" src="/icons/ui/attendance-48.png" srcset="/icons/ui/attendance-48.png 1x, /icons/ui/attendance-96.png 2x" alt="Asistencia" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Asistencia</span></a>
+                        <a href="investigation" class="nav-grid-item" data-tooltip="Investigar"><img class="nav-icon" src="/icons/ui/investigation-48.png" srcset="/icons/ui/investigation-48.png 1x, /icons/ui/investigation-96.png 2x" alt="Investigar" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Investigar</span></a>
+                        <a href="report" class="nav-grid-item" data-tooltip="Reportes"><img class="nav-icon" src="/icons/ui/reports-48.png" srcset="/icons/ui/reports-48.png 1x, /icons/ui/reports-96.png 2x" alt="Reportes" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Reportes</span></a>
+                        <a href="task" class="nav-grid-item" data-tooltip="Tareas"><img class="nav-icon" src="/icons/ui/tasks-48.png" srcset="/icons/ui/tasks-48.png 1x, /icons/ui/tasks-96.png 2x" alt="Tareas" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Tareas</span></a>
+                        <a href="diet" class="nav-grid-item" data-tooltip="Dieta"><img class="nav-icon" src="/icons/ui/diet-48.png" srcset="/icons/ui/diet-48.png 1x, /icons/ui/diet-96.png 2x" alt="Dieta" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Dieta</span></a>
+                        <a href="location" class="nav-grid-item" data-tooltip="Ubicación"><img class="nav-icon" src="/icons/ui/location-48.png" srcset="/icons/ui/location-48.png 1x, /icons/ui/location-96.png 2x" alt="Ubicación" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Ubicación</span></a>
+                        <a href="panel" class="nav-grid-item" data-tooltip="Panel"><img class="nav-icon" src="/icons/ui/panel-48.png" srcset="/icons/ui/panel-48.png 1x, /icons/ui/panel-96.png 2x" alt="Panel" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Panel</span></a>
+                        <a href="documentation" class="nav-grid-item" data-tooltip="Documentación"><img class="nav-icon" src="/icons/ui/docs-48.png" srcset="/icons/ui/docs-48.png 1x, /icons/ui/docs-96.png 2x" alt="Documentación" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Docs</span></a>
+                        <a href="purchase" class="nav-grid-item" data-tooltip="Planes"><img class="nav-icon" src="/icons/ui/plans-48.png" srcset="/icons/ui/plans-48.png 1x, /icons/ui/plans-96.png 2x" alt="Planes" width="26" height="26" loading="lazy" decoding="async"><span class="nav-label">Planes</span></a>
                     </div>
                 </div>
             </section>
@@ -193,14 +194,14 @@
     <script>
     (function () {
         var MODULES = [
-            { icon: '💬', title: 'Chat IA', desc: 'Conversa con Mirai', href: 'chat', subs: [
+            { icon: 'chat', title: 'Chat IA', desc: 'Conversa con Mirai', href: 'chat', subs: [
                 { name: 'Enviar mensajes', key: 'chat-mensajes' },
                 { name: 'Búsqueda web', key: 'chat-web' },
                 { name: 'Modelos de IA', key: 'chat-modelos' },
                 { name: 'Adjuntar archivos', key: 'chat-archivos' },
                 { name: 'Modo voz', key: 'chat-voz' }
             ]},
-            { icon: '🖌️', title: 'Generación con IA', desc: 'Crea texto, imágenes, video y música', href: 'generation', subs: [
+            { icon: 'generation', title: 'Generación con IA', desc: 'Crea texto, imágenes, video y música', href: 'generation', subs: [
                 { name: 'Generar texto', key: 'gen-texto' },
                 { name: 'Generar imágenes', key: 'gen-imagen' },
                 { name: 'Editar imágenes', key: 'gen-editar' },
@@ -208,64 +209,64 @@
                 { name: 'Generar música', key: 'gen-musica' },
                 { name: 'Historial', key: 'gen-historial' }
             ]},
-            { icon: '🗂️', title: 'Proyectos', desc: 'Gestiona tu código con IA', href: 'projects', subs: [
+            { icon: 'projects', title: 'Proyectos', desc: 'Gestiona tu código con IA', href: 'projects', subs: [
                 { name: 'Crear proyecto', key: 'proj-crear' },
                 { name: 'Subir archivos', key: 'proj-archivos' },
                 { name: 'Abrir en Code', key: 'proj-code' }
             ]},
-            { icon: '📚', title: 'Cursos', desc: 'Aprende con lecciones interactivas', href: 'course_category', subs: [
+            { icon: 'courses', title: 'Cursos', desc: 'Aprende con lecciones interactivas', href: 'course_category', subs: [
                 { name: 'Buscar cursos', key: 'cursos-buscar' },
                 { name: 'Lecciones', key: 'cursos-lecciones' },
                 { name: 'Chat educativo', key: 'cursos-chat' }
             ]},
-            { icon: '🏫', title: 'Aula Virtual', desc: 'Secciones, tareas y calificaciones', href: 'classroom', subs: [
+            { icon: 'classroom', title: 'Aula Virtual', desc: 'Secciones, tareas y calificaciones', href: 'classroom', subs: [
                 { name: 'Secciones', key: 'aula-secciones' },
                 { name: 'Entregas', key: 'aula-entregas' },
                 { name: 'Calificaciones', key: 'aula-calificaciones' }
             ]},
-            { icon: '📦', title: 'Inventario', desc: 'Control de productos y stock', href: 'inventory', subs: [
+            { icon: 'inventory', title: 'Inventario', desc: 'Control de productos y stock', href: 'inventory', subs: [
                 { name: 'Agregar producto', key: 'inv-agregar' },
                 { name: 'Buscar y filtrar', key: 'inv-buscar' },
                 { name: 'Alertas de stock', key: 'inv-alertas' }
             ]},
-            { icon: '🗒️', title: 'Tareas', desc: 'Kanban, Gantt, lista y calendario', href: 'task', subs: [
+            { icon: 'tasks', title: 'Tareas', desc: 'Kanban, Gantt, lista y calendario', href: 'task', subs: [
                 { name: 'Vista Kanban', key: 'task-kanban' },
                 { name: 'Vista Gantt', key: 'task-gantt' },
                 { name: 'Vista calendario', key: 'task-calendario' },
                 { name: 'Asistente IA', key: 'task-ia' },
                 { name: 'Notificaciones push', key: 'task-push' }
             ]},
-            { icon: '🔭', title: 'Investigación', desc: 'Búsqueda web con citas APA', href: 'investigation', subs: [
+            { icon: 'investigation', title: 'Investigación', desc: 'Búsqueda web con citas APA', href: 'investigation', subs: [
                 { name: 'Realizar búsqueda', key: 'inv-busqueda' },
                 { name: 'Fuentes y bibliografía', key: 'inv-fuentes' },
                 { name: 'Historial', key: 'inv-historial' }
             ]},
-            { icon: '📍', title: 'Ubicaciones', desc: 'Marcadores en el mapa', href: 'location', subs: [
+            { icon: 'location', title: 'Ubicaciones', desc: 'Marcadores en el mapa', href: 'location', subs: [
                 { name: 'Agregar marcador', key: 'loc-agregar' },
                 { name: 'Subir imágenes', key: 'loc-imagenes' },
                 { name: 'GPS', key: 'loc-gps' }
             ]},
-            { icon: '🖼️', title: 'Fotos', desc: 'Organizador de imágenes', href: 'mirror', subs: [
+            { icon: 'photos', title: 'Fotos', desc: 'Organizador de imágenes', href: 'mirror', subs: [
                 { name: 'Subir fotos', key: 'mirror-subir' },
                 { name: 'Álbumes', key: 'mirror-albumes' }
             ]},
-            { icon: '📝', title: 'Formato de texto', desc: 'Herramientas de formato', href: 'format', subs: [] },
-            { icon: '📄', title: 'APA 7', desc: 'Genera documentos en formato APA', href: 'apa', subs: [] },
-            { icon: '✅', title: 'Asistencia', desc: 'Registro de asistencia con QR', href: 'attendance', subs: [
+            { icon: 'format', title: 'Formato de texto', desc: 'Herramientas de formato', href: 'format', subs: [] },
+            { icon: 'apa', title: 'APA 7', desc: 'Genera documentos en formato APA', href: 'apa', subs: [] },
+            { icon: 'attendance', title: 'Asistencia', desc: 'Registro de asistencia con QR', href: 'attendance', subs: [
                 { name: 'Escanear QR', key: 'att-qr' },
                 { name: 'Historial', key: 'att-historial' }
             ]},
-            { icon: '📋', title: 'Reportes', desc: 'Genera reportes con IA', href: 'report', subs: [] },
-            { icon: '🥗', title: 'Dieta', desc: 'Planificador nutricional con IA', href: 'diet', subs: [] },
+            { icon: 'reports', title: 'Reportes', desc: 'Genera reportes con IA', href: 'report', subs: [] },
+            { icon: 'diet', title: 'Dieta', desc: 'Planificador nutricional con IA', href: 'diet', subs: [] },
             { icon: '⚙️', title: 'Configuración', desc: 'Tema, idioma y preferencias', href: 'settings', subs: [
                 { name: 'Tema y colores', key: 'settings-tema' },
                 { name: 'Preferencias IA', key: 'settings-prefs' }
             ]},
-            { icon: '💎', title: 'Planes', desc: 'Suscripciones y tokens de generación', href: 'purchase', subs: [
+            { icon: 'plans', title: 'Planes', desc: 'Suscripciones y tokens de generación', href: 'purchase', subs: [
                 { name: 'Ver planes', key: 'purchase-planes' },
                 { name: 'Costos de API', key: 'purchase-api' }
             ]},
-            { icon: '🔑', title: 'Panel Admin', desc: 'Gestión de usuarios y planes', href: 'panel', subs: [
+            { icon: 'panel', title: 'Panel Admin', desc: 'Gestión de usuarios y planes', href: 'panel', subs: [
                 { name: 'Usuarios', key: 'panel-usuarios' },
                 { name: 'Roles', key: 'panel-roles' },
                 { name: 'Planes', key: 'panel-planes' }
@@ -322,6 +323,19 @@
 
         function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+        // Los módulos usan los PNG de /icons/ui en vez de emoji. Los que todavía
+        // no tienen arte propio guardan el emoji en `icon` y se pintan tal cual.
+        var MODULE_ICONS = ['apa','attendance','chat','classroom','courses','diet','docs',
+            'format','generation','home','inventory','investigation','location','panel',
+            'photos','plans','projects','reports','sales','tasks'];
+
+        function iconHtml(icon, cls, size) {
+            if (MODULE_ICONS.indexOf(icon) === -1) return '<span class="' + cls + '">' + esc(icon) + '</span>';
+            var base = '/icons/ui/' + icon;
+            return '<img class="' + cls + '" src="' + base + '-48.png" srcset="' + base + '-48.png 1x, ' +
+                base + '-96.png 2x" alt="" width="' + size + '" height="' + size + '" loading="lazy" decoding="async">';
+        }
+
         function renderGrid(filter) {
             var grid = document.getElementById('doc-grid');
             var q = (filter || '').toLowerCase();
@@ -337,7 +351,7 @@
                 }
                 html += '<div class="doc-card" data-key="' + m.href + '">' +
                     '<div class="doc-card-header">' +
-                        '<span class="doc-card-icon">' + m.icon + '</span>' +
+                        iconHtml(m.icon, 'doc-card-icon', 28) +
                         '<div class="doc-card-info"><div class="doc-card-title">' + esc(m.title) + '</div><div class="doc-card-desc">' + esc(m.desc) + '</div></div>' +
                         (m.subs.length ? '<span class="doc-card-arrow">›</span>' : '') +
                     '</div>' + subsHtml + '</div>';
@@ -370,7 +384,7 @@
 
         function showInfo(key, mod) {
             if (!mod) return;
-            var title = mod.icon + ' ' + mod.title;
+            var title = iconHtml(mod.icon, 'doc-modal-icon', 28) + '<span>' + esc(mod.title) + '</span>';
             var body = '<p>' + esc(mod.desc) + '</p>';
             if (mod.subs.length) {
                 body += '<h3>Funciones</h3><ul>' + mod.subs.map(function(s){ return '<li>' + esc(s.name) + '</li>'; }).join('') + '</ul>';

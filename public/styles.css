@@ -6961,6 +6961,23 @@ svg {
   line-height: 1;
 }
 
+/* Los iconos del grid son PNG (Icons8) en vez de emoji: se fija la caja para
+   que todos ocupen lo mismo aunque el arte tenga distinto aspecto. */
+img.nav-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  display: block;
+  /* Los PNG a color se ven planos sobre el fondo oscuro; un realce leve los
+     iguala con el resto de la UI sin desaturarlos. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+  transition: transform var(--transition-fast);
+}
+
+.nav-grid-item:hover img.nav-icon {
+  transform: scale(1.08);
+}
+
 .nav-label {
   font-size: 0.7rem;
   font-weight: 500;

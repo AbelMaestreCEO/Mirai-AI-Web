@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v304'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v305'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -92,7 +92,34 @@ const STATIC_ASSETS = [
   '/verify.js',
 ];
 
-const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS];
+
+// ─── Iconos de módulo (Icons8) ──────────────────────────────────────────────
+// Se precachean sólo los 48 px: el 2x (96) lo pide el navegador únicamente en
+// pantallas HiDPI y lo resuelve el fetch handler.
+const MODULE_ICONS = [
+  '/icons/ui/apa-48.png',
+  '/icons/ui/attendance-48.png',
+  '/icons/ui/chat-48.png',
+  '/icons/ui/classroom-48.png',
+  '/icons/ui/courses-48.png',
+  '/icons/ui/diet-48.png',
+  '/icons/ui/docs-48.png',
+  '/icons/ui/format-48.png',
+  '/icons/ui/generation-48.png',
+  '/icons/ui/home-48.png',
+  '/icons/ui/inventory-48.png',
+  '/icons/ui/investigation-48.png',
+  '/icons/ui/location-48.png',
+  '/icons/ui/panel-48.png',
+  '/icons/ui/photos-48.png',
+  '/icons/ui/plans-48.png',
+  '/icons/ui/projects-48.png',
+  '/icons/ui/reports-48.png',
+  '/icons/ui/sales-48.png',
+  '/icons/ui/tasks-48.png',
+];
+
+const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS, ...MODULE_ICONS];
 
 // ─── Instalación: Precachear todo ───────────────────────────────────────────
 // DESPUÉS
