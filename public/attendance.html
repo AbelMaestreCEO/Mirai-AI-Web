@@ -52,27 +52,63 @@
     <!-- SheetJS para exportar Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        .att-center-wrap {
+        /* ══════════════════════════════════════════════
+           DISTRIBUCIÓN DE LA PÁGINA
+           ══════════════════════════════════════════════
+           En móvil todo va en una única columna. En escritorio la página se
+           parte en dos: a la izquierda la identidad, el escáner y el resultado
+           (bloques estrechos y de altura fija) y a la derecha el historial, que
+           es el bloque que crece. Así se aprovecha el ancho y la página deja de
+           ser una tira vertical de más de dos pantallas. */
+        .att-layout {
             max-width: 560px;
             margin: 0 auto;
-            padding: 0 20px 80px;
+            padding: 0 20px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .att-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        @media (min-width: 1024px) {
+            .att-layout {
+                max-width: 1120px;
+                display: grid;
+                grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+                gap: 20px;
+                align-items: start;
+            }
+        }
+
+        /* Hero más discreto: en escritorio ocupaba casi media pantalla */
+        .courses-hero {
+            padding: 28px 20px 18px;
+        }
+
+        .courses-hero h1 {
+            font-size: clamp(1.6rem, 3.2vw, 2.1rem);
         }
 
         .att-user-card {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: var(--border-radius-lg);
-            padding: 24px 28px;
+            padding: 16px 20px;
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
+            gap: 14px;
             box-shadow: var(--glass-shadow);
         }
 
         .att-avatar {
-            width: 52px;
-            height: 52px;
+            width: 46px;
+            height: 46px;
             border-radius: 50%;
             background: var(--accent-gradient);
             display: flex;
@@ -101,17 +137,16 @@
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: var(--border-radius-lg);
-            padding: 28px;
+            padding: 22px;
             text-align: center;
             box-shadow: var(--glass-shadow);
-            margin-bottom: 20px;
         }
 
         .qr-video-wrap {
             position: relative;
             width: 100%;
-            max-width: 300px;
-            margin: 0 auto 16px;
+            max-width: 260px;
+            margin: 0 auto 14px;
             border-radius: var(--border-radius-md);
             overflow: hidden;
             border: 2px solid var(--glass-border);
@@ -155,16 +190,15 @@
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: var(--border-radius-lg);
-            padding: 28px;
+            padding: 22px;
             text-align: center;
             box-shadow: var(--glass-shadow);
-            margin-bottom: 20px;
             display: none;
         }
 
         .att-result-icon {
-            font-size: 3.5rem;
-            margin-bottom: 12px;
+            font-size: 2.8rem;
+            margin-bottom: 10px;
         }
 
         .att-result-title {
@@ -189,8 +223,32 @@
             display: flex;
             align-items: center;
             gap: 14px;
-            padding: 12px 0;
+            padding: 10px 0;
             border-bottom: 1px solid var(--glass-border);
+        }
+
+        /* El historial es el bloque alto de la columna derecha: se le limita la
+           altura y se hace desplazable para que no estire la página entera. */
+        .att-history-card {
+            cursor: default;
+        }
+
+        .att-history-card:hover {
+            transform: none;
+            border-color: var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+
+        .att-history-card::before {
+            display: none;
+        }
+
+        @media (min-width: 1024px) {
+            .att-history-list {
+                max-height: 46vh;
+                overflow-y: auto;
+                padding-right: 4px;
+            }
         }
 
         .att-history-item:last-child {
@@ -397,7 +455,10 @@
             <h1>Registrar Asistencia</h1>
             <p>Escanea el código QR del día para registrar tu entrada o salida.</p>
         </div>
-        <div class="att-center-wrap">
+        <div class="att-layout">
+
+            <!-- ── Columna principal: identidad, escáner y resultado ── -->
+            <div class="att-col">
             <!-- Tarjeta del usuario -->
             <div class="att-user-card">
                 <div class="att-avatar" id="att-avatar">?</div>
@@ -436,8 +497,26 @@
                 </button>
             </div>
 
+            <!-- Acceso al panel de administración (visible solo si es profesor/admin) -->
+            <div id="admin-access-card" style="display:none;">
+                <div class="course-card" style="text-align:center;padding:20px 24px;">
+                    <div style="font-size:1.6rem;margin-bottom:8px;">🔐</div>
+                    <h3 class="course-title" style="margin-bottom:6px;">Panel Administrativo</h3>
+                    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">
+                        Accede al gestor de QRs, registros y personal.
+                    </p>
+                    <a href="attendance_admin" class="course-start-btn"
+                        style="display:block;max-width:220px;margin:0 auto;text-decoration:none;text-align:center;">
+                        Ir al Admin →
+                    </a>
+                </div>
+            </div>
+            </div><!-- /att-col -->
+
+            <!-- ── Columna lateral: historial de marcaciones ── -->
+            <div class="att-col">
             <!-- Historial personal -->
-            <div class="course-card" style="margin-top:4px;">
+            <div class="course-card att-history-card">
                 <h3 class="course-title" style="margin-bottom:16px;">📋 Mis marcaciones</h3>
 
                 <!-- Filtros -->
@@ -476,22 +555,9 @@
                 </ul>
             </div>
 
-            <!-- Acceso al panel de administración (visible solo si es profesor/admin) -->
-            <div id="admin-access-card" style="display:none;margin-top:12px;">
-                <div class="course-card"
-                    style="border:1px solid var(--glass-border);text-align:center;padding:20px 24px;">
-                    <div style="font-size:1.6rem;margin-bottom:8px;">🔐</div>
-                    <h3 class="course-title" style="margin-bottom:6px;">Panel Administrativo</h3>
-                    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px;">
-                        Accede al gestor de QRs, registros y personal.
-                    </p>
-                    <a href="attendance_admin" class="course-start-btn"
-                        style="display:block;max-width:220px;margin:0 auto;text-decoration:none;text-align:center;">
-                        Ir al Admin →
-                    </a>
-                </div>
-            </div>
-        </div>
+            </div><!-- /att-col -->
+
+        </div><!-- /att-layout -->
     </div>
 
     <script src="mirai-boot.js"></script>

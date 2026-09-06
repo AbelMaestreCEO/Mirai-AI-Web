@@ -1066,6 +1066,96 @@
         [data-theme="dark"] .settings-section-icon {
             background: #4A4458 !important;
         }
+
+        /* ══════════════════════════════════════════════════════════════
+           DISEÑO EN ESCRITORIO — MÁS COMPACTO
+           ══════════════════════════════════════════════════════════════
+           Este bloque va después de styles.css a propósito: ahí se define
+           `.mobile-sidebar ~ .settings-container` para apartar el contenido del
+           sidebar fijo, y aquí se ajusta ese mismo selector.
+
+           En lugar de un margen izquierdo, se reserva el hueco del sidebar con
+           `padding-left` y se amplía el `max-width` en esos mismos 280px. Así
+           los márgenes automáticos siguen centrando el contenido dentro del
+           espacio realmente libre, en cualquier ancho de pantalla. */
+        @media (min-width: 769px) {
+            .mobile-sidebar~.settings-container {
+                box-sizing: border-box;
+                max-width: calc(1180px + 280px);
+                margin: 0 auto;
+                padding: 22px 28px 56px calc(280px + 28px);
+            }
+
+            .mobile-sidebar.collapsed~.settings-container {
+                max-width: calc(1180px + 72px);
+                padding-left: calc(72px + 28px);
+            }
+
+            /* Hero: ocupaba un tercio de la pantalla sin aportar información */
+            .settings-hero {
+                margin-bottom: 20px;
+                padding: 20px 24px;
+                gap: 16px;
+            }
+
+            .settings-hero-icon {
+                width: 44px;
+                height: 44px;
+                font-size: 1.3rem;
+            }
+
+            .settings-hero h1 {
+                font-size: 1.3rem;
+            }
+
+            .settings-section-header {
+                padding: 14px 20px 12px;
+            }
+
+            .settings-section-body {
+                padding: 16px 20px;
+            }
+
+            .settings-section {
+                margin-bottom: 0;
+            }
+        }
+
+        /* Dos columnas tipo mosaico. Se usa multicolumna en vez de grid porque
+           las secciones tienen alturas muy distintas: con grid cada fila se
+           igualaría a la sección más alta y quedarían huecos enormes. */
+        @media (min-width: 1080px) {
+            .mobile-sidebar~.settings-container {
+                column-count: 2;
+                column-gap: 18px;
+            }
+
+            .settings-section {
+                break-inside: avoid;
+                margin: 0 0 18px;
+                display: inline-block;
+                width: 100%;
+            }
+
+            /* El encabezado y los botones cruzan las dos columnas */
+            .settings-hero,
+            .settings-actions {
+                column-span: all;
+            }
+
+            .settings-actions {
+                margin-top: 10px;
+            }
+
+            /* Con la mitad de ancho, estas rejillas necesitan celdas menores */
+            .font-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+
+            .color-palette {
+                grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+            }
+        }
     </style>
 </head>
 

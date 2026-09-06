@@ -55,20 +55,28 @@
     <style>
         /* ── Estilos exclusivos de generation ── */
 
+        /* El sidebar es `position: fixed` y mide 280px (72px colapsado). Antes se
+           compensaba con `var(--sidebar-width, 260px)` —variable que no está
+           definida en ninguna hoja, así que siempre caía en el 260px de
+           reserva— y con `body.sidebar-collapsed`, clase que nadie añade: el
+           colapso lo marca `.mobile-sidebar.collapsed`. Se usa el mismo patrón
+           de hermano adyacente que styles.css aplica a `.header`. */
         .gen-page-content {
-            margin-left: var(--sidebar-width, 260px);
+            margin-left: 280px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            transition: margin-left 0.3s ease;
+            transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
         }
 
-        body.sidebar-collapsed .gen-page-content {
-            margin-left: 60px;
+        .mobile-sidebar.collapsed~.gen-page-content {
+            margin-left: 72px;
         }
 
         @media (max-width: 768px) {
-            .gen-page-content {
+
+            .gen-page-content,
+            .mobile-sidebar.collapsed~.gen-page-content {
                 margin-left: 0;
             }
         }
@@ -681,6 +689,103 @@
             .gen-result-header { flex-direction: column; align-items: flex-start; }
             .gen-history-grid { grid-template-columns: 1fr; }
             .gen-selects-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           ESCRITORIO — VISTA COMPACTA A DOS COLUMNAS
+           ══════════════════════════════════════════════════════════════ */
+
+        /* Hero: el icono pasa a la misma línea que el título y se recortan los
+           espaciados, que ocupaban casi la mitad de la primera pantalla. */
+        @media (min-width: 900px) {
+
+            /* La zona hero es un flex en columna; al pasarla a fila con salto,
+               el icono y el título comparten línea y el subtítulo y el campo de
+               texto ocupan el ancho completo debajo. */
+            .gen-hero-zone {
+                flex-flow: row wrap;
+                justify-content: center;
+                align-items: center;
+                column-gap: 12px;
+                padding: 24px 24px 16px;
+            }
+
+            .gen-hero-icon {
+                font-size: 1.9rem;
+                margin: 0;
+            }
+
+            .gen-hero-title {
+                font-size: 1.75rem;
+                margin: 0;
+            }
+
+            /* `max-width: 520px` limitaba la base flexible e impedía el salto
+               de línea, así que el subtítulo se colocaba junto al título. */
+            .gen-hero-subtitle {
+                flex-basis: 100%;
+                max-width: none;
+                margin: 6px 0 16px;
+                font-size: 0.88rem;
+            }
+
+            .gen-input-wrapper {
+                flex-basis: 100%;
+                margin: 0 auto;
+            }
+        }
+
+        /* Dos columnas: a la izquierda los ajustes del módulo activo, a la
+           derecha el resultado y el historial. Sólo hay un `.gen-panel` visible
+           a la vez (el resto está en `display: none`, así que no genera celda),
+           de modo que el panel activo ocupa siempre la fila 1 de la columna 1 y
+           los bloques de la derecha se apilan en la columna 2. */
+        @media (min-width: 1100px) {
+            .gen-body {
+                max-width: 1240px;
+                display: flex;
+                align-items: flex-start;
+                gap: 28px;
+            }
+
+            /* generation.js alterna los paneles con `style.display`, no con la
+               clase `active`, así que la regla se aplica a todos: el que está
+               oculto no genera caja flex y sólo cuenta el visible. */
+            .gen-panel {
+                flex: 0 0 360px;
+                /* 84px = alto del `.header` sticky (68px) + un respiro */
+                position: sticky;
+                top: 84px;
+                max-height: calc(100vh - 100px);
+                overflow-y: auto;
+            }
+
+            .gen-output-col {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+
+            /* El historial ya no necesita el separador superior: la columna
+               propia lo separa visualmente del resto. */
+            .gen-history-section {
+                margin-top: 0;
+                border-top: none;
+                padding-top: 0;
+            }
+
+            /* En una columna de 360px las píldoras no deben estirarse a partes
+               iguales: se dejan a su ancho natural para que ajusten mejor. */
+            .gen-options-row .filter-pill {
+                flex: 0 1 auto;
+            }
+
+            .gen-selects-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gen-history-grid {
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            }
         }
 
         /* ── Módulos en el panel lateral ── */
@@ -1312,6 +1417,11 @@
                 </div>
             </div>
 
+            <!-- ── COLUMNA DE SALIDA (resultado + historial) ──
+                 En escritorio esta columna se coloca a la derecha de los
+                 ajustes; en móvil es un contenedor sin estilos propios. -->
+            <div class="gen-output-col">
+
             <!-- ── LOADING ── -->
             <div class="gen-loading" id="gen-loading">
                 <div class="gen-orb">
@@ -1356,6 +1466,8 @@
                     <button class="gen-action-btn" id="gen-hist-load-more">Cargar más</button>
                 </div>
             </div>
+
+            </div><!-- /gen-output-col -->
 
         </div><!-- /gen-body -->
     </div><!-- /gen-page-content -->

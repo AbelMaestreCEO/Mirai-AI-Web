@@ -253,49 +253,74 @@ function createProductCard(product) {
         }
     }
 
-    // Foto (si existe)
-    let photoHtml = '';
-    if (product.photo_r2_key) {
-        const photoUrl = `/api/image/${product.photo_r2_key}`;
-        photoHtml = `
-            <div class="product-photo" style="background-image: url('${photoUrl}')"></div>
-        `;
-    }
+    // Cabecera visual: la foto del producto si existe y, si no, un degradado
+    // con el emoji de la categoría. Se renderiza SIEMPRE para que todas las
+    // tarjetas midan exactamente lo mismo tengan foto o no.
+    const emoji = categoryIcons[product.category] || '📦';
+    const mediaHtml = product.photo_r2_key
+        ? `<div class="inv-card-media" style="background-image: url('/api/image/${product.photo_r2_key}')">
+               <span class="course-level ${stockClass}">${stockLabel}</span>
+           </div>`
+        : `<div class="inv-card-media no-photo">
+               <span class="inv-card-emoji">${emoji}</span>
+               <span class="course-level ${stockClass}">${stockLabel}</span>
+           </div>`;
 
     // Demanda score
     const demandScore = product.demand_score || 0;
     const demandColor = demandScore > 70 ? '#D00000' : (demandScore > 40 ? '#FF9F0A' : '#386A20');
 
     // ✅ AQUÍ ESTABA EL ERROR: Debemos incluir los botones en el template string
+    const description = product.ai_description || 'Sin descripción';
+
     card.innerHTML = `
-        <span class="course-level ${stockClass}">${stockLabel}</span>
-        ${photoHtml}
-        <div class="course-icon">${categoryIcons[product.category] || '📦'}</div>
-        <h3 class="course-title">${escapeHtml(product.name)}</h3>
-        <p class="course-description">${escapeHtml(product.ai_description || 'Sin descripción')}</p>
-        
-        ${tagsHtml ? `<div class="product-tags">${tagsHtml}</div>` : ''}
-        
-        <div class="course-meta">
-            <span class="course-meta-item"><span>📦</span> ${product.quantity || 0} unidades</span>
-            <span class="course-meta-item"><span>💰</span> $${(product.unit_price || 0).toFixed(2)}</span>
-        </div>
-        
-        <div class="product-demand">
-            <span class="demand-label">Demanda:</span>
-            <div class="demand-bar">
-                <div class="demand-fill" style="width: ${demandScore}%; background: ${demandColor}"></div>
+        ${mediaHtml}
+        <div class="inv-card-body">
+            <h3 class="course-title inv-card-title">${escapeHtml(product.name)}</h3>
+
+            <div class="inv-card-desc-wrap">
+                <p class="course-description inv-card-desc">${escapeHtml(description)}</p>
+                <button type="button" class="inv-more-btn" hidden>Mostrar más</button>
             </div>
-            <span class="demand-score">${demandScore}%</span>
-        </div>
-        
-        <div class="product-actions">
-            <button class="btn-view-details" data-id="${product.id}">Ver Detalles</button>
-            <button class="btn-sell-item" data-id="${product.id}" title="Poner a la venta">🏷️</button>
-            <button class="btn-edit" data-id="${product.id}" title="Editar">✏️</button>
-            <button class="btn-delete" data-id="${product.id}" title="Eliminar">🗑️</button>
+
+            <div class="product-tags inv-card-tags">${tagsHtml}</div>
+
+            <div class="course-meta">
+                <span class="course-meta-item"><span>📦</span> ${product.quantity || 0} unidades</span>
+                <span class="course-meta-item"><span>💰</span> $${(product.unit_price || 0).toFixed(2)}</span>
+            </div>
+
+            <div class="product-demand">
+                <span class="demand-label">Demanda:</span>
+                <div class="demand-bar">
+                    <div class="demand-fill" style="width: ${demandScore}%; background: ${demandColor}"></div>
+                </div>
+                <span class="demand-score">${demandScore}%</span>
+            </div>
+
+            <div class="product-actions">
+                <button class="btn-view-details" data-id="${product.id}">Ver Detalles</button>
+                <button class="btn-sell-item" data-id="${product.id}" title="Poner a la venta">🏷️</button>
+                <button class="btn-edit" data-id="${product.id}" title="Editar">✏️</button>
+                <button class="btn-delete" data-id="${product.id}" title="Eliminar">🗑️</button>
+            </div>
         </div>
     `;
+
+    // "Mostrar más": sólo aparece si la descripción no cabe en las 3 líneas
+    // visibles. La comprobación se aplaza a que la tarjeta esté en el DOM,
+    // porque antes de eso scrollHeight y clientHeight valen 0.
+    const descEl = card.querySelector('.inv-card-desc');
+    const moreBtn = card.querySelector('.inv-more-btn');
+    requestAnimationFrame(() => {
+        if (descEl.scrollHeight - descEl.clientHeight > 1) {
+            moreBtn.hidden = false;
+        }
+    });
+    moreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openDescriptionModal(product.name, description);
+    });
 
     // ✅ AHORA SÍ: Los elementos existen en el DOM, podemos agregar los listeners
     const viewBtn = card.querySelector('.btn-view-details');
@@ -1031,9 +1056,19 @@ function closeModals() {
     document.getElementById('add-product-modal').classList.add('hidden');
     document.getElementById('product-detail-modal').classList.add('hidden');
     document.getElementById('sell-modal')?.classList.add('hidden');
+    document.getElementById('desc-modal')?.classList.add('hidden');
     setTimeout(() => {
         resetForm();
     }, 300);
+}
+
+// --- CUADRO FLOTANTE CON LA DESCRIPCIÓN COMPLETA ---
+function openDescriptionModal(name, description) {
+    const modal = document.getElementById('desc-modal');
+    if (!modal) return;
+    modal.querySelector('#desc-modal-title').textContent = name;
+    modal.querySelector('#desc-modal-text').textContent = description;
+    modal.classList.remove('hidden');
 }
 
 function closeProductDetail() {

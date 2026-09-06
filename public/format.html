@@ -259,17 +259,56 @@
             background: rgba(208, 0, 0, 0.08);
         }
 
-        /* Grid de dos columnas para el área de trabajo */
+        /* Grid de dos columnas para el área de trabajo.
+           Mismo ancho máximo y centrado que `.courses-grid`, para que las
+           columnas queden alineadas con el hero, el buscador y el contador. */
         .fmt-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px 20px 60px;
         }
 
         @media (max-width: 900px) {
             .fmt-grid {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* La barra de progreso comparte el mismo ancho que el resto */
+        .fmt-progress-row {
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ── Tarjetas: idénticas a las de courses.html ──────────────────────
+           `.course-card` ya aporta el fondo, el borde, el radio y la sombra.
+           Aquí sólo se anulan los efectos pensados para tarjetas clicables:
+           estas columnas contienen formularios, así que ni se elevan al pasar
+           el ratón ni muestran la franja de acento superior (`::before`), que
+           es de donde salía la línea que aparecía encima de los cuadros. */
+        .fmt-grid .course-card {
+            padding: 28px 24px 24px;
+            cursor: default;
+        }
+
+        .fmt-grid .course-card:hover {
+            transform: none;
+            border-color: var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+
+        .fmt-grid .course-card::before {
+            display: none;
+        }
+
+        /* En courses la descripción crece para empujar el botón al pie; aquí
+           es sólo el subtítulo de la columna y debe ocupar su altura natural. */
+        .fmt-grid .course-card>.course-description {
+            flex: none;
         }
 
         /* Estadísticas de columna */
@@ -485,15 +524,10 @@
             <!-- ── COLUMNA IZQUIERDA: Documentos ── -->
             <div class="course-card" style="cursor:default; animation-delay:0.05s;">
 
-                <!-- Cabecera de columna -->
-                <div class="course-detail-header"
-                    style="padding:0 0 16px; margin:0 0 16px; border:none; background:transparent; box-shadow:none; gap:12px;">
-                    <div class="course-detail-icon" style="width:48px;height:48px;font-size:1.6rem;">📁</div>
-                    <div>
-                        <div class="course-detail-title" style="font-size:1.1rem; margin:0;">Documentos</div>
-                        <p class="course-description" style="margin:0;">Archivos DOCX a procesar</p>
-                    </div>
-                </div>
+                <!-- Cabecera de columna — misma estructura que una tarjeta de courses -->
+                <div class="course-icon">📁</div>
+                <h3 class="course-title">Documentos</h3>
+                <p class="course-description">Archivos DOCX a procesar</p>
 
                 <!-- Zona de subida -->
                 <div class="fmt-upload-zone" id="fmt-upload-zone">
@@ -533,15 +567,10 @@
             <!-- ── COLUMNA DERECHA: Reglas ── -->
             <div class="course-card" style="cursor:default; animation-delay:0.1s;">
 
-                <!-- Cabecera de columna -->
-                <div class="course-detail-header"
-                    style="padding:0 0 16px; margin:0 0 16px; border:none; background:transparent; box-shadow:none; gap:12px;">
-                    <div class="course-detail-icon" style="width:48px;height:48px;font-size:1.6rem;">🎯</div>
-                    <div>
-                        <div class="course-detail-title" style="font-size:1.1rem; margin:0;">Reglas de Formato</div>
-                        <p class="course-description" style="margin:0;">Palabras clave y estilos</p>
-                    </div>
-                </div>
+                <!-- Cabecera de columna — misma estructura que una tarjeta de courses -->
+                <div class="course-icon">🎯</div>
+                <h3 class="course-title">Reglas de Formato</h3>
+                <p class="course-description">Palabras clave y estilos</p>
 
                 <!-- Formulario de regla -->
                 <div class="form-group">

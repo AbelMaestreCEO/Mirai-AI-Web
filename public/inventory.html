@@ -116,6 +116,213 @@
             color: #fff;
             border-color: #16a34a;
         }
+
+        /* ══════════════════════════════════════════════
+           TARJETAS DE PRODUCTO — TODAS DEL MISMO TAMAÑO
+           ══════════════════════════════════════════════
+           Cada bloque de la tarjeta tiene una altura fija o recortada, de modo
+           que la altura total no depende del largo del nombre, la descripción
+           ni del número de etiquetas. `grid-auto-rows: 1fr` iguala además
+           todas las filas entre sí. */
+        #inventory-grid {
+            grid-auto-rows: 1fr;
+            align-items: stretch;
+        }
+
+        #inventory-grid .course-card {
+            height: 100%;
+            padding: 0 0 18px;
+            cursor: pointer;
+        }
+
+        /* ── Cabecera visual: foto del producto o degradado con emoji ── */
+        .inv-card-media {
+            position: relative;
+            height: 132px;
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--secondary-container);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .inv-card-media.no-photo {
+            background-image: var(--card-accent);
+        }
+
+        .inv-card-media.no-photo::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--glass-bg);
+            opacity: 0.72;
+        }
+
+        .inv-card-emoji {
+            position: relative;
+            z-index: 1;
+            font-size: 2.6rem;
+            line-height: 1;
+        }
+
+        /* La insignia de stock se ancla sobre la cabecera */
+        #inventory-grid .course-level {
+            top: 10px;
+            right: 10px;
+            z-index: 2;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+
+        /* Colores de la insignia según el nivel de stock */
+        .course-level.available {
+            background: rgba(56, 106, 32, 0.18);
+            color: #386A20;
+            border: 1px solid rgba(56, 106, 32, 0.3);
+        }
+
+        [data-theme="dark"] .course-level.available {
+            background: rgba(168, 216, 140, 0.18);
+            color: #A8D88C;
+        }
+
+        .course-level.warning {
+            background: rgba(255, 159, 10, 0.18);
+            color: #C77700;
+            border: 1px solid rgba(255, 159, 10, 0.3);
+        }
+
+        [data-theme="dark"] .course-level.warning {
+            color: #FFB74D;
+        }
+
+        .course-level.critical {
+            background: rgba(208, 0, 0, 0.18);
+            color: #D00000;
+            border: 1px solid rgba(208, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] .course-level.critical {
+            color: #FF8A80;
+        }
+
+        /* ── Cuerpo de la tarjeta ── */
+        .inv-card-body {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            padding: 16px 18px 0;
+        }
+
+        /* Nombre: siempre 2 líneas de alto, recortado con puntos suspensivos */
+        .inv-card-title {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: 2.6em;
+            margin-bottom: 6px;
+        }
+
+        /* Descripción: 3 líneas exactas para que el pie quede alineado */
+        .inv-card-desc-wrap {
+            margin-bottom: 8px;
+        }
+
+        .inv-card-desc {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            min-height: calc(3 * 1.55em);
+            margin-bottom: 0;
+            flex: none;
+        }
+
+        /* Botón "Mostrar más": sólo se muestra si el texto se recortó */
+        .inv-more-btn {
+            background: none;
+            border: none;
+            padding: 2px 0 0;
+            margin: 0;
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .inv-more-btn:hover {
+            opacity: 0.75;
+            text-decoration: underline;
+        }
+
+        /* Etiquetas de IA: una sola fila, sin desbordar. El `margin-top: auto`
+           empuja este bloque y todo lo que sigue (unidades, demanda, botones)
+           al pie de la tarjeta, de modo que quedan alineados entre tarjetas
+           aunque la descripción sea más corta o falte el botón "Mostrar más". */
+        .inv-card-tags {
+            margin: auto 0 4px;
+            height: 24px;
+            overflow: hidden;
+            flex-wrap: nowrap;
+        }
+
+        .inv-card-tags .tag-chip {
+            white-space: nowrap;
+        }
+
+        /* Pie de la tarjeta */
+        #inventory-grid .course-meta {
+            margin-bottom: 0;
+            padding-top: 12px;
+        }
+
+        #inventory-grid .product-demand {
+            margin: 10px 0 0;
+        }
+
+        #inventory-grid .product-actions {
+            margin-top: 12px;
+        }
+
+        /* ── Cuadro flotante con la descripción completa ── */
+        .inv-desc-modal .modal-content {
+            max-width: 560px;
+            padding: 28px;
+        }
+
+        .inv-desc-modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0 0 4px;
+            padding-right: 32px;
+        }
+
+        .inv-desc-modal-sub {
+            font-size: 0.78rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin: 0 0 16px;
+        }
+
+        .inv-desc-modal-text {
+            font-size: 0.92rem;
+            line-height: 1.65;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            max-height: 55vh;
+            overflow-y: auto;
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -487,6 +694,17 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Cuadro flotante con la descripción completa del producto -->
+    <div id="desc-modal" class="modal inv-desc-modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content slide-up">
+            <button class="modal-close" id="desc-modal-close" aria-label="Cerrar">&times;</button>
+            <h2 class="inv-desc-modal-title" id="desc-modal-title"></h2>
+            <p class="inv-desc-modal-sub">Descripción completa</p>
+            <p class="inv-desc-modal-text" id="desc-modal-text"></p>
         </div>
     </div>
 
