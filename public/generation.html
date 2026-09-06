@@ -797,6 +797,7 @@
                         <button class="filter-pill" data-tab="editar">✏️ Editar Imagen</button>
                         <button class="filter-pill" data-tab="activos">🧩 Activos</button>
                         <button class="filter-pill" data-tab="video">🎬 Vídeo</button>
+                        <button class="filter-pill" data-tab="videoedit">🎞️ Vídeo Avanzado</button>
                         <button class="filter-pill" data-tab="avatar">🗣️ Vídeo Avatar</button>
                         <button class="filter-pill" data-tab="musica">🎵 Música</button>
                     </div>
@@ -936,6 +937,39 @@
                     <button class="filter-pill" data-val="anime">🌸 Anime</button>
                     <button class="filter-pill" data-val="fotorrealista">📷 Fotorrealista</button>
                 </div>
+
+                <p class="gen-options-label">Motor</p>
+                <div class="gen-options-row" id="image-engine-opts">
+                    <button class="filter-pill active" data-val="p-image">✨ Estándar</button>
+                    <button class="filter-pill" data-val="p-image-ideogram">🔤 Tipografía</button>
+                </div>
+                <div id="gen-image-engine-hint" style="font-size:0.82rem;color:var(--text-secondary);margin:-8px 0 16px;">
+                    El motor de tipografía escribe texto legible dentro de la imagen (carteles, logos, portadas).
+                </div>
+
+                <p class="gen-options-label">Relación de aspecto</p>
+                <div class="gen-options-row" id="image-aspect-opts">
+                    <button class="filter-pill active" data-val="1:1">⬜ 1:1</button>
+                    <button class="filter-pill" data-val="16:9">🖥️ 16:9</button>
+                    <button class="filter-pill" data-val="9:16">📱 9:16</button>
+                    <button class="filter-pill" data-val="4:3">🖼️ 4:3</button>
+                    <button class="filter-pill" data-val="3:4">📄 3:4</button>
+                </div>
+
+                <div id="gen-image-quality-wrap" style="display:none;">
+                    <p class="gen-options-label">Calidad tipográfica</p>
+                    <div class="gen-options-row" id="image-quality-opts">
+                        <button class="filter-pill" data-val="very low">⚡ Rápida</button>
+                        <button class="filter-pill" data-val="medium">⚖️ Media</button>
+                        <button class="filter-pill active" data-val="high">💎 Alta</button>
+                        <button class="filter-pill" data-val="very high">🏆 Máxima</button>
+                    </div>
+                    <p class="gen-options-label">Tamaño de salida</p>
+                    <div class="gen-options-row" id="image-size-opts">
+                        <button class="filter-pill active" data-val="1K">1K</button>
+                        <button class="filter-pill" data-val="2K">2K</button>
+                    </div>
+                </div>
             </div>
 
             <!-- ── PANEL ACTIVOS ── -->
@@ -946,6 +980,19 @@
                     <button class="filter-pill" data-val="cartoon2d">🖍️ 2D Cartoon</button>
                     <button class="filter-pill" data-val="anime2d">🌸 2D Animé</button>
                     <button class="filter-pill" data-val="animechibi">🧸 2D Anime Chibi</button>
+                </div>
+
+                <p class="gen-options-label">Motor</p>
+                <div class="gen-options-row" id="asset-engine-opts">
+                    <button class="filter-pill active" data-val="p-image">✨ Estándar</button>
+                    <button class="filter-pill" data-val="p-image-ideogram">🔤 Tipografía</button>
+                </div>
+
+                <p class="gen-options-label">Relación de aspecto</p>
+                <div class="gen-options-row" id="asset-aspect-opts">
+                    <button class="filter-pill active" data-val="1:1">⬜ 1:1</button>
+                    <button class="filter-pill" data-val="16:9">🖥️ 16:9</button>
+                    <button class="filter-pill" data-val="9:16">📱 9:16</button>
                 </div>
             </div>
 
@@ -1033,6 +1080,100 @@
                     <button class="filter-pill" data-val="cartoon">🎨 Cartoon</button>
                     <button class="filter-pill" data-val="anime">🌸 Anime</button>
                     <button class="filter-pill" data-val="fotorrealista">📷 Fotorrealista</button>
+                </div>
+
+                <p class="gen-options-label">Resolución</p>
+                <div class="gen-options-row" id="video-resolution-opts">
+                    <button class="filter-pill active" data-val="720p">📺 720p</button>
+                    <button class="filter-pill" data-val="1080p">🎞️ 1080p</button>
+                </div>
+
+                <p class="gen-options-label">Relación de aspecto</p>
+                <div class="gen-options-row" id="video-aspect-opts">
+                    <button class="filter-pill active" data-val="16:9">🖥️ 16:9</button>
+                    <button class="filter-pill" data-val="9:16">📱 9:16</button>
+                    <button class="filter-pill" data-val="1:1">⬜ 1:1</button>
+                </div>
+
+                <p class="gen-options-label">Duración</p>
+                <div class="gen-options-row" id="video-duration-opts">
+                    <button class="filter-pill" data-val="3">3 s</button>
+                    <button class="filter-pill active" data-val="5">5 s</button>
+                    <button class="filter-pill" data-val="8">8 s</button>
+                    <button class="filter-pill" data-val="10">10 s</button>
+                </div>
+
+                <p class="gen-options-label">Modo</p>
+                <div class="gen-options-row" id="video-draft-opts">
+                    <button class="filter-pill active" data-val="false">💎 Calidad estándar</button>
+                    <button class="filter-pill" data-val="true">⚡ Borrador (4x más barato)</button>
+                </div>
+                <div style="font-size:0.82rem;color:var(--text-secondary);margin:-8px 0 0;">
+                    El borrador genera más rápido y con menos calidad. Útil para probar un prompt antes de gastar en la versión final.
+                </div>
+            </div>
+
+            <!-- ── PANEL VÍDEO AVANZADO (edit / animate / replace) ── -->
+            <div class="gen-panel" id="panel-videoedit">
+                <p class="gen-options-label">Qué quieres hacer</p>
+                <div class="gen-options-row" id="videoedit-mode-opts">
+                    <button class="filter-pill active" data-val="edit">✂️ Editar con prompt</button>
+                    <button class="filter-pill" data-val="animate">🕺 Animar personaje</button>
+                    <button class="filter-pill" data-val="replace">🔁 Reemplazar personas</button>
+                </div>
+                <div id="gen-videoedit-hint" style="font-size:0.82rem;color:var(--text-secondary);margin:-8px 0 16px;"></div>
+
+                <div class="gen-edit-source" id="gen-videoedit-source" style="display:none;">
+                    <p class="gen-options-label">Vídeo de origen</p>
+                    <div class="gen-edit-preview-wrap">
+                        <video id="gen-videoedit-preview" class="gen-edit-preview-img" controls></video>
+                        <button class="gen-edit-change-btn" id="gen-videoedit-change-btn" title="Cambiar vídeo">✕</button>
+                    </div>
+                </div>
+                <div class="gen-edit-upload" id="gen-videoedit-upload">
+                    <p class="gen-options-label">Sube o pega la URL del vídeo de origen</p>
+                    <div class="gen-edit-upload-zone" id="gen-videoedit-drop-zone">
+                        <span style="font-size:2rem;">🎞️</span>
+                        <p style="margin:6px 0 0;font-size:0.88rem;color:var(--text-secondary)">Arrastra un vídeo .mp4 aquí o haz clic para seleccionar</p>
+                        <input type="file" id="gen-videoedit-file-input" accept="video/mp4,video/*" style="display:none">
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+                        <input type="text" id="gen-videoedit-url-input" class="gen-edit-url-input" placeholder="O pega la URL del vídeo...">
+                        <button class="filter-pill" id="gen-videoedit-url-load-btn">Cargar</button>
+                    </div>
+                </div>
+
+                <div id="gen-videoedit-refs" style="display:none;">
+                    <div class="gen-avatar-char-section" style="margin-top:16px;">
+                        <p class="gen-options-label">Usar un personaje guardado</p>
+                        <div class="gen-avatar-char-grid" id="gen-videoedit-char-grid">
+                            <div class="gen-avatar-char-empty">Aún no tienes personajes guardados.</div>
+                        </div>
+                    </div>
+
+                    <p class="gen-options-label" id="gen-videoedit-refs-label">Imágenes de referencia</p>
+                    <div class="gen-edit-upload-zone" id="gen-videoedit-img-drop-zone">
+                        <span style="font-size:1.6rem;">🖼️</span>
+                        <p style="margin:6px 0 0;font-size:0.85rem;color:var(--text-secondary)" id="gen-videoedit-img-hint">Arrastra imágenes aquí o haz clic para seleccionar</p>
+                        <input type="file" id="gen-videoedit-img-input" accept="image/*" multiple style="display:none">
+                    </div>
+                    <div class="gen-avatar-char-grid" id="gen-videoedit-img-preview" style="margin-top:10px;"></div>
+                </div>
+
+                <div id="gen-videoedit-resolution-wrap" style="display:none;">
+                    <p class="gen-options-label">Resolución</p>
+                    <div class="gen-options-row" id="videoedit-resolution-opts">
+                        <button class="filter-pill active" data-val="720p">📺 720p</button>
+                        <button class="filter-pill" data-val="1080p">🎞️ 1080p</button>
+                    </div>
+                </div>
+
+                <div id="gen-videoedit-draft-wrap">
+                    <p class="gen-options-label">Modo</p>
+                    <div class="gen-options-row" id="videoedit-draft-opts">
+                        <button class="filter-pill active" data-val="false">💎 Calidad estándar</button>
+                        <button class="filter-pill" data-val="true">⚡ Borrador</button>
+                    </div>
                 </div>
             </div>
 

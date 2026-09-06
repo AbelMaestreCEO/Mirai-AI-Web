@@ -20,7 +20,24 @@ const CHAT_MAX_TOKENS = 4000;
 // ✨ Configuración Video (Pruna AI P-Video, vía API REST directa — ver resolvePrunaSync)
 const VIDEO_CONFIG = {
   MAX_PROMPT_LENGTH: 2000,
+  DEFAULT_RESOLUTION: '720p',
+  DEFAULT_DURATION: 5,
+  DEFAULT_ASPECT_RATIO: '16:9',
 };
+
+// Valores aceptados por los modelos de imagen de Pruna. Se validan en el
+// backend en vez de confiar en el frontend: un aspect_ratio inventado hace que
+// Pruna rechace la predicción entera con un 400 poco descriptivo.
+const IMAGE_ASPECT_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'];
+const VIDEO_RESOLUTIONS = ['720p', '1080p'];
+
+// Motores de generación de imagen disponibles. p-image es el de uso general;
+// p-image-ideogram rinde mucho mejor cuando el prompt lleva texto/tipografía
+// (carteles, logos, íconos con etiqueta), y su precio depende del nivel de
+// "thinking" y del tamaño de salida — ver API_PRICING.pruna.ideogram.
+const IMAGE_ENGINES = ['p-image', 'p-image-ideogram'];
+const IDEOGRAM_THINKING_LEVELS = ['very low', 'low', 'medium', 'high', 'very high'];
+const IDEOGRAM_IMAGE_SIZES = ['1K', '2K'];
 
 // ✨ Configuración Vídeo Avatar (Pruna AI P-Video-Avatar)
 const VIDEO_AVATAR_CONFIG = {
@@ -34,10 +51,15 @@ const VIDEO_AVATAR_CONFIG = {
 // 💵 Precios de referencia en USD para el panel de consumo de APIs externas (/api/admin/api-usage).
 // Verificado 2026-07-16. Fuentes: DeepSeek https://api-docs.deepseek.com/quick_start/pricing/ (oficial),
 // Exa https://exa.ai/pricing, Firecrawl https://firecrawl.dev/pricing (plan Hobby),
-// Pruna https://docs.pruna.ai (p-image/p-image-edit: precio fijo por salida;
-// p-video/p-video-avatar: $/segundo de video generado, varía por resolución —
-// ver getMp4DurationSeconds()), Google Maps
-// https://developers.google.com/maps/billing-and-pricing/pricing.
+// Pruna https://docs.pruna.ai — cada familia de modelos se cobra distinto, así
+// que los precios están agrupados por forma de cobro en vez de por un único
+// número por modelo:
+//   flat/imagen            → precio fijo por imagen de salida (o de entrada, en p-judger)
+//   ideogram               → $ por imagen según nivel de "thinking" y tamaño (1K/2K)
+//   upscale_by_megapixels  → $ por imagen según los MP del objetivo, por tramos
+//   video_per_second       → $ por segundo de vídeo generado, por resolución y
+//                            modo draft (ver getMp4DurationSeconds())
+// Google Maps https://developers.google.com/maps/billing-and-pricing/pricing.
 // Actualizar manualmente cuando cambien los precios oficiales de cada proveedor.
 const API_PRICING = {
   deepseek: {
@@ -45,12 +67,53 @@ const API_PRICING = {
     'deepseek-v4-pro': { input_cache_miss_per_1m: 0.435, input_cache_hit_per_1m: 0.003625, output_per_1m: 0.87 },
   },
   pruna: {
-    'p-image': 0.005,
-    'p-image-edit': 0.01,
-    // $ por segundo de video generado (modo estándar, sin draft), por resolución.
+    // Precio fijo por unidad. p-judger cobra por imagen *de entrada* evaluada.
+    flat: {
+      'p-image': 0.005,
+      'p-image-edit': 0.01,
+      'p-judger': 0.005,
+    },
+    // p-image-ideogram: $/imagen = f(thinking, image_size).
+    ideogram: {
+      'very low': { '1K': 0.003, '2K': 0.006 },
+      'low': { '1K': 0.0075, '2K': 0.015 },
+      'medium': { '1K': 0.01, '2K': 0.02 },
+      'high': { '1K': 0.015, '2K': 0.03 },
+      'very high': { '1K': 0.033, '2K': 0.066 },
+    },
+    // p-image-upscale: tramos por megapíxeles del objetivo (`target`, 1–128 MP).
+    // Se busca el primer tramo cuyo max_mp cubra el objetivo pedido.
+    upscale_by_megapixels: [
+      { max_mp: 4, price: 0.005 },
+      { max_mp: 8, price: 0.01 },
+      { max_mp: 16, price: 0.02 },
+      { max_mp: 32, price: 0.04 },
+      { max_mp: 64, price: 0.06 },
+      { max_mp: 128, price: 0.12 },
+    ],
+    // $ por segundo de vídeo generado. `draft` solo existe en los modelos que
+    // lo soportan (p-video, p-video-edit); en el resto se ignora.
+    // p-video-edit cobra igual en 720p y 1080p: su precio no depende de la
+    // resolución sino del modo, pero se deja la misma forma para no tener dos
+    // caminos distintos de cálculo.
     video_per_second: {
-      'p-video': { '720p': 0.02, '1080p': 0.04 },
-      'p-video-avatar': { '720p': 0.025, '1080p': 0.045 },
+      'p-video': {
+        standard: { '720p': 0.02, '1080p': 0.04 },
+        draft: { '720p': 0.005, '1080p': 0.01 },
+      },
+      'p-video-avatar': {
+        standard: { '720p': 0.025, '1080p': 0.045 },
+      },
+      'p-video-animate': {
+        standard: { '720p': 0.03, '1080p': 0.06 },
+      },
+      'p-video-replace': {
+        standard: { '720p': 0.03, '1080p': 0.06 },
+      },
+      'p-video-edit': {
+        standard: { '720p': 0.045, '1080p': 0.045 },
+        draft: { '720p': 0.025, '1080p': 0.025 },
+      },
     },
   },
   cloudflare_email: { email: 0 }, // Email Sending: incluido en el plan Workers de pago
@@ -60,7 +123,21 @@ const API_PRICING = {
   google_maps: { map_load: 0.007, places_autocomplete: 0, geocode: 0.005 },
 };
 
-function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0, durationSeconds = null, resolution = '720p' } = {}) {
+// Precio por imagen de p-image-upscale según los megapíxeles pedidos.
+function upscalePriceForMegapixels(targetMp) {
+  const mp = Number(targetMp);
+  if (!Number.isFinite(mp) || mp <= 0) return 0;
+  const tier = API_PRICING.pruna.upscale_by_megapixels.find(t => mp <= t.max_mp);
+  // Por encima del último tramo (128 MP) Pruna ya rechaza la petición, así que
+  // si llegara algo mayor se cobra al tramo más caro en vez de devolver 0.
+  return tier ? tier.price : API_PRICING.pruna.upscale_by_megapixels[API_PRICING.pruna.upscale_by_megapixels.length - 1].price;
+}
+
+function calcCost(provider, subType, {
+  units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0,
+  durationSeconds = null, resolution = '720p', draft = false,
+  targetMegapixels = null, thinking = 'high', imageSize = '1K',
+} = {}) {
   try {
     switch (provider) {
       case 'deepseek': {
@@ -75,10 +152,31 @@ function calcCost(provider, subType, { units = 1, tokensIn = 0, tokensOut = 0, c
         const perSecond = API_PRICING.pruna.video_per_second[subType];
         if (perSecond) {
           if (durationSeconds == null) return 0; // no se pudo determinar la duración real, no inventar un costo
-          const rate = perSecond[resolution] ?? perSecond['720p'];
+          // Un modelo sin tarifa de draft (avatar, animate, replace) siempre
+          // cobra la estándar, aunque llegue draft=true por error.
+          const table = (draft && perSecond.draft) ? perSecond.draft : perSecond.standard;
+          const rate = table[resolution] ?? table['720p'];
           return durationSeconds * rate;
         }
-        return (API_PRICING.pruna[subType] ?? 0) * units;
+
+        if (subType === 'p-image-ideogram') {
+          const byThinking = API_PRICING.pruna.ideogram[thinking] || API_PRICING.pruna.ideogram['high'];
+          return (byThinking[imageSize] ?? byThinking['1K']) * units;
+        }
+
+        if (subType === 'p-image-upscale') {
+          return upscalePriceForMegapixels(targetMegapixels) * units;
+        }
+
+        const flat = API_PRICING.pruna.flat[subType];
+        if (flat === undefined) {
+          // Antes cualquier sub_type desconocido se registraba con costo 0 en
+          // silencio, así que un modelo nuevo parecía gratis en el panel de
+          // consumo hasta que alguien cuadraba la factura a mano.
+          console.warn(`⚠️ calcCost: sub_type de Pruna sin precio configurado: ${subType}`);
+          return 0;
+        }
+        return flat * units;
       }
       case 'cloudflare_email':
         return API_PRICING.cloudflare_email.email * units;
@@ -1561,7 +1659,7 @@ async function handleChat(request, env, corsHeaders, ctx = null) {
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone, image_options, video_options } = await request.json();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -1653,7 +1751,8 @@ async function handleChat(request, env, corsHeaders, ctx = null) {
           env,
           corsHeaders,
           classification.is_copyright === true,
-          !!skip_history
+          !!skip_history,
+          image_options || {}
         );
 
       case INTENT_TYPES.VIDEO:
@@ -1663,7 +1762,8 @@ async function handleChat(request, env, corsHeaders, ctx = null) {
           userDni,
           env,
           corsHeaders,
-          !!skip_history
+          !!skip_history,
+          video_options || {}
         );
 
       case INTENT_TYPES.MUSIC:
@@ -4207,6 +4307,28 @@ NO agregues texto adicional fuera del JSON.`;
     if (path === '/api/image-edit' && request.method === 'POST')
       return await handleImageEdit(request, env, corsHeaders);
 
+    // ── Mejora de calidad con Pruna P-Image-Upscale ──
+    if (path === '/api/image-upscale' && request.method === 'POST')
+      return await handleImageUpscale(request, env, corsHeaders);
+
+    // ── Evaluación de imagen contra su prompt con Pruna P-Judger ──
+    if (path === '/api/image-judge' && request.method === 'POST')
+      return await handleImageJudge(request, env, corsHeaders);
+
+    // ── Vídeo avanzado: P-Video-Edit / P-Video-Animate / P-Video-Replace ──
+    if (path === '/api/video-edit' && request.method === 'POST')
+      return await handleAdvancedVideoGeneration(request, env, corsHeaders, 'edit');
+    if (path === '/api/video-animate' && request.method === 'POST')
+      return await handleAdvancedVideoGeneration(request, env, corsHeaders, 'animate');
+    if (path === '/api/video-replace' && request.method === 'POST')
+      return await handleAdvancedVideoGeneration(request, env, corsHeaders, 'replace');
+
+    // Estado de cualquier job de vídeo asíncrono (avatar incluido).
+    // /api/video-avatar/jobs se mantiene más abajo como alias porque es el que
+    // usa el cliente ya desplegado.
+    if (path === '/api/video-jobs' && request.method === 'GET')
+      return await handleGetVideoAvatarJob(request, env, corsHeaders);
+
     // ── Vídeo Avatar con Pruna P-Video-Avatar ──
     if (path === '/api/video-avatar/characters' && request.method === 'POST')
       return await handleSaveVideoAvatarCharacter(request, env, corsHeaders);
@@ -4685,6 +4807,11 @@ async function handleSyncPoll(request, env, corsHeaders) {
 // HISTORIAL DE GENERACIÓN CON IA
 // ══════════════════════════════════════════════════
 
+// Tipos válidos del historial de generación. Coinciden con las pestañas de
+// generation.html. Estaba repetida como literal en el save, el get y el delete,
+// así que añadir una pestaña obligaba a acordarse de los tres sitios.
+const GEN_HISTORY_TYPES = ['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'videoedit', 'musica'];
+
 async function handleGenHistorySave(request, env, corsHeaders) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -4695,7 +4822,7 @@ async function handleGenHistorySave(request, env, corsHeaders) {
   }
 
   const { type, badge, prompt, result } = body;
-  if (!type || !['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'musica'].includes(type)) {
+  if (!type || !GEN_HISTORY_TYPES.includes(type)) {
     return jsonResponse({ error: 'type inválido' }, 400, corsHeaders);
   }
 
@@ -4754,7 +4881,7 @@ async function handleGenHistoryGet(request, env, corsHeaders) {
     `).run();
 
     let query, params;
-    if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'musica'].includes(type)) {
+    if (type && GEN_HISTORY_TYPES.includes(type)) {
       query = `SELECT id, type, badge, prompt, result, created_at
                FROM gen_history
                WHERE user_dni = ? AND type = ?
@@ -4790,7 +4917,7 @@ async function handleGenHistoryDelete(request, env, corsHeaders) {
       await env.MIRAI_AI_DB.prepare(
         `DELETE FROM gen_history WHERE id = ? AND user_dni = ?`
       ).bind(parseInt(id), userDni.toUpperCase()).run();
-    } else if (type && ['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'musica'].includes(type)) {
+    } else if (type && GEN_HISTORY_TYPES.includes(type)) {
       await env.MIRAI_AI_DB.prepare(
         `DELETE FROM gen_history WHERE user_dni = ? AND type = ?`
       ).bind(userDni.toUpperCase(), type).run();
@@ -10101,56 +10228,44 @@ function updateSendButtonIcon() {
   }
 }
 
-// --- GENERAR IMAGEN CON PRUNA AI P-IMAGE ---
-async function generateAndStoreImage(prompt, conversationId, env) {
+// Normaliza las opciones de imagen que llegan del cliente. Todo lo que no esté
+// en la lista blanca cae al valor por defecto: Pruna rechaza la predicción
+// entera con un 400 si un enum no es exacto.
+function normalizeImageOptions(raw = {}) {
+  const engine = IMAGE_ENGINES.includes(raw.engine) ? raw.engine : 'p-image';
+  const aspectRatio = IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : '1:1';
+  const thinking = IDEOGRAM_THINKING_LEVELS.includes(raw.thinking) ? raw.thinking : 'high';
+  const imageSize = IDEOGRAM_IMAGE_SIZES.includes(raw.image_size) ? raw.image_size : '1K';
+  return { engine, aspectRatio, thinking, imageSize };
+}
+
+// --- GENERAR IMAGEN CON PRUNA AI P-IMAGE / P-IMAGE-IDEOGRAM ---
+async function generateAndStoreImage(prompt, conversationId, env, options = {}) {
   try {
-    console.log('🖼️ Iniciando generación con p-image (API directa de Pruna)');
+    const { engine, aspectRatio, thinking, imageSize } = normalizeImageOptions(options);
+    const userDni = options.user_dni || null;
+
+    console.log(`🖼️ Iniciando generación con ${engine} (API directa de Pruna)`);
     console.log('🖼️ Prompt original:', prompt);
 
-    // 1. Llamada directa a la API REST de Pruna (Try-Sync, ver resolvePrunaSync)
-    const outputRef = await resolvePrunaSync(env, 'p-image', {
-      prompt: prompt,
-      aspect_ratio: '1:1',
-    });
+    // 1. Llamada directa a la API REST de Pruna (Try-Sync, ver resolvePrunaSync).
+    //    Ideogram acepta además el nivel de "thinking" y el tamaño de salida,
+    //    que son los que determinan su precio.
+    const prunaInput = { prompt: prompt, aspect_ratio: aspectRatio };
+    if (engine === 'p-image-ideogram') {
+      prunaInput.thinking = thinking;
+      prunaInput.image_size = imageSize;
+    }
 
-    console.log('✅ Pruna P-Image respondió:', outputRef.substring(0, 80));
+    const outputRef = await resolvePrunaSync(env, engine, prunaInput);
 
-    let imageBuffer = null;
+    console.log(`✅ Pruna (${engine}) respondió:`, outputRef.substring(0, 80));
 
     // 2. Procesar: URL de descarga o Base64
-    if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
-      console.log('🔗 Descargando resultado de Pruna...');
-      const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
-      if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
-        downloadHeaders['apikey'] = requirePrunaApiKey(env);
-      }
-      const imageFetch = await fetch(outputRef, { headers: downloadHeaders });
-      if (!imageFetch.ok) {
-        throw new Error(`Error descargando imagen: Status ${imageFetch.status}`);
-      }
-      imageBuffer = await imageFetch.arrayBuffer();
-      console.log(`✅ Imagen descargada: ${imageBuffer.byteLength} bytes`);
-    } else {
-      // Base64 (con o sin prefijo data:image/...)
-      const cleanBase64 = outputRef.replace(/^data:image\/[a-z]+;base64,/, '').trim();
-      if (cleanBase64.length < 100) {
-        throw new Error('Respuesta de Pruna no contiene imagen válida');
-      }
-      const binaryString = atob(cleanBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      imageBuffer = bytes.buffer;
-      console.log(`✅ Imagen decodificada de Base64: ${imageBuffer.byteLength} bytes`);
-    }
+    const imageBuffer = await fetchPrunaOutputBuffer(env, outputRef, 'imagen');
+    console.log(`✅ Imagen obtenida: ${imageBuffer.byteLength} bytes`);
 
-    // 3. Validar buffer
-    if (!imageBuffer || imageBuffer.byteLength === 0) {
-      throw new Error('Buffer de imagen vacío después de procesar respuesta de Pruna');
-    }
-
-    // 4. Guardar en R2
+    // 3. Guardar en R2
     const imageId = crypto.randomUUID();
     const r2Key = `generated-images/${conversationId}/${imageId}.jpg`;
 
@@ -10160,18 +10275,19 @@ async function generateAndStoreImage(prompt, conversationId, env) {
         conversation_id: conversationId,
         prompt: prompt.substring(0, 200),
         generated_at: new Date().toISOString(),
-        model: 'p-image'
+        model: engine
       }
     });
 
-    // 5. Registrar en D1
+    // 4. Registrar en D1
     const imageUrl = `/api/image/${r2Key}`;
     await saveMessage(conversationId, 'assistant', imageUrl, env, null, null, null, null, 'image');
 
     console.log(`✨ Imagen generada exitosamente: ${imageUrl}`);
     await logApiUsage(env, {
-      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image',
-      via_gateway: false, cost_usd: calcCost('pruna', 'p-image')
+      provider: 'pruna', unit_type: 'prediction', sub_type: engine,
+      via_gateway: false, user_dni: userDni,
+      cost_usd: calcCost('pruna', engine, { thinking, imageSize })
     });
     return imageUrl;
 
@@ -10218,30 +10334,7 @@ async function handleImageEdit(request, env, corsHeaders) {
       aspect_ratio: aspect_ratio || '1:1',
     });
 
-    let imageBuffer = null;
-
-    if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
-      const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
-      if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
-        downloadHeaders['apikey'] = requirePrunaApiKey(env);
-      }
-      const imageFetch = await fetch(outputRef, { headers: downloadHeaders });
-      if (!imageFetch.ok) throw new Error(`Error descargando imagen editada: ${imageFetch.status}`);
-      imageBuffer = await imageFetch.arrayBuffer();
-    } else {
-      const cleanBase64 = outputRef.replace(/^data:image\/[a-z]+;base64,/, '').trim();
-      if (cleanBase64.length < 100) throw new Error('Respuesta no contiene imagen válida');
-      const binaryString = atob(cleanBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      imageBuffer = bytes.buffer;
-    }
-
-    if (!imageBuffer || imageBuffer.byteLength === 0) {
-      throw new Error('Buffer de imagen vacío');
-    }
+    const imageBuffer = await fetchPrunaOutputBuffer(env, outputRef, 'imagen editada');
 
     const imageId = crypto.randomUUID();
     const conversationId = `edit_${Date.now()}`;
@@ -10277,7 +10370,179 @@ async function handleImageEdit(request, env, corsHeaders) {
   }
 }
 
-async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false, skipHistory = false) {
+// Descarga la salida de una predicción de Pruna, sea una URL de entrega o un
+// data URI en base64. Los dos formatos aparecen según el modelo, y antes cada
+// handler repetía el mismo bloque de 20 líneas para resolverlos.
+async function fetchPrunaOutputBuffer(env, outputRef, label = 'archivo') {
+  let buffer;
+
+  if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
+    // El endpoint de entrega de Pruna exige el header apikey igual que el resto de su API.
+    const headers = { 'User-Agent': 'Cloudflare-Worker' };
+    if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
+      headers['apikey'] = requirePrunaApiKey(env);
+    }
+    const res = await fetch(outputRef, { headers });
+    if (!res.ok) throw new Error(`Error descargando ${label}: Status ${res.status}`);
+    buffer = await res.arrayBuffer();
+  } else {
+    const cleanBase64 = outputRef.replace(/^data:[a-z]+\/[a-z0-9.+-]+;base64,/i, '').trim();
+    if (cleanBase64.length < 100) throw new Error(`Respuesta de Pruna sin ${label} válido`);
+    const binaryString = atob(cleanBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    buffer = bytes.buffer;
+  }
+
+  if (!buffer || buffer.byteLength === 0) {
+    throw new Error(`El ${label} descargado desde Pruna está vacío`);
+  }
+  return buffer;
+}
+
+// Convierte una referencia de imagen del cliente en una URL http(s) absoluta.
+// Pruna descarga los inputs desde internet, así que una ruta relativa
+// (/api/image/...) o un data URI no le sirven tal cual.
+async function toPublicImageUrl(env, request, userDni, imageRef) {
+  if (imageRef.startsWith('http://') || imageRef.startsWith('https://')) return imageRef;
+
+  const origin = new URL(request.url).origin;
+  if (imageRef.startsWith('/api/')) return origin + imageRef;
+
+  if (imageRef.startsWith('data:')) {
+    const buffer = await downloadImageAsBuffer(imageRef);
+    const r2Key = `image-uploads/${userDni.toLowerCase()}/${crypto.randomUUID()}.jpg`;
+    await env.MIRAI_AI_ASSETS.put(r2Key, buffer, {
+      httpMetadata: { contentType: 'image/jpeg' },
+      customMetadata: { user_dni: userDni.toUpperCase(), uploaded_at: new Date().toISOString() }
+    });
+    return `${origin}/api/image/${r2Key}`;
+  }
+
+  throw new Error('Formato de imagen no reconocido');
+}
+
+// --- MEJORAR CALIDAD DE IMAGEN CON PRUNA AI P-IMAGE-UPSCALE ---
+// El precio depende de los megapíxeles pedidos por tramos (1-4 MP → $0.005 …
+// 65-128 MP → $0.12), no es fijo por imagen: ver upscalePriceForMegapixels().
+const UPSCALE_MIN_MEGAPIXELS = 1;
+const UPSCALE_MAX_MEGAPIXELS = 128;
+const UPSCALE_DEFAULT_MEGAPIXELS = 4;
+
+async function handleImageUpscale(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
+
+    const tokenCheck = await checkAndConsumeToken(userDni, 'imagen', env);
+    if (!tokenCheck.allowed) {
+      return jsonResponse({
+        error: `Has alcanzado el límite diario de ${tokenCheck.limit} imágenes. Vuelve a intentarlo mañana.`,
+        token_limit_reached: true,
+      }, 429, corsHeaders);
+    }
+
+    const { image_url, target, enhance_details, enhance_realism } = await request.json();
+    if (!image_url) {
+      return jsonResponse({ error: 'Se requiere image_url' }, 400, corsHeaders);
+    }
+
+    const rawTarget = parseInt(target, 10);
+    const targetMegapixels = Number.isFinite(rawTarget)
+      ? Math.min(UPSCALE_MAX_MEGAPIXELS, Math.max(UPSCALE_MIN_MEGAPIXELS, rawTarget))
+      : UPSCALE_DEFAULT_MEGAPIXELS;
+
+    const imageSource = await toPublicImageUrl(env, request, userDni, image_url);
+
+    console.log(`🔍 Iniciando mejora con p-image-upscale (objetivo: ${targetMegapixels} MP)`);
+
+    const outputRef = await resolvePrunaSync(env, 'p-image-upscale', {
+      image: imageSource,
+      upscale_mode: 'target',
+      target: targetMegapixels,
+      enhance_details: enhance_details === true,
+      enhance_realism: enhance_realism !== false, // por defecto activo: la mayoría de entradas aquí son imágenes generadas por IA
+      output_format: 'jpg',
+    });
+
+    const imageBuffer = await fetchPrunaOutputBuffer(env, outputRef, 'imagen');
+
+    const r2Key = `generated-images/upscale_${Date.now()}/${crypto.randomUUID()}.jpg`;
+    await env.MIRAI_AI_ASSETS.put(r2Key, imageBuffer, {
+      httpMetadata: { contentType: 'image/jpeg' },
+      customMetadata: {
+        generated_at: new Date().toISOString(),
+        model: 'p-image-upscale',
+        target_megapixels: String(targetMegapixels),
+        source_image: image_url.substring(0, 200),
+      }
+    });
+
+    const upscaledUrl = `/api/image/${r2Key}`;
+    console.log(`✨ Imagen mejorada: ${upscaledUrl}`);
+
+    await logApiUsage(env, {
+      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-image-upscale',
+      via_gateway: false, user_dni: userDni,
+      cost_usd: calcCost('pruna', 'p-image-upscale', { targetMegapixels })
+    });
+
+    return jsonResponse({
+      image_url: upscaledUrl,
+      target_megapixels: targetMegapixels,
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ handleImageUpscale error:', error.message);
+    return jsonResponse({ error: 'Error al mejorar la imagen: ' + error.message }, 500, corsHeaders);
+  }
+}
+
+// --- EVALUAR IMAGEN CONTRA SU PROMPT CON PRUNA AI P-JUDGER ---
+// A diferencia del resto de modelos, la salida no es un fichero sino un JSON de
+// puntuaciones, así que aquí se usa la predicción cruda en vez de extraer una URL.
+async function handleImageJudge(request, env, corsHeaders) {
+  try {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
+
+    const { image_url, prompt } = await request.json();
+    if (!image_url || !prompt) {
+      return jsonResponse({ error: 'Se requiere image_url y prompt' }, 400, corsHeaders);
+    }
+
+    const imageSource = await toPublicImageUrl(env, request, userDni, image_url);
+
+    console.log('⚖️ Evaluando imagen con p-judger');
+
+    const prediction = await resolvePrunaSyncPrediction(env, 'p-judger', {
+      prompt: prompt,
+      image: imageSource,
+    });
+
+    // El esquema documentado es { total, level1, level2, level3, detailed },
+    // pero la predicción puede envolverlo en `output` según el modo.
+    const raw = prediction.output ?? prediction.result ?? prediction;
+    const scores = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+
+    await logApiUsage(env, {
+      provider: 'pruna', unit_type: 'prediction', sub_type: 'p-judger',
+      via_gateway: false, user_dni: userDni,
+      cost_usd: calcCost('pruna', 'p-judger') // $0.005 por imagen de entrada evaluada
+    });
+
+    return jsonResponse({
+      total: typeof scores.total === 'number' ? scores.total : null,
+      scores,
+    }, 200, corsHeaders);
+
+  } catch (error) {
+    console.error('❌ handleImageJudge error:', error.message);
+    return jsonResponse({ error: 'Error al evaluar la imagen: ' + error.message }, 500, corsHeaders);
+  }
+}
+
+async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false, skipHistory = false, imageOptions = {}) {
   try {
     if (!skipHistory) {
       await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, AI_MODEL_NORMAL);
@@ -10286,7 +10551,7 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
 
     let imageUrl;
     try {
-      imageUrl = await generateAndStoreImage(prompt, conversationId, env);
+      imageUrl = await generateAndStoreImage(prompt, conversationId, env, { ...imageOptions, user_dni: userDni });
     } catch (imageError) {
       const isBlocked = imageError.message.includes('safety') ||
         imageError.message.includes('flagged') ||
@@ -10383,9 +10648,24 @@ async function sendRecoveryEmail(email, token, env) {
   });
 }
 
-async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false) {
+// Normaliza las opciones de p-video que llegan del cliente. `draft` cambia el
+// precio por segundo (hasta 4x más barato), así que se resuelve una sola vez
+// aquí y el valor normalizado es el que se manda a Pruna Y el que se usa para
+// calcular el costo: si se separaran, el panel de consumo mentiría.
+function normalizeVideoOptions(raw = {}) {
+  const resolution = VIDEO_RESOLUTIONS.includes(raw.resolution) ? raw.resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION;
+  const aspectRatio = IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : VIDEO_CONFIG.DEFAULT_ASPECT_RATIO;
+  const rawDuration = parseInt(raw.duration, 10);
+  const duration = Number.isFinite(rawDuration) ? Math.min(10, Math.max(1, rawDuration)) : VIDEO_CONFIG.DEFAULT_DURATION;
+  return { resolution, aspectRatio, duration, draft: raw.draft === true };
+}
+
+async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false, videoOptions = {}) {
   try {
+    const { resolution, aspectRatio, duration, draft } = normalizeVideoOptions(videoOptions);
+
     console.log('🎬 Iniciando generación de video con Pruna AI P-Video');
+    console.log(`🎬 Opciones: ${resolution}, ${duration}s, ${aspectRatio}, draft=${draft}`);
     console.log('🎬 Prompt original:', prompt);
 
     // 1. Guardar traza inicial
@@ -10401,42 +10681,23 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     console.log('🚀 Invocando p-video (API directa de Pruna)...');
     const outputRef = await resolvePrunaSync(env, 'p-video', {
       prompt: videoPrompt,
+      resolution,
+      aspect_ratio: aspectRatio,
+      duration,
+      draft,
     });
 
     console.log('📦 Resultado de Pruna Video:', outputRef.substring(0, 80));
 
-    let videoBuffer = null;
-
     // 3. Descargar o decodificar la salida
-    if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
-      console.log(`🔗 Descargando video desde Pruna...`);
-      const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
-      if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
-        downloadHeaders['apikey'] = requirePrunaApiKey(env);
-      }
-      const videoFetch = await fetch(outputRef, { headers: downloadHeaders });
-      if (!videoFetch.ok) {
-        throw new Error(`Error descargando video: Status ${videoFetch.status}`);
-      }
-      videoBuffer = await videoFetch.arrayBuffer();
-      console.log(`✅ Video descargado: ${videoBuffer.byteLength} bytes`);
-    } else {
-      const binaryString = atob(outputRef.replace(/^data:video\/[a-z0-9]+;base64,/, ''));
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-      videoBuffer = bytes.buffer;
-    }
-
-    // 4. Validar
-    if (!videoBuffer || videoBuffer.byteLength === 0) {
-      throw new Error(`No se recibió video válido de Pruna.`);
-    }
+    const videoBuffer = await fetchPrunaOutputBuffer(env, outputRef, 'vídeo');
+    console.log(`✅ Video obtenido: ${videoBuffer.byteLength} bytes`);
 
     // Duración real del mp4 descargado: p-video cobra por segundo de video
     // generado, no un precio fijo por generación (ver API_PRICING).
     const durationSeconds = getMp4DurationSeconds(videoBuffer);
 
-    // 5. Guardar en R2
+    // 4. Guardar en R2
     const uniqueId = crypto.randomUUID();
     const videoFilename = `videos/${uniqueId}.mp4`;
 
@@ -10446,7 +10707,9 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
         prompt: prompt.substring(0, 200),
         conversation_id: conversationId,
         generated_at: new Date().toISOString(),
-        model: 'p-video'
+        model: 'p-video',
+        resolution,
+        draft: String(draft)
       }
     });
 
@@ -10460,7 +10723,7 @@ async function handleVideoGeneration(prompt, conversationId, userDni, env, corsH
     await logApiUsage(env, {
       provider: 'pruna', unit_type: 'video_seconds', sub_type: 'p-video',
       units: durationSeconds ?? 0, via_gateway: false, user_dni: userDni,
-      cost_usd: calcCost('pruna', 'p-video', { durationSeconds, resolution: '720p' })
+      cost_usd: calcCost('pruna', 'p-video', { durationSeconds, resolution, draft })
     });
 
     return jsonResponse({
@@ -10650,7 +10913,58 @@ async function ensureVideoAvatarJobsTable(env) {
       `ALTER TABLE video_avatar_jobs ADD COLUMN resolution TEXT`
     ).run();
   } catch (_) { }
+  // Esta tabla nació solo para el avatar, pero p-video-edit, p-video-animate y
+  // p-video-replace necesitan exactamente el mismo ciclo (crear predicción →
+  // polling → descargar → cobrar por segundo), así que se reutiliza para los
+  // cuatro en vez de duplicar tabla, cron y endpoint de estado. job_kind dice
+  // de cuál se trata y model_id qué modelo de Pruna hay que consultar y cobrar.
+  for (const columnSql of [
+    `ALTER TABLE video_avatar_jobs ADD COLUMN job_kind TEXT DEFAULT 'avatar'`,
+    `ALTER TABLE video_avatar_jobs ADD COLUMN model_id TEXT`,
+    `ALTER TABLE video_avatar_jobs ADD COLUMN draft INTEGER DEFAULT 0`,
+  ]) {
+    try {
+      await env.MIRAI_AI_DB.prepare(columnSql).run();
+    } catch (_) { }
+  }
 }
+
+// Configuración de los tres modelos de vídeo avanzados. Comparten el flujo
+// asíncrono, y solo se diferencian en qué inputs acepta cada uno y cómo se
+// etiqueta el resultado en el historial.
+const ADVANCED_VIDEO_MODELS = {
+  edit: {
+    model_id: 'p-video-edit',
+    label: '✂️ Edición de vídeo',
+    r2_prefix: 'videos/edit',
+    needs_prompt: true,
+    needs_images: false,
+    supports_draft: true,
+    // p-video-edit no acepta `resolution`: su precio depende solo del modo.
+    supports_resolution: false,
+    max_source_seconds: 15,
+  },
+  animate: {
+    model_id: 'p-video-animate',
+    label: '🕺 Animación',
+    r2_prefix: 'videos/animate',
+    needs_prompt: false,
+    needs_images: true,
+    max_images: 1, // "Animate uses the first image only"
+    supports_draft: false,
+    supports_resolution: true,
+  },
+  replace: {
+    model_id: 'p-video-replace',
+    label: '🔁 Reemplazo',
+    r2_prefix: 'videos/replace',
+    needs_prompt: false,
+    needs_images: true,
+    max_images: 4, // "Replace: 1–4 identity references"
+    supports_draft: false,
+    supports_resolution: true,
+  },
+};
 
 function requirePrunaApiKey(env) {
   const apiKey = env.PRUNA_API_KEY;
@@ -10741,13 +11055,17 @@ const PRUNA_TERMINAL_OK = ['succeeded', 'success', 'completed'];
 const PRUNA_TERMINAL_FAIL = ['failed', 'canceled', 'cancelled', 'error'];
 
 // Genera vía la API REST directa de Pruna en modo síncrono (Try-Sync) y
-// devuelve la URL/base64 de salida. p-image/p-image-edit/p-video generan en
-// segundos (muy por debajo del límite de 60s de Try-Sync), así que en el
-// caso normal esto resuelve en una sola llamada HTTP sin ningún polling.
-// Si por lo que sea Pruna todavía no terminó al responder (no garantizado al
-// 100% por su documentación), cae a un polling corto y acotado como red de
-// seguridad antes de fallar.
-async function resolvePrunaSync(env, modelId, input) {
+// devuelve la predicción ya terminada. p-image/p-image-edit/p-video/
+// p-image-upscale/p-judger resuelven en segundos (muy por debajo del límite de
+// 60s de Try-Sync), así que en el caso normal esto resuelve en una sola llamada
+// HTTP sin ningún polling. Si por lo que sea Pruna todavía no terminó al
+// responder (no garantizado al 100% por su documentación), cae a un polling
+// corto y acotado como red de seguridad antes de fallar.
+//
+// La mayoría de modelos devuelven un fichero y les sirve resolvePrunaSync, que
+// extrae la URL. p-judger devuelve JSON con las puntuaciones, no un fichero,
+// por eso el acceso a la predicción cruda vive en su propia función.
+async function resolvePrunaSyncPrediction(env, modelId, input) {
   let prediction = await createPrunaPrediction(env, modelId, input, { trySync: true });
   let attempts = 0;
   while (
@@ -10766,6 +11084,11 @@ async function resolvePrunaSync(env, modelId, input) {
     throw new Error(prediction.error || prediction.detail || `Pruna (${modelId}) falló la generación`);
   }
 
+  return prediction;
+}
+
+async function resolvePrunaSync(env, modelId, input) {
+  const prediction = await resolvePrunaSyncPrediction(env, modelId, input);
   const outputRef = extractPrunaOutputUrl(prediction);
   if (!outputRef) {
     throw new Error(`Pruna (${modelId}) no devolvió una salida reconocible: ${JSON.stringify(prediction).substring(0, 300)}`);
@@ -10876,8 +11199,8 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
     const jobId = crypto.randomUUID();
 
     await env.MIRAI_AI_DB.prepare(`
-      INSERT INTO video_avatar_jobs (id, user_dni, status, pruna_prediction_id, character_id, character_name, character_image_url, resolution)
-      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?)
+      INSERT INTO video_avatar_jobs (id, user_dni, status, pruna_prediction_id, character_id, character_name, character_image_url, resolution, job_kind, model_id)
+      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, 'avatar', ?)
     `).bind(
       jobId,
       userDni.toUpperCase(),
@@ -10885,7 +11208,8 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       characterInfo ? characterInfo.id : null,
       characterInfo ? characterInfo.name : null,
       characterInfo ? characterInfo.image_url : null,
-      input.resolution
+      input.resolution,
+      VIDEO_AVATAR_CONFIG.MODEL_ID
     ).run();
 
     return jsonResponse({
@@ -10896,6 +11220,143 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
   } catch (error) {
     console.error('❌ handleVideoAvatarGeneration error:', error.message);
     return jsonResponse({ error: 'Error generando vídeo avatar', details: error.message }, 500, corsHeaders);
+  }
+}
+
+// Guarda en R2 un vídeo de origen subido por el usuario y devuelve su URL
+// pública absoluta: Pruna descarga los inputs desde internet, así que un data
+// URI o una ruta relativa no le sirven.
+async function toPublicVideoUrl(env, request, userDni, videoRef) {
+  if (videoRef.startsWith('http://') || videoRef.startsWith('https://')) return videoRef;
+
+  const origin = new URL(request.url).origin;
+  if (videoRef.startsWith('/api/')) return origin + videoRef;
+
+  if (videoRef.startsWith('data:')) {
+    const base64 = videoRef.replace(/^data:video\/[a-z0-9.+-]+;base64,/i, '').trim();
+    if (base64.length < 100) throw new Error('Vídeo inválido');
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+
+    const r2Key = `video-uploads/${userDni.toLowerCase()}/${crypto.randomUUID()}.mp4`;
+    await env.MIRAI_AI_ASSETS.put(r2Key, bytes.buffer, {
+      httpMetadata: { contentType: 'video/mp4' },
+      customMetadata: { user_dni: userDni.toUpperCase(), uploaded_at: new Date().toISOString() }
+    });
+    return `${origin}/api/video/${r2Key}`;
+  }
+
+  throw new Error('Formato de vídeo no reconocido');
+}
+
+// --- VÍDEO AVANZADO: P-VIDEO-EDIT / P-VIDEO-ANIMATE / P-VIDEO-REPLACE ---
+// Los tres parten de un vídeo de origen y tardan minutos, así que se crean en
+// modo asíncrono y comparten la tabla de jobs, el polling y el cron del avatar.
+async function handleAdvancedVideoGeneration(request, env, corsHeaders, kind) {
+  try {
+    const config = ADVANCED_VIDEO_MODELS[kind];
+    if (!config) return jsonResponse({ error: 'Tipo de vídeo no soportado' }, 400, corsHeaders);
+
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
+
+    const tokenCheck = await checkAndConsumeToken(userDni, 'video', env);
+    if (!tokenCheck.allowed) {
+      return jsonResponse({
+        error: `Has alcanzado el límite diario de ${tokenCheck.limit} videos. Vuelve a intentarlo mañana.`,
+        token_limit_reached: true,
+      }, 429, corsHeaders);
+    }
+
+    const body = await request.json();
+    const { video, prompt, instruction_prompt, images, character_id, resolution, draft, fps } = body;
+
+    if (!video) {
+      return jsonResponse({ error: 'Se requiere un vídeo de origen' }, 400, corsHeaders);
+    }
+    if (config.needs_prompt && !(prompt && prompt.trim())) {
+      return jsonResponse({ error: 'Se requiere un prompt con la edición a aplicar' }, 400, corsHeaders);
+    }
+
+    await ensureVideoAvatarCharactersTable(env);
+    await ensureVideoAvatarJobsTable(env);
+
+    // Las imágenes de referencia pueden venir sueltas o ser un personaje ya
+    // guardado del módulo de avatar, que es justo lo que sirve como identidad.
+    let imageRefs = Array.isArray(images) ? images.filter(Boolean) : (images ? [images] : []);
+    let characterInfo = null;
+
+    if (character_id) {
+      const row = await env.MIRAI_AI_DB.prepare(
+        `SELECT id, name, image_url FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
+      ).bind(parseInt(character_id, 10), userDni.toUpperCase()).first();
+      if (!row) return jsonResponse({ error: 'Personaje no encontrado' }, 404, corsHeaders);
+      characterInfo = { id: row.id, name: row.name, image_url: row.image_url };
+      imageRefs = [row.image_url, ...imageRefs];
+    }
+
+    if (config.needs_images && imageRefs.length === 0) {
+      return jsonResponse({ error: 'Se requiere al menos una imagen de referencia' }, 400, corsHeaders);
+    }
+
+    const maxImages = config.max_images || 4;
+    const resolvedImages = [];
+    for (const ref of imageRefs.slice(0, maxImages)) {
+      resolvedImages.push(await toPublicImageUrl(env, request, userDni, ref));
+    }
+
+    const videoSource = await toPublicVideoUrl(env, request, userDni, video);
+
+    const useDraft = config.supports_draft && draft === true;
+    const useResolution = config.supports_resolution
+      ? (VIDEO_RESOLUTIONS.includes(resolution) ? resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION)
+      : null;
+
+    const input = {
+      video: videoSource,
+      disable_safety_checker: true,
+    };
+    if (resolvedImages.length) input.images = resolvedImages;
+    if (config.needs_prompt) input.prompt = prompt.trim();
+    if (instruction_prompt && instruction_prompt.trim()) input.instruction_prompt = instruction_prompt.trim();
+    if (useResolution) input.resolution = useResolution;
+    if (config.supports_draft) input.draft = useDraft;
+    const parsedFps = parseInt(fps, 10);
+    if (Number.isFinite(parsedFps) && parsedFps > 0) input.fps = parsedFps;
+
+    console.log(`🎞️ Creando job de ${config.model_id} (draft=${useDraft}, resolución=${useResolution || 'n/a'})`);
+
+    const prediction = await createPrunaPrediction(env, config.model_id, input);
+    const jobId = crypto.randomUUID();
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO video_avatar_jobs (id, user_dni, status, pruna_prediction_id, character_id, character_name, character_image_url, resolution, job_kind, model_id, draft)
+      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      jobId,
+      userDni.toUpperCase(),
+      prediction.id,
+      characterInfo ? characterInfo.id : null,
+      characterInfo ? characterInfo.name : null,
+      characterInfo ? characterInfo.image_url : null,
+      // p-video-edit no expone resolución; se guarda 720p para que el cálculo
+      // de costo tenga una clave válida (su tarifa es igual en ambas).
+      useResolution || VIDEO_CONFIG.DEFAULT_RESOLUTION,
+      kind,
+      config.model_id,
+      useDraft ? 1 : 0
+    ).run();
+
+    return jsonResponse({
+      job_id: jobId,
+      kind,
+      character: characterInfo,
+    }, 202, corsHeaders);
+
+  } catch (error) {
+    console.error(`❌ handleAdvancedVideoGeneration (${kind}) error:`, error.message);
+    return jsonResponse({ error: 'Error generando el vídeo', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -10910,7 +11371,7 @@ async function handleGetVideoAvatarJob(request, env, corsHeaders) {
 
     await ensureVideoAvatarJobsTable(env);
     const job = await env.MIRAI_AI_DB.prepare(
-      `SELECT id, status, pruna_prediction_id, video_url, error, character_id, character_name, character_image_url, resolution
+      `SELECT id, status, pruna_prediction_id, video_url, error, character_id, character_name, character_image_url, resolution, job_kind, model_id, draft
        FROM video_avatar_jobs WHERE id = ? AND user_dni = ?`
     ).bind(id, userDni.toUpperCase()).first();
 
@@ -10922,6 +11383,8 @@ async function handleGetVideoAvatarJob(request, env, corsHeaders) {
       image_url: job.character_image_url
     } : null;
 
+    const kind = job.job_kind || 'avatar';
+
     // Si ya terminó (éxito o error), devolvemos el resultado guardado sin
     // volver a consultar a Pruna.
     if (job.status === 'done' || job.status === 'error') {
@@ -10930,12 +11393,13 @@ async function handleGetVideoAvatarJob(request, env, corsHeaders) {
         video_url: job.video_url || null,
         error: job.error || null,
         character: characterPayload,
+        kind,
       }, 200, corsHeaders);
     }
 
     // Sigue pendiente: una única consulta rápida y acotada al estado en Pruna.
     const result = await checkAndFinalizeVideoAvatarJob(job, userDni, env);
-    return jsonResponse({ ...result, character: characterPayload }, 200, corsHeaders);
+    return jsonResponse({ ...result, character: characterPayload, kind }, 200, corsHeaders);
 
   } catch (error) {
     console.error('❌ handleGetVideoAvatarJob error:', error.message);
@@ -10944,9 +11408,11 @@ async function handleGetVideoAvatarJob(request, env, corsHeaders) {
 }
 
 // Consulta el estado de una predicción en Pruna y, si ya terminó, descarga el
-// vídeo y actualiza D1/historial. Se usa tanto desde el polling del cliente
-// (GET /api/video-avatar/jobs) como desde el cron de abajo, que es el que
-// garantiza que el job se complete aunque el usuario haya cerrado la pestaña.
+// vídeo y actualiza D1/historial. Vale para los cuatro modelos asíncronos
+// (avatar, edit, animate, replace): el modelo concreto sale de job.model_id.
+// Se usa tanto desde el polling del cliente (GET /api/video-jobs) como desde el
+// cron de abajo, que es el que garantiza que el job se complete aunque el
+// usuario haya cerrado la pestaña.
 async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
   try {
     const prediction = await getPrunaPrediction(env, job.pruna_prediction_id);
@@ -10980,40 +11446,27 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
         throw new Error(`Predicción completada pero sin salida reconocible: ${JSON.stringify(prediction).substring(0, 300)}`);
       }
 
-      let videoBuffer;
-      if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
-        // El endpoint de entrega de Pruna (/v1/predictions/delivery/...) también
-        // exige el header apikey, igual que el resto de su API.
-        const downloadHeaders = { 'User-Agent': 'Cloudflare-Worker' };
-        if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
-          downloadHeaders['apikey'] = requirePrunaApiKey(env);
-        }
-        const videoFetch = await fetch(outputRef, { headers: downloadHeaders });
-        if (!videoFetch.ok) throw new Error(`Error descargando video: Status ${videoFetch.status}`);
-        videoBuffer = await videoFetch.arrayBuffer();
-      } else {
-        const cleanField = outputRef.replace(/^data:video\/[a-z0-9]+;base64,/, '');
-        const binaryString = atob(cleanField);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-        videoBuffer = bytes.buffer;
-      }
+      const videoBuffer = await fetchPrunaOutputBuffer(env, outputRef, 'vídeo');
 
-      if (!videoBuffer || videoBuffer.byteLength === 0) {
-        throw new Error('El vídeo descargado desde Pruna está vacío');
-      }
-
-      // Duración real del mp4: p-video-avatar cobra por segundo de video
-      // generado (varía con la duración del audio/voz), no un precio fijo.
+      // Duración real del mp4: toda la familia p-video-* cobra por segundo de
+      // vídeo generado (varía con el audio/voz o el clip de origen), no un
+      // precio fijo por generación.
       const durationSeconds = getMp4DurationSeconds(videoBuffer);
 
-      const videoFilename = `videos/avatar/${crypto.randomUUID()}.mp4`;
+      // Los jobs creados antes de que la tabla tuviera job_kind/model_id son
+      // todos de avatar, de ahí los valores por defecto.
+      const jobKind = job.job_kind || 'avatar';
+      const modelId = job.model_id || VIDEO_AVATAR_CONFIG.MODEL_ID;
+      const advancedConfig = ADVANCED_VIDEO_MODELS[jobKind] || null;
+      const r2Prefix = advancedConfig ? advancedConfig.r2_prefix : 'videos/avatar';
+
+      const videoFilename = `${r2Prefix}/${crypto.randomUUID()}.mp4`;
       await env.MIRAI_AI_ASSETS.put(videoFilename, videoBuffer, {
         httpMetadata: { contentType: 'video/mp4' },
         customMetadata: {
           user_dni: userDni.toUpperCase(),
           generated_at: new Date().toISOString(),
-          model: VIDEO_AVATAR_CONFIG.MODEL_ID,
+          model: modelId,
         }
       });
       const videoUrl = `/api/video/${videoFilename}`;
@@ -11023,10 +11476,12 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
       `).bind(videoUrl, job.id).run();
 
       await logApiUsage(env, {
-        provider: 'pruna', unit_type: 'video_seconds', sub_type: 'p-video-avatar',
+        provider: 'pruna', unit_type: 'video_seconds', sub_type: modelId,
         units: durationSeconds ?? 0, via_gateway: false, user_dni: userDni,
-        cost_usd: calcCost('pruna', 'p-video-avatar', {
-          durationSeconds, resolution: job.resolution || VIDEO_AVATAR_CONFIG.DEFAULT_RESOLUTION
+        cost_usd: calcCost('pruna', modelId, {
+          durationSeconds,
+          resolution: job.resolution || VIDEO_AVATAR_CONFIG.DEFAULT_RESOLUTION,
+          draft: job.draft === 1,
         })
       });
 
@@ -11044,10 +11499,20 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
         `).run();
+        // Los tres modelos avanzados comparten la pestaña 'videoedit' del
+        // historial; el badge es el que distingue cuál fue.
+        const historyType = advancedConfig ? 'videoedit' : 'avatar';
+        const historyBadge = advancedConfig ? advancedConfig.label : '🗣️ Avatar';
         await env.MIRAI_AI_DB.prepare(`
           INSERT INTO gen_history (user_dni, type, badge, prompt, result)
-          VALUES (?, 'avatar', '🗣️ Avatar', ?, ?)
-        `).bind(userDni.toUpperCase(), '🗣️ Vídeo avatar', videoUrl.substring(0, 4000)).run();
+          VALUES (?, ?, ?, ?, ?)
+        `).bind(
+          userDni.toUpperCase(),
+          historyType,
+          historyBadge,
+          advancedConfig ? advancedConfig.label : '🗣️ Vídeo avatar',
+          videoUrl.substring(0, 4000)
+        ).run();
       } catch (histErr) {
         console.warn(`⚠️ [job ${job.id}] No se pudo guardar en historial:`, histErr.message);
       }
@@ -11089,7 +11554,7 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
 // sigan 'pending' en D1, sin depender de que el cliente siga haciendo polling
 // (si cerró la pestaña, perdió la conexión, etc.). Así ningún vídeo generado
 // por Pruna se pierde aunque nadie esté mirando la pantalla de resultado.
-// Un job de avatar tarda minutos, no horas. Pasado este plazo se da por perdido
+// Un job de vídeo tarda minutos, no horas. Pasado este plazo se da por perdido
 // en vez de reconsultarlo a Pruna cada 2 minutos indefinidamente: sin este tope,
 // un job cuya predicción ya no existe (o cuya descarga falla siempre) se
 // reintentaba para siempre, porque el catch del poll lo devuelve a 'pending'.
@@ -11118,19 +11583,19 @@ async function finalizePendingVideoAvatarJobs(env) {
     `).run();
 
     if (expired.meta?.changes) {
-      console.log(`[Scheduled] ${expired.meta.changes} trabajo(s) de vídeo avatar caducado(s).`);
+      console.log(`[Scheduled] ${expired.meta.changes} trabajo(s) de vídeo caducado(s).`);
     }
 
     // 2. Revisar los que siguen vivos.
     const { results } = await env.MIRAI_AI_DB.prepare(`
-      SELECT id, user_dni, pruna_prediction_id, resolution FROM video_avatar_jobs
+      SELECT id, user_dni, pruna_prediction_id, resolution, job_kind, model_id, draft FROM video_avatar_jobs
       WHERE status = 'pending' AND pruna_prediction_id IS NOT NULL
       ORDER BY created_at ASC LIMIT 25
     `).all();
 
     if (!results || results.length === 0) return;
 
-    console.log(`[Scheduled] Revisando ${results.length} trabajo(s) de vídeo avatar pendiente(s)...`);
+    console.log(`[Scheduled] Revisando ${results.length} trabajo(s) de vídeo pendiente(s)...`);
     for (const job of results) {
       const result = await checkAndFinalizeVideoAvatarJob(job, job.user_dni, env);
       if (result.status !== 'pending') {
@@ -11947,7 +12412,7 @@ async function handleImageGeneration(request, env, corsHeaders) {
   }
 
   try {
-    const { prompt, conversation_id } = await request.json();
+    const { prompt, conversation_id, engine, aspect_ratio, thinking, image_size } = await request.json();
 
     if (!prompt) {
       return jsonResponse({ error: 'El prompt es requerido' }, 400, corsHeaders);
@@ -11956,7 +12421,9 @@ async function handleImageGeneration(request, env, corsHeaders) {
     console.log('🎨 Generando imagen para:', prompt);
 
     // Usar la misma función centralizada
-    const imageUrl = await generateAndStoreImage(prompt, conversation_id, env);
+    const imageUrl = await generateAndStoreImage(prompt, conversation_id, env, {
+      engine, aspect_ratio, thinking, image_size
+    });
 
     // Guardar en D1
     await ensureConversationExists(conversation_id, prompt, env, courseId = null, lessonId = null, userDni = null, model = AI_MODEL_NORMAL);
