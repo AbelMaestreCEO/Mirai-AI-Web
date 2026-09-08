@@ -234,12 +234,69 @@
             box-shadow: 0 8px 24px var(--accent-glow);
             border-color: var(--accent-color);
         }
-        .image-item img {
+        .image-item img,
+        .image-item video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
         }
+        /* Distintivo para saber de un vistazo qué es vídeo */
+        .media-badge {
+            position: absolute;
+            top: 6px; left: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        /* Baldosa final del preview cuando hay más archivos de los que se pintan */
+        .image-item.more-tile {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            opacity: 1;
+        }
+
+        /* --- Panel de lotes --- */
+        .batch-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--border-radius-sm);
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            margin-bottom: 8px;
+        }
+        .batch-row.done { border-color: rgba(46,160,67,0.45); }
+        .batch-row.error { border-color: rgba(208,0,0,0.45); }
+        .batch-row-info { flex: 1; min-width: 0; }
+        .batch-row-title {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .batch-row-meta {
+            display: block;
+            font-size: 0.74rem;
+            color: var(--text-tertiary);
+        }
+        .batch-row .btn { flex-shrink: 0; }
         .image-item .image-info {
             position: absolute;
             bottom: 0; left: 0; right: 0;
@@ -791,7 +848,7 @@
                     </svg>
                 </div>
 
-                <p class="upload-title">Arrastra tus fotos aquí</p>
+                <p class="upload-title">Arrastra tus fotos y vídeos aquí</p>
                 <p>o elige archivos desde tu dispositivo</p>
 
                 <!-- .btn .btn-secondary ya existen en styles.css -->
@@ -805,7 +862,7 @@
                     </svg>
                     Explorar archivos
                 </label>
-                <input type="file" id="imageInput" multiple accept="image/*" hidden>
+                <input type="file" id="imageInput" multiple accept="image/*,video/*" hidden>
 
                 <div class="format-pills">
                     <span class="format-pill">JPG</span>
@@ -813,7 +870,10 @@
                     <span class="format-pill">GIF</span>
                     <span class="format-pill">WEBP</span>
                     <span class="format-pill">HEIC</span>
-                    <span class="format-pill">50 MB máx.</span>
+                    <span class="format-pill">MP4</span>
+                    <span class="format-pill">MOV</span>
+                    <span class="format-pill">Fotos 15 MB</span>
+                    <span class="format-pill">Vídeos 25 MB</span>
                 </div>
             </div>
 
@@ -842,7 +902,7 @@
                     <line x1="12" y1="8" x2="12" y2="12"/>
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                Listo para subir imágenes.
+                Listo para subir fotos y vídeos.
             </div>
 
             <!-- Upload Progress Panel -->
@@ -856,7 +916,7 @@
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <span id="uploadPhaseTitle">Subiendo imágenes…</span>
+                        <span id="uploadPhaseTitle">Subiendo archivos…</span>
                     </h3>
                     <span class="upload-progress-stats" id="uploadProgressStats">0 / 0</span>
                 </div>
@@ -871,6 +931,39 @@
                     <p class="packaging-text">Empaquetando tus recuerdos…</p>
                     <p class="packaging-sub">Organizando por fecha y creando el ZIP</p>
                 </div>
+            </div>
+
+            <!-- Panel de lotes (solo cuando la descarga se parte en varios ZIP) -->
+            <div id="batchPanel" class="upload-progress-panel hidden">
+                <div class="upload-progress-header">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="var(--accent-color)" stroke-width="2.2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="21 8 21 21 3 21 3 8"/>
+                            <rect x="1" y="3" width="22" height="5"/>
+                            <line x1="10" y1="12" x2="14" y2="12"/>
+                        </svg>
+                        <span id="batchPanelTitle">Descarga por lotes</span>
+                    </h3>
+                    <span class="upload-progress-stats" id="batchPanelStats">0 / 0</span>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-tertiary);margin:0 0 10px;">
+                    Cada lote es un ZIP independiente con sus carpetas por fecha. Se genera al pulsar Descargar.
+                </p>
+                <div id="batchList"></div>
+                <button id="downloadAllBtn"
+                        class="btn btn-primary"
+                        style="display:inline-flex;align-items:center;gap:8px;margin-top:4px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Descargar todos los lotes
+                </button>
             </div>
 
             <!-- Expiration -->
@@ -951,7 +1044,7 @@
                     </div>
                     <div class="step-number">1</div>
                     <p class="step-title">Subida Segura</p>
-                    <p class="step-desc">Las imágenes viajan cifradas directamente a Cloudflare R2.</p>
+                    <p class="step-desc">Fotos y vídeos viajan cifrados directamente a Cloudflare R2.</p>
                 </div>
 
                 <div class="step-card">
@@ -965,7 +1058,7 @@
                     </div>
                     <div class="step-number">2</div>
                     <p class="step-title">Análisis EXIF</p>
-                    <p class="step-desc">Extraemos la fecha real de captura para ordenarlas cronológicamente.</p>
+                    <p class="step-desc">Leemos la fecha real de captura o grabación para ordenarlo cronológicamente.</p>
                 </div>
 
                 <div class="step-card">
@@ -980,7 +1073,7 @@
                     </div>
                     <div class="step-number">3</div>
                     <p class="step-title">Empaquetado</p>
-                    <p class="step-desc">Se crea un ZIP organizado y se descarga en tu dispositivo.</p>
+                    <p class="step-desc">Se crea un ZIP organizado por fecha. Si hay mucho, se divide en lotes.</p>
                 </div>
 
             </div>
@@ -1027,12 +1120,29 @@
     (function () {
         'use strict';
 
+        // Estos limites deben coincidir con MIRROR_CONFIG del worker. Antes el
+        // front dejaba pasar 50 MB y el servidor cortaba en 15: la foto se subia
+        // entera para morir con un 400 sin explicacion.
         const CONFIG = {
-            MAX_FILE_SIZE: 50 * 1024 * 1024,
-            ALLOWED_TYPES: ['image/jpeg','image/png','image/gif','image/webp','image/heic'],
-            MAX_FILES    : 200,
-            CONCURRENT   : 3
+            MAX_IMAGE_SIZE: 15 * 1024 * 1024,
+            MAX_VIDEO_SIZE: 25 * 1024 * 1024,
+            IMAGE_TYPES  : ['image/jpeg','image/png','image/gif','image/webp','image/heic'],
+            VIDEO_TYPES  : ['video/mp4','video/quicktime','video/webm','video/3gpp','video/x-matroska'],
+            MAX_FILES    : 5000,
+            CONCURRENT   : 3,
+            // Pintar 2000 miniaturas de golpe cuelga el navegador; el resto se
+            // resume en una baldosa "+N mas".
+            PREVIEW_LIMIT: 120,
+            // Filas visibles del log de subida: se van podando por arriba.
+            UPLOAD_LOG_MAX: 60
         };
+
+        function kindOf(file) {
+            const t = (file.type || '').toLowerCase();
+            if (CONFIG.IMAGE_TYPES.includes(t)) return 'image';
+            if (CONFIG.VIDEO_TYPES.includes(t)) return 'video';
+            return null;
+        }
 
         const $ = id => document.getElementById(id);
         const el = {
@@ -1051,10 +1161,18 @@
             uploadProgressStats:$('uploadProgressStats'),
             uploadProgressBarFill:$('uploadProgressBarFill'),
             uploadFileList:     $('uploadFileList'),
-            packagingOverlay:   $('packagingOverlay')
+            packagingOverlay:   $('packagingOverlay'),
+            batchPanel:         $('batchPanel'),
+            batchPanelTitle:    $('batchPanelTitle'),
+            batchPanelStats:    $('batchPanelStats'),
+            batchList:          $('batchList'),
+            downloadAllBtn:     $('downloadAllBtn')
         };
 
-        let state = { files: [], blob: null, processing: false, sessionId: null, aborted: false };
+        let state = {
+            files: [], blob: null, processing: false, sessionId: null, aborted: false,
+            batches: [], batchesDone: 0, downloadingAll: false
+        };
 
         function setup() {
             if (!el.dropZone || !el.imageInput) return;
@@ -1073,25 +1191,51 @@
 
             el.processBtn.addEventListener('click',  processImages);
             el.downloadBtn.addEventListener('click', downloadResult);
+            el.downloadAllBtn.addEventListener('click', downloadAllBatches);
             el.resetBtn.addEventListener('click',    reset);
 
             updateUI();
         }
 
         function addFiles(fileList) {
+            const rejected = [];
             const valid = Array.from(fileList).filter(f => {
-                if (!CONFIG.ALLOWED_TYPES.includes(f.type)) { showStatus(`"${f.name}" no es una imagen valida.`, 'error'); return false; }
-                if (f.size > CONFIG.MAX_FILE_SIZE)          { showStatus(`"${f.name}" excede 50 MB.`, 'error'); return false; }
+                const kind = kindOf(f);
+                if (!kind) { rejected.push(`${f.name}: formato no admitido`); return false; }
+                const limit = kind === 'video' ? CONFIG.MAX_VIDEO_SIZE : CONFIG.MAX_IMAGE_SIZE;
+                if (f.size > limit) {
+                    rejected.push(`${f.name}: supera ${fmtSize(limit)}`);
+                    return false;
+                }
                 return true;
             });
-            if (state.files.length + valid.length > CONFIG.MAX_FILES) {
-                showStatus(`Maximo ${CONFIG.MAX_FILES} archivos permitidos.`, 'error'); return;
-            }
-            state.files = [...state.files, ...valid];
+
+            // Antes, pasarse del tope descartaba la seleccion entera. Ahora se
+            // acepta lo que quepa y se avisa de lo que sobro.
+            const room     = Math.max(0, CONFIG.MAX_FILES - state.files.length);
+            const accepted = valid.slice(0, room);
+            const overflow = valid.length - accepted.length;
+
+            state.files = [...state.files, ...accepted];
             renderPreview();
             updateUI();
-            if (state.files.length > 0)
-                showStatus(`${state.files.length} imagen(es) lista(s) para procesar.`, 'success');
+
+            const notes = [];
+            if (rejected.length) notes.push(`${rejected.length} descartado(s)`);
+            if (overflow)        notes.push(`${overflow} fuera del limite de ${CONFIG.MAX_FILES}`);
+
+            if (!state.files.length) {
+                showStatus(rejected.length ? rejected[0] : 'No se anadio ningun archivo.', 'error');
+                return;
+            }
+
+            const videos = state.files.filter(f => kindOf(f) === 'video').length;
+            const photos = state.files.length - videos;
+            const detail = videos ? `${photos} foto(s) y ${videos} video(s)` : `${photos} foto(s)`;
+            showStatus(
+                `${detail} listo(s) para procesar` + (notes.length ? ` — ${notes.join(', ')}.` : '.'),
+                notes.length ? 'info' : 'success'
+            );
         }
 
         function renderPreview() {
@@ -1100,21 +1244,43 @@
             el.previewContainer.classList.remove('hidden');
             el.imageCount.textContent = state.files.length;
 
-            state.files.forEach((file, i) => {
+            const shown = state.files.slice(0, CONFIG.PREVIEW_LIMIT);
+
+            shown.forEach((file, i) => {
+                const kind = kindOf(file);
                 const url  = URL.createObjectURL(file);
                 const item = document.createElement('div');
                 item.className = 'image-item';
                 item.style.animationDelay = Math.min(i * 0.04, 0.4) + 's';
+
+                // Un MP4 dentro de <img> no pinta nada: deja la tarjeta rota.
+                const media = kind === 'video'
+                    ? `<video muted playsinline preload="metadata" aria-label="${esc(file.name)}"></video>
+                       <span class="media-badge">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                           VIDEO
+                       </span>`
+                    : `<img alt="${esc(file.name)}" loading="lazy">`;
+
                 item.innerHTML = `
-                    <img alt="${esc(file.name)}" loading="lazy">
+                    ${media}
                     <div class="image-info">
                         <span class="image-name">${esc(file.name)}</span>
                         <span class="image-size">${fmtSize(file.size)}</span>
                     </div>
                     <button class="remove-btn" data-i="${i}" title="Eliminar">&times;</button>`;
-                const img = item.querySelector('img');
-                img.onload = () => URL.revokeObjectURL(url);
-                img.src = url;
+
+                if (kind === 'video') {
+                    const vid = item.querySelector('video');
+                    // El objectURL no se revoca en loadeddata: <video> lo sigue
+                    // necesitando para pintar el fotograma del poster.
+                    vid.src = url;
+                } else {
+                    const img = item.querySelector('img');
+                    img.onload = () => URL.revokeObjectURL(url);
+                    img.src = url;
+                }
+
                 item.querySelector('.remove-btn').addEventListener('click', ev => {
                     ev.stopPropagation();
                     state.files.splice(Number(ev.currentTarget.dataset.i), 1);
@@ -1122,6 +1288,14 @@
                 });
                 el.imageList.appendChild(item);
             });
+
+            const hidden = state.files.length - shown.length;
+            if (hidden > 0) {
+                const more = document.createElement('div');
+                more.className = 'image-item more-tile';
+                more.textContent = `+${hidden} archivo(s) mas`;
+                el.imageList.appendChild(more);
+            }
         }
 
         // ---- Upload progress UI helpers ----
@@ -1135,13 +1309,21 @@
         }
 
         function addFileToUploadList(file, index) {
-            const thumb = URL.createObjectURL(file);
             const item = document.createElement('div');
             item.className = 'upload-file-item uploading';
             item.id = `upload-item-${index}`;
             item.style.animationDelay = Math.min(index * 0.05, 0.5) + 's';
+
+            // Para video no se genera objectURL: un <img> no lo renderiza y
+            // ademas serian miles de URLs vivas durante toda la subida.
+            const icon = kindOf(file) === 'video'
+                ? `<span class="upload-file-icon" style="display:inline-flex;align-items:center;justify-content:center;background:var(--glass-bg);color:var(--accent-color);">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                   </span>`
+                : `<img class="upload-file-icon" src="${URL.createObjectURL(file)}" alt="" onload="window.URL.revokeObjectURL(this.src)">`;
+
             item.innerHTML = `
-                <img class="upload-file-icon" src="${thumb}" alt="" onload="window.URL.revokeObjectURL(this.src)">
+                ${icon}
                 <div class="upload-file-info">
                     <span class="upload-file-name">${esc(file.name)}</span>
                     <div class="upload-file-meta">
@@ -1153,6 +1335,11 @@
                     <div class="mini-spinner"></div>
                 </div>`;
             el.uploadFileList.appendChild(item);
+
+            // Con 2000 archivos el log acumularia 2000 nodos: se poda por arriba.
+            while (el.uploadFileList.children.length > CONFIG.UPLOAD_LOG_MAX) {
+                el.uploadFileList.removeChild(el.uploadFileList.firstElementChild);
+            }
             item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
@@ -1247,37 +1434,63 @@
                     return;
                 }
 
-                // 3. Package phase
-                el.uploadPhaseTitle.textContent = 'Empaquetando…';
+                // 3. Plan de lotes. Solo consulta D1: no baja nada de R2 ni
+                //    genera ningun ZIP todavia, asi que es barato.
+                el.uploadPhaseTitle.textContent = 'Preparando descarga…';
                 el.uploadFileList.classList.add('hidden');
                 el.packagingOverlay.classList.remove('hidden');
 
-                const pkgRes = await fetch('/api/mirror/package', {
+                const planRes = await fetch('/api/mirror/plan', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sessionId })
                 });
+                if (!planRes.ok) throw new Error(`Error al preparar la descarga: ${planRes.status}`);
+                const plan = await planRes.json();
+                state.batches = plan.batches || [];
 
-                if (!pkgRes.ok) throw new Error(`Error al empaquetar: ${pkgRes.status}`);
-                state.blob = await pkgRes.blob();
+                const okCount = total - errors;
+                const baseMsg = errors > 0
+                    ? `${okCount} de ${total} archivo(s) procesados`
+                    : `${total} archivo(s) procesados`;
 
-                // 4. Done!
-                el.uploadProgressPanel.classList.add('hidden');
-                const successMsg = errors > 0
-                    ? `${total - errors} de ${total} imagenes procesadas. Descarga lista.`
-                    : `${total} imagenes procesadas. Descarga lista.`;
-                showStatus(successMsg, 'success');
-                el.downloadBtn.style.display = 'inline-flex';
-                el.downloadBtn.disabled = false;
-                el.expirationWarning.classList.remove('hidden');
+                if (state.batches.length <= 1) {
+                    // 4a. Cabe en un solo ZIP: se genera ya, como siempre.
+                    const pkgRes = await fetch('/api/mirror/package', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId, batch: 0 })
+                    });
 
-                setTimeout(() => {
-                    state.blob = null;
-                    el.downloadBtn.disabled = true;
-                    el.expirationWarning.classList.add('hidden');
-                    showStatus('El archivo ha expirado. Procesa de nuevo.', 'error');
-                }, 30 * 60 * 1000);
+                    if (!pkgRes.ok) throw new Error(`Error al empaquetar: ${pkgRes.status}`);
+                    state.blob = await pkgRes.blob();
+
+                    el.uploadProgressPanel.classList.add('hidden');
+                    showStatus(`${baseMsg}. Descarga lista.`, 'success');
+                    el.downloadBtn.style.display = 'inline-flex';
+                    el.downloadBtn.disabled = false;
+                    el.expirationWarning.classList.remove('hidden');
+
+                    setTimeout(() => {
+                        state.blob = null;
+                        el.downloadBtn.disabled = true;
+                        el.expirationWarning.classList.add('hidden');
+                        showStatus('El archivo ha expirado. Procesa de nuevo.', 'error');
+                    }, 30 * 60 * 1000);
+                } else {
+                    // 4b. Varios lotes: no se genera ninguno por adelantado. Se
+                    //     crea al pulsar Descargar, uno cada vez, para no tener
+                    //     varios ZIP grandes vivos en memoria del navegador.
+                    el.uploadProgressPanel.classList.add('hidden');
+                    renderBatchList();
+                    el.batchPanel.classList.remove('hidden');
+                    showStatus(
+                        `${baseMsg}. Se reparten en ${state.batches.length} lotes.`,
+                        'success'
+                    );
+                }
 
             } catch (err) {
                 showStatus(`Error: ${err.message}`, 'error');
@@ -1288,14 +1501,101 @@
             }
         }
 
+        function saveBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            // Revocar en la misma vuelta cancelaba la descarga en algunos
+            // navegadores; con ZIP de decenas de MB se nota de verdad.
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+
         function downloadResult() {
             if (!state.blob) return;
-            const a = Object.assign(document.createElement('a'), {
-                href: URL.createObjectURL(state.blob),
-                download: `mirai-mirror-${Date.now()}.zip`
+            saveBlob(state.blob, `mirai-mirror-${Date.now()}.zip`);
+        }
+
+        // ---- Descarga por lotes ----
+
+        function updateBatchStats() {
+            el.batchPanelStats.textContent = `${state.batchesDone} / ${state.batches.length}`;
+        }
+
+        function renderBatchList() {
+            el.batchList.innerHTML = '';
+            state.batchesDone = 0;
+            updateBatchStats();
+
+            state.batches.forEach(b => {
+                const row = document.createElement('div');
+                row.className = 'batch-row';
+                row.id = `batch-row-${b.index}`;
+                row.innerHTML = `
+                    <div class="batch-row-info">
+                        <span class="batch-row-title">Lote ${b.index + 1} de ${state.batches.length}</span>
+                        <span class="batch-row-meta">${b.count} archivo(s) · ${fmtSize(b.bytes)}</span>
+                    </div>
+                    <button class="btn btn-secondary" data-batch="${b.index}">Descargar</button>`;
+                row.querySelector('button').addEventListener('click', ev => {
+                    downloadBatch(Number(ev.currentTarget.dataset.batch));
+                });
+                el.batchList.appendChild(row);
             });
-            a.click();
-            URL.revokeObjectURL(a.href);
+        }
+
+        async function downloadBatch(index) {
+            const row = $(`batch-row-${index}`);
+            const btn = row && row.querySelector('button');
+            if (btn && btn.disabled) return false;
+            if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+
+            try {
+                const res = await fetch('/api/mirror/package', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId: state.sessionId, batch: index })
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const blob = await res.blob();
+                saveBlob(blob, `mirai-mirror-lote-${String(index + 1).padStart(2, '0')}.zip`);
+
+                if (row) { row.classList.remove('error'); row.classList.add('done'); }
+                if (btn) btn.textContent = 'Descargado';
+                state.batchesDone++;
+                updateBatchStats();
+                return true;
+            } catch (err) {
+                if (row) row.classList.add('error');
+                if (btn) { btn.disabled = false; btn.textContent = 'Reintentar'; }
+                showStatus(`Lote ${index + 1}: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function downloadAllBatches() {
+            if (state.downloadingAll) return;
+            state.downloadingAll = true;
+            el.downloadAllBtn.disabled = true;
+            const original = el.downloadAllBtn.innerHTML;
+
+            try {
+                // Secuencial a proposito: dos lotes a la vez son dos ZIP
+                // completos en memoria del worker al mismo tiempo.
+                for (const b of state.batches) {
+                    const row = $(`batch-row-${b.index}`);
+                    if (row && row.classList.contains('done')) continue;
+                    el.downloadAllBtn.textContent = `Generando lote ${b.index + 1} de ${state.batches.length}…`;
+                    if (!await downloadBatch(b.index)) break;
+                }
+            } finally {
+                state.downloadingAll = false;
+                el.downloadAllBtn.disabled = false;
+                el.downloadAllBtn.innerHTML = original;
+            }
         }
 
         async function reset() {
@@ -1310,16 +1610,22 @@
                     });
                 } catch (_) {}
             }
-            state = { files: [], blob: null, processing: false, sessionId: null, aborted: false };
+            state = {
+                files: [], blob: null, processing: false, sessionId: null, aborted: false,
+                batches: [], batchesDone: 0, downloadingAll: false
+            };
             el.imageInput.value = '';
             el.downloadBtn.style.display = 'none';
             el.downloadBtn.disabled = true;
             el.resetBtn.style.display = 'none';
             el.expirationWarning.classList.add('hidden');
             el.uploadProgressPanel.classList.add('hidden');
+            el.uploadFileList.classList.remove('hidden');
+            el.batchPanel.classList.add('hidden');
+            el.batchList.innerHTML = '';
             renderPreview();
             updateUI();
-            showStatus('Listo para nuevas imagenes.', 'info');
+            showStatus('Listo para nuevas fotos y videos.', 'info');
         }
 
         const SVG_ICONS = {

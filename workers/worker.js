@@ -262,9 +262,22 @@ const ROUTES = {
 };
 
 const MIRROR_CONFIG = {
-  MAX_FILES: 200,
-  MAX_FILE_SIZE: 15 * 1024 * 1024,
+  // El tope por sesion ya no limita la descarga: el empaquetado va por lotes
+  // (ver mirrorPlanSession), asi que solo esta aqui como red de seguridad.
+  MAX_FILES: 5000,
+  MAX_FILE_SIZE: 15 * 1024 * 1024,        // imagenes
+  MAX_VIDEO_SIZE: 25 * 1024 * 1024,       // videos
   ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'],
+  ALLOWED_VIDEO_TYPES: ['video/mp4', 'video/quicktime', 'video/webm', 'video/3gpp', 'video/x-matroska'],
+  // Cada lote se arma entero en memoria: el isolate tiene 128 MB, asi que se
+  // corta por bytes y no por numero de archivos. 200 fotos de 500 KB caben;
+  // 200 de 5 MB no. El tope de archivos evita ademas pasarse de subrequests.
+  BATCH_MAX_BYTES: 60 * 1024 * 1024,
+  BATCH_MAX_FILES: 200,
+  // Las filas escritas antes de existir size_bytes valen 0. Si se contaran como
+  // 0 bytes, un lote se llevaria 200 archivos de tamanio real desconocido y
+  // reventaria el isolate. Se les asume un peso conservador.
+  LEGACY_SIZE_ESTIMATE: 8 * 1024 * 1024,
   CLEANUP_DAYS: 7
 };
 
@@ -2787,6 +2800,9 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     }
     if (path === '/api/mirror/upload' && request.method === 'POST') {
       return await mirrorUploadImage(request, env, corsHeaders);
+    }
+    if (path === '/api/mirror/plan' && request.method === 'POST') {
+      return await mirrorPlanSession(request, env, corsHeaders);
     }
     if (path === '/api/mirror/package' && request.method === 'POST') {
       return await mirrorPackageSession(request, env, corsHeaders);
@@ -13296,12 +13312,68 @@ async function handleTriggerNotification(request, env, corsHeaders) {
 // prueba nada: la sesión se ata al DNI que la creó y todas las rutas del módulo
 // comprueban esa propiedad. Antes bastaba conocer (o adivinar) un sessionId
 // ajeno para descargarse el ZIP de fotos de otro o borrárselo.
+// Estas migraciones corren en caliente en cada request. Sin memo, subir 2000
+// archivos lanzaba 2000 ALTER TABLE inutiles contra D1.
+let _mirrorOwnerColumnReady = false;
+let _mirrorSizeColumnReady  = false;
+
 async function ensureMirrorSessionOwnerColumn(env) {
+  if (_mirrorOwnerColumnReady) return;
   try {
     await env.MIRAI_AI_DB.prepare(
       `ALTER TABLE photo_sessions ADD COLUMN user_dni TEXT`
     ).run();
   } catch (_) { /* la columna ya existe */ }
+  _mirrorOwnerColumnReady = true;
+}
+
+/**
+ * El empaquetado por lotes necesita saber cuanto pesa cada archivo SIN bajarlo
+ * de R2; sin esta columna habria que hacer un GET por objeto solo para medir.
+ */
+async function ensureMirrorPhotoSizeColumn(env) {
+  if (_mirrorSizeColumnReady) return;
+  try {
+    await env.MIRAI_AI_DB.prepare(
+      `ALTER TABLE photos ADD COLUMN size_bytes INTEGER DEFAULT 0`
+    ).run();
+  } catch (_) { /* la columna ya existe */ }
+  _mirrorSizeColumnReady = true;
+}
+
+/** Clasifica el MIME en 'image' | 'video' | null segun lo permitido. */
+function mirrorMediaKind(mime) {
+  const t = (mime || '').toLowerCase();
+  if (MIRROR_CONFIG.ALLOWED_TYPES.includes(t)) return 'image';
+  if (MIRROR_CONFIG.ALLOWED_VIDEO_TYPES.includes(t)) return 'video';
+  return null;
+}
+
+/**
+ * Reparte las filas en lotes cortando por bytes acumulados.
+ * Un archivo que por si solo supere el tope se lleva su propio lote: mas vale
+ * un ZIP con un unico video de 25 MB que un lote que revienta el isolate.
+ * El orden es el mismo que usa el empaquetado, para que offset/limit sean
+ * estables entre llamadas.
+ */
+function buildMirrorBatches(rows) {
+  const batches = [];
+  let current = null;
+
+  rows.forEach((row, i) => {
+    const size = Number(row.size_bytes) || 0;
+    const wouldExceedBytes = current && current.bytes + size > MIRROR_CONFIG.BATCH_MAX_BYTES;
+    const wouldExceedCount = current && current.count >= MIRROR_CONFIG.BATCH_MAX_FILES;
+
+    if (!current || wouldExceedBytes || wouldExceedCount) {
+      current = { index: batches.length, offset: i, count: 0, bytes: 0 };
+      batches.push(current);
+    }
+    current.count++;
+    current.bytes += size;
+  });
+
+  return batches;
 }
 
 /** Devuelve la sesión de fotos si pertenece al usuario; si no, null. */
@@ -13363,13 +13435,18 @@ async function mirrorUploadImage(request, env, corsHeaders) {
 
   // MIRROR_CONFIG.ALLOWED_TYPES / MAX_FILES estaban declarados pero nunca se
   // aplicaban: la subida era anónima, ilimitada y sin límite de tamaño.
-  const ALLOWED_TYPES = MIRROR_CONFIG.ALLOWED_TYPES;
-  if (!file.type || !ALLOWED_TYPES.includes(file.type.toLowerCase())) {
-    return jsonResponse({ success: false, error: 'Invalid file type' }, 400, corsHeaders);
+  const kind = mirrorMediaKind(file.type);
+  if (!kind) {
+    return jsonResponse({ success: false, error: 'Formato no admitido' }, 400, corsHeaders);
   }
 
-  if (file.size > MIRROR_CONFIG.MAX_FILE_SIZE) {
-    return jsonResponse({ success: false, error: 'La imagen excede el límite de 15MB' }, 400, corsHeaders);
+  const sizeLimit = kind === 'video' ? MIRROR_CONFIG.MAX_VIDEO_SIZE : MIRROR_CONFIG.MAX_FILE_SIZE;
+  if (file.size > sizeLimit) {
+    const mb = Math.round(sizeLimit / (1024 * 1024));
+    return jsonResponse(
+      { success: false, error: `${kind === 'video' ? 'El vídeo' : 'La imagen'} excede el límite de ${mb} MB` },
+      400, corsHeaders
+    );
   }
 
   const countRow = await env.MIRAI_AI_DB.prepare(
@@ -13382,7 +13459,9 @@ async function mirrorUploadImage(request, env, corsHeaders) {
     );
   }
 
-  let dateStr = await extractEXIFDate(file);
+  let dateStr = kind === 'video'
+    ? await extractVideoDate(file)
+    : await extractEXIFDate(file);
   if (!dateStr) dateStr = extractDateFromFilename(file.name);
   if (!dateStr && lastModified) dateStr = new Date(lastModified).toISOString().split('T')[0];
   if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
@@ -13390,7 +13469,9 @@ async function mirrorUploadImage(request, env, corsHeaders) {
   const [year, month, day] = dateStr.split('-');
   const folderName = `${day}-${month}-${year}`;
 
-  const imageBuffer = await file.arrayBuffer();
+  // Antes se hacia `await file.arrayBuffer()`: con un video de 25 MB eso es una
+  // copia integra en el isolate. R2 acepta el Blob tal cual y ya conoce su
+  // tamanio, asi que se le pasa directo.
   const fileId = crypto.randomUUID();
   // El nombre original del fichero va a la clave de R2: sin sanear, un nombre
   // con "/" o ".." reorganiza claves ajenas dentro del bucket.
@@ -13398,15 +13479,16 @@ async function mirrorUploadImage(request, env, corsHeaders) {
   const baseName = file.name.replace(/\.[^.]+$/, '').replace(/[^\w\-. ]/g, '_').slice(0, 80) || 'imagen';
   const r2Key = `${sessionId}/${folderName}/${baseName}_${fileId}.${ext}`;
 
-  await env.MIRAI_PHOTOS.put(r2Key, imageBuffer, {
-    customMetadata: { sessionId, originalName: file.name, folder: folderName, dateStr },
-    httpMetadata: { contentType: file.type || 'image/jpeg' }
+  await env.MIRAI_PHOTOS.put(r2Key, file, {
+    customMetadata: { sessionId, originalName: file.name, folder: folderName, dateStr, kind },
+    httpMetadata: { contentType: file.type || 'application/octet-stream' }
   });
 
   try {
+    await ensureMirrorPhotoSizeColumn(env);
     await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO photos (session_id, r2_key, date_str, original_name) VALUES (?, ?, ?, ?)`
-    ).bind(sessionId, r2Key, dateStr, file.name).run();
+      `INSERT INTO photos (session_id, r2_key, date_str, original_name, size_bytes) VALUES (?, ?, ?, ?, ?)`
+    ).bind(sessionId, r2Key, dateStr, file.name, file.size).run();
     await env.MIRAI_AI_DB.prepare(
       `UPDATE photo_sessions SET image_count = image_count + 1 WHERE session_id = ?`
     ).bind(sessionId).run();
@@ -13414,7 +13496,89 @@ async function mirrorUploadImage(request, env, corsHeaders) {
     console.warn('D1 insert error:', e.message);
   }
 
-  return jsonResponse({ success: true, fileId, folder: folderName, date: dateStr }, 200, corsHeaders);
+  return jsonResponse({ success: true, fileId, folder: folderName, date: dateStr, kind }, 200, corsHeaders);
+}
+
+/**
+ * Lee las filas de la sesión en el orden canónico y les asigna el nombre final
+ * dentro del ZIP. La deduplicación se calcula sobre la sesión COMPLETA, no por
+ * lote: si "IMG_001.jpg" cae en el lote 1 y otra igual en el lote 3, al
+ * descomprimir ambos ZIP en la misma carpeta seguirían sin pisarse.
+ */
+async function loadMirrorManifest(sessionId, env) {
+  await ensureMirrorPhotoSizeColumn(env);
+
+  // El ORDER BY incluye r2_key porque date_str a solas no desempata: sin un
+  // criterio estable, dos llamadas podían devolver órdenes distintos y los
+  // lotes dejaban de cuadrar entre /plan y /package.
+  const photos = await env.MIRAI_AI_DB.prepare(
+    `SELECT r2_key, date_str, original_name, size_bytes
+       FROM photos
+      WHERE session_id = ?
+      ORDER BY date_str ASC, r2_key ASC`
+  ).bind(sessionId).all();
+
+  const rows = photos.results || [];
+
+  // Map en vez de objeto plano: con {} un archivo llamado "constructor.jpg" o
+  // "__proto__.jpg" leía una propiedad heredada de Object.prototype y el
+  // contador salía NaN, corrompiendo el nombre dentro del ZIP.
+  const usedNames = new Map();
+
+  return rows.map(row => {
+    const folder = (row.date_str || '').split('-').reverse().join('-') || 'sin-fecha';
+    const ext = (row.original_name.split('.').pop() || 'jpg').toLowerCase();
+    const baseName = row.original_name.replace(/\.[^.]+$/, '');
+    const nameKey = `${folder}/${baseName}`;
+    const seen = (usedNames.get(nameKey) || 0) + 1;
+    usedNames.set(nameKey, seen);
+    const finalName = seen > 1 ? `${baseName}_${seen}.${ext}` : `${baseName}.${ext}`;
+
+    return {
+      r2_key: row.r2_key,
+      date: row.date_str,
+      size_bytes: Number(row.size_bytes) || MIRROR_CONFIG.LEGACY_SIZE_ESTIMATE,
+      path: `${folder}/${finalName}`
+    };
+  });
+}
+
+/**
+ * Devuelve cómo se va a repartir la descarga, sin tocar R2. El front lo usa
+ * para pintar "Lote 3 de 10" antes de empezar a bajar nada.
+ */
+async function mirrorPlanSession(request, env, corsHeaders) {
+  if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
+    return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
+  }
+
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ success: false, error: 'No autorizado' }, 401, corsHeaders);
+
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return jsonResponse({ success: false, error: 'Invalid JSON' }, 400, corsHeaders);
+  }
+
+  const { sessionId } = body;
+  if (!sessionId) return jsonResponse({ success: false, error: 'Missing sessionId' }, 400, corsHeaders);
+
+  const session = await getOwnedMirrorSession(sessionId, userDni, env);
+  if (!session) return jsonResponse({ success: false, error: 'Sesión no encontrada' }, 404, corsHeaders);
+
+  const manifest = await loadMirrorManifest(sessionId, env);
+  if (!manifest.length) {
+    return jsonResponse({ success: false, error: 'No photos in session' }, 400, corsHeaders);
+  }
+
+  const batches = buildMirrorBatches(manifest);
+
+  return jsonResponse({
+    success: true,
+    totalFiles: manifest.length,
+    totalBytes: manifest.reduce((acc, f) => acc + f.size_bytes, 0),
+    batches: batches.map(b => ({ index: b.index, count: b.count, bytes: b.bytes }))
+  }, 200, corsHeaders);
 }
 
 async function mirrorPackageSession(request, env, corsHeaders) {
@@ -13440,40 +13604,30 @@ async function mirrorPackageSession(request, env, corsHeaders) {
     return jsonResponse({ success: false, error: 'Sesión no encontrada' }, 404, corsHeaders);
   }
 
-  const photos = await env.MIRAI_AI_DB.prepare(
-    `SELECT r2_key, date_str, original_name FROM photos WHERE session_id = ? ORDER BY date_str ASC`
-  ).bind(sessionId).all();
-
-  if (!photos.results || !photos.results.length) {
+  const manifest = await loadMirrorManifest(sessionId, env);
+  if (!manifest.length) {
     return jsonResponse({ success: false, error: 'No photos in session' }, 400, corsHeaders);
   }
 
+  const batches = buildMirrorBatches(manifest);
+  // Sin `batch` se devuelve el primero: así una sesión de pocas fotos sigue
+  // funcionando con el mismo contrato de antes.
+  const batchIndex = Number.isInteger(body.batch) ? body.batch : 0;
+  const batch = batches[batchIndex];
+  if (!batch) {
+    return jsonResponse({ success: false, error: 'Lote inexistente' }, 400, corsHeaders);
+  }
+
+  const slice = manifest.slice(batch.offset, batch.offset + batch.count);
+
   const filesForZip = [];
-  // Map en vez de objeto plano: con {} un archivo llamado "constructor.jpg" o
-  // "__proto__.jpg" leía una propiedad heredada de Object.prototype y el
-  // contador salía NaN, corrompiendo el nombre dentro del ZIP.
-  const usedNames = new Map();
-
-  for (const row of photos.results) {
-    const obj = await env.MIRAI_PHOTOS.get(row.r2_key);
+  for (const entry of slice) {
+    const obj = await env.MIRAI_PHOTOS.get(entry.r2_key);
     if (!obj) continue;
-
-    const folder = obj.customMetadata?.folder || 'sin-fecha';
-    const imageBuffer = await obj.arrayBuffer();
-
-    const ext = (row.original_name.split('.').pop() || 'jpg').toLowerCase();
-    const baseName = row.original_name.replace(/\.[^.]+$/, '');
-    const nameKey = `${folder}/${baseName}`;
-    const seen = (usedNames.get(nameKey) || 0) + 1;
-    usedNames.set(nameKey, seen);
-    const finalName = seen > 1
-      ? `${baseName}_${seen}.${ext}`
-      : `${baseName}.${ext}`;
-
     filesForZip.push({
-      path: `${folder}/${finalName}`,
-      data: imageBuffer,
-      date: row.date_str
+      path: entry.path,
+      data: await obj.arrayBuffer(),
+      date: entry.date
     });
   }
 
@@ -13481,7 +13635,6 @@ async function mirrorPackageSession(request, env, corsHeaders) {
     return jsonResponse({ success: false, error: 'All images failed to load from storage' }, 500, corsHeaders);
   }
 
-  filesForZip.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const zipBlob = createZipWithFolders(filesForZip.map(f => ({
     path: f.path,
     name: f.path.split('/').pop(),
@@ -13490,13 +13643,19 @@ async function mirrorPackageSession(request, env, corsHeaders) {
     folder: f.path.split('/')[0]
   })));
 
+  const suffix = batches.length > 1
+    ? `_lote${String(batchIndex + 1).padStart(2, '0')}`
+    : '';
+
   return new Response(zipBlob, {
     headers: {
       ...corsHeaders,
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="mirai_mirror_${sessionId}.zip"`,
+      'Content-Disposition': `attachment; filename="mirai_mirror_${sessionId}${suffix}.zip"`,
       'Cache-Control': 'no-store',
-      'X-Files-Count': String(filesForZip.length)
+      'X-Files-Count': String(filesForZip.length),
+      'X-Batch-Index': String(batchIndex),
+      'X-Batch-Total': String(batches.length)
     }
   });
 }
@@ -13542,13 +13701,16 @@ async function mirrorCleanupSession(request, env, corsHeaders) {
 // ============================================
 async function extractEXIFDate(file) {
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
+    // Antes leia el fichero entero para mirar solo los primeros 64 KB. Con una
+    // imagen de 15 MB se notaba poco; con video de 25 MB es una copia integra
+    // en un isolate de 128 MB.
+    const head = await file.slice(0, 65536).arrayBuffer();
+    const uint8 = new Uint8Array(head);
 
     // Solo JPEG (FF D8 FF)
     if (uint8[0] !== 0xFF || uint8[1] !== 0xD8 || uint8[2] !== 0xFF) return null;
 
-    const limit = Math.min(uint8.length, 65536); // primeros 64 KB bastan
+    const limit = uint8.length;
     for (let i = 2; i < limit - 4; i++) {
       if (uint8[i] === 0xFF && uint8[i + 1] === 0xE1) {
         const segLen = (uint8[i + 2] << 8) | uint8[i + 3];
@@ -13560,6 +13722,70 @@ async function extractEXIFDate(file) {
     }
   } catch (e) {
     console.warn('EXIF read error:', e.message);
+  }
+  return null;
+}
+
+// ============================================
+// EXTRAER FECHA DE GRABACIÓN DE UN VÍDEO (MP4/MOV)
+// ============================================
+
+// MP4/QuickTime cuentan los segundos desde 1904-01-01, no desde 1970.
+const MP4_EPOCH_OFFSET = 2082844800;
+
+/**
+ * Lee `creation_time` del átomo `mvhd`. No se parsea el árbol de átomos
+ * completo a propósito: `moov` puede estar al principio (iPhone) o al final
+ * (muchos Android), así que se escanea la firma ASCII en la cabecera y en la
+ * cola, que es donde cae en ambos casos.
+ */
+async function extractVideoDate(file) {
+  const WINDOW = 262144; // 256 KB por extremo
+
+  const scan = (uint8) => {
+    // 'mvhd' = 6D 76 68 64
+    for (let i = 0; i < uint8.length - 20; i++) {
+      if (uint8[i] !== 0x6D || uint8[i + 1] !== 0x76 ||
+          uint8[i + 2] !== 0x68 || uint8[i + 3] !== 0x64) continue;
+
+      const view = new DataView(uint8.buffer, uint8.byteOffset, uint8.byteLength);
+      const version = uint8[i + 4];
+      let seconds;
+
+      if (version === 0) {
+        seconds = view.getUint32(i + 8, false);
+      } else if (version === 1) {
+        // 64 bits: la parte alta es 0 en cualquier fecha real, pero se respeta.
+        const hi = view.getUint32(i + 8, false);
+        const lo = view.getUint32(i + 12, false);
+        seconds = hi * 4294967296 + lo;
+      } else {
+        continue;
+      }
+
+      if (!seconds) continue;
+      const ms = (seconds - MP4_EPOCH_OFFSET) * 1000;
+      const d = new Date(ms);
+      const year = d.getUTCFullYear();
+      // Un mvhd sin fecha real deja 0 o basura; se descarta fuera de rango.
+      if (year >= 2000 && year <= new Date().getUTCFullYear() + 1) {
+        return d.toISOString().split('T')[0];
+      }
+    }
+    return null;
+  };
+
+  try {
+    const head = new Uint8Array(await file.slice(0, WINDOW).arrayBuffer());
+    const fromHead = scan(head);
+    if (fromHead) return fromHead;
+
+    if (file.size > WINDOW) {
+      const tail = new Uint8Array(await file.slice(Math.max(0, file.size - WINDOW)).arrayBuffer());
+      return scan(tail);
+    }
+  } catch (e) {
+    console.warn('Video date read error:', e.message);
   }
   return null;
 }
