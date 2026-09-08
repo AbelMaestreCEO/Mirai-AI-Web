@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Reportes">
     <title>Mirai AI - Mis Reportes</title>
@@ -54,7 +54,8 @@
     <style>
         /* ===== STUDENT REPORT STYLES ===== */
         .report-student-container {
-            max-width: 860px;
+            --page-max: 860px;
+            max-width: var(--page-max);
             margin: 0 auto;
             padding: 1.5rem 1rem 5rem;
         }
@@ -104,15 +105,23 @@
         .admin-only { display: none; }
 
         /* Tabs */
+        /* En móviles estrechos las tres pestañas no caben en una fila y
+           desbordaban la pantalla; se desplazan en horizontal en su propia
+           barra en vez de empujar el ancho de la página. */
         .report-tabs {
             display: flex;
             gap: 8px;
             margin-bottom: 1.5rem;
             border-bottom: 2px solid var(--glass-border, rgba(103,80,164,0.1));
             padding-bottom: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
         }
 
+        .report-tabs::-webkit-scrollbar { display: none; }
+
         .tab-btn {
+            flex-shrink: 0;
             padding: 9px 18px;
             background: none;
             border: none;
@@ -1019,6 +1028,7 @@
         @media (max-width: 480px) {
             .reports-grid { grid-template-columns: 1fr; }
             .modal-box { padding: 1.2rem; }
+            .tab-btn { padding: 9px 12px; font-size: 0.82rem; }
         }
     </style>
 </head>

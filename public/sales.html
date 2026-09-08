@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Ventas">
 
@@ -67,22 +67,13 @@
     <link rel="stylesheet" href="transitions.css">
     <style>
         /* ===== MÓDULO DE VENTAS ===== */
+        /* `--page-max` lo consume la regla compartida del final de styles.css,
+           que en escritorio reserva el hueco del sidebar y centra la caja. */
         .sales-container {
-            max-width: 1400px;
+            --page-max: 1400px;
+            max-width: var(--page-max);
             margin: 0 auto;
             padding: 1rem 1rem 3rem;
-        }
-
-        @media (min-width: 769px) {
-            .sales-container {
-                margin-left: 280px;
-                padding-left: 2rem;
-                transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
-            }
-
-            .mobile-sidebar.collapsed ~ .sales-container {
-                margin-left: 72px !important;
-            }
         }
 
         .sales-stats {

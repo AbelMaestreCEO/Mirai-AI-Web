@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Generación con IA">
     <title>Mirai AI - Generación IA</title>
@@ -55,30 +55,12 @@
     <style>
         /* ── Estilos exclusivos de generation ── */
 
-        /* El sidebar es `position: fixed` y mide 280px (72px colapsado). Antes se
-           compensaba con `var(--sidebar-width, 260px)` —variable que no está
-           definida en ninguna hoja, así que siempre caía en el 260px de
-           reserva— y con `body.sidebar-collapsed`, clase que nadie añade: el
-           colapso lo marca `.mobile-sidebar.collapsed`. Se usa el mismo patrón
-           de hermano adyacente que styles.css aplica a `.header`. */
+        /* El desplazamiento respecto al sidebar lo aplica la regla compartida
+           del final de styles.css (familia B), que sigue `--sidebar-w`. */
         .gen-page-content {
-            margin-left: 280px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
-        }
-
-        .mobile-sidebar.collapsed~.gen-page-content {
-            margin-left: 72px;
-        }
-
-        @media (max-width: 768px) {
-
-            .gen-page-content,
-            .mobile-sidebar.collapsed~.gen-page-content {
-                margin-left: 0;
-            }
         }
 
         /* ── Hero + input superior ── */

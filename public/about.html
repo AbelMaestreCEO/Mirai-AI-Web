@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai Ecosystem - Acerca de">
 
@@ -67,7 +67,8 @@
 <style>
     /* Estilos exclusivos del módulo About — mínimos y necesarios */
     .about-container {
-        max-width: 720px;
+        --page-max: 720px;
+        max-width: var(--page-max);
         margin: 0 auto;
         padding: 1.5rem 1rem 3rem;
     }

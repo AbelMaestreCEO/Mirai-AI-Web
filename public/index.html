@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Bienvenido a tu asistente inteligente">
 
@@ -70,17 +70,8 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
     <style>
-        /* ===== LAYOUT: sidebar-aware ===== */
-        .home-main,
-        .welcome-footer {
-            margin-left: 280px;
-            transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
-        }
-
-        .mobile-sidebar.collapsed~.home-main,
-        .mobile-sidebar.collapsed~.welcome-footer {
-            margin-left: 72px !important;
-        }
+        /* El hueco del sidebar lo reserva la regla compartida del final de
+           styles.css (familia B, a sangre completa), que sigue `--sidebar-w`. */
 
         /* ===== LOGO ===== */
         .home-logo {
@@ -544,16 +535,6 @@
 
         /* ===== MÓVIL ===== */
         @media (max-width: 768px) {
-            .home-main,
-            .welcome-footer {
-                margin-left: 0 !important;
-            }
-
-            .mobile-sidebar.collapsed~.home-main,
-            .mobile-sidebar.collapsed~.welcome-footer {
-                margin-left: 0 !important;
-            }
-
             .home-logo {
                 width: 44px;
                 height: 44px;

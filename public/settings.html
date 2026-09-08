@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Configuración">
     <title>Mirai AI - Configuración</title>
@@ -125,6 +125,8 @@
            SETTINGS PAGE - ESTILOS ESPECÍFICOS
            ============================================ */
         .settings-container {
+            --page-max: 1180px;
+            --page-pad: 28px;
             max-width: 860px;
             margin: 0 auto;
             padding: 28px 20px 80px;
@@ -1070,25 +1072,12 @@
         /* ══════════════════════════════════════════════════════════════
            DISEÑO EN ESCRITORIO — MÁS COMPACTO
            ══════════════════════════════════════════════════════════════
-           Este bloque va después de styles.css a propósito: ahí se define
-           `.mobile-sidebar ~ .settings-container` para apartar el contenido del
-           sidebar fijo, y aquí se ajusta ese mismo selector.
-
-           En lugar de un margen izquierdo, se reserva el hueco del sidebar con
-           `padding-left` y se amplía el `max-width` en esos mismos 280px. Así
-           los márgenes automáticos siguen centrando el contenido dentro del
-           espacio realmente libre, en cualquier ancho de pantalla. */
+           El hueco del sidebar y el centrado los resuelve la regla compartida
+           del final de styles.css a partir de `--page-max` / `--page-pad`. */
         @media (min-width: 769px) {
             .mobile-sidebar~.settings-container {
-                box-sizing: border-box;
-                max-width: calc(1180px + 280px);
-                margin: 0 auto;
-                padding: 22px 28px 56px calc(280px + 28px);
-            }
-
-            .mobile-sidebar.collapsed~.settings-container {
-                max-width: calc(1180px + 72px);
-                padding-left: calc(72px + 28px);
+                padding-top: 22px;
+                padding-bottom: 56px;
             }
 
             /* Hero: ocupaba un tercio de la pantalla sin aportar información */

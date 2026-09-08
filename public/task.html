@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Gestor de Tareas">
     <title>Mirai AI - Tareas</title>
@@ -50,25 +50,14 @@
     <style>
         /* ===== TASKS MODULE ===== */
         .tasks-container {
-            max-width: 1400px;
+            --page-max: 1400px;
+            max-width: var(--page-max);
             margin: 0 auto;
             padding: 1rem 1rem 3rem;
         }
 
-        /* En PC, el sidebar es fixed y no reserva espacio: empujamos el
-           contenido igual que .header/.chat-container para que no quede
-           pegado al borde del sidebar. */
-        @media (min-width: 769px) {
-            .tasks-container {
-                margin-left: 280px;
-                padding-left: 2rem;
-                transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
-            }
-
-            .mobile-sidebar.collapsed ~ .tasks-container {
-                margin-left: 72px !important;
-            }
-        }
+        /* El hueco del sidebar y el centrado los resuelve la regla compartida
+           del final de styles.css a partir de `--page-max`. */
 
         /* Stats — compact horizontal scroll */
         .tasks-stats {
@@ -1090,6 +1079,13 @@
             .tasks-container { padding: .75rem .6rem 3rem; }
             .kanban-board { grid-template-columns: 1fr; }
             .view-tab .tab-label { display: none; }
+
+            /* En móviles estrechos "Nueva Tarea" + "IA" + el título no caben en
+               la cabecera y la desbordaban. El botón de la cabecera se queda en
+               el icono "+"; los `.btn-new-task` de los modales no se tocan. */
+            .header-actions .btn-new-task { padding: 8px 12px; font-size: 0; gap: 0; }
+            .header-actions .btn-new-task svg { width: 18px; height: 18px; }
+            .header-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
             .gantt-label-col, .gantt-task-label { width: 90px; font-size: .7rem; padding: .4rem .4rem; }
             .gantt-day { min-width: 32px; font-size: .65rem; padding: .5rem 0; }
             .gantt-inner { min-width: 420px; }

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai AI - Investigador Web con IA">
     <title>Mirai AI - Investigador</title>
@@ -58,20 +58,14 @@
 <style>
 /* ── Estilos exclusivos de investigation ── */
 
-/* Área de contenido con margen para la sidebar (igual que otras páginas del proyecto) */
+/* El margen para el sidebar lo aplica la regla compartida del final de
+   styles.css (familia B). Antes se usaba `var(--sidebar-width, 260px)`, una
+   variable que no existe en ninguna hoja, así que el margen nunca coincidía
+   con el ancho real del menú. */
 .inv-page-content {
-    margin-left: var(--sidebar-width, 260px);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    transition: margin-left 0.3s ease;
-}
-.mobile-sidebar.collapsed ~ .mobile-overlay ~ .header ~ .inv-page-content,
-body.sidebar-collapsed .inv-page-content {
-    margin-left: 60px;
-}
-@media (max-width: 768px) {
-    .inv-page-content { margin-left: 0; }
 }
 
 /* Zona central estilo Google: hero + barra de búsqueda */
