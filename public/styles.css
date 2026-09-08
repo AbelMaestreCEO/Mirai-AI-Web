@@ -50,6 +50,12 @@
   --border-radius-sm: 12px;
   --border-radius-pill: 9999px;
 
+  /* Menú lateral fijo — el hueco que debe dejar el contenido en escritorio.
+     Se declara como variable para que el ancho se ajuste en un solo sitio y
+     todos los contenedores de página lo sigan. */
+  --sidebar-w: 280px;
+  --sidebar-w-collapsed: 72px;
+
   /* Transiciones — Spring physics de Android 16 */
   --ease-elastic: cubic-bezier(0.2, 0, 0, 1);
   --ease-smooth: cubic-bezier(0.05, 0.7, 0.1, 1);
@@ -833,8 +839,10 @@ body::before {
   position: fixed;
   top: 0;
   left: 0;
-  width: 280px;
+  width: var(--sidebar-w);
+  /* `dvh` evita que la barra de direcciones del móvil corte el pie del menú. */
   height: 100vh;
+  height: 100dvh;
   background: var(--glass-bg);
   border-right: 1px solid var(--glass-border);
   z-index: 100;
@@ -842,6 +850,8 @@ body::before {
   flex-direction: column;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  /* Sin transición de `width`: al arrastrar el borde de la ventana el menú
+     se quedaría persiguiendo al contenido durante 0.4s en cada píxel. */
   transition: transform 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
@@ -854,7 +864,7 @@ body::before {
 .chat-container,
 .header,
 footer.footer {
-  margin-left: 280px;
+  margin-left: var(--sidebar-w);
   transition: margin-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
@@ -1030,8 +1040,15 @@ footer.footer {
     left: unset !important;
     z-index: 1 !important;
     /* ya no necesita z-index alto */
+    /* Sin `column` las tres barras se colocaban en fila y se encogían hasta
+       quedar en tres guiones diminutos. */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     width: 48px;
     height: 48px;
+    flex-shrink: 0;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: 12px;
@@ -1051,6 +1068,7 @@ footer.footer {
     display: block;
     width: 24px;
     height: 2px;
+    flex-shrink: 0;
     background: var(--text-primary);
     border-radius: 2px;
     transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
@@ -4867,7 +4885,7 @@ svg {
 
 /* Estado colapsado del sidebar en PC */
 .mobile-sidebar.collapsed {
-  width: 72px !important;
+  width: var(--sidebar-w-collapsed) !important;
   /* Ancho reducido para solo iconos */
 }
 
@@ -5015,7 +5033,7 @@ svg {
 .mobile-sidebar.collapsed~.chat-container,
 .mobile-sidebar.collapsed~.header,
 .mobile-sidebar.collapsed~footer.footer {
-  margin-left: 72px !important;
+  margin-left: var(--sidebar-w-collapsed) !important;
   /* Margen reducido solo para el dock */
 }
 
@@ -5069,8 +5087,10 @@ svg {
     position: fixed !important;
     top: 0;
     left: 0;
-    width: 280px;
+    /* En móviles muy estrechos el cajón de 280px tapaba la pantalla entera. */
+    width: min(280px, 86vw);
     height: 100vh;
+    height: 100dvh;
     z-index: 2000 !important;
     /* Por encima de todo */
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -5093,7 +5113,7 @@ svg {
   }
 
   .mobile-sidebar.collapsed {
-    width: 280px !important;
+    width: min(280px, 86vw) !important;
     /* Restaurar ancho completo en móvil */
   }
 
@@ -7494,21 +7514,57 @@ body::before {
    márgenes automáticos siguen centrando el contenido dentro del espacio
    realmente libre en cualquier ancho de pantalla, y la caja de contenido se
    mantiene en los 1200px de siempre (1520 = 1200 + 280 de sidebar + 40 de
-   relleno lateral), sin estirarse en monitores muy anchos. */
+   relleno lateral), sin estirarse en monitores muy anchos.
+
+   El hueco se expresa con `--sidebar-gap` y el ancho útil con `--page-max`,
+   así cada contenedor puede fijar su propia caja (mirror usa 1100px) sin
+   repetir el cálculo. Para sumar una página nueva basta con añadir su
+   selector a la lista. */
 @media (min-width: 769px) {
 
-  .mobile-sidebar~.courses-container {
+  .mobile-sidebar~.courses-container,
+  .mobile-sidebar~.mirror-main {
     box-sizing: border-box;
-    max-width: calc(1200px + 280px + 40px);
+    --sidebar-gap: var(--sidebar-w);
+    max-width: calc(var(--page-max, 1200px) + var(--sidebar-gap) + 40px);
     margin-left: auto;
     margin-right: auto;
-    padding-left: calc(280px + 20px);
+    padding-left: calc(var(--sidebar-gap) + 20px);
     padding-right: 20px;
     transition: padding-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
   }
 
-  .mobile-sidebar.collapsed~.courses-container {
-    max-width: calc(1200px + 72px + 40px);
-    padding-left: calc(72px + 20px);
+  .mobile-sidebar.collapsed~.courses-container,
+  .mobile-sidebar.collapsed~.mirror-main {
+    --sidebar-gap: var(--sidebar-w-collapsed);
+  }
+}
+
+/* Ventana de escritorio a medio encoger (por encima del breakpoint móvil, pero
+   ya sin espacio de sobra): el menú de 280px se comía casi todo el ancho útil y
+   el contenido quedaba estrujado en una columna de ~430px. Estrechando el menú
+   se devuelven ~50px al contenido sin perder la navegación permanente, que es
+   justo lo que se pierde al bajar de 769px. */
+@media (min-width: 769px) and (max-width: 1100px) {
+  :root {
+    --sidebar-w: 240px;
+  }
+
+  .sidebar-content {
+    padding: 14px;
+  }
+
+  .sidebar-header,
+  .sidebar-footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .nav-grid {
+    gap: 6px;
+  }
+
+  .nav-grid-item {
+    padding: 10px 4px;
   }
 }

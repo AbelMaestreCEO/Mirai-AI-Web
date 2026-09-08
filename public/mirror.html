@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Mirai Mirror | Organizador de Fotos - Aberu & Mirai Company">
     <title>Organizador de Fotos</title>
@@ -69,34 +69,52 @@
            MIRROR — Solo estilos que no existen en styles.css
            ============================================ */
 
-        /* Layout de página (no existe en styles.css) */
+        /* Layout de página (no existe en styles.css).
+           En PC el hueco del sidebar lo reserva la regla compartida del final
+           de styles.css, que lee `--page-max` para centrar la columna. Aquí
+           sólo se declara el ancho útil y el relleno que aplica en móvil. */
         .mirror-main {
-            padding: 2rem 1.5rem 4rem;
-            max-width: 1100px;
+            --page-max: 1100px;
+            box-sizing: border-box;
+            padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 1.5rem) 4rem;
+            max-width: var(--page-max);
             margin: 0 auto;
+        }
+
+        /* Tarjeta contenedora de cada bloque. No estaba definida en
+           styles.css, así que las secciones se pintaban sin caja ni relleno. */
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--glass-shadow);
+            padding: clamp(1rem, 3vw, 1.75rem);
         }
 
         /* Hero — mismo patrón que .courses-hero */
         .mirror-hero {
             text-align: center;
-            padding: 48px 20px 20px;
+            padding: clamp(20px, 5vw, 48px) clamp(4px, 2vw, 20px) 20px;
         }
         .mirror-hero h1 {
-            font-size: 2.4rem;
+            font-size: clamp(1.7rem, 5.5vw, 2.4rem);
             font-weight: 800;
             letter-spacing: -0.04em;
+            line-height: 1.15;
             background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin-bottom: 8px;
+            text-wrap: balance;
         }
         .mirror-hero p {
-            font-size: 1.05rem;
+            font-size: clamp(0.94rem, 2.4vw, 1.05rem);
             color: var(--text-secondary);
             max-width: 520px;
             margin: 0 auto;
             line-height: 1.6;
+            text-wrap: pretty;
         }
         .mirror-hero .tagline {
             font-size: 0.88rem;
@@ -110,7 +128,7 @@
         .upload-area {
             border: 2px dashed var(--glass-border);
             border-radius: var(--border-radius-md);
-            padding: 3rem 2rem;
+            padding: clamp(1.75rem, 6vw, 3rem) clamp(0.75rem, 4vw, 2rem);
             text-align: center;
             cursor: pointer;
             transition: all var(--transition-fast);
@@ -128,8 +146,8 @@
 
         /* Icono del drop zone */
         .upload-icon-wrap {
-            width: 80px;
-            height: 80px;
+            width: clamp(60px, 16vw, 80px);
+            height: clamp(60px, 16vw, 80px);
             border-radius: 50%;
             background: var(--secondary-container);
             border: 1px solid var(--glass-border);
@@ -211,10 +229,12 @@
             font-weight: 700;
         }
 
-        /* Grid de miniaturas */
+        /* Grid de miniaturas.
+           `min()` con 100% impide que en pantallas muy estrechas la columna
+           mínima sea más ancha que la propia rejilla y desborde en horizontal. */
         .image-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
             gap: 10px;
         }
         .image-item {
@@ -382,7 +402,7 @@
         /* ====== Upload Progress Panel ====== */
         .upload-progress-panel {
             margin-top: 1.5rem;
-            padding: 1.5rem;
+            padding: clamp(0.9rem, 3vw, 1.5rem);
             border-radius: var(--border-radius-md);
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
@@ -392,6 +412,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
             margin-bottom: 1rem;
         }
         .upload-progress-header h3 {
@@ -402,6 +424,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            min-width: 0;
         }
         .upload-progress-stats {
             font-size: 0.82rem;
@@ -583,15 +606,15 @@
         /* Steps — extiende el patrón de .course-card */
         .steps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+            gap: clamp(0.75rem, 2.5vw, 1.5rem);
             margin-top: 1.75rem;
         }
         .step-card {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: var(--border-radius-md);
-            padding: 1.75rem 1.25rem;
+            padding: clamp(1.25rem, 4vw, 1.75rem) clamp(0.9rem, 3vw, 1.25rem);
             text-align: center;
             box-shadow: var(--glass-shadow);
             transition: all 0.35s var(--ease-smooth);
@@ -653,15 +676,87 @@
             line-height: 1.55;
         }
 
+        /* Botonera principal. `#downloadBtn` y `#resetBtn` alternan entre
+           `display:none` e `inline-flex` desde el JS, así que la fila sólo
+           reparte el espacio de los botones realmente visibles. */
+        .mirror-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 1.5rem;
+        }
+
         /* Animate-up reutiliza cardFadeIn ya definido en styles.css */
         .animate-up          { animation: cardFadeIn 0.5s var(--ease-smooth) forwards; opacity: 0; }
         .animate-up.delay-1  { animation-delay: 0.1s; }
         .animate-up.delay-2  { animation-delay: 0.2s; }
 
+        /* ============================================
+           RESPONSIVE
+           ============================================
+           El grueso del ajuste ya lo hacen los `clamp()` de arriba, que van
+           encogiendo relleno y tipografía de forma continua: así la ventana de
+           PC a medio encoger no salta de golpe a un diseño apretado. Estos
+           tramos sólo corrigen lo que un clamp no puede: rejillas que deben
+           cambiar de número de columnas y filas que deben pasar a apilarse. */
+
+        /* Ventana de PC estrecha: el sidebar sigue ocupando 280px, así que la
+           columna útil ya es angosta antes de llegar al breakpoint móvil. */
+        @media (max-width: 1024px) {
+            .steps-grid { gap: 1rem; }
+        }
+
+        /* Móvil / sidebar oculto: el ancho completo vuelve al contenido. */
+        @media (max-width: 768px) {
+            .mirror-main { padding-bottom: 3rem; }
+
+            .upload-file-list { max-height: 200px; }
+
+            /* Título y contador del panel dejan de competir por la misma fila. */
+            .upload-progress-header { align-items: flex-start; }
+
+            /* La fila del lote apila su botón debajo en vez de estrujar el texto. */
+            .batch-row { flex-wrap: wrap; }
+            .batch-row .btn { width: 100%; justify-content: center; }
+
+            .single-zip-box .btn { width: 100%; justify-content: center; }
+        }
+
         @media (max-width: 600px) {
-            .mirror-main  { padding: 1rem 1rem 3rem; }
-            .mirror-hero h1 { font-size: 1.8rem; }
-            .upload-area  { padding: 2.5rem 1rem; }
+            .image-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 104px), 1fr)); gap: 8px; }
+            .format-pills { gap: 5px; }
+            .steps-grid { margin-top: 1.25rem; }
+        }
+
+        /* Móviles pequeños: una sola columna de pasos y miniaturas más finas. */
+        @media (max-width: 420px) {
+            .image-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 88px), 1fr)); }
+            .steps-grid { grid-template-columns: 1fr; }
+            .upload-title { font-size: 1rem; }
+            .format-pill { font-size: 0.68rem; padding: 3px 8px; }
+
+            /* Botonera principal a ancho completo: dos botones de media fila
+               dejaban etiquetas partidas en dos líneas. */
+            .mirror-actions .btn { width: 100%; justify-content: center; }
+        }
+
+        /* Pantallas táctiles: sin :hover no había forma de quitar una foto,
+           porque el aspa sólo aparecía al pasar el ratón. */
+        @media (hover: none) {
+            .image-item .remove-btn { opacity: 1; }
+            .image-item:hover,
+            .step-card:hover {
+                transform: none;
+                box-shadow: var(--glass-shadow);
+            }
+            .upload-area:hover .upload-icon-wrap { transform: none; box-shadow: none; }
+            .step-card:hover .step-icon-wrap { transform: none; }
+        }
+
+        /* Objetivos táctiles con el tamaño mínimo recomendado. */
+        @media (pointer: coarse) {
+            .image-item .remove-btn { width: 32px; height: 32px; font-size: 15px; }
         }
     </style>
 
@@ -1021,7 +1116,7 @@
             </div>
 
             <!-- Botones — .btn .btn-primary / .btn-secondary ya existen en styles.css -->
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:1.5rem;">
+            <div class="mirror-actions">
 
                 <button id="processBtn"
                         class="btn btn-primary"
