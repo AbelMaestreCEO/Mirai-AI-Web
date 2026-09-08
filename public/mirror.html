@@ -962,7 +962,7 @@
                         <polyline points="7 10 12 15 17 10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    Descargar todos los lotes
+                    <span class="btn-label">Descargar todos los lotes</span>
                 </button>
             </div>
 
@@ -1501,15 +1501,54 @@
             }
         }
 
+        // Cada blob URL viva retiene su ZIP entero en memoria. Con un solo
+        // archivo daba igual, pero al encadenar lotes se acumulaban decenas de
+        // MB por lote durante un minuto cada uno y la pestana acababa muriendo
+        // (pantalla en blanco) antes de terminar la tanda. Ahora se lleva
+        // registro y se sueltan en cuanto el navegador ha cogido la descarga.
+        const pendingBlobUrls = new Set();
+        // Revocar en la misma vuelta cancelaba la descarga en algunos
+        // navegadores. Esto es solo la red de seguridad: en la tanda de lotes
+        // cada ZIP se suelta en cuanto empieza el siguiente.
+        const BLOB_URL_TTL = 30000;
+
+        function releaseBlobUrl(url) {
+            if (!pendingBlobUrls.has(url)) return;
+            pendingBlobUrls.delete(url);
+            URL.revokeObjectURL(url);
+        }
+
+        function releaseAllBlobUrls() {
+            pendingBlobUrls.forEach(url => URL.revokeObjectURL(url));
+            pendingBlobUrls.clear();
+        }
+
         function saveBlob(blob, filename) {
             const url = URL.createObjectURL(blob);
+            pendingBlobUrls.add(url);
             const a = Object.assign(document.createElement('a'), { href: url, download: filename });
             document.body.appendChild(a);
             a.click();
             a.remove();
-            // Revocar en la misma vuelta cancelaba la descarga en algunos
-            // navegadores; con ZIP de decenas de MB se nota de verdad.
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            setTimeout(() => releaseBlobUrl(url), BLOB_URL_TTL);
+            return url;
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        /** Intenta sacar el mensaje real del worker en vez de un "HTTP 500" seco. */
+        async function readErrorMessage(res) {
+            try {
+                const txt = await res.text();
+                if (!txt) return `HTTP ${res.status}`;
+                try {
+                    const data = JSON.parse(txt);
+                    if (data && data.error) return data.error;
+                } catch (_) { /* no era JSON */ }
+                return `HTTP ${res.status}`;
+            } catch (_) {
+                return `HTTP ${res.status}`;
+            }
         }
 
         function downloadResult() {
@@ -1545,34 +1584,54 @@
             });
         }
 
+        // Empaquetar un lote grande puede tardar; sin tope, un worker que se
+        // queda a medias dejaba el boton en "Generando lote 1 de N…" para
+        // siempre y parecia que la descarga no terminaba nunca.
+        const BATCH_TIMEOUT_MS = 5 * 60 * 1000;
+        // Respiro entre lotes: Chrome estrangula las descargas automaticas
+        // encadenadas y sin pausa se perdian lotes por el camino.
+        const BATCH_GAP_MS = 1200;
+
         async function downloadBatch(index) {
             const row = $(`batch-row-${index}`);
             const btn = row && row.querySelector('button');
             if (btn && btn.disabled) return false;
             if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
 
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), BATCH_TIMEOUT_MS);
+
             try {
                 const res = await fetch('/api/mirror/package', {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sessionId: state.sessionId, batch: index })
+                    body: JSON.stringify({ sessionId: state.sessionId, batch: index }),
+                    signal: ctrl.signal
                 });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) throw new Error(await readErrorMessage(res));
 
-                const blob = await res.blob();
-                saveBlob(blob, `mirai-mirror-lote-${String(index + 1).padStart(2, '0')}.zip`);
+                let blob = await res.blob();
+                const url = saveBlob(blob, `mirai-mirror-lote-${String(index + 1).padStart(2, '0')}.zip`);
+                // Soltar la referencia local: mientras siga viva, el ZIP entero
+                // se queda en el heap de la pestana lote tras lote.
+                blob = null;
 
                 if (row) { row.classList.remove('error'); row.classList.add('done'); }
                 if (btn) btn.textContent = 'Descargado';
                 state.batchesDone++;
                 updateBatchStats();
-                return true;
+                return url;
             } catch (err) {
+                const msg = err.name === 'AbortError'
+                    ? 'el servidor tardo demasiado en generar el ZIP'
+                    : err.message;
                 if (row) row.classList.add('error');
                 if (btn) { btn.disabled = false; btn.textContent = 'Reintentar'; }
-                showStatus(`Lote ${index + 1}: ${err.message}`, 'error');
+                showStatus(`Lote ${index + 1}: ${msg}`, 'error');
                 return false;
+            } finally {
+                clearTimeout(timer);
             }
         }
 
@@ -1580,26 +1639,54 @@
             if (state.downloadingAll) return;
             state.downloadingAll = true;
             el.downloadAllBtn.disabled = true;
-            const original = el.downloadAllBtn.innerHTML;
+            // textContent borraria el icono del boton; se toca solo la etiqueta.
+            const label = el.downloadAllBtn.querySelector('.btn-label');
+            const original = label ? label.textContent : '';
 
             try {
                 // Secuencial a proposito: dos lotes a la vez son dos ZIP
                 // completos en memoria del worker al mismo tiempo.
+                let failed = false;
+                // Solo se sueltan los ZIP ya guardados: el del lote anterior se
+                // libera cuando el siguiente ya esta en marcha, asi nunca hay
+                // mas de dos vivos (antes se acumulaban todos y la pestana se
+                // quedaba sin memoria a mitad de la tanda).
+                let prevUrl = null;
+
                 for (const b of state.batches) {
                     const row = $(`batch-row-${b.index}`);
                     if (row && row.classList.contains('done')) continue;
-                    el.downloadAllBtn.textContent = `Generando lote ${b.index + 1} de ${state.batches.length}…`;
-                    if (!await downloadBatch(b.index)) break;
+                    if (label) label.textContent = `Generando lote ${b.index + 1} de ${state.batches.length}…`;
+
+                    const url = await downloadBatch(b.index);
+                    if (!url) { failed = true; break; }
+
+                    if (prevUrl) releaseBlobUrl(prevUrl);
+                    prevUrl = url;
+
+                    // Chrome estrangula las descargas automaticas encadenadas;
+                    // este respiro evita que se pierdan lotes por el camino.
+                    await sleep(BATCH_GAP_MS);
+                }
+
+                if (!failed && state.batchesDone >= state.batches.length) {
+                    showStatus(`Los ${state.batches.length} lotes se han descargado.`, 'success');
+                } else if (failed) {
+                    showStatus(
+                        'La descarga se detuvo. Reintenta el lote marcado en rojo o vuelve a pulsar "Descargar todos los lotes".',
+                        'error'
+                    );
                 }
             } finally {
                 state.downloadingAll = false;
                 el.downloadAllBtn.disabled = false;
-                el.downloadAllBtn.innerHTML = original;
+                if (label) label.textContent = original;
             }
         }
 
         async function reset() {
             state.aborted = true;
+            releaseAllBlobUrls();
             if (state.sessionId) {
                 try {
                     await fetch('/api/mirror/cleanup', {

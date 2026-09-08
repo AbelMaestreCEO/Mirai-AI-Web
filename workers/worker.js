@@ -272,7 +272,12 @@ const MIRROR_CONFIG = {
   // Cada lote se arma entero en memoria: el isolate tiene 128 MB, asi que se
   // corta por bytes y no por numero de archivos. 200 fotos de 500 KB caben;
   // 200 de 5 MB no. El tope de archivos evita ademas pasarse de subrequests.
-  BATCH_MAX_BYTES: 60 * 1024 * 1024,
+  // El tope real es la MITAD del isolate, no el isolate entero: los ArrayBuffer
+  // bajados de R2 siguen vivos mientras `new Blob(parts)` copia todo el ZIP, asi
+  // que un lote de N MB ocupa 2N MB en el pico. Con 60 MB ese pico rozaba los
+  // 128 MB y el worker moria a mitad de peticion: el navegador se quedaba
+  // esperando un ZIP que no llegaba nunca.
+  BATCH_MAX_BYTES: 30 * 1024 * 1024,
   BATCH_MAX_FILES: 200,
   // Las filas escritas antes de existir size_bytes valen 0. Si se contaran como
   // 0 bytes, un lote se llevaria 200 archivos de tamanio real desconocido y
@@ -13620,16 +13625,35 @@ async function mirrorPackageSession(request, env, corsHeaders) {
 
   const slice = manifest.slice(batch.offset, batch.offset + batch.count);
 
-  const filesForZip = [];
-  for (const entry of slice) {
-    const obj = await env.MIRAI_PHOTOS.get(entry.r2_key);
-    if (!obj) continue;
-    filesForZip.push({
-      path: entry.path,
-      data: await obj.arrayBuffer(),
-      date: entry.date
-    });
+  // Uno a uno, 200 objetos de R2 encadenaban 200 idas y vueltas y el lote
+  // tardaba minutos. Con concurrencia acotada baja igual de memoria (el total
+  // sigue limitado por BATCH_MAX_BYTES) pero en una fraccion del tiempo.
+  const R2_CONCURRENCY = 6;
+  const fetched = new Array(slice.length).fill(null);
+  let nextIdx = 0;
+
+  async function drainR2Queue() {
+    while (true) {
+      const i = nextIdx++;
+      if (i >= slice.length) return;
+      const entry = slice[i];
+      const obj = await env.MIRAI_PHOTOS.get(entry.r2_key);
+      if (!obj) continue;
+      fetched[i] = {
+        path: entry.path,
+        data: await obj.arrayBuffer(),
+        date: entry.date
+      };
+    }
   }
+
+  await Promise.all(
+    Array.from({ length: Math.min(R2_CONCURRENCY, slice.length) }, drainR2Queue)
+  );
+
+  // El orden importa: los offsets del plan y el orden dentro del ZIP tienen que
+  // seguir siendo los mismos que devuelve el manifiesto.
+  const filesForZip = fetched.filter(Boolean);
 
   if (filesForZip.length === 0) {
     return jsonResponse({ success: false, error: 'All images failed to load from storage' }, 500, corsHeaders);
