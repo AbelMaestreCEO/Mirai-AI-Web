@@ -297,6 +297,22 @@
             color: var(--text-tertiary);
         }
         .batch-row .btn { flex-shrink: 0; }
+
+        /* --- Descarga en un solo ZIP --- */
+        .single-zip-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--accent-color);
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+        }
+        .single-zip-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .single-zip-title { font-size: 0.86rem; font-weight: 600; }
+        .single-zip-meta  { font-size: 0.76rem; color: var(--text-tertiary); }
         .image-item .image-info {
             position: absolute;
             bottom: 0; left: 0; right: 0;
@@ -951,6 +967,32 @@
                 <p style="font-size:0.78rem;color:var(--text-tertiary);margin:0 0 10px;">
                     Cada lote es un ZIP independiente con sus carpetas por fecha. Se genera al pulsar Descargar.
                 </p>
+
+                <!-- Descarga en un unico ZIP. Es un enlace GET de verdad, no un
+                     blob: el navegador lo escribe directo a disco mientras el
+                     servidor lo va generando, asi que no pasa por la memoria de
+                     la pestania por grande que sea. -->
+                <div id="singleZipBox" class="single-zip-box hidden">
+                    <div class="single-zip-info">
+                        <span class="single-zip-title">¿Prefieres un solo archivo?</span>
+                        <span class="single-zip-meta" id="singleZipMeta"></span>
+                    </div>
+                    <a id="singleZipLink"
+                       class="btn btn-primary"
+                       download="mirai-mirror-completo.zip"
+                       data-no-transition
+                       style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2.2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Descargar todo en un ZIP
+                    </a>
+                </div>
+
                 <div id="batchList"></div>
                 <button id="downloadAllBtn"
                         class="btn btn-primary"
@@ -1166,7 +1208,10 @@
             batchPanelTitle:    $('batchPanelTitle'),
             batchPanelStats:    $('batchPanelStats'),
             batchList:          $('batchList'),
-            downloadAllBtn:     $('downloadAllBtn')
+            downloadAllBtn:     $('downloadAllBtn'),
+            singleZipBox:       $('singleZipBox'),
+            singleZipLink:      $('singleZipLink'),
+            singleZipMeta:      $('singleZipMeta')
         };
 
         let state = {
@@ -1485,9 +1530,14 @@
                     //     varios ZIP grandes vivos en memoria del navegador.
                     el.uploadProgressPanel.classList.add('hidden');
                     renderBatchList();
+                    showSingleZipOption(plan);
                     el.batchPanel.classList.remove('hidden');
+
+                    const single = plan.singleZip && plan.singleZip.available;
                     showStatus(
-                        `${baseMsg}. Se reparten en ${state.batches.length} lotes.`,
+                        single
+                            ? `${baseMsg}. Descargalos en un solo ZIP o en ${state.batches.length} lotes.`
+                            : `${baseMsg}. Se reparten en ${state.batches.length} lotes.`,
                         'success'
                     );
                 }
@@ -1527,6 +1577,13 @@
             const url = URL.createObjectURL(blob);
             pendingBlobUrls.add(url);
             const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+            // transitions.js escucha los clicks de <a> en document para animar
+            // la navegacion. Con un blob: hacia preventDefault y navegaba a
+            // mano: la descarga perdia el nombre y la pagina se quedaba
+            // desvanecida (en blanco). Ya se ignoran los enlaces con download,
+            // pero se corta la propagacion por si algun otro script escucha.
+            a.setAttribute('data-no-transition', '');
+            a.addEventListener('click', ev => ev.stopPropagation());
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1557,6 +1614,26 @@
         }
 
         // ---- Descarga por lotes ----
+
+        /**
+         * El ZIP unico se sirve en streaming, asi que el peso total no lo
+         * limita: el tope es cuantos objetos puede leer el worker en una sola
+         * peticion. Por encima de ahi solo quedan los lotes.
+         */
+        function showSingleZipOption(plan) {
+            const single = plan && plan.singleZip;
+            if (!single || !single.available || !state.sessionId) {
+                el.singleZipBox.classList.add('hidden');
+                el.singleZipLink.removeAttribute('href');
+                return;
+            }
+
+            el.singleZipLink.href =
+                `/api/mirror/download-all?sessionId=${encodeURIComponent(state.sessionId)}`;
+            el.singleZipMeta.textContent =
+                `${plan.totalFiles} archivo(s) · ${fmtSize(plan.totalBytes)} en un unico ZIP con todas las carpetas por fecha.`;
+            el.singleZipBox.classList.remove('hidden');
+        }
 
         function updateBatchStats() {
             el.batchPanelStats.textContent = `${state.batchesDone} / ${state.batches.length}`;
@@ -1710,6 +1787,8 @@
             el.uploadFileList.classList.remove('hidden');
             el.batchPanel.classList.add('hidden');
             el.batchList.innerHTML = '';
+            el.singleZipBox.classList.add('hidden');
+            el.singleZipLink.removeAttribute('href');
             renderPreview();
             updateUI();
             showStatus('Listo para nuevas fotos y videos.', 'info');

@@ -279,6 +279,11 @@ const MIRROR_CONFIG = {
   // esperando un ZIP que no llegaba nunca.
   BATCH_MAX_BYTES: 30 * 1024 * 1024,
   BATCH_MAX_FILES: 200,
+  // El ZIP unico se transmite en streaming, asi que el tamanio total da igual:
+  // lo que topa es el numero de objetos, porque cada GET a R2 gasta un
+  // subrequest y el Worker tiene 1000 por invocacion. Se deja margen para las
+  // consultas a D1 y el resto de la peticion.
+  SINGLE_ZIP_MAX_FILES: 900,
   // Las filas escritas antes de existir size_bytes valen 0. Si se contaran como
   // 0 bytes, un lote se llevaria 200 archivos de tamanio real desconocido y
   // reventaria el isolate. Se les asume un peso conservador.
@@ -2811,6 +2816,9 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     }
     if (path === '/api/mirror/package' && request.method === 'POST') {
       return await mirrorPackageSession(request, env, corsHeaders);
+    }
+    if (path === '/api/mirror/download-all' && request.method === 'GET') {
+      return await mirrorDownloadAll(request, env, corsHeaders);
     }
     if (path === '/api/mirror/cleanup' && request.method === 'POST') {
       return await mirrorCleanupSession(request, env, corsHeaders);
@@ -13582,7 +13590,13 @@ async function mirrorPlanSession(request, env, corsHeaders) {
     success: true,
     totalFiles: manifest.length,
     totalBytes: manifest.reduce((acc, f) => acc + f.size_bytes, 0),
-    batches: batches.map(b => ({ index: b.index, count: b.count, bytes: b.bytes }))
+    batches: batches.map(b => ({ index: b.index, count: b.count, bytes: b.bytes })),
+    // El ZIP unico va en streaming, asi que el peso no lo limita: solo el
+    // numero de objetos que caben en los subrequests de una invocacion.
+    singleZip: {
+      available: manifest.length <= MIRROR_CONFIG.SINGLE_ZIP_MAX_FILES,
+      maxFiles: MIRROR_CONFIG.SINGLE_ZIP_MAX_FILES
+    }
   }, 200, corsHeaders);
 }
 
@@ -13680,6 +13694,144 @@ async function mirrorPackageSession(request, env, corsHeaders) {
       'X-Files-Count': String(filesForZip.length),
       'X-Batch-Index': String(batchIndex),
       'X-Batch-Total': String(batches.length)
+    }
+  });
+}
+
+/**
+ * Emite el ZIP entero por el stream, un archivo cada vez. Nunca hay mas de un
+ * trozo de R2 en memoria, asi que da igual que la sesion pese 5 GB: es lo que
+ * permite entregar UN solo archivo en vez de repartirlo en lotes.
+ *
+ * Como el CRC de cada foto no se conoce hasta haberla leido entera, las
+ * cabeceras locales salen con las medidas a cero y el flag de data descriptor,
+ * y los valores de verdad se escriben detras de los datos.
+ */
+async function streamMirrorZip(env, manifest, writable) {
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+  const centralEntries = [];
+  let offset = 0;
+
+  // `await` en cada escritura: es lo que aplica contrapresion. Sin el, el
+  // Worker leeria R2 mucho mas rapido de lo que el navegador consume y volveria
+  // a acumular el ZIP entero en memoria, que es justo lo que se quiere evitar.
+  const emit = async bytes => {
+    await writer.write(bytes);
+    offset += bytes.length;
+  };
+
+  try {
+    // --- Carpetas ---
+    const folders = new Set();
+    for (const entry of manifest) {
+      const slash = entry.path.lastIndexOf('/');
+      if (slash > 0) folders.add(entry.path.substring(0, slash) + '/');
+    }
+    for (const folder of folders) {
+      const nameBytes = enc.encode(folder);
+      const localOffset = offset;
+      await emit(buildLocalHeader(nameBytes, 0, 0, 0));
+      centralEntries.push(buildCentralHeader(nameBytes, 0, 0, 0, 0x10, localOffset));
+    }
+
+    // --- Archivos ---
+    for (const entry of manifest) {
+      const obj = await env.MIRAI_PHOTOS.get(entry.r2_key);
+      if (!obj) continue; // el objeto ya no esta: se omite, como en los lotes
+
+      const nameBytes = enc.encode(entry.path);
+      const localOffset = offset;
+      await emit(buildLocalHeader(nameBytes, 0, 0, ZIP_FLAG_DATA_DESCRIPTOR));
+
+      let running = 0xFFFFFFFF;
+      let size = 0;
+      const reader = obj.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        // El CRC se calcula ANTES de entregar el trozo al stream.
+        running = crc32Update(running, value);
+        size += value.length;
+        await emit(value);
+      }
+      const crc = (running ^ 0xFFFFFFFF) >>> 0;
+
+      await emit(buildDataDescriptor(crc, size));
+      centralEntries.push(
+        buildCentralHeader(nameBytes, crc, size, size, 0, localOffset, ZIP_FLAG_DATA_DESCRIPTOR)
+      );
+    }
+
+    // --- Indice final ---
+    const cdStart = offset;
+    let cdSize = 0;
+    for (const central of centralEntries) {
+      await emit(central);
+      cdSize += central.length;
+    }
+    for (const tail of buildEndOfCentralDirectory(centralEntries.length, cdSize, cdStart)) {
+      await emit(tail);
+    }
+
+    await writer.close();
+  } catch (error) {
+    // A estas alturas el navegador ya recibio el 200 y parte del ZIP: no hay
+    // forma de convertir esto en un error HTTP. Se aborta el stream para que la
+    // descarga salga marcada como fallida en vez de entregar un ZIP truncado
+    // con pinta de bueno.
+    console.error('streamMirrorZip error:', error && error.message);
+    try { await writer.abort(error); } catch (_) {}
+  }
+}
+
+/**
+ * Descarga de la sesion completa en UN solo ZIP. Es GET a proposito: al ser una
+ * navegacion normal el navegador escribe directo a disco y no pasa por memoria
+ * de la pestania (que es lo que la tumbaba al encadenar lotes). La cookie de
+ * sesion es SameSite=Strict y esto es navegacion del propio sitio, asi que
+ * viaja igual y la propiedad se sigue comprobando.
+ */
+async function mirrorDownloadAll(request, env, corsHeaders) {
+  if (!env.MIRAI_AI_DB || !env.MIRAI_PHOTOS) {
+    return jsonResponse({ success: false, error: 'Server configuration error' }, 500, corsHeaders);
+  }
+
+  const userDni = await requireAuth(request, env);
+  if (!userDni) return jsonResponse({ success: false, error: 'No autorizado' }, 401, corsHeaders);
+
+  const sessionId = new URL(request.url).searchParams.get('sessionId');
+  if (!sessionId) return jsonResponse({ success: false, error: 'Missing sessionId' }, 400, corsHeaders);
+
+  const session = await getOwnedMirrorSession(sessionId, userDni, env);
+  if (!session) return jsonResponse({ success: false, error: 'Sesión no encontrada' }, 404, corsHeaders);
+
+  const manifest = await loadMirrorManifest(sessionId, env);
+  if (!manifest.length) {
+    return jsonResponse({ success: false, error: 'No photos in session' }, 400, corsHeaders);
+  }
+
+  // Se comprueba aqui y no a mitad del stream: una vez enviada la cabecera ya
+  // no se puede devolver un error legible.
+  if (manifest.length > MIRROR_CONFIG.SINGLE_ZIP_MAX_FILES) {
+    return jsonResponse({
+      success: false,
+      error: `Demasiados archivos para un solo ZIP (${manifest.length}). ` +
+             `El maximo es ${MIRROR_CONFIG.SINGLE_ZIP_MAX_FILES}; usa la descarga por lotes.`
+    }, 413, corsHeaders);
+  }
+
+  const { readable, writable } = new TransformStream();
+  // Sin await: el cuerpo se va llenando mientras el navegador lo consume.
+  streamMirrorZip(env, manifest, writable);
+
+  return new Response(readable, {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="mirai_mirror_${sessionId}.zip"`,
+      'Cache-Control': 'no-store',
+      'X-Files-Count': String(manifest.length)
     }
   });
 }
@@ -13878,28 +14030,13 @@ function createZipWithFolders(files) {
 
   for (const folder of folders) {
     const nameBytes = enc.encode(folder);
-    const localLen = 30 + nameBytes.length;
-    const local = new Uint8Array(localLen);
-    const lv = new DataView(local.buffer);
-    lv.setUint32(0, 0x04034b50, true); // signature
-    lv.setUint16(4, 20, true); // version needed
-    lv.setUint16(6, 0, true); // flags
-    lv.setUint16(8, 0, true); // compression (stored)
-    lv.setUint16(10, 0, true); // mod time
-    lv.setUint16(12, 0, true); // mod date
-    lv.setUint32(14, 0, true); // crc32
-    lv.setUint32(18, 0, true); // compressed size
-    lv.setUint32(22, 0, true); // uncompressed size
-    lv.setUint16(26, nameBytes.length, true);
-    lv.setUint16(28, 0, true); // extra len
-    local.set(nameBytes, 30);
+    const local = buildLocalHeader(nameBytes, 0, 0, 0);
 
     const relOffset = dataOffset;
-    dataOffset += localLen; // carpetas no tienen datos
+    dataOffset += local.length; // carpetas no tienen datos
 
-    const central = buildCentralHeader(nameBytes, 0, 0, 0, 0x10 /* dir attr */, relOffset);
     localEntries.push({ header: local, data: new Uint8Array(0) });
-    centralEntries.push(central);
+    centralEntries.push(buildCentralHeader(nameBytes, 0, 0, 0, 0x10 /* dir attr */, relOffset));
   }
 
   // --- Entradas de archivos ---
@@ -13908,47 +14045,19 @@ function createZipWithFolders(files) {
     const fileData = new Uint8Array(file.data);
     const crc = crc32(fileData);
     const size = fileData.length;
-
-    const localLen = 30 + nameBytes.length;
-    const local = new Uint8Array(localLen);
-    const lv = new DataView(local.buffer);
-    lv.setUint32(0, 0x04034b50, true);
-    lv.setUint16(4, 20, true);
-    lv.setUint16(6, 0, true);
-    lv.setUint16(8, 0, true); // no compression
-    lv.setUint16(10, 0, true);
-    lv.setUint16(12, 0, true);
-    lv.setUint32(14, crc, true);
-    lv.setUint32(18, size, true);
-    lv.setUint32(22, size, true);
-    lv.setUint16(26, nameBytes.length, true);
-    lv.setUint16(28, 0, true);
-    local.set(nameBytes, 30);
+    const local = buildLocalHeader(nameBytes, crc, size, 0);
 
     const relOffset = dataOffset;
-    dataOffset += localLen + size;
+    dataOffset += local.length + size;
 
-    const central = buildCentralHeader(nameBytes, crc, size, size, 0, relOffset);
     localEntries.push({ header: local, data: fileData });
-    centralEntries.push(central);
+    centralEntries.push(buildCentralHeader(nameBytes, crc, size, size, 0, relOffset));
   }
 
   // --- Central Directory ---
   const cdStart = dataOffset; // offset donde comienza el CD (justo después de todos los datos locales)
   let cdSize = 0;
   for (const c of centralEntries) cdSize += c.length;
-
-  // --- End of Central Directory ---
-  const eocd = new Uint8Array(22);
-  const ev = new DataView(eocd.buffer);
-  ev.setUint32(0, 0x06054b50, true); // signature
-  ev.setUint16(4, 0, true); // disk number
-  ev.setUint16(6, 0, true); // disk with CD start
-  ev.setUint16(8, centralEntries.length, true); // entries on disk
-  ev.setUint16(10, centralEntries.length, true); // total entries
-  ev.setUint32(12, cdSize, true); // size of CD
-  ev.setUint32(16, cdStart, true); // FIX: offset where CD begins
-  ev.setUint16(20, 0, true); // comment length
 
   // --- Ensamblar ---
   const parts = [];
@@ -13957,37 +14066,131 @@ function createZipWithFolders(files) {
     parts.push(e.data);
   }
   for (const c of centralEntries) parts.push(c);
-  parts.push(eocd);
+  for (const tail of buildEndOfCentralDirectory(centralEntries.length, cdSize, cdStart)) {
+    parts.push(tail);
+  }
 
   return new Blob(parts, { type: 'application/zip' });
 }
 
-// CRC-32 (tabla precalculada)
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
+// CRC-32. Ocho tablas en vez de una: el ZIP unico pasa por aqui cada byte del
+// archivo entero, y byte a byte el CRC era el que se comia el tiempo de CPU del
+// Worker. "Slicing-by-8" procesa 8 bytes por vuelta con el mismo resultado.
+const CRC_TABLES = (() => {
+  const t0 = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
     let c = i;
     for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    t[i] = c;
+    t0[i] = c >>> 0;
   }
-  return t;
+  const tables = [t0];
+  for (let k = 1; k < 8; k++) {
+    const prev = tables[k - 1];
+    const cur = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) cur[i] = (t0[prev[i] & 0xFF] ^ (prev[i] >>> 8)) >>> 0;
+    tables.push(cur);
+  }
+  return tables;
 })();
 
-function crc32(data) {
-  let crc = 0xFFFFFFFF;
-  for (let i = 0; i < data.length; i++) {
-    crc = CRC_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+const CRC_T0 = CRC_TABLES[0], CRC_T1 = CRC_TABLES[1], CRC_T2 = CRC_TABLES[2],
+      CRC_T3 = CRC_TABLES[3], CRC_T4 = CRC_TABLES[4], CRC_T5 = CRC_TABLES[5],
+      CRC_T6 = CRC_TABLES[6], CRC_T7 = CRC_TABLES[7];
+
+/**
+ * Acumula el CRC de un trozo. `crc` es el estado en curso (empieza en
+ * 0xFFFFFFFF y se invierte al final), asi que se puede llamar trozo a trozo
+ * sobre un stream sin tener el archivo entero en memoria.
+ */
+function crc32Update(crc, buf) {
+  let c = crc >>> 0;
+  const n = buf.length;
+  const n8 = n - (n % 8);
+  let i = 0;
+
+  while (i < n8) {
+    c = (c ^ (buf[i] | (buf[i + 1] << 8) | (buf[i + 2] << 16) | (buf[i + 3] << 24))) >>> 0;
+    c = (CRC_T7[c & 0xFF]
+       ^ CRC_T6[(c >>> 8) & 0xFF]
+       ^ CRC_T5[(c >>> 16) & 0xFF]
+       ^ CRC_T4[(c >>> 24) & 0xFF]
+       ^ CRC_T3[buf[i + 4]]
+       ^ CRC_T2[buf[i + 5]]
+       ^ CRC_T1[buf[i + 6]]
+       ^ CRC_T0[buf[i + 7]]) >>> 0;
+    i += 8;
   }
-  return (crc ^ 0xFFFFFFFF) >>> 0;
+  for (; i < n; i++) c = (CRC_T0[(c ^ buf[i]) & 0xFF] ^ (c >>> 8)) >>> 0;
+  return c >>> 0;
 }
 
-function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, localOffset) {
-  const central = new Uint8Array(46 + nameBytes.length);
+function crc32(data) {
+  return (crc32Update(0xFFFFFFFF, data) ^ 0xFFFFFFFF) >>> 0;
+}
+
+// Centinela de ZIP64: un campo de 32 bits a todo unos significa "el valor de
+// verdad esta en el registro extendido".
+const ZIP64_SENTINEL = 0xFFFFFFFF;
+// Bit 3 de los flags: las medidas del archivo no van en la cabecera local sino
+// en un descriptor detras de los datos. Es lo que permite emitir el ZIP en
+// streaming sin conocer el CRC por adelantado.
+const ZIP_FLAG_DATA_DESCRIPTOR = 0x08;
+// Bit 11: los nombres van en UTF-8. Sin esto el descompresor los interpreta en
+// CP437 y cualquier foto con ñ o tilde salia con el nombre destrozado
+// ("mamá.jpg" -> "mamÃ¡.jpg"). Los nombres ya se codifican con TextEncoder, o
+// sea UTF-8: solo faltaba decirlo.
+const ZIP_FLAG_UTF8 = 0x0800;
+
+/** Escribe un entero de 64 bits little-endian sin depender de BigInt. */
+function writeUint64(view, offset, value) {
+  view.setUint32(offset, value >>> 0, true);
+  view.setUint32(offset + 4, Math.floor(value / 0x100000000), true);
+}
+
+function buildLocalHeader(nameBytes, crc, size, flags) {
+  const out = new Uint8Array(30 + nameBytes.length);
+  const v = new DataView(out.buffer);
+  v.setUint32(0, 0x04034b50, true); // signature
+  v.setUint16(4, 20, true);         // version needed
+  v.setUint16(6, flags | ZIP_FLAG_UTF8, true);
+  v.setUint16(8, 0, true);          // compression (stored)
+  v.setUint16(10, 0, true);         // mod time
+  v.setUint16(12, 0, true);         // mod date
+  v.setUint32(14, crc, true);
+  v.setUint32(18, size, true);      // compressed
+  v.setUint32(22, size, true);      // uncompressed
+  v.setUint16(26, nameBytes.length, true);
+  v.setUint16(28, 0, true);         // extra len
+  out.set(nameBytes, 30);
+  return out;
+}
+
+/** Va detras de los datos cuando la cabecera local salio con las medidas a 0. */
+function buildDataDescriptor(crc, size) {
+  const out = new Uint8Array(16);
+  const v = new DataView(out.buffer);
+  v.setUint32(0, 0x08074b50, true);
+  v.setUint32(4, crc, true);
+  v.setUint32(8, size, true);
+  v.setUint32(12, size, true);
+  return out;
+}
+
+function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, localOffset, flags = 0) {
+  // Ningun archivo suelto llega a 4 GB (el tope de subida son 25 MB), pero el
+  // DESPLAZAMIENTO si se pasa en un ZIP unico de varios GB. En ese caso el
+  // campo de 32 bits lleva el centinela y el valor real viaja en el extra
+  // ZIP64; sin esto el indice del ZIP apuntaria a sitios equivocados y las
+  // ultimas fotos saldrian corruptas.
+  const needsZip64 = localOffset >= ZIP64_SENTINEL;
+  const extraLen = needsZip64 ? 12 : 0;
+
+  const central = new Uint8Array(46 + nameBytes.length + extraLen);
   const cv = new DataView(central.buffer);
   cv.setUint32(0, 0x02014b50, true); // signature
-  cv.setUint16(4, 20, true); // version made by
-  cv.setUint16(6, 20, true); // version needed
-  cv.setUint16(8, 0, true); // flags
+  cv.setUint16(4, needsZip64 ? 45 : 20, true); // version made by
+  cv.setUint16(6, needsZip64 ? 45 : 20, true); // version needed
+  cv.setUint16(8, flags | ZIP_FLAG_UTF8, true);
   cv.setUint16(10, 0, true); // compression
   cv.setUint16(12, 0, true); // mod time
   cv.setUint16(14, 0, true); // mod date
@@ -13995,14 +14198,68 @@ function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, local
   cv.setUint32(20, compSize, true);
   cv.setUint32(24, uncompSize, true);
   cv.setUint16(28, nameBytes.length, true);
-  cv.setUint16(30, 0, true); // extra len
+  cv.setUint16(30, extraLen, true);
   cv.setUint16(32, 0, true); // comment len
   cv.setUint16(34, 0, true); // disk start
   cv.setUint16(36, 0, true); // internal attr
   cv.setUint32(38, extAttr, true); // external attr
-  cv.setUint32(42, localOffset, true); // offset of local header
+  cv.setUint32(42, needsZip64 ? ZIP64_SENTINEL : localOffset, true);
   central.set(nameBytes, 46);
+
+  if (needsZip64) {
+    const eo = 46 + nameBytes.length;
+    cv.setUint16(eo, 0x0001, true); // header id ZIP64
+    cv.setUint16(eo + 2, 8, true);  // solo lleva el desplazamiento
+    writeUint64(cv, eo + 4, localOffset);
+  }
   return central;
+}
+
+/**
+ * Cierre del ZIP. Devuelve una o tres piezas: si el archivo pasa de 4 GB o de
+ * 65535 entradas hacen falta ademas el registro y el localizador ZIP64.
+ */
+function buildEndOfCentralDirectory(entryCount, cdSize, cdStart) {
+  const needsZip64 = entryCount >= 0xFFFF || cdSize >= ZIP64_SENTINEL || cdStart >= ZIP64_SENTINEL;
+  const parts = [];
+
+  if (needsZip64) {
+    const rec = new Uint8Array(56);
+    const rv = new DataView(rec.buffer);
+    rv.setUint32(0, 0x06064b50, true);
+    writeUint64(rv, 4, 44); // tamanio del registro sin contar los 12 primeros
+    rv.setUint16(12, 45, true); // version made by
+    rv.setUint16(14, 45, true); // version needed
+    rv.setUint32(16, 0, true);  // disco
+    rv.setUint32(20, 0, true);  // disco donde empieza el CD
+    writeUint64(rv, 24, entryCount);
+    writeUint64(rv, 32, entryCount);
+    writeUint64(rv, 40, cdSize);
+    writeUint64(rv, 48, cdStart);
+    parts.push(rec);
+
+    const loc = new Uint8Array(20);
+    const lv = new DataView(loc.buffer);
+    lv.setUint32(0, 0x07064b50, true);
+    lv.setUint32(4, 0, true);
+    writeUint64(lv, 8, cdStart + cdSize); // donde empieza el registro ZIP64
+    lv.setUint32(16, 1, true);
+    parts.push(loc);
+  }
+
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, needsZip64 ? 0xFFFF : entryCount, true);
+  ev.setUint16(10, needsZip64 ? 0xFFFF : entryCount, true);
+  ev.setUint32(12, needsZip64 ? ZIP64_SENTINEL : cdSize, true);
+  ev.setUint32(16, needsZip64 ? ZIP64_SENTINEL : cdStart, true);
+  ev.setUint16(20, 0, true);
+  parts.push(eocd);
+
+  return parts;
 }
 
 // El tempId lo genera el cliente y viaja en cada petición, así que por sí solo

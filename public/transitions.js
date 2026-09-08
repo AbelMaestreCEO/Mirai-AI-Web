@@ -100,6 +100,22 @@
       if (href.startsWith('mailto:') || href.startsWith('tel:')) return;
       if (href.startsWith('javascript:'))                      return;
       if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)   return;
+
+      // Un enlace de descarga NO navega: al interceptarlo, el preventDefault
+      // anulaba el atributo `download` y el `location.href = blob:...` de
+      // pageExit disparaba la descarga sin nombre (quedaba el UUID del blob) y
+      // dejaba la pagina desvanecida para siempre, porque no llega ningun
+      // documento nuevo que vuelva a poner .page-ready. Sintoma: pantalla en
+      // blanco al descargar. Vale para blob:, data: y para las descargas
+      // servidas por el propio dominio.
+      if (anchor.hasAttribute('download'))                     return;
+      if (anchor.hasAttribute('data-no-transition'))           return;
+
+      // Solo http/https navegan a otro documento. blob:, data:, filesystem:,
+      // intent:, etc. o descargan o los gestiona el sistema.
+      const proto = anchor.protocol;
+      if (proto !== 'http:' && proto !== 'https:')             return;
+
       if (anchor.hostname && anchor.hostname !== location.hostname) return;
       if (anchor.href === location.href)                       return;
 
