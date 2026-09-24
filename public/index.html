@@ -82,42 +82,87 @@
             object-fit: contain;
         }
 
-        /* ===== ACCESOS DIRECTOS HORIZONTALES ===== */
-        .shortcuts-row {
+        /* ===== ACCESOS DIRECTOS (cuadrícula desplegable) =====
+           Plegado solo se ve la primera fila (4 en móvil, las que quepan
+           a lo ancho en PC); el botón despliega el resto en vertical. */
+        .shortcuts {
+            --shortcut-h: 90px;
+            --shortcut-w: 100px;
+            --shortcut-gap: 12px;
+            --shortcuts-pad-y: 6px;
             display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding: 0 40px 12px;
-            scrollbar-width: thin;
-            scrollbar-color: var(--glass-border, rgba(103,80,164,0.12)) transparent;
-            scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 0 20px 12px;
         }
 
-        .shortcuts-row::-webkit-scrollbar {
-            height: 6px;
+        .shortcuts-row {
+            display: grid;
+            grid-template-columns: repeat(4, var(--shortcut-w));
+            justify-content: center;
+            gap: var(--shortcut-gap);
+            width: 100%;
+            padding: var(--shortcuts-pad-y) 8px;
+            max-height: calc(var(--shortcut-h) + var(--shortcuts-pad-y) * 2);
+            overflow: hidden;
+            transition: max-height 0.35s ease;
         }
 
-        .shortcuts-row::-webkit-scrollbar-track {
-            background: transparent;
+        .shortcuts.is-open .shortcuts-row {
+            max-height: var(--shortcuts-full, 2000px);
         }
 
-        .shortcuts-row::-webkit-scrollbar-thumb {
-            background: var(--glass-border, rgba(103,80,164,0.18));
-            border-radius: 3px;
+        .shortcuts-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            font: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--accent-color, #6750A4);
+            background: var(--glass-bg, rgba(255, 255, 255, 0.94));
+            border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
+            border-radius: 999px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .shortcuts-toggle[hidden] {
+            display: none;
+        }
+
+        .shortcuts-toggle:hover {
+            border-color: var(--accent-color, #6750A4);
+            box-shadow: 0 2px 10px var(--accent-glow, rgba(103, 80, 164, 0.15));
+        }
+
+        .shortcuts-toggle:focus-visible {
+            outline: 2px solid var(--accent-color, #6750A4);
+            outline-offset: 2px;
+        }
+
+        .shortcuts-toggle svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+            transition: transform 0.3s ease;
+        }
+
+        .shortcuts.is-open .shortcuts-toggle svg {
+            transform: rotate(180deg);
         }
 
         .shortcut-card {
-            flex: 0 0 100px;
-            scroll-snap-align: start;
+            min-width: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 6px;
             padding: 14px 8px;
-            height: 90px;
+            height: var(--shortcut-h);
             background: var(--glass-bg, rgba(255, 255, 255, 0.94));
             border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
             border-radius: var(--border-radius-lg, 16px);
@@ -149,8 +194,11 @@
         .shortcut-label {
             font-size: 0.72rem;
             font-weight: 500;
+            max-width: 100%;
             text-align: center;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             color: var(--text-secondary, #49454F);
         }
 
@@ -514,8 +562,14 @@
                 padding: 26px 28px;
             }
 
-            .shortcuts-row {
+            /* PC: tantas columnas como quepan a lo ancho, sin scroll horizontal */
+            .shortcuts {
+                --shortcut-w: 104px;
                 padding: 0 48px 14px;
+            }
+
+            .shortcuts-row {
+                grid-template-columns: repeat(auto-fill, var(--shortcut-w));
             }
         }
 
@@ -528,7 +582,7 @@
                 padding: 28px 32px;
             }
 
-            .shortcuts-row {
+            .shortcuts {
                 padding: 0 60px 14px;
             }
         }
@@ -544,19 +598,19 @@
                 padding: 20px 12px 12px;
             }
 
-            .shortcuts-row {
-                padding: 0 10px 10px;
-                gap: 8px;
-                scrollbar-width: none;
+            .shortcuts {
+                --shortcut-h: 74px;
+                --shortcut-gap: 8px;
+                padding: 0 12px 10px;
             }
 
-            .shortcuts-row::-webkit-scrollbar {
-                display: none;
+            .shortcuts-row {
+                grid-template-columns: repeat(4, minmax(0, 84px));
+                padding-left: 4px;
+                padding-right: 4px;
             }
 
             .shortcut-card {
-                flex: 0 0 78px;
-                height: 74px;
                 padding: 10px 6px;
                 border-radius: 12px;
             }
@@ -778,8 +832,9 @@
             </div>
         </section>
 
-        <!-- 2. ACCESOS DIRECTOS (scroll horizontal) -->
-        <div class="shortcuts-row">
+        <!-- 2. ACCESOS DIRECTOS (primera fila visible + desplegable vertical) -->
+        <section class="shortcuts" aria-label="Aplicaciones">
+        <div class="shortcuts-row" id="shortcuts-grid">
             <a href="chat" class="shortcut-card">
                 <img class="shortcut-icon" src="/icons/ui/chat-48.png" srcset="/icons/ui/chat-48.png 1x, /icons/ui/chat-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
                 <span class="shortcut-label">Chat IA</span>
@@ -861,6 +916,11 @@
                 <span class="shortcut-label">Acerca de</span>
             </a>
         </div>
+        <button type="button" class="shortcuts-toggle" aria-expanded="false" aria-controls="shortcuts-grid">
+            <span class="shortcuts-toggle-text">Ver todas las aplicaciones</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+        </button>
+        </section>
 
         <!-- 3. TOKENS DIARIOS -->
         <div class="tokens-card" id="tokens-card">
@@ -1071,6 +1131,40 @@
             if (!text) return;
             window.location.href = 'chat?initial_message=' + encodeURIComponent(text);
         }
+
+        // Accesos directos: plegado muestra solo la primera fila de la cuadrícula
+        (function () {
+            const wrap = document.querySelector('.shortcuts');
+            if (!wrap) return;
+            const grid = document.getElementById('shortcuts-grid');
+            const btn = wrap.querySelector('.shortcuts-toggle');
+            const label = btn.querySelector('.shortcuts-toggle-text');
+            const cards = Array.from(grid.children);
+
+            function columns() {
+                const tracks = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean);
+                return tracks.length > 1 ? tracks.length : 4;
+            }
+
+            function update() {
+                const open = wrap.classList.contains('is-open');
+                const cols = columns();
+                btn.hidden = cards.length <= cols;
+                // Las tarjetas ocultas no deben recibir foco con Tab
+                cards.forEach((card, i) => { card.inert = !open && i >= cols; });
+                grid.style.setProperty('--shortcuts-full', grid.scrollHeight + 'px');
+            }
+
+            btn.addEventListener('click', function () {
+                const open = wrap.classList.toggle('is-open');
+                btn.setAttribute('aria-expanded', String(open));
+                label.textContent = open ? 'Mostrar menos' : 'Ver todas las aplicaciones';
+                update();
+            });
+
+            window.addEventListener('resize', update);
+            update();
+        })();
 
         // Tema universal
         (function () {
