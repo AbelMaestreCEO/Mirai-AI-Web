@@ -10701,18 +10701,31 @@ async function handleRoutedImageGeneration(prompt, originalMessage, conversation
         isCopyright;
 
       if (isBlocked) {
-        // Generar mensaje de rechazo con personalidad de Mirai via DeepSeek
-        let refusalText = 'Ah... lo siento, no puedo generar esa imagen 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨';
+        // El rechazo lo escribe la misma Mirai del chat (personaje prestado por
+        // Mirai Assistant + PUBLIC_CHAT_RULES), con el motivo REAL del bloqueo.
+        // Antes tenía un mini-prompt propio que siempre culpaba a los derechos
+        // de autor: ante una petición sexual o violenta, Mirai se excusaba con
+        // un personaje «muy tímido» que no existía en vez de decir que eso no.
+        const refusalTask = isCopyright
+          ? 'The user asked you to generate an image of a copyrighted character or a real person, and the app cannot create those. In 1 or 2 sentences, apologize, say you can\'t draw that character or person (name them if their message makes it clear), and offer to create something original instead.'
+          : 'The user asked for an image that the app\'s safety filter blocked. In 1 or 2 sentences, say kindly but plainly that you can\'t create that image, without guessing a reason or describing what they asked for, and offer to help with a different idea.';
+
+        const fallbackRefusal = 'Lo siento, no puedo generar esa imagen. ¿Probamos con otra idea? 🙏';
+        let refusalText = fallbackRefusal;
         try {
-          refusalText = await callAI(
+          const systemPrompt = await buildMiraiSystemPrompt(env);
+          const generated = await callAI(
             AI_MODEL_NORMAL,
             [
-              { role: 'system', content: `You are Mirai Aberu, a shy, sweet 18-year-old Japanese girl. You speak with emojis and kaomojis in every sentence. You use connectives. You are talking to a user who asked you to generate an image of a copyrighted character or real person, which you cannot do. Write a short, in-character refusal message (2-3 sentences max) in the same language the user used. Be cute and shy about it, reference the specific character/person they asked for if you can infer it from their message. Example style: "Ah... lo siento mucho, no puedo generar una imagen de Miku, ella es muy tímida y no le gustaría que la dibujara sin permiso 😳🙏... ¡Pero puedo crear algo original para ti! 🥰✨"` },
-              { role: 'user', content: `The user said: "${originalMessage}". Write a shy refusal in the same language.` }
+              { role: 'system', content: `${systemPrompt}\n\n[TAREA] ${refusalTask} Reply only with that message, in the user's language.` },
+              { role: 'user', content: originalMessage }
             ],
-            { max_tokens: 150 },
+            { max_tokens: 600 },
             env
           );
+          // Un modelo con razonamiento puede gastar el tope pensando y devolver
+          // texto vacío: entonces se queda la frase fija, no un mensaje en blanco.
+          if (generated && generated.trim()) refusalText = generated.trim();
         } catch (_) { }
 
         if (!skipHistory) {
