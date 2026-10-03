@@ -432,24 +432,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const contextTask = urlParams.get('context_task');
   const contextMode = urlParams.get('context_mode');
-  const contextSystem = urlParams.get('context_system');
   const courseId = urlParams.get('course');
   const lessonId = urlParams.get('lesson');
   const urlMode = urlParams.get('mode');
 
-  const effectiveTask = contextTask || (courseId && lessonId ? `${courseId}_${lessonId}` : null);
+  // Qué se estudia: una tarea del aula (context_task) o una lección de un
+  // curso. El prompt de la tutora lo arma el servidor a partir de esto; el
+  // navegador ya no manda ninguno.
+  const learningQuery = contextTask
+    ? new URLSearchParams({ assignment_id: contextTask })
+    : (courseId && lessonId ? new URLSearchParams({ course_id: courseId, lesson_id: lessonId }) : null);
   const effectiveMode = contextMode || urlMode;
 
   let learningSessionActive = false;
 
-  if (effectiveTask && effectiveMode) {
-    console.log(`🎓 Iniciando sesión de aprendizaje: Tarea ${effectiveTask}, Modo ${effectiveMode}`);
+  if (learningQuery && effectiveMode) {
+    learningQuery.set('mode', effectiveMode);
+    console.log(`🎓 Iniciando sesión de aprendizaje: ${learningQuery.toString()}`);
     learningSessionActive = true;
 
     try {
-      const response = await fetch(`/api/get-or-create-learning-chat?task_id=${effectiveTask}&mode=${effectiveMode}`, {
+      const response = await fetch(`/api/get-or-create-learning-chat?${learningQuery.toString()}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        credentials: 'same-origin'
       });
 
       const data = await response.json();
@@ -466,29 +471,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.setItem(CONFIG.STORAGE_KEY_CONVERSATION, chatId);
 
       await loadConversationHistory(chatId);
-
-      if (contextSystem) {
-        console.log("🔄 Estableciendo System Prompt...");
-        const promptResp = await fetch('/api/set-system-prompt', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : '',
-            'X-User-DNI': userDni || ''
-          },
-          body: JSON.stringify({
-            conversation_id: chatId,
-            prompt: decodeURIComponent(contextSystem)
-          })
-        });
-
-        if (!promptResp.ok) {
-          const errData = await promptResp.json();
-          console.error("⚠️ Advertencia al establecer prompt:", errData);
-        } else {
-          console.log("✅ System prompt establecido.");
-        }
-      }
 
     } catch (err) {
       console.error("❌ Error crítico en inicio de sesión de aprendizaje:", err);
@@ -530,16 +512,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
-
-async function sendInitialSystemPrompt(prompt) {
-  // Esta función debe interactuar con tu backend para establecer el "System Message"
-  // para la conversación actual.
-  await fetch('/api/set-system-prompt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: prompt })
-  });
-}
 
 function detectEducationContext() {
   const urlParams = new URLSearchParams(window.location.search);

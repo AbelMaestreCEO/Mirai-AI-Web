@@ -333,22 +333,12 @@
         });
 
         function startLearning(mode) {
-            const { taskId, taskTitle } = window.learningContext;
+            const { taskId } = window.learningContext;
 
-            const systemPrompt = `
-                Eres un tutor experto en la tarea: "${taskTitle}".
-                El usuario ha seleccionado el modo: "${mode.toUpperCase()}".
-
-                Reglas específicas según el modo:
-                - TEORÍA: Explica los conceptos fundamentales de forma clara y estructurada. Usa analogías. No des la solución directa, enseña el "por qué".
-                - QUIZ: Haz una pregunta a la vez. Espera la respuesta del usuario. Evalúa si es correcta, da feedback y pasa a la siguiente. Lleva un conteo de aciertos.
-                - PRÁCTICA: Proporciona un ejemplo resuelto paso a paso. Luego, pide al usuario que intente algo similar o modifica el ejemplo para que el usuario lo complete.
-
-                Mantén un tono alentador y pedagógico. Si el usuario pide la respuesta directa en modo Quiz o Práctica, guíalo en lugar de dársela.
-            `;
-
+            // Solo qué tarea y qué modo: las instrucciones de la tutora las
+            // arma el servidor (buildLearningTaskPrompt en workers/worker.js).
             window.location.href =
-                `chat?context_task=${taskId}&context_mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
+                `chat?context_task=${encodeURIComponent(taskId)}&context_mode=${encodeURIComponent(mode)}`;
         }
     </script>
 <script src="transitions.js"></script>

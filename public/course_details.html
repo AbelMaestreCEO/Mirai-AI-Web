@@ -433,9 +433,9 @@
         const { courseId, lessonId, lessonTitle } = window._pendingLesson || {};
         if (!courseId || !lessonId) return;
 
-        const systemPrompt = `Eres un tutor experto en la lección: "${lessonTitle}". El usuario ha seleccionado el modo: "${mode.toUpperCase()}". Reglas según el modo: TEORÍA: Explica los conceptos fundamentales de forma clara y estructurada. Usa analogías. No des la solución directa, enseña el "por qué". QUIZ: Haz una pregunta a la vez. Espera la respuesta. Evalúa si es correcta, da feedback y pasa a la siguiente. Lleva un conteo de aciertos. PRÁCTICA: Proporciona un ejemplo resuelto paso a paso. Luego pide al usuario que intente algo similar. Mantén un tono alentador y pedagógico.`;
-
-        window.location.href = `chat?course=${courseId}&lesson=${lessonId}&mode=${mode}&context_system=${encodeURIComponent(systemPrompt)}`;
+        // Solo qué lección y qué modo: las instrucciones de la tutora las arma
+        // el servidor (buildLearningTaskPrompt en workers/worker.js).
+        window.location.href = `chat?course=${encodeURIComponent(courseId)}&lesson=${encodeURIComponent(lessonId)}&mode=${encodeURIComponent(mode)}`;
     };
 
     document.addEventListener('DOMContentLoaded', () => {
