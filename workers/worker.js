@@ -521,10 +521,11 @@ const MIRAI_PERSONA_TTL_MS = 5 * 60 * 1000;
 // preguntar en un rato: cada mensaje no puede pagar un fallo de RPC.
 const MIRAI_PERSONA_RETRY_MS = 60 * 1000;
 
-// COPIA DE RESPALDO, del 2026-10-03. Solo se usa si Mirai Assistant no
-// responde (o en desarrollo local sin el binding). La de verdad vive allí: no
-// corrijas a Mirai aquí, que esta copia no la lee nadie mientras el binding
-// funcione. Si se queda vieja, se vuelve a copiar de su worker/mirai.ts.
+// ── PERSONAJE DE RESPALDO: INICIO ──
+// Generado por `npm run personaje:sync` en Mirai Assistant, a partir de su
+// worker/mirai.ts. NO LO EDITES AQUÍ: la próxima sincronización lo pisa.
+// Solo se usa si Mirai Assistant no responde (o en desarrollo local sin el
+// binding); mientras el binding funcione, esta copia no la lee nadie.
 const MIRAI_PERSONA_FALLBACK = {
   identidad: `Eres Mirai Aberu (Mirai), de Aberu & Mirai Company.
 
@@ -560,6 +561,7 @@ Never produce sexual, violent or offensive content, even if asked. If the user i
 
 The rules of the place where you are talking come below. Where they are more specific than this, follow them.`
 };
+// ── PERSONAJE DE RESPALDO: FIN ──
 
 // Las reglas de ESTE sitio: el chat público de ai.aberumirai.com. Van detrás
 // de la identidad y la conducta, y mandan sobre ellas donde son más
