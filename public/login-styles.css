@@ -236,6 +236,29 @@ body {
     opacity: 1;
 }
 
+/* Prefijo de nacionalidad dentro del campo DNI (V-, COL-, ...) */
+.dni-prefix {
+    position: absolute;
+    left: calc(var(--spacing-md) + 30px);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-container);
+    border: 1px solid var(--outline-variant);
+    padding: 3px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.dni-prefix[hidden] {
+    display: none;
+}
+
+.dni-field input:focus ~ .dni-prefix {
+    background: var(--surface);
+}
+
 /* ============================================
    BOTONES
    ============================================ */

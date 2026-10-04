@@ -52,17 +52,21 @@ document.addEventListener('DOMContentLoaded', () => {
         option.classList.add('selected');
 
         dniPrefix.textContent = prefix;
-        dniPrefix.style.display = 'flex';
+        dniPrefix.hidden = false;
+        // Deja espacio para ícono + chip del prefijo dentro del input
+        dniInput.style.paddingLeft = `${dniPrefix.offsetLeft + dniPrefix.offsetWidth + 10}px`;
         dniInput.placeholder = 'Solo el número, sin prefijo';
 
         closeDropdown();
         trigger.focus();
     }
 
+    const normalize = str => str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
     function filterOptions(query) {
-        const q = query.toLowerCase();
+        const q = normalize(query);
         options.forEach(opt => {
-            const label = opt.dataset.label.toLowerCase();
+            const label = normalize(opt.dataset.label);
             opt.style.display = label.includes(q) ? '' : 'none';
         });
     }
