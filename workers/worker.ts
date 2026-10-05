@@ -47,6 +47,14 @@ export default {
         return new Response('Not Found', { status: 404 });
       }
 
+      // App Quasar (frontend/, compilada a public/app/). Workers Assets ya ha
+      // servido cualquier archivo que exista; si una ruta /app/... llega aquí
+      // es una ruta del router de Vue (p. ej. /app/login) y se devuelve el
+      // index.html de la app. Las que parecen archivo (/app/x.js) siguen al 404.
+      if ((path === '/app' || path.startsWith('/app/')) && !/\.[a-z0-9]+$/i.test(path)) {
+        return env.ASSETS.fetch(new Request(new URL('/app/', url), request));
+      }
+
       // Habilitar CORS para todas las rutas
       const corsHeaders = {
         'Access-Control-Allow-Origin': '*',

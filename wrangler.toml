@@ -10,8 +10,17 @@ compatibility_date = "2024-01-01"
 compatibility_flags = [ "rpc" ]
 
 # Configuración de Assets Estáticos (Frontend)
-# Esto sirve automáticamente los archivos de la carpeta 'public/'
-assets = { directory = "./public" }
+# Esto sirve automáticamente los archivos de la carpeta 'public/'.
+# El binding ASSETS lo usa el Worker para devolver /app/index.html en las rutas
+# de la app Quasar (ver workers/worker.ts).
+assets = { directory = "./public", binding = "ASSETS" }
+
+# --- BUILD DEL FRONTEND (Quasar, carpeta frontend/) ---
+# Compila la app a public/app/ antes de cada `wrangler deploy` (también en
+# Workers Builds) y de `wrangler dev`. public/app/ no se sube a git.
+[build]
+command = "node scripts/build-frontend.mjs"
+watch_dir = "frontend/src"
 
 # --- BINDING DE BASE DE DATOS D1 ---
 # Nombre del binding en tu código: DB

@@ -2,9 +2,11 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --port 8787",
-    "typecheck": "tsc -p .",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "typecheck": "tsc -p . && npm --prefix frontend run typecheck",
     "deploy": "npm run typecheck && wrangler deploy",
-    "cf-typegen": "wrangler types --path workers/worker-configuration.d.ts"
+    "cf-typegen": "wrangler types --path workers/worker-configuration.d.ts",
+    "build:frontend": "node scripts/build-frontend.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.2",

@@ -10,6 +10,8 @@ node_modules/
 # Build
 dist/
 .wrangler/
+# App Quasar compilada (la genera scripts/build-frontend.mjs en cada deploy)
+public/app/
 # App Android (TWA): la llave de firma y sus contraseñas NO se suben.
 # Guardar copia aparte: sin esa llave no se puede actualizar la app publicada.
 android/*.keystore

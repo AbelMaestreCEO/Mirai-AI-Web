@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v317'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v318'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -180,6 +180,24 @@ self.addEventListener('fetch', event => {
   }
 
   const isHTML = request.headers.get('accept')?.includes('text/html');
+
+  // App Quasar (/app/): su index.html apunta a archivos con hash que cambian en
+  // cada deploy y los viejos dejan de existir. Servirlo desde caché primero
+  // (como el resto del HTML) podía dejar la app en blanco pidiendo JS borrado,
+  // así que va red primero y la caché solo queda para cuando no hay conexión.
+  // Sus /app/assets/* sí pueden ir por caché: el nombre cambia si cambian.
+  if (isHTML && (url.pathname === '/app' || url.pathname.startsWith('/app/'))) {
+    event.respondWith(
+      fetch(request, { redirect: 'follow' }).then(response => {
+        if (response.ok && !response.redirected) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request).then(cached => cached || Response.error()))
+    );
+    return;
+  }
 
   if (isHTML) {
     // HTML: Cache First para que la navegación sea INSTANTÁNEA (ilusión de app nativa)

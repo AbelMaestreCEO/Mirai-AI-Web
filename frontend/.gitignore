@@ -1,0 +1,10 @@
+node_modules
+
+# Generados por Quasar CLI
+.quasar
+/quasar.config.*.temporary.compiled*
+
+# .env
+.env*
+
+npm-debug.log*
