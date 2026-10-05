@@ -19,13 +19,12 @@ export interface ApiResult<T> {
 
 let sessionExpiredShown = false;
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> {
-  const init: RequestInit = { method, credentials: 'same-origin' };
-  if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' };
-    init.body = JSON.stringify(body);
-  }
-  const res = await fetch(path, init);
+/**
+ * fetch a la API con la cookie de sesión, para lo que no es un JSON simple
+ * (streaming, subidas de archivos). Devuelve la Response tal cual.
+ */
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(path, { ...init, credentials: 'same-origin' });
   // Igual que el fetch envuelto de app.js: un 401 en mitad de la app es una
   // sesión caducada; se avisa una sola vez. Solo con sesión iniciada: en las
   // páginas de cuenta (que no cargaban app.js) un 401 es una respuesta normal,
@@ -34,6 +33,16 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     sessionExpiredShown = true;
     alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión y vuelve a iniciar sesión.');
   }
+  return res;
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> {
+  const init: RequestInit = { method };
+  if (body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(body);
+  }
+  const res = await apiFetch(path, init);
   // Algunas rutas responden sin cuerpo JSON (p. ej. un 502 de la plataforma).
   const data = (await res.json().catch(() => ({}))) as T;
   return { ok: res.ok, status: res.status, data };
@@ -42,6 +51,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
+  delete: <T>(path: string, body?: unknown) => request<T>('DELETE', path, body),
 };
 
 // ── Cuenta ────────────────────────────────────────────────────────────────

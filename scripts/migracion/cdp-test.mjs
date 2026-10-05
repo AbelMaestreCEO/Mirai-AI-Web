@@ -1,7 +1,7 @@
 // Prueba de navegación en Edge headless (perfil temporal) contra wrangler dev.
 // Uso: node cdp-test.mjs <puerto-cdp> <paso1> <paso2> ...
 //   paso: "goto:<url>" navega con el protocolo; "size:<ancho>x<alto>" fija la ventana; "href:<url>" hace location.href desde la página;
-//         "eval:<js>" evalúa y muestra el resultado; "wait:<ms>".
+//         "eval:<js>" evalúa y muestra el resultado; "wait:<ms>"; "shot:<archivo.png>" guarda una captura.
 const port = process.argv[2];
 const steps = process.argv.slice(3);
 
@@ -59,6 +59,11 @@ for (const step of steps) {
     continue;
   } else if (kind === 'wait') {
     await sleep(Number(arg));
+  } else if (kind === 'shot') {
+    const r = await send('Page.captureScreenshot', { format: 'png' });
+    (await import('node:fs')).writeFileSync(arg, Buffer.from(r.result.data, 'base64'));
+    console.log('captura:', arg);
+    continue;
   } else if (kind === 'eval') {
     console.log('eval:', JSON.stringify(await evaluate(arg)));
     continue;
@@ -72,5 +77,9 @@ for (const step of steps) {
   console.log(`[${step}] -> ${await evaluate('location.href')} | ${await evaluate('document.title')}`);
   if (docs.length) console.log('   documentos:', docs.join(' | '));
   if (failures.length) console.log('   fallos:', failures.join(' | '));
+  const errors = events
+    .filter((e) => e.method === 'Runtime.exceptionThrown' || (e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error'))
+    .map((e) => e.params.exceptionDetails?.exception?.description ?? e.params.args?.map((a) => a.value ?? a.description).join(' '));
+  if (errors.length) console.log('   errores JS:', errors.join(' | ').slice(0, 600));
 }
 ws.close();

@@ -6,19 +6,35 @@
 
 @import './auth.scss';
 
-// Quasar trae tipografía propia para h1–h6 y p (h1 de 6rem, márgenes en p…).
-// Las páginas antiguas contaban con los valores del navegador, así que se
-// devuelven a esos antes de que entre styles.css.
+// Quasar trae tipografía base propia: body a 14px/1.5, h1–h6 y p con tamaños y
+// márgenes suyos, y `font: inherit` en botones y campos. Las páginas antiguas
+// contaban con los valores del navegador más el `* { margin: 0 }` de sus
+// hojas, así que se devuelven a esos antes de que entre styles.css. Los
+// componentes de Quasar (q-*) conservan los suyos.
+body {
+  font-size: inherit;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-size: revert;
   font-weight: revert;
   line-height: revert;
   letter-spacing: normal;
-  margin: revert;
+  margin: 0;
 }
 
 p {
-  margin: revert;
+  margin: 0;
+}
+
+// :where() deja la especificidad en la de un elemento suelto, para que
+// cualquier regla con clase de styles.css siga mandando.
+button:where(:not([class*='q-'])),
+input:where(:not([class*='q-'])),
+select:where(:not([class*='q-'])),
+textarea:where(:not([class*='q-'])),
+optgroup {
+  font: revert;
 }
 
 // ── Ayudantes compartidos (sobre todo para las páginas de cuenta) ────────

@@ -341,8 +341,10 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
-import { goToLegacy, pageHref } from '@/lib/legacy';
+import { useRouter } from 'vue-router';
+import { goToPage } from '@/lib/legacy';
 
+const router = useRouter();
 const year = new Date().getFullYear();
 const timers: number[] = [];
 onBeforeUnmount(() => timers.forEach((t) => clearTimeout(t)));
@@ -375,7 +377,7 @@ function autoResize() {
 function sendToChat() {
   const text = message.value.trim();
   if (!text) return;
-  goToLegacy(`${pageHref('chat')}?initial_message=${encodeURIComponent(text)}`);
+  goToPage(router, 'chat', `initial_message=${encodeURIComponent(text)}`);
 }
 
 // ── 2. Accesos directos ──────────────────────────────────────────────────

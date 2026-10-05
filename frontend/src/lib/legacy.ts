@@ -5,11 +5,13 @@
 // una carga completa a la página antigua (/<slug>). Al migrar una página basta
 // con añadir su slug a MIGRATED y su ruta en router/routes.ts.
 
+import type { Router } from 'vue-router';
+
 /** Slugs (nombre del .html antiguo, sin extensión) que ya viven en la app. */
 export const MIGRATED = new Set<string>([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings',
+  'index', 'settings', 'chat',
 ]);
 
 export function isMigrated(slug: string): boolean {
@@ -20,6 +22,16 @@ export function isMigrated(slug: string): boolean {
 export function pageHref(slug: string): string {
   if (slug === '' || slug === 'index') return isMigrated('index') ? '/app/' : '/';
   return isMigrated(slug) ? `/app/${slug}` : `/${slug}`;
+}
+
+/**
+ * Va a una página por su slug: con el router si ya está migrada, con carga
+ * completa si no. `query` sin '?'.
+ */
+export function goToPage(router: Router, slug: string, query = ''): void {
+  const href = pageHref(slug) + (query ? `?${query}` : '');
+  if (isMigrated(slug === '' ? 'index' : slug)) void router.push(href.replace(/^\/app/, '') || '/');
+  else goToLegacy(href);
 }
 
 /** Navegación con carga completa (fuera del router). */

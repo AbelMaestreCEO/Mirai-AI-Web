@@ -63,12 +63,13 @@
 // Migración de public/learning_hub.html: el alumno elige cómo prepararse para
 // una tarea del aula y abre el chat en modo aprendizaje.
 import { onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
-import { goToLegacy, pageHref } from '@/lib/legacy';
+import { goToPage } from '@/lib/legacy';
 
 const route = useRoute();
+const router = useRouter();
 const taskId = typeof route.query.task_id === 'string' ? route.query.task_id : '';
 const taskTitle = typeof route.query.task_title === 'string' ? route.query.task_title : '';
 
@@ -84,14 +85,14 @@ function decode(s: string): string {
 const heading = taskTitle ? `Preparación: ${decode(taskTitle)}` : 'Preparando tu aprendizaje';
 
 onMounted(() => {
-  if (!taskId) goToLegacy(pageHref('classroom'));
+  if (!taskId) goToPage(router, 'classroom');
 });
 
 function startLearning(mode: 'theory' | 'quiz' | 'practice') {
   // Solo qué tarea y qué modo: las instrucciones de la tutora las arma el
   // servidor (buildLearningTaskPrompt en workers/routes/chat-context.ts).
   const query = `context_task=${encodeURIComponent(taskId)}&context_mode=${encodeURIComponent(mode)}`;
-  goToLegacy(`${pageHref('chat')}?${query}`);
+  goToPage(router, 'chat', query);
 }
 </script>
 

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="auth-page flex flex-center">
+  <q-page class="auth-page auth-page--registration flex flex-center">
     <div class="auth-wrapper">
       <div ref="cardRef" class="auth-card">
         <div class="auth-header">

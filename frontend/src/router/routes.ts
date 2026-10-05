@@ -20,6 +20,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/DocumentationPage.vue'),
         meta: { title: 'Mirai AI - Documentación' },
       },
+      { path: 'chat', name: 'chat', component: () => import('@/pages/ChatPage.vue'), meta: { title: 'Mirai AI - Chat' } },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Mirai AI - Configuración' } },
       { path: 'purchase', name: 'purchase', component: () => import('@/pages/PurchasePage.vue'), meta: { title: 'Mirai AI - Planes' } },
       {
