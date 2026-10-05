@@ -3,7 +3,7 @@
    Usa pdf-lib (pura JS, sin dependencias de Node) para poder correr
    dentro del runtime de Cloudflare Workers.
    ============================================================ */
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 
 const PAGE_WIDTH = 595.28;  // A4 en puntos
 const PAGE_HEIGHT = 841.89;
@@ -19,7 +19,7 @@ const LINE_GRAY = rgb(0.85, 0.85, 0.87);
  * (formato usado por navegadores modernos para favicons de alta resolución).
  * Devuelve null si el ico no tiene el formato esperado.
  */
-export function extractPngFromIco(icoBytes) {
+export function extractPngFromIco(icoBytes: Uint8Array) {
   try {
     const view = new DataView(icoBytes.buffer, icoBytes.byteOffset, icoBytes.byteLength);
     const count = view.getUint16(4, true);
@@ -42,7 +42,7 @@ export function extractPngFromIco(icoBytes) {
   }
 }
 
-function drawWrappedText(page, text, x, y, maxWidth, size, font, color, lineHeight) {
+function drawWrappedText(page: PDFPage, text: string, x: number, y: number, maxWidth: number, size: number, font: PDFFont, color: RGB, lineHeight: number) {
   const words = text.split(' ');
   let line = '';
   let cursorY = y;
@@ -64,17 +64,34 @@ function drawWrappedText(page, text, x, y, maxWidth, size, font, color, lineHeig
  * Genera el PDF de una factura de venta.
  * @returns {Promise<Uint8Array>}
  */
+export interface InvoicePdfData {
+  invoiceNumber: string;
+  transactionId: string;
+  createdAt: string;
+  sellerName: string;
+  sellerDni: string;
+  buyer: { first_name: string; last_name: string; cedula: string; phone: string; has_account: boolean };
+  product: { name: string; unit_price: number; quantity: number };
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  logoPngBytes: Uint8Array | null;          // logo de Mirai AI (extraído del favicon)
+  companyLogoPngBytes: Uint8Array | null;   // logo de Aberu & Mirai
+  productImageBytes: Uint8Array | null;
+  productImageIsPng: boolean;
+}
+
 export async function generateInvoicePdf({
   invoiceNumber, transactionId, createdAt,
   sellerName, sellerDni,
-  buyer,          // { first_name, last_name, cedula, phone, has_account }
-  product,        // { name, unit_price, quantity }
+  buyer,
+  product,
   subtotal, taxAmount, total,
-  logoPngBytes,          // logo de Mirai AI (extraído del favicon)
-  companyLogoPngBytes,   // logo de Aberu & Mirai
+  logoPngBytes,
+  companyLogoPngBytes,
   productImageBytes,
   productImageIsPng,
-}) {
+}: InvoicePdfData) {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -172,7 +189,7 @@ export async function generateInvoicePdf({
   y -= 22;
   const totalsLabelX = PAGE_WIDTH - MARGIN - 200;
 
-  function totalRow(label, value, bold) {
+  function totalRow(label: string, value: string, bold: boolean) {
     const size = bold ? 12 : 10;
     const font = bold ? fontBold : fontRegular;
     const color = bold ? ACCENT : TEXT_DARK;

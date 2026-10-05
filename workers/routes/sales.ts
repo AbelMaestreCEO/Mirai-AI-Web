@@ -10,7 +10,7 @@ import { extractPngFromIco, generateInvoicePdf } from '../lib/invoice-pdf';
  * GET /api/sales/listings
  * Lista los artículos que el usuario puso a la venta.
  */
-export async function handleSaleListingsList(request, env, corsHeaders) {
+export async function handleSaleListingsList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -21,7 +21,7 @@ export async function handleSaleListingsList(request, env, corsHeaders) {
       FROM sale_listings
       WHERE user_dni = ?
       ORDER BY created_at DESC
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     return jsonResponse(results, 200, corsHeaders);
   } catch (error) {
@@ -35,12 +35,12 @@ export async function handleSaleListingsList(request, env, corsHeaders) {
  * Pone un artículo del inventario a la venta.
  * Body: { product_id, quantity, unit_price? }
  */
-export async function handleSaleListingCreate(request, env, corsHeaders) {
+export async function handleSaleListingCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -53,7 +53,7 @@ export async function handleSaleListingCreate(request, env, corsHeaders) {
   try {
     const product = await env.MIRAI_AI_DB.prepare(
       'SELECT id, name, sku, unit_price, photo_r2_key, quantity FROM inventory_products WHERE id = ? AND user_dni = ?'
-    ).bind(product_id, userDni).first();
+    ).bind(product_id, userDni).first<any>();
 
     if (!product) return jsonResponse({ error: 'Producto no encontrado en tu inventario' }, 404, corsHeaders);
     if (qty > product.quantity) {
@@ -85,17 +85,17 @@ export async function handleSaleListingCreate(request, env, corsHeaders) {
  * PUT /api/sales/listings/:id
  * Actualiza cantidad, precio o estado (p. ej. 'retirado') de un listing.
  */
-export async function handleSaleListingUpdate(request, env, corsHeaders, listingId) {
+export async function handleSaleListingUpdate(request: Request, env: Env, corsHeaders: Record<string, string>, listingId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM sale_listings WHERE id = ? AND user_dni = ?'
-  ).bind(listingId, userDni.toUpperCase()).first();
+  ).bind(listingId, userDni.toUpperCase()).first<any>();
   if (!existing) return jsonResponse({ error: 'Artículo en venta no encontrado' }, 404, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -106,7 +106,7 @@ export async function handleSaleListingUpdate(request, env, corsHeaders, listing
 
   const fields: any[] = [];
   const values: any[] = [];
-  const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
+  const addField = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };
 
   if (body.quantity !== undefined) addField('quantity', parseInt(body.quantity, 10) || 0);
   if (body.unit_price !== undefined) addField('unit_price', parseFloat(body.unit_price) || 0);
@@ -132,13 +132,13 @@ export async function handleSaleListingUpdate(request, env, corsHeaders, listing
 /**
  * DELETE /api/sales/listings/:id
  */
-export async function handleSaleListingDelete(request, env, corsHeaders, listingId) {
+export async function handleSaleListingDelete(request: Request, env: Env, corsHeaders: Record<string, string>, listingId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM sale_listings WHERE id = ? AND user_dni = ?'
-  ).bind(listingId, userDni.toUpperCase()).first();
+  ).bind(listingId, userDni.toUpperCase()).first<any>();
   if (!existing) return jsonResponse({ error: 'Artículo en venta no encontrado' }, 404, corsHeaders);
 
   try {
@@ -157,7 +157,7 @@ export async function handleSaleListingDelete(request, env, corsHeaders, listing
  * Lista compradores del usuario. has_account se calcula al vuelo
  * comprobando si la cédula coincide con el dni de un usuario registrado.
  */
-export async function handleSaleBuyersList(request, env, corsHeaders) {
+export async function handleSaleBuyersList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -170,7 +170,7 @@ export async function handleSaleBuyersList(request, env, corsHeaders) {
       LEFT JOIN users u ON u.dni = b.cedula
       WHERE b.user_dni = ?
       ORDER BY b.is_favorite DESC, b.last_name, b.first_name
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     return jsonResponse(results, 200, corsHeaders);
   } catch (error) {
@@ -184,12 +184,12 @@ export async function handleSaleBuyersList(request, env, corsHeaders) {
  * Body: { first_name, last_name, cedula, phone? }
  * cedula debe tener formato V-00000000 (letra de nacionalidad - número).
  */
-export async function handleSaleBuyerCreate(request, env, corsHeaders) {
+export async function handleSaleBuyerCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -206,7 +206,7 @@ export async function handleSaleBuyerCreate(request, env, corsHeaders) {
   try {
     const dup = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM sale_buyers WHERE user_dni = ? AND cedula = ?'
-    ).bind(userDni.toUpperCase(), cedula).first();
+    ).bind(userDni.toUpperCase(), cedula).first<any>();
     if (dup) return jsonResponse({ error: 'Ya registraste un comprador con esa cédula' }, 409, corsHeaders);
 
     const id = crypto.randomUUID();
@@ -220,7 +220,7 @@ export async function handleSaleBuyerCreate(request, env, corsHeaders) {
       id, userDni.toUpperCase(), first_name.trim(), last_name.trim(), cedula, (phone || '').trim(), now, now
     ).run();
 
-    const hasAccount = await env.MIRAI_AI_DB.prepare('SELECT dni FROM users WHERE dni = ?').bind(cedula).first();
+    const hasAccount = await env.MIRAI_AI_DB.prepare('SELECT dni FROM users WHERE dni = ?').bind(cedula).first<any>();
 
     return jsonResponse({ success: true, id, has_account: !!hasAccount }, 201, corsHeaders);
   } catch (error) {
@@ -233,23 +233,23 @@ export async function handleSaleBuyerCreate(request, env, corsHeaders) {
  * PUT /api/sales/buyers/:id
  * Body: Partial<{ first_name, last_name, cedula, phone, is_favorite }>
  */
-export async function handleSaleBuyerUpdate(request, env, corsHeaders, buyerId) {
+export async function handleSaleBuyerUpdate(request: Request, env: Env, corsHeaders: Record<string, string>, buyerId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM sale_buyers WHERE id = ? AND user_dni = ?'
-  ).bind(buyerId, userDni.toUpperCase()).first();
+  ).bind(buyerId, userDni.toUpperCase()).first<any>();
   if (!existing) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
   const fields: any[] = [];
   const values: any[] = [];
-  const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
+  const addField = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };
 
   if (body.first_name !== undefined) addField('first_name', (body.first_name || '').trim());
   if (body.last_name !== undefined) addField('last_name', (body.last_name || '').trim());
@@ -283,13 +283,13 @@ export async function handleSaleBuyerUpdate(request, env, corsHeaders, buyerId) 
 /**
  * DELETE /api/sales/buyers/:id
  */
-export async function handleSaleBuyerDelete(request, env, corsHeaders, buyerId) {
+export async function handleSaleBuyerDelete(request: Request, env: Env, corsHeaders: Record<string, string>, buyerId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM sale_buyers WHERE id = ? AND user_dni = ?'
-  ).bind(buyerId, userDni.toUpperCase()).first();
+  ).bind(buyerId, userDni.toUpperCase()).first<any>();
   if (!existing) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
 
   try {
@@ -306,7 +306,7 @@ export async function handleSaleBuyerDelete(request, env, corsHeaders, buyerId) 
 /**
  * GET /api/sales/transactions?status=pendiente|pagado|cancelado
  */
-export async function handleSaleTransactionsList(request, env, corsHeaders) {
+export async function handleSaleTransactionsList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -333,7 +333,7 @@ export async function handleSaleTransactionsList(request, env, corsHeaders) {
       ? env.MIRAI_AI_DB.prepare(query).bind(userDni.toUpperCase(), status)
       : env.MIRAI_AI_DB.prepare(query).bind(userDni.toUpperCase());
 
-    const { results } = await stmt.all();
+    const { results } = await stmt.all<any>();
     return jsonResponse(results, 200, corsHeaders);
   } catch (error) {
     console.error('[Sales] Error al listar transacciones:', error);
@@ -346,12 +346,12 @@ export async function handleSaleTransactionsList(request, env, corsHeaders) {
  * Registra una compra: descuenta del inventario y del listing.
  * Body: { listing_id, buyer_id, quantity, notes? }
  */
-export async function handleSaleTransactionCreate(request, env, corsHeaders) {
+export async function handleSaleTransactionCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -368,7 +368,7 @@ export async function handleSaleTransactionCreate(request, env, corsHeaders) {
   try {
     const listing = await env.MIRAI_AI_DB.prepare(
       'SELECT id, product_id, product_name, quantity, unit_price, status FROM sale_listings WHERE id = ? AND user_dni = ?'
-    ).bind(listing_id, userDni.toUpperCase()).first();
+    ).bind(listing_id, userDni.toUpperCase()).first<any>();
     if (!listing) return jsonResponse({ error: 'Artículo en venta no encontrado' }, 404, corsHeaders);
     if (listing.status !== 'active') return jsonResponse({ error: 'Este artículo ya no está disponible para la venta' }, 400, corsHeaders);
     if (qty > listing.quantity) {
@@ -381,7 +381,7 @@ export async function handleSaleTransactionCreate(request, env, corsHeaders) {
       FROM sale_buyers b
       LEFT JOIN users u ON u.dni = b.cedula
       WHERE b.id = ? AND b.user_dni = ?
-    `).bind(buyer_id, userDni.toUpperCase()).first();
+    `).bind(buyer_id, userDni.toUpperCase()).first<any>();
     if (!buyer) return jsonResponse({ error: 'Comprador no encontrado' }, 404, corsHeaders);
 
     const id = crypto.randomUUID();
@@ -436,7 +436,7 @@ export async function handleSaleTransactionCreate(request, env, corsHeaders) {
  * Descarga los bytes de un asset estático servido por este mismo Worker
  * (public/), reutilizando el mecanismo de Cloudflare Workers Assets.
  */
-async function fetchAssetBytes(request, path) {
+async function fetchAssetBytes(request: Request, path: string) {
   const url = new URL(path, request.url);
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`No se pudo cargar el asset ${path} (HTTP ${res.status})`);
@@ -447,10 +447,12 @@ async function fetchAssetBytes(request, path) {
  * Genera la factura PDF de una venta recién creada, la sube a R2
  * (bucket MIRAI_AI_ASSETS, prefijo invoices/) y guarda sus metadatos en D1.
  */
-async function createSaleInvoice(env, request, userDni, { transactionId, listing, buyer, quantity, unitPrice }) {
+async function createSaleInvoice(env: Env, request: Request, userDni: string, { transactionId, listing, buyer, quantity, unitPrice }: {
+  transactionId: string; listing: any; buyer: any; quantity: number; unitPrice: number;
+}) {
   const seller = await env.MIRAI_AI_DB.prepare(
     'SELECT dni, first_name, last_name FROM users WHERE dni = ?'
-  ).bind(userDni).first();
+  ).bind(userDni).first<any>();
   const sellerName = seller ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() : userDni;
 
   // El correlativo salía de COUNT(*)+1, así que borrar una factura reutilizaba
@@ -460,7 +462,7 @@ async function createSaleInvoice(env, request, userDni, { transactionId, listing
     `SELECT MAX(CAST(SUBSTR(invoice_number, 5) AS INTEGER)) AS last_seq
        FROM sale_invoices
       WHERE user_dni = ? AND invoice_number LIKE 'FAC-%'`
-  ).bind(userDni).first();
+  ).bind(userDni).first<any>();
   const invoiceNumber = `FAC-${String((lastRow?.last_seq || 0) + 1).padStart(6, '0')}`;
 
   const subtotal = quantity * unitPrice;
@@ -532,7 +534,7 @@ async function createSaleInvoice(env, request, userDni, { transactionId, listing
  * GET /api/sales/invoices
  * Lista todas las facturas generadas por el usuario.
  */
-export async function handleSaleInvoicesList(request, env, corsHeaders) {
+export async function handleSaleInvoicesList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -545,7 +547,7 @@ export async function handleSaleInvoicesList(request, env, corsHeaders) {
       JOIN sale_buyers b ON b.id = i.buyer_id
       WHERE i.user_dni = ?
       ORDER BY i.created_at DESC
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     return jsonResponse(results, 200, corsHeaders);
   } catch (error) {
@@ -558,13 +560,13 @@ export async function handleSaleInvoicesList(request, env, corsHeaders) {
  * GET /api/sales/invoices/:id/pdf
  * Sirve el PDF de la factura desde R2. Solo el dueño puede verlo/descargarlo.
  */
-export async function handleSaleInvoicePdf(request, env, corsHeaders, invoiceId) {
+export async function handleSaleInvoicePdf(request: Request, env: Env, corsHeaders: Record<string, string>, invoiceId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const invoice = await env.MIRAI_AI_DB.prepare(
     'SELECT r2_key, invoice_number FROM sale_invoices WHERE id = ? AND user_dni = ?'
-  ).bind(invoiceId, userDni.toUpperCase()).first();
+  ).bind(invoiceId, userDni.toUpperCase()).first<any>();
   if (!invoice) return jsonResponse({ error: 'Factura no encontrada' }, 404, corsHeaders);
 
   const object = await env.MIRAI_AI_ASSETS.get(invoice.r2_key);
@@ -583,17 +585,17 @@ export async function handleSaleInvoicePdf(request, env, corsHeaders, invoiceId)
  * Body: { status: 'pagado' | 'cancelado' }
  * Al cancelar, restaura el stock descontado al listing y al inventario.
  */
-export async function handleSaleTransactionUpdate(request, env, corsHeaders, txId) {
+export async function handleSaleTransactionUpdate(request: Request, env: Env, corsHeaders: Record<string, string>, txId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const tx = await env.MIRAI_AI_DB.prepare(
     'SELECT id, listing_id, quantity, status FROM sale_transactions WHERE id = ? AND user_dni = ?'
-  ).bind(txId, userDni.toUpperCase()).first();
+  ).bind(txId, userDni.toUpperCase()).first<any>();
   if (!tx) return jsonResponse({ error: 'Transacción no encontrada' }, 404, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -612,7 +614,7 @@ export async function handleSaleTransactionUpdate(request, env, corsHeaders, txI
       // Restaurar stock al listing y al producto de inventario
       const listing = await env.MIRAI_AI_DB.prepare(
         'SELECT id, product_id, quantity, status FROM sale_listings WHERE id = ?'
-      ).bind(tx.listing_id).first();
+      ).bind(tx.listing_id).first<any>();
 
       const statements: any[] = [];
 

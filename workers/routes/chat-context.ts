@@ -15,33 +15,33 @@ import { getConversationEducationContext } from './conversations';
 // Los prompts guardados de proyectos de código (y los de aprendizaje que
 // escribía el navegador) empiezan por «Eres un experto asistente…». Esta
 // cabecera deja claro que es el papel que hace Mirai, no otra persona.
-export function wrapTaskPrompt(taskPrompt) {
+export function wrapTaskPrompt(taskPrompt: any) {
   return '[ESTA CONVERSACIÓN]\nLo que sigue es tu trabajo en esta conversación. Sigues siendo Mirai: ' +
     'si dice «eres un tutor» o «eres un asistente», es el papel que haces aquí, no otra persona.\n\n' +
     taskPrompt;
 }
 
-export const LEARNING_MODES = {
+export const LEARNING_MODES: Record<string, string> = {
   theory: 'TEORÍA: explica los conceptos fundamentales de forma clara y estructurada, con analogías. No des la solución directa: enseña el porqué.',
   quiz: 'QUIZ: haz una pregunta a la vez y espera la respuesta. Evalúa si es correcta, da tu opinión sobre ella y pasa a la siguiente. Lleva la cuenta de aciertos.',
   practice: 'PRÁCTICA: da un ejemplo resuelto paso a paso y luego pide al usuario que intente algo parecido, o modifica el ejemplo para que lo complete.'
 };
 
-function learningModeRules(mode) {
+function learningModeRules(mode: string) {
   return `Modo elegido por el usuario: ${LEARNING_MODES[mode]}\n` +
     'Mantén un tono alentador y pedagógico. Si pide la respuesta directa en el modo quiz o práctica, guíalo en lugar de dársela.';
 }
 
 // La tarea del aula, solo si el usuario es alumno de ella: por su sección o
 // asignada a él directamente (las mismas dos vías que /api/my-submissions).
-export async function getAssignmentForStudent(assignmentId, userDni, env) {
+export async function getAssignmentForStudent(assignmentId: string | undefined, userDni: string, env: Env) {
   return env.MIRAI_AI_DB.prepare(`
     SELECT a.id, a.title, a.description FROM assignments a
     WHERE a.id = ? AND (
       EXISTS (SELECT 1 FROM section_students ss WHERE ss.section_id = a.section_id AND UPPER(ss.user_dni) = UPPER(?))
       OR EXISTS (SELECT 1 FROM assignment_students ast WHERE ast.assignment_id = a.id AND UPPER(ast.user_dni) = UPPER(?))
     )
-  `).bind(assignmentId, userDni, userDni).first();
+  `).bind(assignmentId, userDni, userDni).first<any>();
 }
 
 // learning_context como lo escribe handleGetOrCreateLearningChat:
@@ -49,7 +49,17 @@ export async function getAssignmentForStudent(assignmentId, userDni, env) {
 //   { kind: 'lesson', course_id, lesson_id, mode }
 // Las filas antiguas traen { task_id, mode }: task_id era el id de la tarea
 // del aula, o «curso_lección» si venía de un curso.
-function parseLearningContext(raw) {
+// Contexto de aprendizaje guardado (JSON) en conversations.learning_context.
+interface LearningContext {
+  kind: 'assignment' | 'lesson' | 'legacy';
+  mode: string;
+  assignment_id?: string;
+  course_id?: string;
+  lesson_id?: string;
+  task_id?: string;
+}
+
+function parseLearningContext(raw: any): LearningContext | null {
   let ctx;
   try { ctx = JSON.parse(raw); } catch (_) { return null; }
   if (!ctx || !LEARNING_MODES[ctx.mode]) return null;
@@ -62,7 +72,7 @@ function parseLearningContext(raw) {
   return null;
 }
 
-async function buildLearningTaskPrompt(ctx, userDni, env) {
+async function buildLearningTaskPrompt(ctx: LearningContext, userDni: string, env: Env) {
   if (ctx.kind === 'assignment' || ctx.kind === 'legacy') {
     const id = ctx.kind === 'assignment' ? ctx.assignment_id : ctx.task_id;
     const assignment = await getAssignmentForStudent(id, userDni, env);
@@ -82,11 +92,11 @@ async function buildLearningTaskPrompt(ctx, userDni, env) {
 }
 
 // La tarea de esta conversación, o null si es una charla normal.
-export async function buildConversationTaskPrompt(conversationId, courseId, lessonId, userDni, env) {
+export async function buildConversationTaskPrompt(conversationId: any, courseId: any, lessonId: any, userDni: string, env: Env) {
   try {
     const conv = await env.MIRAI_AI_DB.prepare(
       'SELECT system_prompt, learning_context, project_id FROM conversations WHERE id = ?'
-    ).bind(conversationId).first();
+    ).bind(conversationId).first<any>();
 
     // Las sesiones de aprendizaje se arman desde su contexto, y el
     // system_prompt que pudiera tener guardado (lo escribía el navegador) se
@@ -133,7 +143,7 @@ Cada mensaje del usuario llega precedido, entre corchetes, por la fecha y hora e
 
 // La zona horaria llega del navegador del usuario: hay que validarla antes de
 // pasársela a Intl, que lanza con cualquier cadena inventada.
-export function normalizeTimeZone(timeZone) {
+export function normalizeTimeZone(timeZone: string | null) {
   if (!timeZone || typeof timeZone !== 'string') return DEFAULT_TIME_ZONE;
   try {
     new Intl.DateTimeFormat('es-ES', { timeZone }).format(new Date());
@@ -146,7 +156,7 @@ export function normalizeTimeZone(timeZone) {
 // created_at se guarda con datetime('now') de SQLite: 'YYYY-MM-DD HH:MM:SS' en
 // UTC y sin marca de zona. Sin añadirle la Z, new Date() lo interpretaría como
 // hora local y los "hace X" saldrían desplazados.
-function parseDbTimestamp(value) {
+function parseDbTimestamp(value: any) {
   if (!value) return null;
   const text = String(value).trim();
   const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(text)
@@ -157,7 +167,7 @@ function parseDbTimestamp(value) {
 }
 
 // '05/09/2026 13:45'
-export function formatShortStamp(date, timeZone) {
+export function formatShortStamp(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat('es-ES', {
     timeZone,
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -166,7 +176,7 @@ export function formatShortStamp(date, timeZone) {
 }
 
 // 'viernes, 5 de septiembre de 2026, 13:45'
-function formatFullStamp(date, timeZone) {
+function formatFullStamp(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat('es-ES', {
     timeZone,
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -174,9 +184,9 @@ function formatFullStamp(date, timeZone) {
   }).format(date);
 }
 
-function describeElapsed(fromDate, now) {
+function describeElapsed(fromDate: Date, now: Date) {
   const seconds = Math.max(0, Math.floor((now.getTime() - fromDate.getTime()) / 1000));
-  const plural = (n, singular, pl) => `${n} ${n === 1 ? singular : pl}`;
+  const plural = (n: number, singular: string, pl: string) => `${n} ${n === 1 ? singular : pl}`;
 
   if (seconds < 60) return 'hace unos segundos';
   const minutes = Math.floor(seconds / 60);
@@ -195,7 +205,7 @@ function describeElapsed(fromDate, now) {
 // Sella los turnos del usuario con su fecha de envío. Los turnos de la IA se
 // dejan intactos a propósito: si viera el prefijo en su propia voz acabaría
 // imitándolo y escribiendo corchetes con fechas en sus respuestas.
-export function annotateHistoryTurns(history, timeZone) {
+export function annotateHistoryTurns(history: any[], timeZone: string) {
   return history.map(msg => {
     if (msg.role !== 'user') return { role: msg.role, content: msg.content };
     const sentAt = parseDbTimestamp(msg.created_at);
@@ -207,7 +217,7 @@ export function annotateHistoryTurns(history, timeZone) {
 }
 
 // Cabecera del mensaje que se está respondiendo: el "ahora" del modelo.
-export function buildCurrentTurnHeader(now, timeZone, history) {
+export function buildCurrentTurnHeader(now: Date, timeZone: string, history: any[]) {
   const parts = [`Fecha y hora actuales: ${formatFullStamp(now, timeZone)} (zona horaria ${timeZone})`];
 
   const lastUser = [...history].reverse().find(msg => msg.role === 'user');
@@ -227,7 +237,7 @@ export function buildCurrentTurnHeader(now, timeZone, history) {
   return `[${sentences.join('. ')}.]`;
 }
 
-export async function getLessonContext(courseId, lessonId, env) {
+export async function getLessonContext(courseId: string, lessonId: string, env: Env) {
   try {
     const result = await env.MIRAI_AI_DB.prepare(
       `SELECT l.id, l.title, l.content, l.order_index,
@@ -235,7 +245,7 @@ export async function getLessonContext(courseId, lessonId, env) {
        FROM lessons l
        JOIN courses c ON l.course_id = c.id
        WHERE l.course_id = ? AND l.id = ?`
-    ).bind(courseId, lessonId).first();
+    ).bind(courseId, lessonId).first<any>();
     return result;
   } catch (error) {
     console.error('❌ Error obteniendo contexto de lección:', error.message);
@@ -243,10 +253,10 @@ export async function getLessonContext(courseId, lessonId, env) {
   }
 }
 
-function buildEducationSystemPrompt(lessonContext) {
+function buildEducationSystemPrompt(lessonContext: any) {
   if (!lessonContext) return null;
 
-  const levelLabels = {
+  const levelLabels: Record<string, string> = {
     principiante: 'principiante',
     intermedio: 'intermedio',
     avanzado: 'avanzado'

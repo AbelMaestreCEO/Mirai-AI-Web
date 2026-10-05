@@ -92,7 +92,7 @@ let miraiPersonaCache: { persona: MiraiPersonaje; expiresAt: number } | null = n
 
  // { persona, expiresAt }
 
-async function getMiraiPersona(env) {
+async function getMiraiPersona(env: Env) {
   const now = Date.now();
   if (miraiPersonaCache && miraiPersonaCache.expiresAt > now) return miraiPersonaCache.persona;
 
@@ -116,7 +116,7 @@ async function getMiraiPersona(env) {
 
 // El prompt por defecto del chat: quién es, cómo se porta y las reglas de
 // este sitio, en ese orden.
-export async function buildMiraiSystemPrompt(env) {
+export async function buildMiraiSystemPrompt(env: Env) {
   const { identidad, conducta } = await getMiraiPersona(env);
   return [identidad, conducta, PUBLIC_CHAT_RULES].join('\n\n');
 }

@@ -7,6 +7,11 @@
 //   Service, no qué métodos expone PersonajeRPC. Contrato completo en Mirai
 //   Assistant: shared/asistente/personaje.ts.
 
+// Migraciones de esquema perezosas de router.ts: se ejecutan una vez por isolate.
+declare var _migratedSubmissionType: boolean | undefined;
+declare var _migratedReportsSection: boolean | undefined;
+declare var _migratedMessagesReasoning: boolean | undefined;
+
 interface MiraiPersonaje {
   identidad: string;
   conducta: string;

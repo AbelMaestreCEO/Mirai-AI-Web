@@ -9,7 +9,7 @@ import { jsonResponse, safeJsonParse } from '../lib/http';
 // GET /api/projects
 // Devuelve todos los proyectos del usuario autenticado
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectList(request, env, corsHeaders) {
+export async function handleProjectList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -21,7 +21,7 @@ export async function handleProjectList(request, env, corsHeaders) {
       FROM projects
       WHERE user_dni = ?
       ORDER BY updated_at DESC
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     // tech_stack viene como texto JSON; lo parseamos para el cliente
     const projects = results.map(p => ({
@@ -40,12 +40,12 @@ export async function handleProjectList(request, env, corsHeaders) {
 // POST /api/projects
 // Body JSON: { name, description?, tech_stack?: string[], category? }
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectCreate(request, env, corsHeaders) {
+export async function handleProjectCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -80,7 +80,7 @@ export async function handleProjectCreate(request, env, corsHeaders) {
 
     const project = await env.MIRAI_AI_DB.prepare(
       'SELECT * FROM projects WHERE id = ?'
-    ).bind(id).first();
+    ).bind(id).first<any>();
 
     return jsonResponse({
       success: true,
@@ -96,7 +96,7 @@ export async function handleProjectCreate(request, env, corsHeaders) {
 // GET /api/projects/:id
 // Devuelve un proyecto por ID (solo si pertenece al usuario)
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectGet(request, env, corsHeaders, projectId) {
+export async function handleProjectGet(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -105,7 +105,7 @@ export async function handleProjectGet(request, env, corsHeaders, projectId) {
       SELECT id, name, description, tech_stack, category, file_count, created_at, updated_at
       FROM projects
       WHERE id = ? AND user_dni = ?
-    `).bind(projectId, userDni.toUpperCase()).first();
+    `).bind(projectId, userDni.toUpperCase()).first<any>();
 
     if (!project) {
       return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
@@ -128,21 +128,21 @@ export async function handleProjectGet(request, env, corsHeaders, projectId) {
 // Body JSON: { name?, description?, tech_stack?, category? }
 // Solo el dueño puede editar (WHERE user_dni = ?)
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectUpdate(request, env, corsHeaders, projectId) {
+export async function handleProjectUpdate(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar propiedad
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!existing) {
     return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
   }
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -186,7 +186,7 @@ export async function handleProjectUpdate(request, env, corsHeaders, projectId) 
 
     const updated = await env.MIRAI_AI_DB.prepare(
       'SELECT * FROM projects WHERE id = ?'
-    ).bind(projectId).first();
+    ).bind(projectId).first<any>();
 
     return jsonResponse({
       success: true,
@@ -203,14 +203,14 @@ export async function handleProjectUpdate(request, env, corsHeaders, projectId) 
 // Elimina el proyecto, sus registros en D1 y todos los objetos
 // de R2 bajo el prefix projects/{userDni}/{projectId}/
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectDelete(request, env, corsHeaders, projectId) {
+export async function handleProjectDelete(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar propiedad
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!project) {
     return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
@@ -220,7 +220,7 @@ export async function handleProjectDelete(request, env, corsHeaders, projectId) 
     // 1. Obtener todas las r2_key de los archivos del proyecto
     const { results: files } = await env.MIRAI_AI_DB.prepare(
       'SELECT r2_key FROM project_files WHERE project_id = ?'
-    ).bind(projectId).all();
+    ).bind(projectId).all<any>();
 
     // 2. Eliminar archivos de R2 en paralelo
     if (files.length > 0) {
@@ -251,14 +251,14 @@ export async function handleProjectDelete(request, env, corsHeaders, projectId) 
 // GET /api/projects/:id/files
 // Devuelve la lista de archivos de un proyecto
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectFileList(request, env, corsHeaders, projectId) {
+export async function handleProjectFileList(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar que el proyecto pertenece al usuario
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!project) {
     return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
@@ -270,7 +270,7 @@ export async function handleProjectFileList(request, env, corsHeaders, projectId
       FROM project_files
       WHERE project_id = ?
       ORDER BY uploaded_at ASC
-    `).bind(projectId).all();
+    `).bind(projectId).all<any>();
 
     return jsonResponse({ files: results }, 200, corsHeaders);
   } catch (error) {
@@ -284,14 +284,14 @@ export async function handleProjectFileList(request, env, corsHeaders, projectId
 // FormData: file (File), project_id (string)
 // Sube el archivo a R2 y registra en D1
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectFileUpload(request, env, corsHeaders, projectId) {
+export async function handleProjectFileUpload(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar propiedad del proyecto
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id, file_count FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!project) {
     return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
@@ -304,7 +304,7 @@ export async function handleProjectFileUpload(request, env, corsHeaders, project
     return jsonResponse({ error: 'FormData inválido' }, 400, corsHeaders);
   }
 
-  const file = formData.get('file');
+  const file = formData.get('file') as File | null;
   if (!file || typeof file === 'string') {
     return jsonResponse({ error: 'Se requiere un archivo' }, 400, corsHeaders);
   }
@@ -316,7 +316,7 @@ export async function handleProjectFileUpload(request, env, corsHeaders, project
     'vue', 'svelte', 'astro', 'php', 'java', 'c', 'cpp', 'h', 'cs',
     'rb', 'swift', 'kt', 'dart', 'graphql', 'prisma', 'lock', 'gitignore',
   ]);
-  const ext = file.name.split('.').pop().toLowerCase();
+  const ext = (file.name.split('.').pop() ?? '').toLowerCase();
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     return jsonResponse({ error: `Extensión .${ext} no permitida` }, 400, corsHeaders);
   }
@@ -378,7 +378,7 @@ export async function handleProjectFileUpload(request, env, corsHeaders, project
 // DELETE /api/projects/:id/files/:fileId
 // Elimina un archivo de R2 y su registro en D1
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectFileDelete(request, env, corsHeaders, projectId, fileId) {
+export async function handleProjectFileDelete(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string, fileId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -386,7 +386,7 @@ export async function handleProjectFileDelete(request, env, corsHeaders, project
   // el archivo tampoco es accesible)
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!project) {
     return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
@@ -395,7 +395,7 @@ export async function handleProjectFileDelete(request, env, corsHeaders, project
   // Obtener el archivo
   const file = await env.MIRAI_AI_DB.prepare(
     'SELECT id, r2_key FROM project_files WHERE id = ? AND project_id = ?'
-  ).bind(fileId, projectId).first();
+  ).bind(fileId, projectId).first<any>();
 
   if (!file) {
     return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
@@ -430,14 +430,14 @@ export async function handleProjectFileDelete(request, env, corsHeaders, project
 // concatenados. Usado por code.html para darle contexto a la IA.
 // Los archivos binarios o demasiado grandes se omiten con una nota.
 // ─────────────────────────────────────────────────────────────
-export async function handleProjectContext(request, env, corsHeaders, projectId) {
+export async function handleProjectContext(request: Request, env: Env, corsHeaders: Record<string, string>, projectId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar propiedad
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id, name, tech_stack FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!project) {
     return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
@@ -446,7 +446,7 @@ export async function handleProjectContext(request, env, corsHeaders, projectId)
   try {
     const { results: files } = await env.MIRAI_AI_DB.prepare(
       'SELECT id, name, r2_key, size, mime_type FROM project_files WHERE project_id = ? ORDER BY uploaded_at ASC'
-    ).bind(projectId).all();
+    ).bind(projectId).all<any>();
 
     if (files.length === 0) {
       return jsonResponse({ context: '', files: [], project_name: project.name }, 200, corsHeaders);
@@ -482,7 +482,7 @@ export async function handleProjectContext(request, env, corsHeaders, projectId)
         break;
       }
 
-      const lang = f.name.split('.').pop().toLowerCase();
+      const lang = (f.name.split('.').pop() ?? '').toLowerCase();
       parts.push(`\n\n### ${f.name}\n\`\`\`${lang}\n${text}\n\`\`\``);
       totalChars += text.length;
     }

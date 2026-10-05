@@ -6,12 +6,12 @@
 // Descarga la salida de una predicción de Pruna, sea una URL de entrega o un
 // data URI en base64. Los dos formatos aparecen según el modelo, y antes cada
 // handler repetía el mismo bloque de 20 líneas para resolverlos.
-export async function fetchPrunaOutputBuffer(env, outputRef, label = 'archivo') {
+export async function fetchPrunaOutputBuffer(env: Env, outputRef: any, label = 'archivo') {
   let buffer;
 
   if (outputRef.startsWith('http://') || outputRef.startsWith('https://')) {
     // El endpoint de entrega de Pruna exige el header apikey igual que el resto de su API.
-    const headers = { 'User-Agent': 'Cloudflare-Worker' };
+    const headers: Record<string, string> = { 'User-Agent': 'Cloudflare-Worker' };
     if (new URL(outputRef).hostname.endsWith('pruna.ai')) {
       headers['apikey'] = requirePrunaApiKey(env);
     }
@@ -47,7 +47,7 @@ export async function fetchPrunaOutputBuffer(env, outputRef, label = 'archivo') 
 // dentro de una sola invocación del Worker.
 const PRUNA_API_BASE = 'https://api.pruna.ai/v1';
 
-function requirePrunaApiKey(env) {
+function requirePrunaApiKey(env: Env) {
   const apiKey = env.PRUNA_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -123,7 +123,7 @@ export async function getPrunaPrediction(env: Env, predictionId: string): Promis
 // Extrae una URL (o base64) de vídeo desde una respuesta de predicción de Pruna.
 // El campo documentado es 'generation_url'; se dejan otros nombres como respaldo
 // por si el esquema varía entre modelos.
-export function extractPrunaOutputUrl(prediction) {
+export function extractPrunaOutputUrl(prediction: PrunaPrediction) {
   const candidates = [
     prediction.generation_url,
     prediction.output,
@@ -160,7 +160,7 @@ const PRUNA_TERMINAL_FAIL = ['failed', 'canceled', 'cancelled', 'error'];
 // La mayoría de modelos devuelven un fichero y les sirve resolvePrunaSync, que
 // extrae la URL. p-judger devuelve JSON con las puntuaciones, no un fichero,
 // por eso el acceso a la predicción cruda vive en su propia función.
-export async function resolvePrunaSyncPrediction(env, modelId, input) {
+export async function resolvePrunaSyncPrediction(env: Env, modelId: string, input: PrunaInput) {
   let prediction = await createPrunaPrediction(env, modelId, input, { trySync: true });
   let attempts = 0;
   while (
@@ -182,7 +182,7 @@ export async function resolvePrunaSyncPrediction(env, modelId, input) {
   return prediction;
 }
 
-export async function resolvePrunaSync(env, modelId, input) {
+export async function resolvePrunaSync(env: Env, modelId: string, input: PrunaInput) {
   const prediction = await resolvePrunaSyncPrediction(env, modelId, input);
   const outputRef = extractPrunaOutputUrl(prediction);
   if (!outputRef) {

@@ -15,7 +15,7 @@ const EMAIL_FROM = { email: 'mirai@aberumirai.com', name: 'Mirai AI' };
  * descartan <style> y <script>, y un correo con scripts dentro puntúa como
  * phishing en los filtros antispam.
  */
-function renderEmailShell({ title, intro, bodyHtml, outro }) {
+function renderEmailShell({ title, intro, bodyHtml, outro }: { title: string; intro: string; bodyHtml: string; outro: string }) {
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -52,7 +52,7 @@ ${bodyHtml}
  * Envío transaccional vía el binding send_email de Cloudflare.
  * @returns {Promise<boolean>} true si Cloudflare aceptó el mensaje.
  */
-async function sendEmail(env, { to, subject, html, text, kind }) {
+async function sendEmail(env: Env, { to, subject, html, text, kind }: { to: string; subject: string; html: string; text: string; kind: string }) {
   if (!env.EMAIL) {
     console.error('Binding EMAIL (send_email) no configurado en wrangler.toml');
     return false;
@@ -79,7 +79,7 @@ async function sendEmail(env, { to, subject, html, text, kind }) {
  * @param {Object} env   - Bindings del Worker (necesita EMAIL)
  * @returns {Promise<boolean>}
  */
-export async function sendVerificationEmail(email, code, env) {
+export async function sendVerificationEmail(email: any, code: string, env: Env) {
   const bodyHtml = `            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td align="center" style="padding:6px 0;">
@@ -116,7 +116,7 @@ export async function sendVerificationEmail(email, code, env) {
 }
 
 // --- ENVIAR CORREO DE RECUPERACIÓN ---
-export async function sendRecoveryEmail(email, token, env) {
+export async function sendRecoveryEmail(email: any, token: string, env: Env) {
   const recoveryLink = `https://aberumirai.com/reset-password.html?token=${encodeURIComponent(token)}`;
 
   const bodyHtml = `            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:6px auto;">

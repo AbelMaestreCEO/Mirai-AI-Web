@@ -17,7 +17,7 @@ import { LEARNING_MODES, getAssignmentForStudent, getLessonContext } from './cha
 // el propio navegador: antes este endpoint y /api/set-system-prompt se
 // fiaban de X-User-DNI, así que bastaba un DNI ajeno y un id de conversación
 // para cambiarle el prompt a la conversación de otra persona.
-export async function handleGetOrCreateLearningChat(request, env, corsHeaders) {
+export async function handleGetOrCreateLearningChat(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
 
@@ -56,13 +56,13 @@ export async function handleGetOrCreateLearningChat(request, env, corsHeaders) {
 
   const existing = await db.prepare(
     'SELECT id, title FROM conversations WHERE user_dni = ? AND learning_context = ? ORDER BY updated_at DESC LIMIT 1'
-  ).bind(userDni, learningContext).first();
+  ).bind(userDni, learningContext).first<any>();
 
   if (existing) {
     return jsonResponse({ chat_id: existing.id, title: existing.title, is_new: false }, 200, corsHeaders);
   }
 
-  const modeLabels = { theory: 'Teoría', quiz: 'Quiz', practice: 'Práctica' };
+  const modeLabels: Record<string, string> = { theory: 'Teoría', quiz: 'Quiz', practice: 'Práctica' };
   const chatId = `learn_${crypto.randomUUID()}`;
   const now = Math.floor(Date.now() / 1000);
   const title = `${modeLabels[mode]}: ${String(subject || 'Aprendizaje').slice(0, 80)}`;
@@ -76,7 +76,7 @@ export async function handleGetOrCreateLearningChat(request, env, corsHeaders) {
 }
 
 // --- MANEJAR HISTORIAL (CORREGIDO) ---
-export async function handleHistory(request, conversationId, env, corsHeaders) {
+export async function handleHistory(request: Request, conversationId: string | undefined, env: Env, corsHeaders: Record<string, string>) {
   try {
     // 1. AUTENTICAR
     const userDni = await requireAuth(request, env);
@@ -91,7 +91,7 @@ export async function handleHistory(request, conversationId, env, corsHeaders) {
     // 2. VERIFICAR PROPIEDAD (MODIFICADO)
     const conv = await env.MIRAI_AI_DB.prepare(
       "SELECT user_dni, course_id FROM conversations WHERE id = ?"
-    ).bind(conversationId).first();
+    ).bind(conversationId).first<any>();
 
     if (!conv) {
       return jsonResponse({ error: 'Conversación no encontrada' }, 404, corsHeaders);
@@ -120,14 +120,14 @@ export async function handleHistory(request, conversationId, env, corsHeaders) {
         FROM messages
         WHERE conversation_id = ?
         ORDER BY created_at ASC
-      `).bind(conversationId).all());
+      `).bind(conversationId).all<any>());
     } catch (columnError) {
       ({ results } = await env.MIRAI_AI_DB.prepare(`
         SELECT id, role, content, audio_url, video_url, created_at
         FROM messages
         WHERE conversation_id = ?
         ORDER BY created_at ASC
-      `).bind(conversationId).all());
+      `).bind(conversationId).all<any>());
     }
     const messages = results.map(row => ({
       id: row.id,
@@ -147,7 +147,7 @@ export async function handleHistory(request, conversationId, env, corsHeaders) {
   }
 }
 
-export async function getConversationHistory(conversationId, env, limit = 20) {
+export async function getConversationHistory(conversationId: any, env: Env, limit = 20) {
   const stmt = env.MIRAI_AI_DB.prepare(`
     SELECT id, role, content, audio_url, video_url, created_at
     FROM messages
@@ -155,7 +155,7 @@ export async function getConversationHistory(conversationId, env, limit = 20) {
     ORDER BY created_at DESC
     LIMIT ?
   `);
-  const { results } = await stmt.bind(conversationId, limit).all();
+  const { results } = await stmt.bind(conversationId, limit).all<any>();
   results.reverse();
   return results.map(row => ({
     id: row.id,
@@ -168,14 +168,14 @@ export async function getConversationHistory(conversationId, env, limit = 20) {
 }
 
 // --- GUARDAR MENSAJE (CORREGIDO) ---
-export async function saveMessage(conversationId, role, content, env, audioUrl: string | null = null, videoUrl: string | null = null, thumbnailUrl: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL, reasoning: string | null = null) {
+export async function saveMessage(conversationId: string, role: string, content: string, env: Env, audioUrl: string | null = null, videoUrl: string | null = null, thumbnailUrl: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL, reasoning: string | null = null) {
   try {
     await ensureConversationExists(conversationId, content, env, null, null, userDni, model);
 
     if (userDni) {
       const conv = await env.MIRAI_AI_DB.prepare(
         "SELECT user_dni, course_id FROM conversations WHERE id = ?"
-      ).bind(conversationId).first();
+      ).bind(conversationId).first<any>();
 
       if (conv) {
         const isSharedCourseConv = !!conv.course_id;
@@ -213,12 +213,12 @@ export async function saveMessage(conversationId, role, content, env, audioUrl: 
   }
 }
 
-export async function ensureConversationExists(conversationId, firstMessage, env, courseId: string | null = null, lessonId: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL) {
+export async function ensureConversationExists(conversationId: string, firstMessage: string, env: Env, courseId: string | null = null, lessonId: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL) {
   try {
     // 1. Verificar si ya existe
     const existing = await env.MIRAI_AI_DB.prepare(
       "SELECT id FROM conversations WHERE id = ?"
-    ).bind(conversationId).first();
+    ).bind(conversationId).first<any>();
 
     if (!existing) {
       console.log(`🆕 Conversación NO encontrada. Creando: ${conversationId}`);
@@ -251,7 +251,7 @@ export async function ensureConversationExists(conversationId, firstMessage, env
 }
 
 // Actualizar timestamp de conversación
-export async function updateConversationTimestamp(conversationId, env) {
+export async function updateConversationTimestamp(conversationId: string, env: Env) {
   try {
     const stmt = env.MIRAI_AI_DB.prepare(`
       UPDATE conversations
@@ -278,7 +278,7 @@ const UPLOAD_ALLOWED_EXTENSIONS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', '
 
 const UPLOAD_MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-export async function handleUpload(request, env, corsHeaders) {
+export async function handleUpload(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -288,8 +288,8 @@ export async function handleUpload(request, env, corsHeaders) {
       return jsonResponse({ error: 'FormData inválido' }, 400, corsHeaders);
     }
 
-    const file = formData.get('file');
-    const conversationId = formData.get('conversation_id');
+    const file = formData.get('file') as File | null;
+    const conversationId = formData.get('conversation_id') as string | null;
 
     if (!file || typeof file === 'string') {
       return jsonResponse({ error: 'Archivo requerido' }, 400, corsHeaders);
@@ -308,7 +308,7 @@ export async function handleUpload(request, env, corsHeaders) {
     if (conversationId) {
       const conv = await env.MIRAI_AI_DB.prepare(
         'SELECT id, user_dni FROM conversations WHERE id = ?'
-      ).bind(conversationId).first();
+      ).bind(conversationId).first<any>();
 
       if (conv && (conv.user_dni || '').toUpperCase() !== userDni.toUpperCase()) {
         return jsonResponse({ error: 'No tienes acceso a esta conversación' }, 403, corsHeaders);
@@ -355,7 +355,7 @@ export async function handleUpload(request, env, corsHeaders) {
 }
 
 // --- ELIMINAR CONVERSACIÓN (CORREGIDO) ---
-export async function handleDeleteConversation(request, conversationId, env, corsHeaders) {
+export async function handleDeleteConversation(request: Request, conversationId: any, env: Env, corsHeaders: Record<string, string>) {
   try {
     // 1. AUTENTICAR
     const userDni = await requireAuth(request, env);
@@ -366,7 +366,7 @@ export async function handleDeleteConversation(request, conversationId, env, cor
     // 2. VERIFICAR PROPIEDAD
     const conv = await env.MIRAI_AI_DB.prepare(
       "SELECT user_dni, course_id FROM conversations WHERE id = ?"
-    ).bind(conversationId).first();
+    ).bind(conversationId).first<any>();
 
     if (!conv) {
       return jsonResponse({ error: 'Conversación no encontrada' }, 404, corsHeaders);
@@ -396,7 +396,7 @@ export async function handleDeleteConversation(request, conversationId, env, cor
   }
 }
 
-export async function handleListConversations(request, env, corsHeaders) {
+export async function handleListConversations(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) {
@@ -415,7 +415,7 @@ export async function handleListConversations(request, env, corsHeaders) {
       LIMIT 50
     `);
 
-    const queryResult = await stmt.bind(userDni).all();
+    const queryResult = await stmt.bind(userDni).all<any>();
 
     if (!queryResult || !queryResult.results) {
       return jsonResponse({ regular: [], courses: [] }, 200, corsHeaders);
@@ -445,9 +445,9 @@ export async function handleListConversations(request, env, corsHeaders) {
 }
 
 // --- RENOMBRAR CONVERSACIÓN ---
-export async function handleRenameConversation(request, env, corsHeaders) {
+export async function handleRenameConversation(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
-    const { conversation_id, title } = await request.json();
+    const { conversation_id, title } = await request.json<any>();
 
     if (!conversation_id || !title) {
       return jsonResponse({ error: 'Faltan campos' }, 400, corsHeaders);
@@ -468,7 +468,7 @@ export async function handleRenameConversation(request, env, corsHeaders) {
   }
 }
 
-export async function saveConversationContext(conversationId, courseId, lessonId, env) {
+export async function saveConversationContext(conversationId: any, courseId: any, lessonId: any, env: Env) {
   try {
     await env.MIRAI_AI_DB.prepare(
       `UPDATE conversations SET course_id = ?, lesson_id = ?, updated_at = datetime('now')
@@ -480,11 +480,11 @@ export async function saveConversationContext(conversationId, courseId, lessonId
   }
 }
 
-export async function getConversationEducationContext(conversationId, env) {
+export async function getConversationEducationContext(conversationId: any, env: Env) {
   try {
     const result = await env.MIRAI_AI_DB.prepare(
       `SELECT course_id, lesson_id FROM conversations WHERE id = ?`
-    ).bind(conversationId).first();
+    ).bind(conversationId).first<any>();
     return result;
   } catch (error) {
     console.error('❌ Error obteniendo contexto educativo:', error.message);
@@ -493,7 +493,7 @@ export async function getConversationEducationContext(conversationId, env) {
 }
 
 // --- NUEVA FUNCIÓN: Obtener o Crear Conversación de Curso PRIVADA por Usuario ---
-export async function getOrCreateEducationConversation(courseId, lessonId, userDni, env) {
+export async function getOrCreateEducationConversation(courseId: string, lessonId: string | null, userDni: string, env: Env) {
   try {
     console.log(`🎓 Buscando conversación para Curso: ${courseId}, Lección: ${lessonId}, Usuario: ${userDni}`);
 
@@ -502,7 +502,7 @@ export async function getOrCreateEducationConversation(courseId, lessonId, userD
     const existing = await env.MIRAI_AI_DB.prepare(
       `SELECT id FROM conversations 
        WHERE user_dni = ? AND course_id = ?`
-    ).bind(userDni, courseId).first();
+    ).bind(userDni, courseId).first<any>();
 
     if (existing) {
       console.log(`✅ Conversación existente encontrada: ${existing.id}`);

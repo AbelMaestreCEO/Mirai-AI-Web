@@ -13,7 +13,9 @@
     "skipLibCheck": true,
     "strict": false,
     // Primer paso hacia strict: null y undefined ya no se asignan a cualquier tipo.
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    // Todo any tiene que ser explícito (datos de D1, JSON de APIs externas...).
+    "noImplicitAny": true
   },
   "include": ["workers/**/*.ts"]
 }

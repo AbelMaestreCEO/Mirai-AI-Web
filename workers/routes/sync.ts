@@ -5,7 +5,7 @@
 import { requireAuth } from '../lib/auth';
 import { jsonResponse } from '../lib/http';
 
-export async function handleSyncPoll(request, env, corsHeaders) {
+export async function handleSyncPoll(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) {
@@ -23,13 +23,13 @@ export async function handleSyncPoll(request, env, corsHeaders) {
     // Leer el rol real desde la DB (no confiar en el cliente)
     const userRow = await env.MIRAI_AI_DB.prepare(
       "SELECT role FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
     const role = userRow?.role || 'student';
 
     // También verificar si es profesor aunque su rol sea 'student'
     const isProfRow = await env.MIRAI_AI_DB.prepare(
       "SELECT dni FROM professors WHERE dni = ? AND is_active = 1"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
     const effectiveRole = isProfRow ? 'teacher' : role;
 
     const changes: Record<string, any> = {};
@@ -47,7 +47,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  updated_at > ? AND user_dni = ?
         ORDER  BY updated_at DESC
         LIMIT  50
-      `).bind(since, userDni).all();
+      `).bind(since, userDni).all<any>();
 
       // Logs recientes de inventario
       const logs = await env.MIRAI_AI_DB.prepare(`
@@ -58,7 +58,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  il.created_at > ? AND ip.user_dni = ?
         ORDER  BY il.created_at DESC
         LIMIT  20
-      `).bind(since, userDni).all();
+      `).bind(since, userDni).all<any>();
 
       changes.inventory = {
         products: products.results || [],
@@ -85,7 +85,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  s.professor_dni = ? AND s.created_at > ?
           ORDER  BY s.created_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         // Tareas nuevas/modificadas
         const assignments = await env.MIRAI_AI_DB.prepare(`
@@ -97,7 +97,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  s.professor_dni = ? AND a.created_at > ?
           ORDER  BY a.created_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         // Entregas nuevas para calificar.
         // Igual que arriba, el filtro era sub.user_dni = ? (las entregas DEL
@@ -115,7 +115,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  uc.user_dni = ? AND sub.submitted_at > ?
           ORDER  BY sub.submitted_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         changes.classroom = {
           sections: sections.results || [],
@@ -134,7 +134,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  ss.user_dni = ? AND s.created_at > ?
           ORDER  BY s.created_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         const assignments = await env.MIRAI_AI_DB.prepare(`
           SELECT a.id, a.title, a.description, a.file_url,
@@ -144,7 +144,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  ss.user_dni = ? AND a.created_at > ?
           ORDER  BY a.created_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT sub.id, sub.assignment_id, sub.status,
@@ -156,7 +156,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  sub.user_dni = ? AND sub.submitted_at > ?
           ORDER  BY sub.submitted_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         changes.classroom = {
           sections: sections.results || [],
@@ -185,7 +185,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  ar.created_at > ? AND ac.created_by = ?
           ORDER  BY ar.created_at DESC
           LIMIT  100
-        `).bind(since, userDni).all();
+        `).bind(since, userDni).all<any>();
 
         // Sesiones QR activas
         const sessions = await env.MIRAI_AI_DB.prepare(`
@@ -197,7 +197,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  qs.created_at > ? AND qs.created_by = ?
           ORDER  BY qs.created_at DESC
           LIMIT  20
-        `).bind(since, userDni).all();
+        `).bind(since, userDni).all<any>();
 
         changes.attendance = {
           records: records.results || [],
@@ -209,7 +209,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         // Buscar por DNI en att_staff
         const staffRow = await env.MIRAI_AI_DB.prepare(
           `SELECT id FROM att_staff WHERE dni = ? LIMIT 1`
-        ).bind(userDni).first();
+        ).bind(userDni).first<any>();
 
         if (staffRow) {
           const records = await env.MIRAI_AI_DB.prepare(`
@@ -221,7 +221,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
             WHERE  ar.staff_id = ? AND ar.created_at > ?
             ORDER  BY ar.created_at DESC
             LIMIT  50
-          `).bind(staffRow.id, since).all();
+          `).bind(staffRow.id, since).all<any>();
           changes.attendance = { records: records.results || [], sessions: [] };
         } else {
           changes.attendance = { records: [], sessions: [] };
@@ -238,7 +238,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         FROM   diet_data
         WHERE  user_dni = ? AND updated_at > ?
         ORDER  BY updated_at DESC
-      `).bind(userDni, since).all();
+      `).bind(userDni, since).all<any>();
 
       // diet_history: entradas de días recientes
       const history = await env.MIRAI_AI_DB.prepare(`
@@ -248,7 +248,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  user_dni = ? AND created_at > ?
         ORDER  BY created_at DESC
         LIMIT  7
-      `).bind(userDni, since).all();
+      `).bind(userDni, since).all<any>();
 
       changes.diet = {
         data: data.results || [],
@@ -269,7 +269,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  user_dni = ? AND updated_at > ?
         ORDER  BY updated_at DESC
         LIMIT  50
-      `).bind(userDni, since).all();
+      `).bind(userDni, since).all<any>();
 
       changes.tasks = tasks.results || [];
     }
@@ -291,7 +291,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  lm.created_at > ?
           ORDER  BY lm.created_at DESC
           LIMIT  100
-        `).bind(since).all();
+        `).bind(since).all<any>();
       } else {
         markers = await env.MIRAI_AI_DB.prepare(`
           SELECT id, user_dni, title, description,
@@ -300,7 +300,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  user_dni = ? AND created_at > ?
           ORDER  BY created_at DESC
           LIMIT  50
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
       }
 
       changes.location = markers.results || [];
@@ -317,7 +317,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  updated_at > ?
         ORDER  BY updated_at DESC
         LIMIT  30
-      `).bind(since).all();
+      `).bind(since).all<any>();
 
       const lessons = await env.MIRAI_AI_DB.prepare(`
         SELECT l.id, l.course_id, l.title, l.order_index, l.created_at
@@ -325,7 +325,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  l.created_at > ?
         ORDER  BY l.created_at DESC
         LIMIT  30
-      `).bind(since).all();
+      `).bind(since).all<any>();
 
       changes.courses = {
         courses: courses.results || [],
@@ -347,7 +347,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  teacher_dni = ? AND updated_at > ?
           ORDER  BY updated_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT rs.id, rs.report_id, rs.student_dni,
@@ -357,7 +357,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  r.teacher_dni = ? AND rs.submitted_at > ?
           ORDER  BY rs.submitted_at DESC
           LIMIT  30
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         changes.reports = {
           reports: reports.results || [],
@@ -374,7 +374,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
           WHERE  rs.student_dni = ? AND rs.submitted_at > ?
           ORDER  BY rs.submitted_at DESC
           LIMIT  20
-        `).bind(userDni, since).all();
+        `).bind(userDni, since).all<any>();
 
         changes.reports = {
           reports: [],
@@ -393,7 +393,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  user_dni = ? AND updated_at > ?
         ORDER  BY updated_at DESC
         LIMIT  20
-      `).bind(userDni, since).all();
+      `).bind(userDni, since).all<any>();
 
       // Mensajes nuevos en conversaciones activas
       const messages = await env.MIRAI_AI_DB.prepare(`
@@ -405,7 +405,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  c.user_dni = ? AND m.created_at > ?
         ORDER  BY m.created_at DESC
         LIMIT  30
-      `).bind(userDni, since).all();
+      `).bind(userDni, since).all<any>();
 
       changes.chat = {
         conversations: conversations.results || [],
@@ -422,7 +422,7 @@ export async function handleSyncPoll(request, env, corsHeaders) {
         WHERE  user_dni = ? AND created_at > ?
         ORDER  BY created_at DESC
         LIMIT  20
-      `).bind(userDni, since).all();
+      `).bind(userDni, since).all<any>();
 
       changes.generation = gen.results || [];
     }

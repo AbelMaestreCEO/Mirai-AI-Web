@@ -23,7 +23,7 @@ import { calcCost, logApiUsage } from '../lib/usage';
  *  4. DeepSeek genera el resumen parafraseado en tercera persona
  *  5. Devuelve { summary, sources[] }
  */
-export async function handleInvestigationSearch(request, env, corsHeaders) {
+export async function handleInvestigationSearch(request: Request, env: Env, corsHeaders: Record<string, string>) {
   // ── 1. Autenticación ──
   const userDni = await requireAuth(request, env);
   if (!userDni) {
@@ -33,7 +33,7 @@ export async function handleInvestigationSearch(request, env, corsHeaders) {
   // ── 2. Leer cuerpo ──
   let question;
   try {
-    const body = await request.json();
+    const body = await request.json<any>();
     question = (body.question || '').trim();
   } catch (_) {
     return jsonResponse({ error: 'Cuerpo de la solicitud inválido.' }, 400, corsHeaders);
@@ -87,7 +87,7 @@ export async function handleInvestigationSearch(request, env, corsHeaders) {
       id = parts.length >= 2 ? parts[parts.length - 1] : firstAuthor;
     } else if (r.title && !r.title.startsWith('http')) {
       // Primeras 3 palabras significativas del título
-      id = r.title.split(' ').filter(w => w.length > 2).slice(0, 3).join(' ');
+      id = r.title.split(' ').filter((w: string) => w.length > 2).slice(0, 3).join(' ');
     } else {
       // Fallback: hostname limpio
       try { id = new URL(r.url).hostname.replace('www.', ''); } catch (_) { id = `Fuente ${i + 1}`; }
@@ -155,7 +155,7 @@ export async function handleInvestigationSearch(request, env, corsHeaders) {
 // GET /api/investigation/history — listar historial del usuario
 // ════════════════════════════════════════════════════════════
 
-export async function handleInvestigationHistoryList(request, env, corsHeaders) {
+export async function handleInvestigationHistoryList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) {
     return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
@@ -179,7 +179,7 @@ export async function handleInvestigationHistoryList(request, env, corsHeaders) 
       WHERE user_dni = ?
       ORDER BY created_at DESC
       LIMIT 50
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     const items = (results || []).map(r => ({
       id: r.id,
@@ -200,7 +200,7 @@ export async function handleInvestigationHistoryList(request, env, corsHeaders) 
 // DELETE /api/investigation/history — eliminar entrada del historial
 // ════════════════════════════════════════════════════════════
 
-export async function handleInvestigationHistoryDelete(request, env, corsHeaders) {
+export async function handleInvestigationHistoryDelete(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) {
     return jsonResponse({ error: 'No autorizado.' }, 401, corsHeaders);
@@ -208,7 +208,7 @@ export async function handleInvestigationHistoryDelete(request, env, corsHeaders
 
   let id;
   try {
-    const body = await request.json();
+    const body = await request.json<any>();
     id = body.id;
   } catch (_) {
     return jsonResponse({ error: 'Cuerpo inválido.' }, 400, corsHeaders);
@@ -242,7 +242,7 @@ export async function handleInvestigationHistoryDelete(request, env, corsHeaders
  *
  * Devuelve un array plano de hasta 12 resultados con su tipo.
  */
-async function searchWithExa(question, env) {
+async function searchWithExa(question: any, env: Env) {
   const EXA_API_KEY = env.EXA_API_KEY;
   if (!EXA_API_KEY) throw new Error('EXA_API_KEY no configurada en Cloudflare.');
 
@@ -255,7 +255,7 @@ async function searchWithExa(question, env) {
     { category: 'research paper', type: 'academic' },
   ];
 
-  const fetchExa = async ({ category, type }) => {
+  const fetchExa = async ({ category, type }: { category?: string; type: string }) => {
     const body: Record<string, any> = {
       query: question,
       numResults: NUM_RESULTS,
@@ -280,9 +280,9 @@ async function searchWithExa(question, env) {
       throw new Error(`Exa [${category || 'general'}] ${res.status}: ${err}`);
     }
 
-    const data: any = await res.json();
+    const data: any = await res.json<any>();
     await logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: type, cost_usd: calcCost('exa', null) });
-    return (data.results || []).map(r => ({
+    return (data.results || []).map((r: any) => ({
       url: r.url,
       title: r.title || '',
       author: r.author || null,   // para APA 7
@@ -321,7 +321,7 @@ async function searchWithExa(question, env) {
  * @param {object} env
  * @returns {Map<url, markdown>}
  */
-async function scrapeAllUrls(exaResults, env) {
+async function scrapeAllUrls(exaResults: any[], env: Env) {
   const FIRECRAWL_KEY = env.FIRECRAWL_API_KEY;
   if (!FIRECRAWL_KEY) {
     console.warn('⚠️ FIRECRAWL_API_KEY no configurada — se usarán solo los highlights de Exa.');
@@ -331,7 +331,7 @@ async function scrapeAllUrls(exaResults, env) {
   const CONCURRENCY = 4;   // peticiones simultáneas a Firecrawl
   const TIMEOUT_MS = 12000;
 
-  const scrapeOne = async (url) => {
+  const scrapeOne = async (url: string) => {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -359,7 +359,7 @@ async function scrapeAllUrls(exaResults, env) {
         return { url, markdown: null };
       }
 
-      const data: any = await res.json();
+      const data: any = await res.json<any>();
       await logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
       return { url, markdown: data?.data?.markdown || null };
     } catch (err) {
@@ -395,7 +395,7 @@ async function scrapeAllUrls(exaResults, env) {
  * @param {Map}    scrapedContents  — Map<url, markdown> de Firecrawl
  * @returns {string}                — bloque de texto listo para el prompt
  */
-function buildContextBlocks(exaResults, scrapedContents) {
+function buildContextBlocks(exaResults: any[], scrapedContents: Map<string, string>) {
   const MAX_CHARS_PER_SOURCE = 3500;
   const blocks: any[] = [];
 
@@ -432,7 +432,7 @@ function buildContextBlocks(exaResults, scrapedContents) {
  * Llama a DeepSeek para generar un resumen académico
  * parafraseado en tercera persona.
  */
-async function generateResearchSummary(question, contextBlocks, citationIds, env) {
+async function generateResearchSummary(question: any, contextBlocks: string, citationIds: string, env: Env) {
   const systemPrompt = `Eres un asistente de investigación académica experto.
 Tu tarea es leer múltiples fuentes web y generar un resumen de investigación riguroso y útil.
  

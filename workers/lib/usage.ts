@@ -16,7 +16,22 @@
 //                            modo draft (ver getMp4DurationSeconds())
 // Google Maps https://developers.google.com/maps/billing-and-pricing/pricing.
 // Actualizar manualmente cuando cambien los precios oficiales de cada proveedor.
-const API_PRICING = {
+type ResolutionPrices = Record<string, number>;
+
+const API_PRICING: {
+  deepseek: Record<string, { input_cache_miss_per_1m: number; input_cache_hit_per_1m: number; output_per_1m: number }>;
+  pruna: {
+    flat: Record<string, number>;
+    ideogram: Record<string, Record<string, number>>;
+    upscale_by_megapixels: { max_mp: number; price: number }[];
+    video_per_second: Record<string, { standard: ResolutionPrices; draft?: ResolutionPrices }>;
+  };
+  cloudflare_email: { email: number };
+  exa: { search: number };
+  firecrawl: { scrape: number };
+  youtube: { call: number };
+  google_maps: Record<string, number>;
+} = {
   deepseek: {
     'deepseek-v4-flash': { input_cache_miss_per_1m: 0.14, input_cache_hit_per_1m: 0.0028, output_per_1m: 0.28 },
     'deepseek-v4-pro': { input_cache_miss_per_1m: 0.435, input_cache_hit_per_1m: 0.003625, output_per_1m: 0.87 },
@@ -79,7 +94,7 @@ const API_PRICING = {
 };
 
 // Precio por imagen de p-image-upscale según los megapíxeles pedidos.
-function upscalePriceForMegapixels(targetMp) {
+function upscalePriceForMegapixels(targetMp: number | null) {
   const mp = Number(targetMp);
   if (!Number.isFinite(mp) || mp <= 0) return 0;
   const tier = API_PRICING.pruna.upscale_by_megapixels.find(t => mp <= t.max_mp);
@@ -166,7 +181,7 @@ export function calcCost(provider: string, subType: string | null, {
 }
 
 // --- CONSUMO DE APIs EXTERNAS (panel de administración) ---
-export async function ensureApiUsageTable(env) {
+export async function ensureApiUsageTable(env: Env) {
   await env.MIRAI_AI_DB.prepare(`
     CREATE TABLE IF NOT EXISTS api_usage_log (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -193,7 +208,7 @@ export async function ensureApiUsageTable(env) {
 }
 
 // Best-effort: un fallo al loguear consumo nunca debe romper la respuesta al usuario.
-export async function logApiUsage(env, {
+export async function logApiUsage(env: Env, {
   provider, unit_type, sub_type = null, units = 1,
   tokens_in = null, tokens_out = null, cost_usd = 0,
   user_dni = null, via_gateway = false

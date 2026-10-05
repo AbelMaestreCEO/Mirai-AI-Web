@@ -12,7 +12,7 @@ import { createZipArchive, generateZipName } from '../lib/zip-builder';
  * list() devuelve como máximo 1000 objetos por página: sin recorrer el cursor,
  * todo lo que pasara de ahí no se borraba nunca.
  */
-export async function cleanupExpiredFormatFiles(env) {
+export async function cleanupExpiredFormatFiles(env: Env) {
   const now = Date.now();
   let deleted = 0;
   let cursor;
@@ -37,7 +37,7 @@ export async function cleanupExpiredFormatFiles(env) {
 // El tempId lo genera el cliente y viaja en cada petición, así que por sí solo
 // no identifica a nadie: el prefijo de R2 se namespacea con el DNI de la sesión
 // para que un tempId ajeno no dé acceso a los documentos de otro usuario.
-function formatPrefix(kind, userDni, tempId) {
+function formatPrefix(kind: string, userDni: string, tempId: string) {
   // El tempId también entra en la clave: se restringe a UUID/alfanumérico para
   // que no pueda escaparse del prefijo con "/" o "..".
   const safeTempId = String(tempId).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
@@ -48,13 +48,13 @@ const FORMAT_MAX_FILES = 30;
 
 const FORMAT_MAX_FILE_SIZE = 25 * 1024 * 1024;
 
-export async function handleFormatUpload(request, env, corsHeaders) {
+export async function handleFormatUpload(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const formData = await request.formData();
-  const tempId = formData.get('tempId') || crypto.randomUUID();
-  const files = formData.getAll('files');
+  const tempId = (formData.get('tempId') as string | null) || crypto.randomUUID();
+  const files = formData.getAll('files') as File[];
 
   if (!files || files.length === 0)
     return jsonResponse({ error: 'No se enviaron archivos.' }, 400, corsHeaders);
@@ -84,11 +84,11 @@ export async function handleFormatUpload(request, env, corsHeaders) {
   return jsonResponse({ success: true, tempId, count: keys.length }, 200, corsHeaders);
 }
 
-export async function handleFormatProcess(request, env, corsHeaders) {
+export async function handleFormatProcess(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-  const { tempId, rules } = await request.json();
+  const { tempId, rules } = await request.json<any>();
 
   if (!tempId || !Array.isArray(rules) || rules.length === 0)
     return jsonResponse({ error: 'Faltan tempId o rules.' }, 400, corsHeaders);
@@ -101,6 +101,8 @@ export async function handleFormatProcess(request, env, corsHeaders) {
   for (const obj of listed.objects) {
     try {
       const fileObj = await env.MIRAI_AI_ASSETS.get(obj.key);
+      // Puede haberlo borrado el cron de limpieza entre el list() y el get().
+      if (!fileObj) throw new Error(`Archivo no encontrado en R2: ${obj.key}`);
       const buf = await fileObj.arrayBuffer();
       const result = await processDocxFile(buf, rules);
       const modKey = `${formatPrefix('modified', userDni, tempId)}${obj.key.split('/').pop()}`;
@@ -120,7 +122,7 @@ export async function handleFormatProcess(request, env, corsHeaders) {
   return jsonResponse({ success: true, tempId, results }, 200, corsHeaders);
 }
 
-export async function handleFormatDownload(request, env, corsHeaders) {
+export async function handleFormatDownload(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -135,6 +137,8 @@ export async function handleFormatDownload(request, env, corsHeaders) {
   if (listed.objects.length === 1) {
     const obj = listed.objects[0];
     const file = await env.MIRAI_AI_ASSETS.get(obj.key);
+    // Puede haberlo borrado el cron de limpieza entre el list() y el get().
+    if (!file) return jsonResponse({ error: 'Archivos no encontrados.' }, 404, corsHeaders);
     return new Response(file.body, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -147,6 +151,7 @@ export async function handleFormatDownload(request, env, corsHeaders) {
   const zipFiles: any[] = [];
   for (const obj of listed.objects) {
     const file = await env.MIRAI_AI_ASSETS.get(obj.key);
+    if (!file) return jsonResponse({ error: 'Archivos no encontrados.' }, 404, corsHeaders);
     zipFiles.push({ filename: obj.key.split('/').pop(), data: new Uint8Array(await file.arrayBuffer()) });
   }
 

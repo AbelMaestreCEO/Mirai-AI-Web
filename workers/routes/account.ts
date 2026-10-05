@@ -24,7 +24,7 @@ const OTP_TTL_SECS = 10 * 60;
 
 const OTP_MAX_ATTEMPTS = 5;
 
-function makePendingCookie(token) {
+function makePendingCookie(token: string) {
   return `otp_pending=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${OTP_TTL_SECS}`;
 }
 
@@ -32,7 +32,7 @@ function clearPendingCookie() {
   return `otp_pending=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
 }
 
-function getPendingToken(request) {
+function getPendingToken(request: Request) {
   const cookieHeader = request.headers.get('Cookie') || '';
   const match = cookieHeader.match(/(?:^|;\s*)otp_pending=([^;]+)/);
   return match ? match[1] : null;
@@ -54,7 +54,7 @@ function generateOTP() {
  * comparación de texto fuese siempre verdadera dentro del mismo día.
  * @returns {Promise<{token: string, sent: boolean}>}
  */
-async function issueOtpChallenge(env, user) {
+async function issueOtpChallenge(env: Env, user: any) {
   const code = generateOTP();
   const token = crypto.randomUUID();
 
@@ -70,7 +70,7 @@ async function issueOtpChallenge(env, user) {
 }
 
 /** Consume/anula el reto pendiente de un usuario. */
-async function clearOtpChallenge(env, dni) {
+async function clearOtpChallenge(env: Env, dni: any) {
   await env.MIRAI_AI_DB.prepare(
     `UPDATE users
         SET otp_code = NULL, otp_expires = NULL, otp_token = NULL, otp_attempts = 0
@@ -78,14 +78,14 @@ async function clearOtpChallenge(env, dni) {
   ).bind(dni).run();
 }
 
-export async function handleRegister(request, env, corsHeaders) {
+export async function handleRegister(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     // Cada alta dispara un correo: sin techo por IP es un vector de spam.
     if (!await rateLimit(env, `register:${clientIp(request)}`, 5, 3600)) {
       return jsonResponse({ error: 'Demasiados registros desde esta conexión. Inténtalo más tarde.' }, 429, corsHeaders);
     }
 
-    const { dni, email, password, first_name, last_name } = await request.json();
+    const { dni, email, password, first_name, last_name } = await request.json<any>();
 
     // Validaciones básicas
     if (!dni || !email || !password || !first_name || !last_name) {
@@ -104,7 +104,7 @@ export async function handleRegister(request, env, corsHeaders) {
     // Verificar si existe
     const existing = await env.MIRAI_AI_DB.prepare(
       "SELECT dni FROM users WHERE dni = ? OR email = ?"
-    ).bind(dni.toUpperCase(), email.toLowerCase()).first();
+    ).bind(dni.toUpperCase(), email.toLowerCase()).first<any>();
 
     if (existing) {
       return jsonResponse({ error: 'Usuario ya registrado' }, 409, corsHeaders);
@@ -152,7 +152,7 @@ export async function handleRegister(request, env, corsHeaders) {
   }
 }
 
-export async function handleVerify(request, env, corsHeaders) {
+export async function handleVerify(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     // El reto se identifica por la cookie HttpOnly emitida al iniciar sesión,
     // no por el código. Un código suelto ya no abre la sesión de nadie.
@@ -166,7 +166,7 @@ export async function handleVerify(request, env, corsHeaders) {
       return jsonResponse({ error: 'Demasiados intentos. Espera unos minutos.' }, 429, corsHeaders);
     }
 
-    const { code } = await request.json();
+    const { code } = await request.json<any>();
     const submitted = String(code || '').trim();
 
     if (!/^\d{6}$/.test(submitted)) {
@@ -177,7 +177,7 @@ export async function handleVerify(request, env, corsHeaders) {
       `SELECT *, (otp_expires > datetime('now')) AS otp_valid
          FROM users
         WHERE otp_token = ?`
-    ).bind(pendingToken).first();
+    ).bind(pendingToken).first<any>();
 
     // Mismo mensaje para "token desconocido", "caducado" y "código erróneo":
     // distinguirlos le diría al atacante qué parte acertó.
@@ -225,7 +225,7 @@ export async function handleVerify(request, env, corsHeaders) {
         FROM section_students ss
         JOIN assignments a ON a.section_id = ss.section_id
         WHERE ss.user_dni = ?
-      `).bind(user.dni.toUpperCase()).all();
+      `).bind(user.dni.toUpperCase()).all<any>();
 
       for (const task of pendingTasks) {
         await env.MIRAI_AI_DB.prepare(
@@ -257,7 +257,7 @@ export async function handleVerify(request, env, corsHeaders) {
   }
 }
 
-export async function handleResendOTP(request, env, corsHeaders) {
+export async function handleResendOTP(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     // El destinatario sale del reto en curso, nunca del cuerpo de la petición.
     // Aceptar un DNI arbitrario permitía mandarle correos a cualquiera.
@@ -268,7 +268,7 @@ export async function handleResendOTP(request, env, corsHeaders) {
 
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT dni, email FROM users WHERE otp_token = ?"
-    ).bind(pendingToken).first();
+    ).bind(pendingToken).first<any>();
 
     if (!user) {
       return jsonResponse({ error: 'La verificación caducó. Vuelve a iniciar sesión.' }, 401, corsHeaders);
@@ -309,14 +309,14 @@ export async function handleResendOTP(request, env, corsHeaders) {
 }
 
 // --- NUEVO: SOLICITAR RECUPERACIÓN ---
-export async function handleForgotPassword(request, env, corsHeaders) {
+export async function handleForgotPassword(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     // También manda correo, así que también necesita techo.
     if (!await rateLimit(env, `forgot:${clientIp(request)}`, 5, 3600)) {
       return jsonResponse({ error: 'Demasiadas solicitudes. Inténtalo más tarde.' }, 429, corsHeaders);
     }
 
-    const { email } = await request.json();
+    const { email } = await request.json<any>();
 
     if (!email || !isValidEmail(email)) {
       return jsonResponse({ error: 'Correo inválido' }, 400, corsHeaders);
@@ -333,7 +333,7 @@ export async function handleForgotPassword(request, env, corsHeaders) {
     // Buscar usuario
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT dni, first_name FROM users WHERE email = ?"
-    ).bind(email.toLowerCase()).first();
+    ).bind(email.toLowerCase()).first<any>();
 
     if (!user) {
       // Por seguridad, no revelamos si el email existe o no
@@ -369,9 +369,9 @@ export async function handleForgotPassword(request, env, corsHeaders) {
 }
 
 // --- NUEVO: RESETEAR CONTRASEÑA ---
-export async function handleResetPassword(request, env, corsHeaders) {
+export async function handleResetPassword(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
-    const { token, new_password } = await request.json();
+    const { token, new_password } = await request.json<any>();
 
     if (!token || !new_password || new_password.length < 8) {
       return jsonResponse({ error: 'Token o contraseña inválidos' }, 400, corsHeaders);
@@ -380,7 +380,7 @@ export async function handleResetPassword(request, env, corsHeaders) {
     // Buscar usuario con token válido
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT dni, password_hash FROM users WHERE recovery_token = ? AND recovery_expires_at > datetime('now')"
-    ).bind(token).first();
+    ).bind(token).first<any>();
 
     if (!user) {
       return jsonResponse({ error: 'Token inválido o expirado' }, 400, corsHeaders);
@@ -418,13 +418,13 @@ export async function handleResetPassword(request, env, corsHeaders) {
   }
 }
 
-export async function handleLogin(request, env, corsHeaders) {
+export async function handleLogin(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     if (!await rateLimit(env, `login-ip:${clientIp(request)}`, 15, 600)) {
       return jsonResponse({ error: 'Demasiados intentos. Espera unos minutos.' }, 429, corsHeaders);
     }
 
-    const { email, password } = await request.json();
+    const { email, password } = await request.json<any>();
 
     if (!email || !password) {
       return jsonResponse({ error: 'Correo y contraseña son requeridos' }, 400, corsHeaders);
@@ -438,7 +438,7 @@ export async function handleLogin(request, env, corsHeaders) {
 
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT * FROM users WHERE email = ?"
-    ).bind(email.toLowerCase()).first();
+    ).bind(email.toLowerCase()).first<any>();
 
     if (!user) {
       return jsonResponse({ error: 'Credenciales inválidas' }, 401, corsHeaders);

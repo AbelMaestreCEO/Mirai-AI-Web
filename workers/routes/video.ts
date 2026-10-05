@@ -40,12 +40,12 @@ const VIDEO_AVATAR_CONFIG = {
 // Extrae la duración (en segundos) de un archivo MP4 leyendo el box mvhd
 // dentro de moov — sin dependencias externas (Workers no tiene ffprobe).
 // Devuelve null si el archivo no tiene la estructura esperada (nunca lanza).
-function getMp4DurationSeconds(buffer) {
+function getMp4DurationSeconds(buffer: ArrayBuffer) {
   try {
     const view = new DataView(buffer);
     const total = buffer.byteLength;
 
-    function readBoxes(start, end) {
+    function readBoxes(start: number, end: number) {
       let offset = start;
       const boxes: any[] = [];
       while (offset + 8 <= end) {
@@ -96,7 +96,7 @@ function getMp4DurationSeconds(buffer) {
 }
 
 // --- SERVIR VIDEO DESDE R2 ---
-export async function handleServeVideo(path, env) {
+export async function handleServeVideo(path: string, env: Env) {
   try {
     const r2Key = path.replace('/api/video/', '');
     const object = await env.MIRAI_AI_ASSETS.get(r2Key);
@@ -128,7 +128,7 @@ function normalizeVideoOptions(raw: { resolution?: string; aspect_ratio?: string
   return { resolution, aspectRatio, duration, draft: raw.draft === true };
 }
 
-export async function handleVideoGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false, videoOptions = {}) {
+export async function handleVideoGeneration(prompt: any, conversationId: string, userDni: string, env: Env, corsHeaders: Record<string, string>, skipHistory = false, videoOptions = {}) {
   try {
     const { resolution, aspectRatio, duration, draft } = normalizeVideoOptions(videoOptions);
 
@@ -211,7 +211,7 @@ export async function handleVideoGeneration(prompt, conversationId, userDni, env
 // VÍDEO AVATAR (Pruna AI P-Video-Avatar) + PERSONAJES
 // ══════════════════════════════════════════════════
 
-async function ensureVideoAvatarCharactersTable(env) {
+async function ensureVideoAvatarCharactersTable(env: Env) {
   await env.MIRAI_AI_DB.prepare(`
     CREATE TABLE IF NOT EXISTS video_avatar_characters (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -225,7 +225,7 @@ async function ensureVideoAvatarCharactersTable(env) {
 }
 
 // Guarda una imagen de personaje en R2 + D1 para poder reutilizarla después
-async function saveVideoAvatarCharacter(userDni, name, imageBuffer, env) {
+async function saveVideoAvatarCharacter(userDni: string, name: any, imageBuffer: ArrayBuffer, env: Env) {
   await ensureVideoAvatarCharactersTable(env);
   const dni = userDni.toUpperCase();
   const uniqueId = crypto.randomUUID();
@@ -242,7 +242,7 @@ async function saveVideoAvatarCharacter(userDni, name, imageBuffer, env) {
   if (!finalName) {
     const countRow = await env.MIRAI_AI_DB.prepare(
       `SELECT COUNT(*) as c FROM video_avatar_characters WHERE user_dni = ?`
-    ).bind(dni).first();
+    ).bind(dni).first<any>();
     finalName = `Personaje ${(countRow?.c || 0) + 1}`;
   }
 
@@ -254,12 +254,12 @@ async function saveVideoAvatarCharacter(userDni, name, imageBuffer, env) {
   return { id: meta.last_row_id, name: finalName, image_url: imageUrl };
 }
 
-export async function handleSaveVideoAvatarCharacter(request, env, corsHeaders) {
+export async function handleSaveVideoAvatarCharacter(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    const { image, name } = await request.json();
+    const { image, name } = await request.json<any>();
     if (!image) return jsonResponse({ error: 'Se requiere una imagen' }, 400, corsHeaders);
 
     const imageBuffer = await downloadImageAsBuffer(image);
@@ -275,7 +275,7 @@ export async function handleSaveVideoAvatarCharacter(request, env, corsHeaders) 
   }
 }
 
-export async function handleListVideoAvatarCharacters(request, env, corsHeaders) {
+export async function handleListVideoAvatarCharacters(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -284,7 +284,7 @@ export async function handleListVideoAvatarCharacters(request, env, corsHeaders)
     const { results } = await env.MIRAI_AI_DB.prepare(`
       SELECT id, name, image_url, created_at FROM video_avatar_characters
       WHERE user_dni = ? ORDER BY created_at DESC
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     return jsonResponse({ characters: results || [] }, 200, corsHeaders);
   } catch (error) {
@@ -293,7 +293,7 @@ export async function handleListVideoAvatarCharacters(request, env, corsHeaders)
   }
 }
 
-export async function handleDeleteVideoAvatarCharacter(request, env, corsHeaders) {
+export async function handleDeleteVideoAvatarCharacter(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -305,7 +305,7 @@ export async function handleDeleteVideoAvatarCharacter(request, env, corsHeaders
     await ensureVideoAvatarCharactersTable(env);
     const row = await env.MIRAI_AI_DB.prepare(
       `SELECT r2_key FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
-    ).bind(id, userDni.toUpperCase()).first();
+    ).bind(id, userDni.toUpperCase()).first<any>();
 
     if (row?.r2_key) {
       await env.MIRAI_AI_ASSETS.delete(row.r2_key).catch(() => null);
@@ -322,7 +322,7 @@ export async function handleDeleteVideoAvatarCharacter(request, env, corsHeaders
   }
 }
 
-async function ensureVideoAvatarJobsTable(env) {
+async function ensureVideoAvatarJobsTable(env: Env) {
   await env.MIRAI_AI_DB.prepare(`
     CREATE TABLE IF NOT EXISTS video_avatar_jobs (
       id                   TEXT PRIMARY KEY,
@@ -371,7 +371,19 @@ async function ensureVideoAvatarJobsTable(env) {
 // Configuración de los tres modelos de vídeo avanzados. Comparten el flujo
 // asíncrono, y solo se diferencian en qué inputs acepta cada uno y cómo se
 // etiqueta el resultado en el historial.
-const ADVANCED_VIDEO_MODELS = {
+interface AdvancedVideoModel {
+  model_id: string;
+  label: string;
+  r2_prefix: string;
+  needs_prompt: boolean;
+  needs_images: boolean;
+  max_images?: number;
+  max_source_seconds?: number;
+  supports_draft: boolean;
+  supports_resolution: boolean;
+}
+
+const ADVANCED_VIDEO_MODELS: Record<string, AdvancedVideoModel> = {
   edit: {
     model_id: 'p-video-edit',
     label: '✂️ Edición de vídeo',
@@ -405,7 +417,7 @@ const ADVANCED_VIDEO_MODELS = {
   },
 };
 
-export async function handleVideoAvatarGeneration(request, env, corsHeaders) {
+export async function handleVideoAvatarGeneration(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
@@ -418,7 +430,7 @@ export async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       }, 429, corsHeaders);
     }
 
-    const body = await request.json();
+    const body = await request.json<any>();
     const {
       image, character_id, character_name,
       voice_script, audio, voice, voice_language,
@@ -440,7 +452,7 @@ export async function handleVideoAvatarGeneration(request, env, corsHeaders) {
     if (requestedCharacterId) {
       const row = await env.MIRAI_AI_DB.prepare(
         `SELECT id, name, image_url FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
-      ).bind(requestedCharacterId, userDni.toUpperCase()).first();
+      ).bind(requestedCharacterId, userDni.toUpperCase()).first<any>();
       if (!row) return jsonResponse({ error: 'Personaje no encontrado' }, 404, corsHeaders);
       imageSource = origin + row.image_url;
       characterInfo = { id: row.id, name: row.name, image_url: row.image_url };
@@ -535,7 +547,7 @@ export async function handleVideoAvatarGeneration(request, env, corsHeaders) {
 // Guarda en R2 un vídeo de origen subido por el usuario y devuelve su URL
 // pública absoluta: Pruna descarga los inputs desde internet, así que un data
 // URI o una ruta relativa no le sirven.
-async function toPublicVideoUrl(env, request, userDni, videoRef) {
+async function toPublicVideoUrl(env: Env, request: Request, userDni: string, videoRef: any) {
   if (videoRef.startsWith('http://') || videoRef.startsWith('https://')) return videoRef;
 
   const origin = new URL(request.url).origin;
@@ -562,7 +574,7 @@ async function toPublicVideoUrl(env, request, userDni, videoRef) {
 // --- VÍDEO AVANZADO: P-VIDEO-EDIT / P-VIDEO-ANIMATE / P-VIDEO-REPLACE ---
 // Los tres parten de un vídeo de origen y tardan minutos, así que se crean en
 // modo asíncrono y comparten la tabla de jobs, el polling y el cron del avatar.
-export async function handleAdvancedVideoGeneration(request, env, corsHeaders, kind) {
+export async function handleAdvancedVideoGeneration(request: Request, env: Env, corsHeaders: Record<string, string>, kind: string) {
   try {
     const config = ADVANCED_VIDEO_MODELS[kind];
     if (!config) return jsonResponse({ error: 'Tipo de vídeo no soportado' }, 400, corsHeaders);
@@ -578,7 +590,7 @@ export async function handleAdvancedVideoGeneration(request, env, corsHeaders, k
       }, 429, corsHeaders);
     }
 
-    const body = await request.json();
+    const body = await request.json<any>();
     const { video, prompt, instruction_prompt, images, character_id, resolution, draft, fps } = body;
 
     if (!video) {
@@ -599,7 +611,7 @@ export async function handleAdvancedVideoGeneration(request, env, corsHeaders, k
     if (character_id) {
       const row = await env.MIRAI_AI_DB.prepare(
         `SELECT id, name, image_url FROM video_avatar_characters WHERE id = ? AND user_dni = ?`
-      ).bind(parseInt(character_id, 10), userDni.toUpperCase()).first();
+      ).bind(parseInt(character_id, 10), userDni.toUpperCase()).first<any>();
       if (!row) return jsonResponse({ error: 'Personaje no encontrado' }, 404, corsHeaders);
       characterInfo = { id: row.id, name: row.name, image_url: row.image_url };
       imageRefs = [row.image_url, ...imageRefs];
@@ -669,7 +681,7 @@ export async function handleAdvancedVideoGeneration(request, env, corsHeaders, k
   }
 }
 
-export async function handleGetVideoAvatarJob(request, env, corsHeaders) {
+export async function handleGetVideoAvatarJob(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
@@ -682,7 +694,7 @@ export async function handleGetVideoAvatarJob(request, env, corsHeaders) {
     const job = await env.MIRAI_AI_DB.prepare(
       `SELECT id, status, pruna_prediction_id, video_url, error, character_id, character_name, character_image_url, resolution, job_kind, model_id, draft
        FROM video_avatar_jobs WHERE id = ? AND user_dni = ?`
-    ).bind(id, userDni.toUpperCase()).first();
+    ).bind(id, userDni.toUpperCase()).first<any>();
 
     if (!job) return jsonResponse({ error: 'Trabajo no encontrado' }, 404, corsHeaders);
 
@@ -722,7 +734,7 @@ export async function handleGetVideoAvatarJob(request, env, corsHeaders) {
 // Se usa tanto desde el polling del cliente (GET /api/video-jobs) como desde el
 // cron de abajo, que es el que garantiza que el job se complete aunque el
 // usuario haya cerrado la pestaña.
-async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
+async function checkAndFinalizeVideoAvatarJob(job: any, userDni: string, env: Env) {
   try {
     const prediction = await getPrunaPrediction(env, job.pruna_prediction_id);
     const status = (prediction.status || '').toLowerCase();
@@ -742,7 +754,7 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
         // Otro proceso ya lo está finalizando (o lo finalizó): devolver su estado.
         const current = await env.MIRAI_AI_DB.prepare(
           'SELECT status, video_url, error FROM video_avatar_jobs WHERE id = ?'
-        ).bind(job.id).first();
+        ).bind(job.id).first<any>();
         return {
           status: current?.status === 'done' ? 'done' : (current?.status === 'error' ? 'error' : 'pending'),
           video_url: current?.video_url || null,
@@ -869,7 +881,7 @@ async function checkAndFinalizeVideoAvatarJob(job, userDni, env) {
 // reintentaba para siempre, porque el catch del poll lo devuelve a 'pending'.
 const VIDEO_AVATAR_JOB_MAX_AGE_HOURS = 2;
 
-export async function finalizePendingVideoAvatarJobs(env) {
+export async function finalizePendingVideoAvatarJobs(env: Env) {
   try {
     await ensureVideoAvatarJobsTable(env);
 
@@ -900,7 +912,7 @@ export async function finalizePendingVideoAvatarJobs(env) {
       SELECT id, user_dni, pruna_prediction_id, resolution, job_kind, model_id, draft FROM video_avatar_jobs
       WHERE status = 'pending' AND pruna_prediction_id IS NOT NULL
       ORDER BY created_at ASC LIMIT 25
-    `).all();
+    `).all<any>();
 
     if (!results || results.length === 0) return;
 
@@ -916,6 +928,6 @@ export async function finalizePendingVideoAvatarJobs(env) {
   }
 }
 
-function simplifyVideoPrompt(prompt) {
+function simplifyVideoPrompt(prompt: any) {
   return prompt.length <= VIDEO_CONFIG.MAX_PROMPT_LENGTH ? prompt : prompt.substring(0, VIDEO_CONFIG.MAX_PROMPT_LENGTH);
 }

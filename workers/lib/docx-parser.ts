@@ -62,7 +62,7 @@ export const xmlToUint8Array = (xmlString: string) =>
 // 2. Helpers XML
 // ============================================
 
-function escapeXml(text) {
+function escapeXml(text: any) {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -75,7 +75,7 @@ function escapeXml(text) {
  * Fusiona el <w:rPr> original del run con los estilos nuevos.
  * Devuelve el bloque <w:rPr>…</w:rPr> completo listo para insertar.
  */
-export const buildRunProperties = (originalRpr, styles) => {
+export const buildRunProperties = (originalRpr: string | null, styles: any) => {
   let inner = '';
   if (originalRpr) {
     const m = originalRpr.match(/^<w:rPr>([\s\S]*)<\/w:rPr>$/);
@@ -99,7 +99,7 @@ export const buildRunProperties = (originalRpr, styles) => {
  * Construye un <w:r> completo con el bloque rPr y el texto indicados.
  * Agrega xml:space="preserve" cuando el texto tiene espacios en extremos.
  */
-function buildRun(rPrBlock, text) {
+function buildRun(rPrBlock: string, text: any) {
   const needsPreserve = /^\s|\s$/.test(text);
   const tAttr = needsPreserve ? ' xml:space="preserve"' : '';
   return `<w:r>${rPrBlock}<w:t${tAttr}>${escapeXml(text)}</w:t></w:r>`;
@@ -118,7 +118,7 @@ function buildRun(rPrBlock, text) {
  *
  * Se omiten runs sin <w:t> (bookmarks, proofErr, instrText…).
  */
-function extractRuns(xmlContent) {
+function extractRuns(xmlContent: any) {
   const runs: any[] = [];
   const runRe = /<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g;
   let m;
@@ -146,14 +146,14 @@ function extractRuns(xmlContent) {
 // 4. Procesamiento principal
 // ============================================
 
-export const processDocument = (xmlContent, rules) => {
+export const processDocument = (xmlContent: string, rules: any[]) => {
   let totalMatches = 0;
   const errors: any[] = [];
 
   const runs = extractRuns(xmlContent);
 
   // hitsByRun: índice de run → array de coincidencias
-  const hitsByRun = new Map();
+  const hitsByRun = new Map<number, any[]>();
 
   for (const rule of rules) {
     const {
@@ -203,7 +203,7 @@ export const processDocument = (xmlContent, rules) => {
         }
 
         if (!hitsByRun.has(ri)) hitsByRun.set(ri, []);
-        hitsByRun.get(ri).push({
+        hitsByRun.get(ri)!.push({
           textStart:   idx,
           textEnd:     idx + needle.length,
           matchedText: run.text.substring(idx, idx + needle.length),
@@ -226,7 +226,7 @@ export const processDocument = (xmlContent, rules) => {
 
   for (const ri of idxList) {
     const run  = runs[ri];
-    const hits = hitsByRun.get(ri).sort((a, b) => a.textStart - b.textStart);
+    const hits = hitsByRun.get(ri)!.sort((a, b) => a.textStart - b.textStart);
 
     let replacement = '';
     let cursor = 0;
@@ -276,7 +276,7 @@ export const recompressDocx = (files: Map<string, Uint8Array>, modifiedXml: stri
 // 6. Función pública principal
 // ============================================
 
-export const processDocxFile = async (docxBuffer, rules) => {
+export const processDocxFile = async (docxBuffer: ArrayBuffer | Uint8Array, rules: any[]) => {
   const t0 = performance.now();
 
   const files      = decompressDocx(docxBuffer);
@@ -298,7 +298,7 @@ export const processDocxFile = async (docxBuffer, rules) => {
 // 7. Validación
 // ============================================
 
-export const isValidDocx = (buffer) => {
+export const isValidDocx = (buffer: ArrayBuffer | Uint8Array) => {
   try {
     const b = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
     return (
@@ -311,7 +311,7 @@ export const isValidDocx = (buffer) => {
   }
 };
 
-export const getDocxMetadata = async (docxBuffer) => {
+export const getDocxMetadata = async (docxBuffer: ArrayBuffer | Uint8Array) => {
   try {
     const files  = decompressDocx(docxBuffer);
     const xml    = extractDocumentXml(files);

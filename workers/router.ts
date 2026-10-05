@@ -143,7 +143,7 @@ const ROUTES = {
 };
 
 // --- MANEJO DE RUTAS API ---
-export async function handleApiRequest(request, env, ctx, corsHeaders) {
+export async function handleApiRequest(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>) {
   const url = new URL(request.url);
   const path = url.pathname;
 
@@ -323,7 +323,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
           `SELECT DISTINCT c.course_id, c.title as course_title, c.created_at as started_at
            FROM conversations c
            WHERE c.course_id IS NOT NULL AND c.user_dni = ?` // <-- FILTRO CRÍTICO
-        ).bind(userDni).all();
+        ).bind(userDni).all<any>();
 
         const enrolled = await Promise.all(
           result.results.map(async (row) => {
@@ -406,7 +406,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
       const user = await env.MIRAI_AI_DB
         .prepare('SELECT dni, first_name, last_name, email FROM users WHERE dni = ?')
         .bind(dni.toUpperCase().trim())
-        .first();
+        .first<any>();
 
       if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
 
@@ -418,7 +418,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, { ...corsHeaders, 'Cache-Control': 'no-store' });
       const user = await env.MIRAI_AI_DB.prepare(
         "SELECT dni, first_name, last_name, role FROM users WHERE dni = ?"
-      ).bind(userDni).first();
+      ).bind(userDni).first<any>();
       if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
       return jsonResponse({ dni: user.dni, name: `${user.first_name || ''} ${user.last_name || ''}`.trim(), role: user.role }, 200, { ...corsHeaders, 'Cache-Control': 'no-store' });
     }
@@ -601,7 +601,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
       try {
         const row = await env.MIRAI_AI_DB.prepare(
           "SELECT role FROM users WHERE dni = ?"
-        ).bind(userDni.toUpperCase()).first();
+        ).bind(userDni.toUpperCase()).first<any>();
 
         return jsonResponse({ is_admin: row?.role === 'admin' }, 200, corsHeaders);
       } catch {
@@ -629,7 +629,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
              ELSE NULL END AS avatar_url
       FROM users
       ORDER BY last_name, first_name
-    `).all();
+    `).all<any>();
 
         return jsonResponse(results, 200, corsHeaders);
       } catch (error) {
@@ -643,7 +643,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (!userDni || userDni instanceof Response) return userDni;
 
       try {
-        const { dni, role } = await request.json();
+        const { dni, role } = await request.json<any>();
 
         if (!dni || !role) {
           return jsonResponse({ error: 'Faltan campos: dni y role' }, 400, corsHeaders);
@@ -670,7 +670,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (!userDni || userDni instanceof Response) return userDni;
 
       try {
-        const { dni, plan } = await request.json();
+        const { dni, plan } = await request.json<any>();
         if (!dni || !plan) {
           return jsonResponse({ error: 'Faltan campos: dni y plan' }, 400, corsHeaders);
         }
@@ -707,13 +707,13 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
           FROM api_usage_log WHERE usage_month = ?
           GROUP BY provider, sub_type, via_gateway
           ORDER BY provider, sub_type
-        `).bind(month).all();
+        `).bind(month).all<any>();
 
         const { results: monthRows } = await env.MIRAI_AI_DB.prepare(
           `SELECT DISTINCT usage_month FROM api_usage_log ORDER BY usage_month DESC`
-        ).all();
+        ).all<any>();
 
-        const providers = {};
+        const providers: Record<string, any> = {};
         for (const row of results) {
           if (!providers[row.provider]) {
             providers[row.provider] = { total_units: 0, total_cost_usd: 0, total_calls: 0, breakdown: [] };
@@ -765,7 +765,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
       if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
       try {
-        const { type } = await request.json();
+        const { type } = await request.json<any>();
         const validTypes = ['map_load', 'places_autocomplete', 'geocode'];
         if (!validTypes.includes(type)) {
           return jsonResponse({ error: 'type inválido' }, 400, corsHeaders);
@@ -945,7 +945,7 @@ export async function handleApiRequest(request, env, ctx, corsHeaders) {
 
     // Ruta: DELETE /api/chat/clear
     if (path === ROUTES.CHAT + '/clear' && request.method === 'DELETE') {
-      const { conversation_id } = await request.json();
+      const { conversation_id } = await request.json<any>();
       return await handleDeleteConversation(request, conversation_id, env, corsHeaders);
     }
 

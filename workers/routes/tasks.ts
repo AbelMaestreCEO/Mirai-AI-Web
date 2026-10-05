@@ -19,12 +19,12 @@ import { jsonResponse } from '../lib/http';
  * Body: { task_title: string }
  * Respuesta: { suggestion: string }
  */
-export async function handleTaskAISuggest(request, env, corsHeaders) {
+export async function handleTaskAISuggest(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -62,7 +62,7 @@ Responde en formato limpio, sin Markdown ni asteriscos.`;
  * Devuelve todas las tareas del usuario autenticado.
  * Cada usuario solo ve SUS propias tareas.
  */
-export async function handleTaskList(request, env, corsHeaders) {
+export async function handleTaskList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -76,7 +76,7 @@ export async function handleTaskList(request, env, corsHeaders) {
       FROM tasks
       WHERE user_dni = ?
       ORDER BY created_at DESC
-    `).bind(userDni.toUpperCase()).all();
+    `).bind(userDni.toUpperCase()).all<any>();
 
     return jsonResponse(results, 200, corsHeaders);
   } catch (error) {
@@ -91,12 +91,12 @@ export async function handleTaskList(request, env, corsHeaders) {
  * Body: { title, description?, status?, priority?, assignee?,
  *         tag?, due_date?, estimated_time?, project? }
  */
-export async function handleTaskCreate(request, env, corsHeaders) {
+export async function handleTaskCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -161,21 +161,21 @@ export async function handleTaskCreate(request, env, corsHeaders) {
  * Body: Partial<{ title, description, status, priority, assignee,
  *                 tag, due_date, estimated_time, project, progress, done }>
  */
-export async function handleTaskUpdate(request, env, corsHeaders, taskId) {
+export async function handleTaskUpdate(request: Request, env: Env, corsHeaders: Record<string, string>, taskId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar propiedad
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM tasks WHERE id = ? AND user_dni = ?'
-  ).bind(taskId, userDni.toUpperCase()).first();
+  ).bind(taskId, userDni.toUpperCase()).first<any>();
 
   if (!existing) {
     return jsonResponse({ error: 'Tarea no encontrada o sin permiso' }, 404, corsHeaders);
   }
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -183,7 +183,7 @@ export async function handleTaskUpdate(request, env, corsHeaders, taskId) {
   const fields: any[] = [];
   const values: any[] = [];
 
-  const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
+  const addField = (col: string, val: unknown) => { fields.push(`${col} = ?`); values.push(val); };
 
   if (body.title !== undefined) addField('title', body.title.trim());
   if (body.description !== undefined) addField('description', (body.description || '').trim());
@@ -225,13 +225,13 @@ export async function handleTaskUpdate(request, env, corsHeaders, taskId) {
  * DELETE /api/tasks/:id
  * Elimina una tarea. Solo el dueño puede eliminarla.
  */
-export async function handleTaskDelete(request, env, corsHeaders, taskId) {
+export async function handleTaskDelete(request: Request, env: Env, corsHeaders: Record<string, string>, taskId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM tasks WHERE id = ? AND user_dni = ?'
-  ).bind(taskId, userDni.toUpperCase()).first();
+  ).bind(taskId, userDni.toUpperCase()).first<any>();
 
   if (!existing) {
     return jsonResponse({ error: 'Tarea no encontrada o sin permiso' }, 404, corsHeaders);

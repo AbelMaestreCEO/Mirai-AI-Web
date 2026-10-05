@@ -4,7 +4,7 @@
    ============================================ */
 
 // --- MEJORAR EXTRACCIÓN DE TEXTO PDF ---
-export async function extractTextFromPDF(buffer) {
+export async function extractTextFromPDF(buffer: ArrayBuffer) {
   try {
     const decoder = new TextDecoder('utf-8');
     const text = decoder.decode(buffer);
@@ -45,7 +45,7 @@ export async function extractTextFromPDF(buffer) {
   }
 }
 
-export async function extractTextFromDocx(buffer) {
+export async function extractTextFromDocx(buffer: ArrayBuffer) {
   try {
     console.log(`🔍 [DOCX] Iniciando extracción con DecompressionStream...`);
     console.log(`🔍 [DOCX] Tamaño del archivo: ${buffer.byteLength} bytes`);
@@ -102,7 +102,7 @@ export async function extractTextFromDocx(buffer) {
 }
 
 // --- FUNCIÓN AUXILIAR (ya definida, pero la incluimos por si acaso) ---
-function extractTextFromParagraphs(xmlContent) {
+function extractTextFromParagraphs(xmlContent: string) {
   const paragraphRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
   const paragraphs = xmlContent.match(paragraphRegex) || [];
   console.log(`🔍 [DOCX] Párrafos encontrados: ${paragraphs.length}`);

@@ -7,7 +7,10 @@ import { jsonResponse } from '../lib/http';
 
 // ── Sistema de Tokens / Cuotas Diarias ──────────────────────────
 
-const PLAN_LIMITS = {
+export type TokenType = 'imagen' | 'musica' | 'video';
+
+// -1 = ilimitado
+const PLAN_LIMITS: Record<string, Record<TokenType, number>> = {
   basic:       { imagen: 10, musica: 2, video: 1 },
   students:    { imagen: 25, musica: 5, video: 3 },
   development: { imagen: 50, musica: 12, video: 8 },
@@ -15,7 +18,7 @@ const PLAN_LIMITS = {
   max:         { imagen: -1, musica: -1, video: -1 },
 };
 
-export async function ensurePlanColumn(env) {
+export async function ensurePlanColumn(env: Env) {
   try {
     await env.MIRAI_AI_DB.prepare(
       `ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'basic'`
@@ -23,16 +26,16 @@ export async function ensurePlanColumn(env) {
   } catch (_) { }
 }
 
-async function getUserPlanLimits(userDni, env) {
+async function getUserPlanLimits(userDni: string, env: Env) {
   await ensurePlanColumn(env);
   const row = await env.MIRAI_AI_DB.prepare(
     `SELECT plan FROM users WHERE dni = ?`
-  ).bind(userDni.toUpperCase()).first();
+  ).bind(userDni.toUpperCase()).first<any>();
   const plan = (row && row.plan) || 'basic';
   return { plan, limits: PLAN_LIMITS[plan] || PLAN_LIMITS.basic };
 }
 
-async function ensureTokensTable(env) {
+async function ensureTokensTable(env: Env) {
   await env.MIRAI_AI_DB.prepare(`
     CREATE TABLE IF NOT EXISTS daily_tokens (
       user_dni   TEXT NOT NULL,
@@ -45,12 +48,12 @@ async function ensureTokensTable(env) {
   `).run();
 }
 
-async function getDailyUsage(userDni, env) {
+async function getDailyUsage(userDni: string, env: Env) {
   await ensureTokensTable(env);
   const today = new Date().toISOString().slice(0, 10);
   const row = await env.MIRAI_AI_DB.prepare(
     `SELECT imagen, musica, video FROM daily_tokens WHERE user_dni = ? AND token_date = ?`
-  ).bind(userDni.toUpperCase(), today).first();
+  ).bind(userDni.toUpperCase(), today).first<any>();
   return {
     imagen: row ? row.imagen : 0,
     musica: row ? row.musica : 0,
@@ -58,7 +61,7 @@ async function getDailyUsage(userDni, env) {
   };
 }
 
-export async function checkAndConsumeToken(userDni, type, env) {
+export async function checkAndConsumeToken(userDni: string, type: TokenType, env: Env) {
   const { limits } = await getUserPlanLimits(userDni, env);
   const limit = limits[type];
   if (limit === undefined) return { allowed: true };
@@ -90,7 +93,7 @@ export async function checkAndConsumeToken(userDni, type, env) {
 
   const row = await env.MIRAI_AI_DB.prepare(
     `SELECT ${type} AS used FROM daily_tokens WHERE user_dni = ? AND token_date = ?`
-  ).bind(dni, today).first();
+  ).bind(dni, today).first<any>();
 
   const used = row?.used ?? 0;
 
@@ -101,7 +104,7 @@ export async function checkAndConsumeToken(userDni, type, env) {
   return { allowed: true, used, limit };
 }
 
-export async function handleGetTokens(request, env, corsHeaders) {
+export async function handleGetTokens(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -109,7 +112,7 @@ export async function handleGetTokens(request, env, corsHeaders) {
     const usage = await getDailyUsage(userDni, env);
     const { plan, limits } = await getUserPlanLimits(userDni, env);
 
-    const buildToken = (type) => {
+    const buildToken = (type: TokenType) => {
       const limit = limits[type];
       if (limit === -1) return { used: usage[type], limit: -1, remaining: -1 };
       return { used: usage[type], limit, remaining: limit - usage[type] };
@@ -130,7 +133,7 @@ export async function handleGetTokens(request, env, corsHeaders) {
   }
 }
 
-export async function handleGetTokensMonthly(request, env, corsHeaders, url) {
+export async function handleGetTokensMonthly(request: Request, env: Env, corsHeaders: Record<string, string>, url: URL) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -145,7 +148,7 @@ export async function handleGetTokensMonthly(request, env, corsHeaders, url) {
       FROM daily_tokens
       WHERE user_dni = ? AND token_date >= ? AND token_date <= ?
       ORDER BY token_date ASC
-    `).bind(userDni.toUpperCase(), startDate, endDate).all();
+    `).bind(userDni.toUpperCase(), startDate, endDate).all<any>();
 
     return jsonResponse({ month, days: results || [] }, 200, corsHeaders);
   } catch (error) {
