@@ -203,6 +203,14 @@
   }
 }
 
+// ── Lista desplegable de QSelect (se monta en <body>, fuera de .auth-page) ──
+// Las páginas de cuenta son siempre claras; sin esto, con el tema oscuro la
+// lista heredaba el texto claro de styles.css sobre el fondo blanco de Quasar.
+.auth-select-menu {
+  background: #FEF7FF;
+  color: #1C1B1F;
+}
+
 // ── Diálogo (QDialog se monta fuera de .auth-page) ────────────
 .auth-dialog {
   --primary: #6750A4;

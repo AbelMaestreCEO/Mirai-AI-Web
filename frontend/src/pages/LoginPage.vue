@@ -65,7 +65,7 @@
         <div class="auth-footer">
           <a class="app-link" href="#" @click.prevent="openRecovery">¿Olvidaste tu contraseña?</a>
           <span class="divider">|</span>
-          <span>¿No tienes cuenta? <a :href="legacyPages.registration" class="app-link">Regístrate</a></span>
+          <span>¿No tienes cuenta? <AppLink to="registration" class="app-link">Regístrate</AppLink></span>
         </div>
       </div>
     </div>
@@ -124,14 +124,17 @@
 // comportamiento: si ya hay sesión se va al inicio; si el usuario tiene 2FA,
 // se le manda a /verify (página antigua) tras avisar.
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import AppLink from '@/components/AppLink.vue';
 import { api, errorMessage, isNeedsVerification, type ApiErrorBody, type LoginResponse } from '@/lib/api';
-import { goToLegacy, legacyPages } from '@/lib/legacy';
+import { goToLegacy, pageHref } from '@/lib/legacy';
 
 interface Message {
   kind: 'error' | 'success';
   text: string;
 }
 
+const router = useRouter();
 const required = (v: string) => !!v || 'Campo requerido';
 
 const email = ref('');
@@ -168,7 +171,7 @@ function shake() {
 onMounted(async () => {
   try {
     const { ok } = await api.get('/api/me');
-    if (ok) goToLegacy(legacyPages.home, { replace: true });
+    if (ok) goToLegacy(pageHref(''), { replace: true });
   } catch {
     // Sin conexión o sin sesión: se queda en el login.
   }
@@ -185,7 +188,7 @@ async function onLogin() {
 
     if (ok) {
       // La cookie de sesión ya la ha puesto el Worker.
-      goToLegacy(legacyPages.home);
+      goToLegacy(pageHref(''));
       return;
     }
 
@@ -194,7 +197,7 @@ async function onLogin() {
         'error',
         data.message_sent ? '🔐 Verificación necesaria. Hemos enviado un código a tu correo.' : data.error,
       );
-      later(() => goToLegacy(legacyPages.verify), 2500);
+      later(() => void router.push({ name: 'verify' }), 2500);
       return;
     }
 

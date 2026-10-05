@@ -10,7 +10,8 @@ import { defineConfig } from '#q-app';
 
 export default defineConfig(() => {
   return {
-    boot: [],
+    // appearance: tema/acento y public/styles.css antes de montar nada.
+    boot: ['appearance'],
 
     css: ['app.scss'],
 
@@ -37,6 +38,14 @@ export default defineConfig(() => {
       distDir: '../public/app',
       // public/app/ está fuera de frontend/ a propósito: es lo que sirve Workers Assets.
       allowOutsideProjectDistDir: true,
+
+      // El dev server de Vite solo sirve archivos de frontend/ por defecto; la
+      // app importa public/styles.css del proyecto padre.
+      extendViteConf(viteConf) {
+        viteConf.server ??= {};
+        viteConf.server.fs ??= {};
+        viteConf.server.fs.allow = [...(viteConf.server.fs.allow ?? []), '..'];
+      },
     },
 
     devServer: {

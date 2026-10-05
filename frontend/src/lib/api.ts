@@ -3,6 +3,8 @@
 // La sesión va en una cookie HttpOnly (session=...) que pone el propio Worker:
 // aquí no se guarda ni se envía ningún token a mano.
 
+import { currentUser } from './session';
+
 /** Cuerpo de error que devuelven las rutas del Worker. */
 export interface ApiErrorBody {
   error?: string;
@@ -25,8 +27,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   const res = await fetch(path, init);
   // Igual que el fetch envuelto de app.js: un 401 en mitad de la app es una
-  // sesión caducada; se avisa una sola vez (no en /api/me ni /api/login).
-  if (res.status === 401 && !path.startsWith('/api/me') && !path.startsWith('/api/login') && !sessionExpiredShown) {
+  // sesión caducada; se avisa una sola vez. Solo con sesión iniciada: en las
+  // páginas de cuenta (que no cargaban app.js) un 401 es una respuesta normal,
+  // como un código de verificación caducado.
+  if (res.status === 401 && currentUser.value && !path.startsWith('/api/me') && !sessionExpiredShown) {
     sessionExpiredShown = true;
     alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión y vuelve a iniciar sesión.');
   }

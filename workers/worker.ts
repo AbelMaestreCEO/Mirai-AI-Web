@@ -23,6 +23,14 @@ const ANDROID_ASSET_LINKS = [{
   }
 }];
 
+// --- PÁGINAS MIGRADAS A LA APP QUASAR ---
+// Slugs de public/<slug>.html que ya viven en /app/<slug>. Mantener en sincronía
+// con MIGRATED de frontend/src/lib/legacy.ts.
+const MIGRATED_PAGES = new Set([
+  'login', 'registration', 'verify', 'reset-password',
+  'about', 'documentation', 'purchase', 'learning_hub',
+]);
+
 // --- HANDLER PRINCIPAL ---
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -45,6 +53,15 @@ export default {
         path.includes('.aws') ||
         path.includes('.git')) {
         return new Response('Not Found', { status: 404 });
+      }
+
+      // Páginas ya migradas a la app Quasar: la URL antigua (/login,
+      // /reset-password.html?token=..., enlaces de las páginas que aún no se
+      // han migrado) se redirige a la nueva conservando la query. Su .html se
+      // ha borrado de public/, así que estas peticiones llegan al Worker.
+      const legacySlug = path.replace(/^\/+/, '').replace(/\.html$/, '');
+      if (MIGRATED_PAGES.has(legacySlug)) {
+        return Response.redirect(new URL(`/app/${legacySlug}${url.search}`, url).toString(), 302);
       }
 
       // App Quasar (frontend/, compilada a public/app/). Workers Assets ya ha
