@@ -1,19 +1,14 @@
 /* ============================================
    MIRAI AI - Aula, Cursos y Asistencia
    Aula virtual (materias, secciones, tareas, entregas y notas), catálogo
-   de cursos y asistencia por QR. worker.ts le pasa cada petición /api/ a
+   de cursos y asistencia por QR. router.ts le pasa cada petición /api/ a
    handleClassroomApi y sigue con sus propias rutas si devuelve null.
    ============================================ */
-import { AI_MODEL_PRO } from './ai-models';
-import {
-  callAI,
-  requireAuth,
-  isAdminUser,
-  extractTextFromPDF,
-  extractTextFromDocx,
-  normalizeDni,
-  jsonResponse
-} from './worker';
+import { callAI } from '../lib/ai';
+import { AI_MODEL_PRO } from '../lib/ai-models';
+import { isAdminUser, normalizeDni, requireAuth } from '../lib/auth';
+import { extractTextFromDocx, extractTextFromPDF } from '../lib/documents';
+import { jsonResponse } from '../lib/http';
 
 /**
  * Rutas del aula, los cursos y la asistencia.
