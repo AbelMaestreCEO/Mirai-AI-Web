@@ -1,0 +1,318 @@
+// Páginas de cuenta (login, registro, verificación, cambio de contraseña).
+// Mismo diseño que public/login-styles.css. Todo va bajo .auth-page para no
+// chocar con styles.css, que es la hoja del resto de la app.
+
+.auth-page {
+  --primary: #6750A4;
+  --primary-container: #EADDFF;
+  --on-primary: #FFFFFF;
+  --secondary: #625B71;
+  --tertiary: #7D5260;
+  --surface: #FEF7FF;
+  --surface-variant: #E7E0EC;
+  --on-surface: #1C1B1F;
+  --on-surface-variant: #49454F;
+  --outline: #79747E;
+  --outline-variant: #CAC4D0;
+  --error: #B3261E;
+  --error-container: #F9DEDC;
+  --success: #006A4A;
+  --success-container: #D0FADF;
+
+  --auth-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+  --auth-normal: 250ms cubic-bezier(0.2, 0, 0, 1);
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+
+  padding: var(--spacing-md);
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: 'Roboto', sans-serif;
+  line-height: normal;
+
+  // registration.html era la única que además cargaba styles.css (body a 1.6).
+  &--registration {
+    line-height: 1.6;
+  }
+
+  // ── Tarjeta ────────────────────────────────────────────────
+  .auth-wrapper {
+    width: 100%;
+    max-width: 480px;
+    animation: auth-fade-in-up 0.5s ease-out;
+  }
+
+  .auth-card {
+    background: var(--surface);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    box-shadow: 0 4px 24px rgba(103, 80, 164, 0.12);
+    border: 1px solid var(--outline-variant);
+    position: relative;
+    overflow: hidden;
+
+    // Barra decorativa superior.
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 50%, var(--tertiary) 100%);
+    }
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+
+    h1 {
+      color: var(--on-surface);
+      font-size: 28px;
+      font-weight: 500;
+      line-height: inherit;
+      letter-spacing: normal;
+      margin: 0 0 var(--spacing-xs);
+    }
+  }
+
+  .logo-container {
+    width: 64px;
+    height: 64px;
+    background: var(--primary-container);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-md);
+    transition: transform var(--auth-normal);
+
+    &:hover {
+      transform: scale(1.05) rotate(5deg);
+    }
+  }
+
+  .logo-icon {
+    font-size: 32px;
+  }
+
+  .subtitle {
+    color: var(--on-surface-variant);
+    font-size: 14px;
+    margin: 0;
+  }
+
+  // ── Formularios ────────────────────────────────────────────
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+
+    > label {
+      color: var(--on-surface-variant);
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
+
+  // Prefijo de nacionalidad dentro del campo DNI (V-, COL-, ...).
+  .dni-prefix {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    background: var(--primary-container);
+    border: 1px solid var(--outline-variant);
+    padding: 3px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    opacity: 1;
+  }
+
+  .otp-input .q-field__native {
+    font-size: 24px;
+    letter-spacing: 8px;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+  }
+
+  // ── Mensajes y animaciones ─────────────────────────────────
+  .app-shake {
+    animation: app-shake 0.4s ease;
+  }
+
+  .auth-footer {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--outline-variant);
+    font-size: 14px;
+    color: var(--on-surface-variant);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    text-align: center;
+  }
+
+  .divider {
+    color: var(--outline);
+  }
+
+  @media (max-width: 480px) {
+    .input-row {
+      grid-template-columns: 1fr;
+    }
+
+    .auth-card {
+      padding: var(--spacing-lg);
+      border-radius: var(--radius-lg);
+    }
+
+    .auth-header h1 {
+      font-size: 24px;
+    }
+
+    .logo-container {
+      width: 56px;
+      height: 56px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-wrapper,
+    .app-shake {
+      animation: none;
+    }
+  }
+}
+
+// ── Lista desplegable de QSelect (se monta en <body>, fuera de .auth-page) ──
+// Las páginas de cuenta son siempre claras; sin esto, con el tema oscuro la
+// lista heredaba el texto claro de styles.css sobre el fondo blanco de Quasar.
+.auth-select-menu {
+  background: #FEF7FF;
+  color: #1C1B1F;
+}
+
+// ── Diálogo (QDialog se monta fuera de .auth-page) ────────────
+.auth-dialog {
+  --primary: #6750A4;
+  --surface: #FEF7FF;
+  --surface-variant: #E7E0EC;
+  --on-surface: #1C1B1F;
+  --on-surface-variant: #49454F;
+  --outline-variant: #CAC4D0;
+  --error: #B3261E;
+  --error-container: #F9DEDC;
+  --success: #006A4A;
+  --success-container: #D0FADF;
+
+  background: var(--surface);
+  border-radius: 28px;
+  padding: 32px;
+  max-width: 440px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  color: var(--on-surface);
+  font-family: 'Roboto', sans-serif;
+
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: var(--surface-variant);
+    border-radius: 50%;
+    font-size: 24px;
+    color: var(--on-surface-variant);
+    cursor: pointer;
+    transition: all 150ms cubic-bezier(0.2, 0, 0, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: var(--outline-variant);
+      color: var(--on-surface);
+      transform: rotate(90deg);
+    }
+  }
+
+  .modal-header {
+    text-align: center;
+    margin-bottom: 24px;
+
+    h2 {
+      color: var(--on-surface);
+      font-size: 24px;
+      font-weight: 500;
+      line-height: inherit;
+      letter-spacing: normal;
+      margin: 0 0 4px;
+    }
+
+    p {
+      color: var(--on-surface-variant);
+      font-size: 14px;
+      margin: 0;
+    }
+  }
+
+  .modal-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    > label {
+      color: var(--on-surface-variant);
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 24px;
+  }
+}
+
+@keyframes auth-fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,43 +1,43 @@
-const CACHE_NAME = 'mirai-ai-v318'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v322'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
-  '/about',
+  // App Quasar (frontend/): las páginas ya migradas viven aquí.
+  '/app/',
   '/apa',
   '/api_usage_admin',
   '/attendance_admin',
   '/attendance',
-  '/chat',
   '/classroom',
   '/classroom_admin',
   '/classroom_details',
-  '/code',
   '/course_category',
   '/courses',
   '/diet',
-  '/documentation',
   '/format',
   '/generation',
-  '/',
   '/inventory',
   '/investigation',
-  '/learning_hub',
   '/location',
-  '/login',
   '/mirror',
   '/panel',
   '/projects',
-  '/registration',
   '/report',
   '/report_admin',
-  '/settings',
   '/task',
-  '/verify',
 ];
+
+// Páginas que ya viven en la app Quasar (/app/<slug>): su URL antigua es una
+// redirección del Worker. Mantener en sincronía con MIGRATED_PAGES de
+// workers/worker.ts y MIGRATED de frontend/src/lib/legacy.ts.
+const MIGRATED_PAGES = new Set([
+  'login', 'registration', 'verify', 'reset-password',
+  'about', 'documentation', 'purchase', 'learning_hub',
+  'index', 'settings', 'chat', 'code',
+]);
 
 // ─── Assets estáticos a precargar ───────────────────────────────────────────
 const STATIC_ASSETS = [
-  '/login-styles.css',
   '/styles.css',
   '/transitions.css',
   '/welcome-styles.css',
@@ -55,7 +55,6 @@ const STATIC_ASSETS = [
   '/classroom.js',
   '/classroom_admin.js',
   '/classroom_details.js',
-  '/code.js',
   '/js/utils/constants.js',
   '/courses.js',
   '/js/processors/docxReader.js',
@@ -68,9 +67,7 @@ const STATIC_ASSETS = [
   '/inventory.js',
   '/investigation.js',
   '/location.js',
-  '/login-guard.js',
   '/js/apa/margins.js',
-  '/login.js',
   '/mirai-boot.js',
   '/mirai-realtime.js',
   '/pwa.js',
@@ -79,7 +76,6 @@ const STATIC_ASSETS = [
   '/js/apa/paragraphs.js',
   '/projects.js',
   '/js/apa/references.js',
-  '/registration.js',
   '/report.js',
   '/report_admin.js',
   '/js/apa/spacing.js',
@@ -91,7 +87,6 @@ const STATIC_ASSETS = [
   '/js/apa/typography.js',
   '/js/uiHandler.js',
   '/js/utils/validators.js',
-  '/verify.js',
 ];
 
 
@@ -181,14 +176,24 @@ self.addEventListener('fetch', event => {
 
   const isHTML = request.headers.get('accept')?.includes('text/html');
 
+  // URL antiguas de páginas ya migradas a /app/: el Worker las redirige. No
+  // hay nada que cachear y una redirección dentro de respondWith() es fácil de
+  // romper (ver más abajo), así que se dejan pasar sin tocar.
+  const legacySlug = url.pathname.replace(/^\/+/, '').replace(/\.html$/, '') || 'index';
+  if (MIGRATED_PAGES.has(legacySlug)) return;
+
   // App Quasar (/app/): su index.html apunta a archivos con hash que cambian en
   // cada deploy y los viejos dejan de existir. Servirlo desde caché primero
   // (como el resto del HTML) podía dejar la app en blanco pidiendo JS borrado,
   // así que va red primero y la caché solo queda para cuando no hay conexión.
   // Sus /app/assets/* sí pueden ir por caché: el nombre cambia si cambian.
-  if (isHTML && (url.pathname === '/app' || url.pathname.startsWith('/app/'))) {
+  if (isHTML && url.pathname === '/app') return; // 307 a /app/: que lo siga el navegador
+  if (isHTML && url.pathname.startsWith('/app/')) {
     event.respondWith(
-      fetch(request, { redirect: 'follow' }).then(response => {
+      // Petición nueva a la URL en vez de reenviar `request`: si la navegación
+      // venía de una redirección (/about -> /app/about), reenviar la petición
+      // original acababa en un error de red.
+      fetch(url.href, { credentials: 'same-origin' }).then(response => {
         if (response.ok && !response.redirected) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
@@ -204,7 +209,12 @@ self.addEventListener('fetch', event => {
     // Si no está en caché o hay red, actualiza en background
     event.respondWith(
       caches.match(request).then(cached => {
-        const networkFetch = fetch(request, { redirect: 'follow' }).then(response => {
+        // Sin { redirect: 'follow' }: en una navegación (modo de redirección
+        // 'manual') devolver una respuesta ya redirigida es un error de red, y
+        // las páginas migradas (/about -> /app/about) acababan en una página de
+        // error. Así una redirección llega como opaqueredirect y la sigue el
+        // propio navegador.
+        const networkFetch = fetch(request).then(response => {
           // No cachear respuestas redirigidas (ej. auth redirects)
           if (response.ok && !response.redirected) {
             const clone = response.clone();
