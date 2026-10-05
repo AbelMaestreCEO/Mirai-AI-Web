@@ -25,6 +25,14 @@ def parts(path):
     s = open(path, encoding='utf-8').read()
     head = s[:s.index('<body')]
     styles = re.findall(r'<style[^>]*>([\s\S]*?)</style>', head)
+    # Los <style> que van antes del <link> a styles.css pierden los empates de
+    # especificidad contra ella; los de después los ganan. Se separan para
+    # cargarlos en el mismo orden en la app.
+    link = re.search(r'<link[^>]*href="/?styles\.css"', head)
+    cut = link.start() if link else len(head)
+    pre, post = [], []
+    for m in re.finditer(r'<style[^>]*>([\s\S]*?)</style>', head):
+        (pre if m.start() < cut else post).append(m.group(1))
     body = s[s.index('<body'):]
     body = body[body.index('>') + 1:body.rindex('</body>')]
     body = re.sub(r'<nav class="mobile-sidebar"[\s\S]*?</nav>', '', body)
@@ -36,6 +44,8 @@ def parts(path):
     body = re.sub(r'\n\s*\n+', '\n', body)
     return {
         'style': '\n\n'.join(reindent(x) for x in styles),
+        'style_pre': '\n\n'.join(reindent(x) for x in pre),
+        'style_post': '\n\n'.join(reindent(x) for x in post),
         'body': reindent(body),
         'scripts': '\n\n/* ---- */\n\n'.join(reindent(x) for x in scripts_inline),
         'src': scripts_src,

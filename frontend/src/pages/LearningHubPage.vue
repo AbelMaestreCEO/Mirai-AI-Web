@@ -95,17 +95,3 @@ function startLearning(mode: 'theory' | 'quiz' | 'practice') {
   goToPage(router, 'chat', query);
 }
 </script>
-
-<style>
-/* CSS propio de la página antigua, limitado a ella (ver router: meta.page). */
-/* Único estilo nuevo: ancho de tarjeta de modo limitado para no exceder 3 columnas */
-:where(body[data-page="learning_hub"]) .hub-modes-grid {
-  grid-template-columns: repeat(3, 1fr);
-}
-@media (max-width: 900px) {
-  :where(body[data-page="learning_hub"]) .hub-modes-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 600px) {
-  :where(body[data-page="learning_hub"]) .hub-modes-grid { grid-template-columns: 1fr; }
-}
-</style>

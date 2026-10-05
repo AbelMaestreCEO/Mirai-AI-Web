@@ -1,0 +1,11 @@
+/*
+ * CSS de las páginas antiguas que iba en un <style> ANTES del <link> a
+ * styles.css. En caso de empate de especificidad, styles.css le ganaba;
+ * boot/appearance lo carga antes que ella para que siga siendo así. Cada
+ * archivo está limitado a su página con :where(body[data-page="<slug>"]).
+ * El CSS que iba después de styles.css sigue en el <style> de su componente.
+ */
+@import './before-styles/chat.css';
+@import './before-styles/code.css';
+@import './before-styles/settings.css';
+@import './before-styles/learning_hub.css';

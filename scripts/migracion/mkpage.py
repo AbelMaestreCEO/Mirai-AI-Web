@@ -62,7 +62,16 @@ def main():
     script = '\n'.join([f'// Migración de public/{slug}.html.'] + imports)
     if uses_year:
         script += '\n\nconst year = new Date().getFullYear();'
-    css = scope_css(p['style'], slug) if p['style'].strip() else ''
+    css = scope_css(p['style_post'], slug) if p['style_post'].strip() else ''
+    # El CSS que la página antigua ponía antes de styles.css va a
+    # css/before-styles/<slug>.css, que se carga antes que ella (ver
+    # css/before-styles.css).
+    if p['style_pre'].strip():
+        pre_out = os.path.join(ROOT, 'frontend', 'src', 'css', 'before-styles', slug + '.css')
+        os.makedirs(os.path.dirname(pre_out), exist_ok=True)
+        header = f'/* CSS de public/{slug}.html que iba antes de styles.css, limitado a la página. */\n'
+        open(pre_out, 'w', encoding='utf-8', newline='\n').write(header + scope_css(p['style_pre'], slug) + '\n')
+        print(f'escrito {pre_out} (añádelo a css/before-styles.css)')
     indented = '\n'.join(('  ' + l) if l else '' for l in template.split('\n'))
     vue = f'<template>\n{indented}\n</template>\n\n<script setup lang="ts">\n{script}\n</script>\n'
     if css:
