@@ -50,7 +50,7 @@ export async function handleInvestigationSearch(request, env, corsHeaders) {
   console.log(`🔭 [Investigation] Usuario: ${userDni} | Pregunta: ${question.substring(0, 80)}`);
 
   // ── 3. Búsquedas paralelas con Exa ──
-  let exaResults = [];
+  let exaResults: any[] = [];
   try {
     exaResults = await searchWithExa(question, env);
     console.log(`✅ [Investigation] Exa devolvió ${exaResults.length} URLs`);
@@ -294,7 +294,7 @@ async function searchWithExa(question, env) {
 
   // Ejecutar en paralelo; si una falla no rompe todo
   const settled = await Promise.allSettled(searches.map(fetchExa));
-  const results = [];
+  const results: any[] = [];
   settled.forEach(s => {
     if (s.status === 'fulfilled') results.push(...s.value);
     else console.warn('⚠️ [Exa] Búsqueda parcial fallida:', s.reason?.message);
@@ -397,7 +397,7 @@ async function scrapeAllUrls(exaResults, env) {
  */
 function buildContextBlocks(exaResults, scrapedContents) {
   const MAX_CHARS_PER_SOURCE = 3500;
-  const blocks = [];
+  const blocks: any[] = [];
 
   exaResults.forEach((r, idx) => {
     const scraped = scrapedContents instanceof Map ? scrapedContents.get(r.url) : null;

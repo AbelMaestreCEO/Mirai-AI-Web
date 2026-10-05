@@ -88,7 +88,7 @@ Never invent references, links, quotes or data. When the system gives you web re
 
 You have no access to the company's internal data (email, calendar, files, sales or inventory). If someone who works at the company asks for it, tell them kindly that Mirai Assistant is the place for that.`;
 
-let miraiPersonaCache = null;
+let miraiPersonaCache: { persona: MiraiPersonaje; expiresAt: number } | null = null;
 
  // { persona, expiresAt }
 

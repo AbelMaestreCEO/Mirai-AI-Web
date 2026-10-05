@@ -477,8 +477,8 @@ ORDER BY u.last_name, u.first_name
 
     // Se normalizan al formato canónico (V-30840119). Antes se exigía
     // /^\d+$/ y se insertaba el número pelado, que nunca casaba con users.dni.
-    const normalized = [];
-    const invalid = [];
+    const normalized: any[] = [];
+    const invalid: any[] = [];
     for (const raw of dnis) {
       const dni = normalizeDni(raw);
       if (dni) normalized.push(dni);
@@ -1604,7 +1604,7 @@ async function handleAttAdminRecords(request, env, corsHeaders) {
             LEFT JOIN att_qr_sessions q ON r.session_id = q.id
             LEFT JOIN att_classes c ON q.class_id = c.id
             WHERE 1=1`;
-    const bindings = [];
+    const bindings: any[] = [];
 
     if (dateFrom && dateTo) {
       query += ' AND r.date BETWEEN ? AND ?';

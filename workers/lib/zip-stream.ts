@@ -153,7 +153,7 @@ export function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr
  */
 export function buildEndOfCentralDirectory(entryCount, cdSize, cdStart) {
   const needsZip64 = entryCount >= 0xFFFF || cdSize >= ZIP64_SENTINEL || cdStart >= ZIP64_SENTINEL;
-  const parts = [];
+  const parts: any[] = [];
 
   if (needsZip64) {
     const rec = new Uint8Array(56);

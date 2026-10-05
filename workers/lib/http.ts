@@ -7,7 +7,7 @@
 // Helper ya definido en projects-endpoints.js — copiado aquí
 // por si se integra este archivo de forma independiente
 // ─────────────────────────────────────────────────────────────
-export function safeJsonParse(str, fallback = null) {
+export function safeJsonParse(str, fallback: any = null) {
   try { return JSON.parse(str); } catch { return fallback; }
 }
 

@@ -110,7 +110,7 @@ export async function handleAnalyzePreferences(request, env, corsHeaders) {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    let conversationId = null;
+    let conversationId: any = null;
     try { conversationId = (await request.json()).conversation_id; } catch (_) { }
 
     let query, binds;

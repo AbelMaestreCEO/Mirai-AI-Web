@@ -154,8 +154,8 @@ export async function handleProjectUpdate(request, env, corsHeaders, projectId) 
 
   try {
     // Construir SET dinámico solo con los campos que llegaron
-    const fields = [];
-    const values = [];
+    const fields: any[] = [];
+    const values: any[] = [];
 
     if (name !== undefined) {
       fields.push('name = ?');
@@ -455,8 +455,8 @@ export async function handleProjectContext(request, env, corsHeaders, projectId)
     const MAX_FILE_SIZE = 200 * 1024; // 200 KB por archivo
     const MAX_TOTAL_CHARS = 80_000;    // ~20k tokens de contexto total
 
-    const parts = [];
-    const fileIndex = [];
+    const parts: any[] = [];
+    const fileIndex: any[] = [];
     let totalChars = 0;
 
     for (const f of files) {

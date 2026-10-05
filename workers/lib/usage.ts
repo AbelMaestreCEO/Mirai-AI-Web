@@ -88,15 +88,29 @@ function upscalePriceForMegapixels(targetMp) {
   return tier ? tier.price : API_PRICING.pruna.upscale_by_megapixels[API_PRICING.pruna.upscale_by_megapixels.length - 1].price;
 }
 
-export function calcCost(provider, subType, {
+export function calcCost(provider: string, subType: string | null, {
   units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0,
   durationSeconds = null, resolution = '720p', draft = false,
   targetMegapixels = null, thinking = 'high', imageSize = '1K',
+}: {
+  units?: number;
+  tokensIn?: number;
+  tokensOut?: number;
+  cacheHitTokens?: number;
+  durationSeconds?: number | null;
+  resolution?: string;
+  draft?: boolean;
+  targetMegapixels?: number | null;
+  thinking?: string;
+  imageSize?: string;
 } = {}) {
+  // Las tablas de precios se indexan con la clave tal cual llega: un subType
+  // null busca 'null', que no existe, igual que hacía el JS implícitamente.
+  const key = String(subType);
   try {
     switch (provider) {
       case 'deepseek': {
-        const p = API_PRICING.deepseek[subType];
+        const p = API_PRICING.deepseek[key];
         if (!p) return 0;
         const cacheMissTokens = Math.max(0, tokensIn - cacheHitTokens);
         return (cacheMissTokens / 1e6) * p.input_cache_miss_per_1m
@@ -104,7 +118,7 @@ export function calcCost(provider, subType, {
           + (tokensOut / 1e6) * p.output_per_1m;
       }
       case 'pruna': {
-        const perSecond = API_PRICING.pruna.video_per_second[subType];
+        const perSecond = API_PRICING.pruna.video_per_second[key];
         if (perSecond) {
           if (durationSeconds == null) return 0; // no se pudo determinar la duración real, no inventar un costo
           // Un modelo sin tarifa de draft (avatar, animate, replace) siempre
@@ -123,7 +137,7 @@ export function calcCost(provider, subType, {
           return upscalePriceForMegapixels(targetMegapixels) * units;
         }
 
-        const flat = API_PRICING.pruna.flat[subType];
+        const flat = API_PRICING.pruna.flat[key];
         if (flat === undefined) {
           // Antes cualquier sub_type desconocido se registraba con costo 0 en
           // silencio, así que un modelo nuevo parecía gratis en el panel de
@@ -142,7 +156,7 @@ export function calcCost(provider, subType, {
       case 'youtube':
         return API_PRICING.youtube.call * units;
       case 'google_maps':
-        return (API_PRICING.google_maps[subType] ?? 0) * units;
+        return (API_PRICING.google_maps[key] ?? 0) * units;
       default:
         return 0;
     }
@@ -183,6 +197,16 @@ export async function logApiUsage(env, {
   provider, unit_type, sub_type = null, units = 1,
   tokens_in = null, tokens_out = null, cost_usd = 0,
   user_dni = null, via_gateway = false
+}: {
+  provider: string;
+  unit_type: string;
+  sub_type?: string | null;
+  units?: number;
+  tokens_in?: number | null;
+  tokens_out?: number | null;
+  cost_usd?: number;
+  user_dni?: string | null;
+  via_gateway?: boolean;
 }) {
   try {
     await ensureApiUsageTable(env);

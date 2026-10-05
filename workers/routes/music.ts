@@ -39,7 +39,7 @@ export async function handleMusicGeneration(prompt, conversationId, userDni, env
     console.log('🎵 Respuesta completa:', JSON.stringify(aiResponse).substring(0, 500));
 
     // 5. Extraer audio de la respuesta
-    let audioBuffer = null;
+    let audioBuffer: ArrayBuffer | SharedArrayBuffer | null = null;
 
     if (aiResponse instanceof ArrayBuffer && aiResponse.byteLength > 0) {
       audioBuffer = aiResponse;

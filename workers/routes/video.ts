@@ -47,7 +47,7 @@ function getMp4DurationSeconds(buffer) {
 
     function readBoxes(start, end) {
       let offset = start;
-      const boxes = [];
+      const boxes: any[] = [];
       while (offset + 8 <= end) {
         let size = view.getUint32(offset);
         const type = String.fromCharCode(
@@ -121,8 +121,8 @@ export async function handleServeVideo(path, env) {
 // aquí y el valor normalizado es el que se manda a Pruna Y el que se usa para
 // calcular el costo: si se separaran, el panel de consumo mentiría.
 function normalizeVideoOptions(raw: { resolution?: string; aspect_ratio?: string; duration?: number | string; draft?: boolean } = {}) {
-  const resolution = VIDEO_RESOLUTIONS.includes(raw.resolution) ? raw.resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION;
-  const aspectRatio = IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : VIDEO_CONFIG.DEFAULT_ASPECT_RATIO;
+  const resolution = raw.resolution && VIDEO_RESOLUTIONS.includes(raw.resolution) ? raw.resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION;
+  const aspectRatio = raw.aspect_ratio && IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : VIDEO_CONFIG.DEFAULT_ASPECT_RATIO;
   const rawDuration = parseInt(String(raw.duration), 10);
   const duration = Number.isFinite(rawDuration) ? Math.min(10, Math.max(1, rawDuration)) : VIDEO_CONFIG.DEFAULT_DURATION;
   return { resolution, aspectRatio, duration, draft: raw.draft === true };
@@ -433,8 +433,8 @@ export async function handleVideoAvatarGeneration(request, env, corsHeaders) {
     await ensureVideoAvatarCharactersTable(env);
     await ensureVideoAvatarJobsTable(env);
 
-    let imageSource = null;
-    let characterInfo = null;
+    let imageSource: any = null;
+    let characterInfo: any = null;
     const requestedCharacterId = character_id ? parseInt(character_id, 10) : null;
 
     if (requestedCharacterId) {
@@ -468,7 +468,7 @@ export async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       imageSource = origin + saved.image_url;
     }
 
-    let audioUrl = null;
+    let audioUrl: any = null;
     if (audio) {
       if (audio.startsWith('data:')) {
         const audioMatch = /^data:audio\/([a-z0-9.+-]+);base64,/i.exec(audio);
@@ -594,7 +594,7 @@ export async function handleAdvancedVideoGeneration(request, env, corsHeaders, k
     // Las imágenes de referencia pueden venir sueltas o ser un personaje ya
     // guardado del módulo de avatar, que es justo lo que sirve como identidad.
     let imageRefs = Array.isArray(images) ? images.filter(Boolean) : (images ? [images] : []);
-    let characterInfo = null;
+    let characterInfo: any = null;
 
     if (character_id) {
       const row = await env.MIRAI_AI_DB.prepare(
@@ -610,7 +610,7 @@ export async function handleAdvancedVideoGeneration(request, env, corsHeaders, k
     }
 
     const maxImages = config.max_images || 4;
-    const resolvedImages = [];
+    const resolvedImages: any[] = [];
     for (const ref of imageRefs.slice(0, maxImages)) {
       resolvedImages.push(await toPublicImageUrl(env, request, userDni, ref));
     }

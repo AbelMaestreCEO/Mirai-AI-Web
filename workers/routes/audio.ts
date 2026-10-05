@@ -22,7 +22,7 @@ export async function generateAndStoreTTS(text, conversationId, env) {
     const segments = segmentTextForTTS(cleanedText);
     console.log(`🎤 Generando TTS: ${segments.length} segmento(s)`);
 
-    const audioBuffers = [];
+    const audioBuffers: any[] = [];
 
     for (const segment of segments) {
       try {
@@ -40,7 +40,7 @@ export async function generateAndStoreTTS(text, conversationId, env) {
         console.log('🔍 ttsResult tipo:', typeof ttsResult);
         console.log('🔍 ttsResult completo:', JSON.stringify(ttsResult, null, 2));
 
-        let audioBuffer = null;
+        let audioBuffer: any = null;
 
         // CASO 1: La API devuelve una URL en result.audio (Lo que está pasando ahora)
         if (ttsResult?.result?.audio && typeof ttsResult.result.audio === 'string') {
@@ -74,7 +74,7 @@ export async function generateAndStoreTTS(text, conversationId, env) {
         else if (ttsResult && typeof ttsResult === 'object' && typeof ttsResult.getReader === 'function') {
           console.log('🔍 ttsResult es un ReadableStream, consumiendo...');
           const reader = ttsResult.getReader();
-          const chunks = [];
+          const chunks: any[] = [];
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -288,7 +288,7 @@ function cleanTextForTTS(text) {
 function segmentTextForTTS(text, maxLength = 2000) {
   if (text.length <= maxLength) return [text];
 
-  const segments = [];
+  const segments: any[] = [];
   let remaining = text;
 
   while (remaining.length > 0) {
