@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v321'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v322'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -11,7 +11,6 @@ const HTML_PAGES = [
   '/classroom',
   '/classroom_admin',
   '/classroom_details',
-  '/code',
   '/course_category',
   '/courses',
   '/diet',
@@ -34,7 +33,7 @@ const HTML_PAGES = [
 const MIGRATED_PAGES = new Set([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings', 'chat',
+  'index', 'settings', 'chat', 'code',
 ]);
 
 // ─── Assets estáticos a precargar ───────────────────────────────────────────
@@ -56,7 +55,6 @@ const STATIC_ASSETS = [
   '/classroom.js',
   '/classroom_admin.js',
   '/classroom_details.js',
-  '/code.js',
   '/js/utils/constants.js',
   '/courses.js',
   '/js/processors/docxReader.js',

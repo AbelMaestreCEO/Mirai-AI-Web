@@ -238,6 +238,7 @@ import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import ChatMessageItem, { type ModifyAction } from '@/components/chat/ChatMessageItem.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
+import { handleMarkdownClick } from '@/lib/markdown-actions';
 import { currentUser } from '@/lib/session';
 import { closeMenu } from '@/lib/shell';
 import { goToLegacy, pageHref } from '@/lib/legacy';
@@ -658,95 +659,14 @@ function modifyResponse(index: number, action: ModifyAction) {
   if (msg) void rewrite(msg, MODIFY_PROMPTS[action] + msg.content, false);
 }
 
-// Botones que vienen dentro del HTML formateado (código, tablas, imágenes).
-async function onMessagesClick(e: MouseEvent) {
+// Botones del HTML formateado (código, tablas, imágenes) y abrir imágenes.
+function onMessagesClick(e: MouseEvent) {
+  if (handleMarkdownClick(e)) return;
   const target = e.target as HTMLElement;
-
-  const codeBtn = target.closest<HTMLButtonElement>('.copy-code-btn');
-  if (codeBtn) {
-    e.stopPropagation();
-    const original = codeBtn.innerHTML;
-    try {
-      await navigator.clipboard.writeText(decodeURIComponent(codeBtn.dataset.code || ''));
-      codeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>¡Copiado!</span>';
-      codeBtn.classList.add('copied');
-    } catch {
-      codeBtn.innerHTML = '<span>Error</span>';
-      codeBtn.classList.add('error');
-    }
-    setTimeout(() => {
-      codeBtn.innerHTML = original;
-      codeBtn.classList.remove('copied', 'error');
-    }, 2000);
-    return;
-  }
-
-  const tableBtn = target.closest<HTMLButtonElement>('.copy-table-btn');
-  if (tableBtn) {
-    e.stopPropagation();
-    await copyTable(tableBtn);
-    return;
-  }
-
-  const imgBtn = target.closest<HTMLButtonElement>('.image-download-btn');
-  if (imgBtn) {
-    e.preventDefault();
-    e.stopPropagation();
-    const original = imgBtn.innerHTML;
-    imgBtn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg><span class="download-label">¡Listo!</span>';
-    imgBtn.style.borderColor = '#34c759';
-    imgBtn.style.color = '#34c759';
-    await downloadImage(imgBtn.dataset.imageUrl || '', `mirai-image-${Date.now()}.png`);
-    setTimeout(() => {
-      imgBtn.innerHTML = original;
-      imgBtn.style.borderColor = '';
-      imgBtn.style.color = '';
-    }, 2000);
-    return;
-  }
-
   if (target instanceof HTMLImageElement && target.classList.contains('lightbox-trigger')) {
     lightboxUrl.value = target.src;
     document.body.style.overflow = 'hidden';
   }
-}
-
-// Copia la tabla como HTML con formato (para pegarla en Word); si el
-// navegador no deja, como texto tabulado.
-async function copyTable(btn: HTMLButtonElement) {
-  const table = btn.closest('.md-table-wrapper')?.querySelector<HTMLTableElement>('.md-table');
-  if (!table) return;
-  const original = btn.innerHTML;
-  const check = '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-  const tableHTML = `
-        <html><body>
-        <style>
-          table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
-          th { background: #5c4a9e; color: white; padding: 6px 12px; border: 1px solid #999; font-weight: bold; }
-          td { padding: 5px 12px; border: 1px solid #ccc; }
-          tr:nth-child(even) td { background: #f5f2ff; }
-        </style>
-        ${table.outerHTML}
-        </body></html>`;
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([tableHTML], { type: 'text/html' }) })]);
-    btn.innerHTML = `${check} ¡Copiado!`;
-  } catch {
-    const text = Array.from(table.querySelectorAll('tr'))
-      .map((r) => Array.from(r.querySelectorAll<HTMLElement>('th,td')).map((c) => c.innerText).join('\t'))
-      .join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      btn.innerHTML = `${check} Copiado (texto)`;
-    } catch {
-      return;
-    }
-  }
-  btn.classList.add('copied');
-  setTimeout(() => {
-    btn.innerHTML = original;
-    btn.classList.remove('copied');
-  }, 2500);
 }
 
 // ── Lightbox ──────────────────────────────────────────────────────────────
