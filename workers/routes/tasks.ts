@@ -51,7 +51,7 @@ Responde en formato limpio, sin Markdown ni asteriscos.`;
     );
 
     return jsonResponse({ suggestion: suggestion || 'Sin respuesta del modelo.' }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Tasks] AI suggest error:', error);
     return jsonResponse({ error: 'Error al generar sugerencia', details: error.message }, 500, corsHeaders);
   }
@@ -148,7 +148,7 @@ export async function handleTaskCreate(request: Request, env: Env, corsHeaders: 
     ).run();
 
     return jsonResponse({ success: true, id }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Tasks] Error al crear:', error);
     return jsonResponse({ error: 'Error al crear tarea', details: error.message }, 500, corsHeaders);
   }
@@ -215,7 +215,7 @@ export async function handleTaskUpdate(request: Request, env: Env, corsHeaders: 
     ).bind(...values).run();
 
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Tasks] Error al actualizar:', error);
     return jsonResponse({ error: 'Error al actualizar tarea', details: error.message }, 500, corsHeaders);
   }
@@ -243,7 +243,7 @@ export async function handleTaskDelete(request: Request, env: Env, corsHeaders: 
     ).bind(taskId, userDni.toUpperCase()).run();
 
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Tasks] Error al eliminar:', error);
     return jsonResponse({ error: 'Error al eliminar tarea', details: error.message }, 500, corsHeaders);
   }

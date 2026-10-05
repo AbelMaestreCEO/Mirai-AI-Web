@@ -56,7 +56,7 @@ export async function generateAndStoreTTS(text: any, conversationId: any, env: E
 
             audioBuffer = await downloadResponse.arrayBuffer();
             console.log('✅ Audio descargado y convertido a ArrayBuffer:', audioBuffer.byteLength, 'bytes');
-          } catch (downloadError) {
+          } catch (downloadError: any) {
             console.error('❌ Error descargando audio desde URL:', downloadError.message);
           }
         }
@@ -101,7 +101,7 @@ export async function generateAndStoreTTS(text: any, conversationId: any, env: E
           console.warn('⚠️ Segmento sin audio válido');
         }
 
-      } catch (segError) {
+      } catch (segError: any) {
         console.error('❌ Error en segmento TTS:', segError.message);
       }
     }
@@ -138,7 +138,7 @@ export async function generateAndStoreTTS(text: any, conversationId: any, env: E
     console.log(`✅ Audio guardado en R2: ${r2Key}`);
     return `/api/audio/${r2Key}`;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en generateAndStoreTTS:', error.message);
     console.error('Stack:', error.stack);
     return null;
@@ -178,7 +178,7 @@ export async function handleUploadUserAudio(request: Request, env: Env, corsHead
       r2_key: filename
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error subiendo audio de usuario:', error);
     return jsonResponse({ error: 'Error al subir audio', details: error.message }, 500, corsHeaders);
   }
@@ -245,7 +245,7 @@ export async function handleTranscribeAudio(request: Request, env: Env, corsHead
       audio_url: audioUrl // ← DEVOLVER LA URL DEL AUDIO AL FRONTEND
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en handleTranscribeAudio:', error.message);
     return jsonResponse({
       error: 'Error en transcripción',

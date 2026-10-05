@@ -38,7 +38,7 @@ export async function handleInventoryList(request: Request, env: Env, corsHeader
       products: result.results
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error listing inventory:', error);
     return jsonResponse({ error: 'Error al obtener inventario', details: error.message }, 500, corsHeaders);
   }
@@ -122,7 +122,7 @@ export async function handleInventoryUpload(request: Request, env: Env, ctx: Exe
       message: 'Producto registrado. La IA está analizando...'
     }, 201, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploading inventory:', error);
 
     // inventory_products.sku es UNIQUE a nivel global en el esquema, pero el
@@ -296,7 +296,7 @@ export async function handleInventoryUpdate(request: Request, env: Env, corsHead
 
     return jsonResponse({ success: true, message: 'Producto actualizado' }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating inventory:', error);
     return jsonResponse({ error: 'Error al actualizar', details: error.message }, 500, corsHeaders);
   }
@@ -338,7 +338,7 @@ export async function handleInventoryDelete(request: Request, env: Env, corsHead
 
     return jsonResponse({ success: true, message: 'Producto eliminado' }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting inventory:', error);
     return jsonResponse({ error: 'Error al eliminar', details: error.message }, 500, corsHeaders);
   }

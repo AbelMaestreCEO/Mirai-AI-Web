@@ -53,7 +53,7 @@ export async function handleGenHistorySave(request: Request, env: Env, corsHeade
     ).run();
 
     return jsonResponse({ success: true, id: meta.last_row_id }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ gen-history save error:', error);
     return jsonResponse({ error: 'Error al guardar', details: error.message }, 500, corsHeaders);
   }
@@ -99,7 +99,7 @@ export async function handleGenHistoryGet(request: Request, env: Env, corsHeader
 
     const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...params).all<any>();
     return jsonResponse({ items: results, page, limit }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ gen-history get error:', error);
     return jsonResponse({ error: 'Error al obtener historial', details: error.message }, 500, corsHeaders);
   }
@@ -130,7 +130,7 @@ export async function handleGenHistoryDelete(request: Request, env: Env, corsHea
     }
 
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ gen-history delete error:', error);
     return jsonResponse({ error: 'Error al eliminar', details: error.message }, 500, corsHeaders);
   }

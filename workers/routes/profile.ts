@@ -163,7 +163,7 @@ Responde SOLO con JSON válido:
     try {
       const cleaned = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       preferences = JSON.parse(cleaned);
-    } catch (parseErr) {
+    } catch (parseErr: any) {
       console.error('Error parseando preferencias:', parseErr.message);
       return jsonResponse({ success: false, error: 'Error al parsear respuesta de IA' }, 500, corsHeaders);
     }
@@ -275,7 +275,7 @@ export async function handleUploadAvatar(request: Request, env: Env, corsHeaders
       avatarUrl: `/api/user/avatar/${userDni}`
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploadAvatar:', error);
     return jsonResponse({ error: 'Error al subir el avatar', details: error.message }, 500, corsHeaders);
   }

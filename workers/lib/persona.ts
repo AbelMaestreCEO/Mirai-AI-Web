@@ -107,7 +107,7 @@ async function getMiraiPersona(env: Env) {
     const persona = { identidad: p.identidad, conducta: p.conducta };
     miraiPersonaCache = { persona, expiresAt: now + MIRAI_PERSONA_TTL_MS };
     return persona;
-  } catch (err) {
+  } catch (err: any) {
     console.warn(`⚠️ Personaje de Mirai no disponible (${err.message}). Usando la copia de respaldo.`);
     miraiPersonaCache = { persona: MIRAI_PERSONA_FALLBACK, expiresAt: now + MIRAI_PERSONA_RETRY_MS };
     return MIRAI_PERSONA_FALLBACK;

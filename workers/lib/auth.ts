@@ -91,7 +91,7 @@ export async function isAdminUser(userDni: string, env: Env) {
       'SELECT role FROM users WHERE dni = ?'
     ).bind(userDni.toUpperCase()).first<any>();
     return row?.role === 'admin';
-  } catch (error) {
+  } catch (error: any) {
     console.error('isAdminUser error:', error.message);
     return false;
   }
@@ -118,7 +118,7 @@ export async function rateLimit(env: Env, key: string, limit: number, windowSecs
     if (current >= limit) return false;
     await env.KV_RATE.put(kvKey, String(current + 1), { expirationTtl: Math.max(60, windowSecs * 2) });
     return true;
-  } catch (e) {
+  } catch (e: any) {
     console.warn('rateLimit: KV_RATE no disponible —', e.message);
     return true;
   }

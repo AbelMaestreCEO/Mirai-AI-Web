@@ -61,7 +61,7 @@ export const createZipArchive = (files: any[], options: { level?: ZipOptions['le
     }
     
     return zipData;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[ZipBuilder] Error al comprimir archivos:', error);
     console.error('[ZipBuilder] Archivos procesados:', Object.keys(validFiles));
     console.error('[ZipBuilder] Tamanios:', Object.fromEntries(

@@ -63,7 +63,7 @@ async function sendEmail(env: Env, { to, subject, html, text, kind }: { to: stri
     await logApiUsage(env, { provider: 'cloudflare_email', unit_type: 'email', sub_type: kind });
     console.log(`📧 [${kind}] enviado a ${to} (${res?.messageId || 'sin id'})`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     // error.code trae los E_* de Email Sending (E_SENDER_NOT_VERIFIED,
     // E_DAILY_LIMIT_EXCEEDED, E_RECIPIENT_SUPPRESSED...): sin él no hay forma
     // de distinguir "dominio mal configurado" de "cuota agotada".

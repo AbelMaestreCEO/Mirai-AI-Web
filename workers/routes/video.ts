@@ -89,7 +89,7 @@ function getMp4DurationSeconds(buffer: ArrayBuffer) {
     }
     if (!timescale) return null;
     return duration / timescale;
-  } catch (e) {
+  } catch (e: any) {
     console.warn('⚠️ getMp4DurationSeconds falló:', e.message);
     return null;
   }
@@ -201,7 +201,7 @@ export async function handleVideoGeneration(prompt: any, conversationId: string,
       prompt: prompt,
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleVideoGeneration error:', error.message);
     return jsonResponse({ error: 'Error generando video', details: error.message }, 500, corsHeaders);
   }
@@ -269,7 +269,7 @@ export async function handleSaveVideoAvatarCharacter(request: Request, env: Env,
 
     const character = await saveVideoAvatarCharacter(userDni, name, imageBuffer, env);
     return jsonResponse({ success: true, character }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleSaveVideoAvatarCharacter error:', error.message);
     return jsonResponse({ error: 'Error al guardar personaje', details: error.message }, 500, corsHeaders);
   }
@@ -287,7 +287,7 @@ export async function handleListVideoAvatarCharacters(request: Request, env: Env
     `).bind(userDni.toUpperCase()).all<any>();
 
     return jsonResponse({ characters: results || [] }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleListVideoAvatarCharacters error:', error.message);
     return jsonResponse({ error: 'Error al obtener personajes', details: error.message }, 500, corsHeaders);
   }
@@ -316,7 +316,7 @@ export async function handleDeleteVideoAvatarCharacter(request: Request, env: En
     ).bind(id, userDni.toUpperCase()).run();
 
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleDeleteVideoAvatarCharacter error:', error.message);
     return jsonResponse({ error: 'Error al eliminar personaje', details: error.message }, 500, corsHeaders);
   }
@@ -466,7 +466,7 @@ export async function handleVideoAvatarGeneration(request: Request, env: Env, co
         const saved = await saveVideoAvatarCharacter(userDni, character_name, imageBuffer, env);
         characterInfo = saved;
         imageSource = origin + saved.image_url;
-      } catch (saveErr) {
+      } catch (saveErr: any) {
         console.warn('⚠️ No se pudo guardar el personaje, se usará la imagen directamente:', saveErr.message);
         imageSource = rawSource;
       }
@@ -538,7 +538,7 @@ export async function handleVideoAvatarGeneration(request: Request, env: Env, co
       character: characterInfo,
     }, 202, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleVideoAvatarGeneration error:', error.message);
     return jsonResponse({ error: 'Error generando vídeo avatar', details: error.message }, 500, corsHeaders);
   }
@@ -675,7 +675,7 @@ export async function handleAdvancedVideoGeneration(request: Request, env: Env, 
       character: characterInfo,
     }, 202, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ handleAdvancedVideoGeneration (${kind}) error:`, error.message);
     return jsonResponse({ error: 'Error generando el vídeo', details: error.message }, 500, corsHeaders);
   }
@@ -722,7 +722,7 @@ export async function handleGetVideoAvatarJob(request: Request, env: Env, corsHe
     const result = await checkAndFinalizeVideoAvatarJob(job, userDni, env);
     return jsonResponse({ ...result, character: characterPayload, kind }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleGetVideoAvatarJob error:', error.message);
     return jsonResponse({ error: 'Error al consultar el trabajo', details: error.message }, 500, corsHeaders);
   }
@@ -834,7 +834,7 @@ async function checkAndFinalizeVideoAvatarJob(job: any, userDni: string, env: En
           advancedConfig ? advancedConfig.label : '🗣️ Vídeo avatar',
           videoUrl.substring(0, 4000)
         ).run();
-      } catch (histErr) {
+      } catch (histErr: any) {
         console.warn(`⚠️ [job ${job.id}] No se pudo guardar en historial:`, histErr.message);
       }
 
@@ -853,7 +853,7 @@ async function checkAndFinalizeVideoAvatarJob(job: any, userDni: string, env: En
     // Todavía procesando (starting/processing/etc.)
     return { status: 'pending', video_url: null, error: null };
 
-  } catch (pollErr) {
+  } catch (pollErr: any) {
     console.error(`❌ [job ${job.id}] error consultando Pruna:`, pollErr.message);
     // Si el fallo ocurrió después de reclamar el job, hay que devolverlo a
     // 'pending' o se quedaría en 'finalizing' y el cron (que solo mira
@@ -923,7 +923,7 @@ export async function finalizePendingVideoAvatarJobs(env: Env) {
         console.log(`[Scheduled] Job ${job.id} → ${result.status}`);
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ finalizePendingVideoAvatarJobs error:', error.message);
   }
 }

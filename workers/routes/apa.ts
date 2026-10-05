@@ -69,7 +69,7 @@ export async function handleApaUpload(request: Request, env: Env, corsHeaders: R
       fileName: file.name
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[APA Upload] Error:', error);
     return jsonResponse({ error: 'Upload failed', message: error.message }, 500, corsHeaders);
   }
@@ -108,7 +108,7 @@ export async function handleApaDownload(fileId: string, request: Request, env: E
     headers.set('Cache-Control', 'private, no-store');
 
     return new Response(object.body, { headers });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[APA Download] Error:', error);
     return jsonResponse({ error: 'Download failed', message: error.message }, 500, corsHeaders);
   }
@@ -143,7 +143,7 @@ export async function handleApaHistory(request: Request, env: Env, corsHeaders: 
       }))
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[APA History] Error:', error);
     return jsonResponse({ error: 'History fetch failed', message: error.message }, 500, corsHeaders);
   }
@@ -163,7 +163,7 @@ export async function handleApaDelete(fileId: string, request: Request, env: Env
     await env.MIRAI_AI_ASSETS.delete(`apa/${fileId}`);
     await env.MIRAI_AI_DB.prepare('DELETE FROM apa_files WHERE id = ?').bind(fileId).run();
     return jsonResponse({ success: true, message: 'Archivo eliminado correctamente' }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[APA Delete] Error:', error);
     return jsonResponse({ error: 'Delete failed', message: error.message }, 500, corsHeaders);
   }

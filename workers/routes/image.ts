@@ -103,7 +103,7 @@ async function generateAndStoreImage(prompt: any, conversationId: string, env: E
     });
     return imageUrl;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en generateAndStoreImage:', error.message);
     throw error;
   }
@@ -174,7 +174,7 @@ export async function handleImageEdit(request: Request, env: Env, corsHeaders: R
       prompt: prompt,
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleImageEdit error:', error.message);
     return jsonResponse({
       error: 'Error al editar imagen: ' + error.message,
@@ -276,7 +276,7 @@ export async function handleImageUpscale(request: Request, env: Env, corsHeaders
       target_megapixels: targetMegapixels,
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleImageUpscale error:', error.message);
     return jsonResponse({ error: 'Error al mejorar la imagen: ' + error.message }, 500, corsHeaders);
   }
@@ -320,7 +320,7 @@ export async function handleImageJudge(request: Request, env: Env, corsHeaders: 
       scores,
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleImageJudge error:', error.message);
     return jsonResponse({ error: 'Error al evaluar la imagen: ' + error.message }, 500, corsHeaders);
   }
@@ -336,7 +336,7 @@ export async function handleRoutedImageGeneration(prompt: any, originalMessage: 
     let imageUrl;
     try {
       imageUrl = await generateAndStoreImage(prompt, conversationId, env, { ...imageOptions, user_dni: userDni });
-    } catch (imageError) {
+    } catch (imageError: any) {
       const isBlocked = imageError.message.includes('safety') ||
         imageError.message.includes('flagged') ||
         imageError.message.includes('blocked') ||
@@ -397,7 +397,7 @@ export async function handleRoutedImageGeneration(prompt: any, originalMessage: 
       prompt: prompt
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleRoutedImageGeneration error:', error.message);
     return jsonResponse({ error: 'Error generando imagen', details: error.message }, 500, corsHeaders);
   }

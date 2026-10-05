@@ -108,7 +108,7 @@ export async function handleCodeChatCreate(request: Request, env: Env, corsHeade
         updated_at: now,
       },
     }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[CodeChat] Error al crear chat:', error);
     return jsonResponse({ error: 'Error al crear chat', details: error.message }, 500, corsHeaders);
   }

@@ -140,7 +140,7 @@ export async function mirrorCreateSession(request: Request, env: Env, corsHeader
       await env.MIRAI_AI_DB.prepare(
         `INSERT INTO photo_sessions (session_id, image_count, created_at, user_dni) VALUES (?, 0, ?, ?)`
       ).bind(sessionId, new Date().toISOString(), userDni.toUpperCase()).run();
-    } catch (e) {
+    } catch (e: any) {
       console.error('D1 session insert error:', e.message);
       return jsonResponse({ success: false, error: 'No se pudo crear la sesión' }, 500, corsHeaders);
     }
@@ -233,7 +233,7 @@ export async function mirrorUploadImage(request: Request, env: Env, corsHeaders:
     await env.MIRAI_AI_DB.prepare(
       `UPDATE photo_sessions SET image_count = image_count + 1 WHERE session_id = ?`
     ).bind(sessionId).run();
-  } catch (e) {
+  } catch (e: any) {
     console.warn('D1 insert error:', e.message);
   }
 
@@ -503,7 +503,7 @@ async function streamMirrorZip(env: Env, manifest: any[], writable: WritableStre
     }
 
     await writer.close();
-  } catch (error) {
+  } catch (error: any) {
     // A estas alturas el navegador ya recibio el 200 y parte del ZIP: no hay
     // forma de convertir esto en un error HTTP. Se aborta el stream para que la
     // descarga salga marcada como fallida en vez de entregar un ZIP truncado
@@ -624,7 +624,7 @@ async function extractEXIFDate(file: File) {
         if (m) return `${m[1]}-${m[2]}-${m[3]}`;
       }
     }
-  } catch (e) {
+  } catch (e: any) {
     console.warn('EXIF read error:', e.message);
   }
   return null;
@@ -688,7 +688,7 @@ async function extractVideoDate(file: File) {
       const tail = new Uint8Array(await file.slice(Math.max(0, file.size - WINDOW)).arrayBuffer());
       return scan(tail);
     }
-  } catch (e) {
+  } catch (e: any) {
     console.warn('Video date read error:', e.message);
   }
   return null;

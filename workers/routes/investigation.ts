@@ -54,7 +54,7 @@ export async function handleInvestigationSearch(request: Request, env: Env, cors
   try {
     exaResults = await searchWithExa(question, env);
     console.log(`✅ [Investigation] Exa devolvió ${exaResults.length} URLs`);
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [Investigation] Error en Exa:', err.message);
     return jsonResponse({ error: 'No se pudo realizar la búsqueda. Intenta de nuevo.' }, 502, corsHeaders);
   }
@@ -68,7 +68,7 @@ export async function handleInvestigationSearch(request: Request, env: Env, cors
   try {
     scrapedContents = await scrapeAllUrls(exaResults, env);
     console.log(`✅ [Investigation] Firecrawl obtuvo contenido de ${scrapedContents.size} páginas`);
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [Investigation] Error en Firecrawl:', err.message);
     // No es fatal: si falla el scraping usamos los highlights de Exa como fallback
   }
@@ -108,7 +108,7 @@ export async function handleInvestigationSearch(request: Request, env: Env, cors
   try {
     summary = await generateResearchSummary(question, contextBlocks, citationIds, env);
     console.log(`✅ [Investigation] Resumen generado (${summary.length} caracteres)`);
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [Investigation] Error en DeepSeek:', err.message);
     return jsonResponse({ error: 'No se pudo generar el resumen. Intenta de nuevo.' }, 502, corsHeaders);
   }
@@ -144,7 +144,7 @@ export async function handleInvestigationSearch(request: Request, env: Env, cors
       summary.substring(0, 8000),
       JSON.stringify(sources).substring(0, 8000)
     ).run();
-  } catch (err) {
+  } catch (err: any) {
     console.error('⚠️ [Investigation] Error al guardar historial:', err.message);
   }
 
@@ -190,7 +190,7 @@ export async function handleInvestigationHistoryList(request: Request, env: Env,
     }));
 
     return jsonResponse({ history: items }, 200, corsHeaders);
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [Investigation] Error al listar historial:', err.message);
     return jsonResponse({ error: 'Error al cargar historial.' }, 500, corsHeaders);
   }
@@ -224,7 +224,7 @@ export async function handleInvestigationHistoryDelete(request: Request, env: En
     `).bind(id, userDni.toUpperCase()).run();
 
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [Investigation] Error al eliminar historial:', err.message);
     return jsonResponse({ error: 'Error al eliminar.' }, 500, corsHeaders);
   }
@@ -362,7 +362,7 @@ async function scrapeAllUrls(exaResults: any[], env: Env) {
       const data: any = await res.json<any>();
       await logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
       return { url, markdown: data?.data?.markdown || null };
-    } catch (err) {
+    } catch (err: any) {
       console.warn(`⚠️ Firecrawl error [${url}]:`, err.message);
       return { url, markdown: null };
     }
