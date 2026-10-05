@@ -1,0 +1,174 @@
+// Estilos globales de la app Quasar.
+//
+// Los tokens son los mismos que define public/login-styles.css (Material You).
+// Mientras convivan páginas viejas y nuevas, un cambio de paleta hay que
+// hacerlo en los dos sitios.
+
+:root {
+  --primary: #6750A4;
+  --primary-container: #EADDFF;
+  --on-primary: #FFFFFF;
+  --on-primary-container: #21005D;
+
+  --secondary: #625B71;
+  --secondary-container: #E8DEF8;
+
+  --tertiary: #7D5260;
+  --tertiary-container: #FFD8E4;
+
+  --surface: #FEF7FF;
+  --surface-variant: #E7E0EC;
+  --on-surface: #1C1B1F;
+  --on-surface-variant: #49454F;
+
+  --outline: #79747E;
+  --outline-variant: #CAC4D0;
+
+  --error: #B3261E;
+  --error-container: #F9DEDC;
+  --success: #006A4A;
+  --success-container: #D0FADF;
+
+  --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+  --transition-normal: 250ms cubic-bezier(0.2, 0, 0, 1);
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+}
+
+body {
+  background: var(--surface);
+  color: var(--on-surface);
+}
+
+// Mensajes de error / éxito en línea (mismo aspecto que .error-message /
+// .success-message de las páginas antiguas).
+.app-message {
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  animation: app-shake 0.4s ease;
+
+  &--error {
+    background: var(--error-container);
+    color: var(--error);
+    border-left: 4px solid var(--error);
+  }
+
+  &--success {
+    background: var(--success-container);
+    color: var(--success);
+    border-left: 4px solid var(--success);
+  }
+}
+
+@keyframes app-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+// Campo de texto con el aspecto de .input-field: borde de 2px, radio 12px y
+// fondo primary-container al enfocar. Se aplica a QInput con la clase app-input.
+.app-input {
+  .q-field__control {
+    min-height: 54px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+
+    &::before {
+      border: 2px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+    }
+
+    &::after {
+      border-radius: var(--radius-md);
+    }
+  }
+
+  &.q-field--focused .q-field__control {
+    background: var(--primary-container);
+    box-shadow: 0 0 0 4px rgba(103, 80, 164, 0.12);
+  }
+
+  .q-field__native {
+    font-size: 16px;
+    color: var(--on-surface);
+
+    &::placeholder {
+      color: var(--outline);
+      opacity: 1;
+    }
+  }
+
+  .q-field__prepend {
+    font-size: 18px;
+    opacity: 0.6;
+  }
+
+  &.q-field--focused .q-field__prepend {
+    opacity: 1;
+  }
+}
+
+// Botón principal (.btn .btn-primary).
+.app-btn-primary {
+  min-height: 48px;
+  border-radius: var(--radius-lg);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: normal;
+
+  &:not(.disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
+  }
+
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+// Enlace con subrayado animado (.link).
+.app-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  position: relative;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--primary);
+    transition: width var(--transition-normal);
+  }
+
+  &:hover {
+    color: #473685;
+
+    &::after {
+      width: 100%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-message,
+  .app-shake {
+    animation: none !important;
+  }
+}
