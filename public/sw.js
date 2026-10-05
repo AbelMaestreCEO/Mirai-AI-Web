@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v319'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v320'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -18,7 +18,6 @@ const HTML_PAGES = [
   '/diet',
   '/format',
   '/generation',
-  '/',
   '/inventory',
   '/investigation',
   '/location',
@@ -27,7 +26,6 @@ const HTML_PAGES = [
   '/projects',
   '/report',
   '/report_admin',
-  '/settings',
   '/task',
 ];
 
@@ -37,6 +35,7 @@ const HTML_PAGES = [
 const MIGRATED_PAGES = new Set([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
+  'index', 'settings',
 ]);
 
 // ─── Assets estáticos a precargar ───────────────────────────────────────────
@@ -183,7 +182,7 @@ self.addEventListener('fetch', event => {
   // URL antiguas de páginas ya migradas a /app/: el Worker las redirige. No
   // hay nada que cachear y una redirección dentro de respondWith() es fácil de
   // romper (ver más abajo), así que se dejan pasar sin tocar.
-  const legacySlug = url.pathname.replace(/^\/+/, '').replace(/\.html$/, '');
+  const legacySlug = url.pathname.replace(/^\/+/, '').replace(/\.html$/, '') || 'index';
   if (MIGRATED_PAGES.has(legacySlug)) return;
 
   // App Quasar (/app/): su index.html apunta a archivos con hash que cambian en

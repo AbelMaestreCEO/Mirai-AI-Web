@@ -9,6 +9,7 @@
 export const MIGRATED = new Set<string>([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
+  'index', 'settings',
 ]);
 
 export function isMigrated(slug: string): boolean {

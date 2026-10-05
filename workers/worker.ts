@@ -29,6 +29,7 @@ const ANDROID_ASSET_LINKS = [{
 const MIGRATED_PAGES = new Set([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
+  'index', 'settings',
 ]);
 
 // --- HANDLER PRINCIPAL ---
@@ -59,9 +60,10 @@ export default {
       // /reset-password.html?token=..., enlaces de las páginas que aún no se
       // han migrado) se redirige a la nueva conservando la query. Su .html se
       // ha borrado de public/, así que estas peticiones llegan al Worker.
-      const legacySlug = path.replace(/^\/+/, '').replace(/\.html$/, '');
+      const legacySlug = path.replace(/^\/+/, '').replace(/\.html$/, '') || 'index';
       if (MIGRATED_PAGES.has(legacySlug)) {
-        return Response.redirect(new URL(`/app/${legacySlug}${url.search}`, url).toString(), 302);
+        const target = legacySlug === 'index' ? '/app/' : `/app/${legacySlug}`;
+        return Response.redirect(new URL(`${target}${url.search}`, url).toString(), 302);
       }
 
       // App Quasar (frontend/, compilada a public/app/). Workers Assets ya ha

@@ -29,6 +29,7 @@ def parts(path):
     body = body[body.index('>') + 1:body.rindex('</body>')]
     body = re.sub(r'<nav class="mobile-sidebar"[\s\S]*?</nav>', '', body)
     body = re.sub(r'<div class="mobile-overlay"></div>', '', body)
+    body = re.sub(r'<script>\s*document\.write\(new Date\(\)\.getFullYear\(\)\)\s*</script>', '{{ year }}', body)
     scripts_inline = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', body)
     scripts_src = re.findall(r'<script[^>]*\bsrc="([^"]+)"', s)
     body = re.sub(r'<script[\s\S]*?</script>', '', body)
