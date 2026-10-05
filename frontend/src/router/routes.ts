@@ -22,6 +22,10 @@ const routes: RouteRecordRaw[] = [
       },
       { path: 'chat', name: 'chat', component: () => import('@/pages/ChatPage.vue'), meta: { title: 'Mirai AI - Chat' } },
       { path: 'code', name: 'code', component: () => import('@/pages/CodePage.vue'), meta: { title: 'Mirai AI - Code' } },
+      { path: 'format', name: 'format', component: () => import('@/pages/FormatPage.vue'), meta: { title: 'Mirai AI - Formatos DOCX' } },
+      { path: 'investigation', name: 'investigation', component: () => import('@/pages/InvestigationPage.vue'), meta: { title: 'Mirai AI - Investigador' } },
+      { path: 'generation', name: 'generation', component: () => import('@/pages/GenerationPage.vue'), meta: { title: 'Mirai AI - Generación IA' } },
+      { path: 'apa', name: 'apa', component: () => import('@/pages/ApaPage.vue'), meta: { title: 'Mirai AI - Formato APA' } },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Mirai AI - Configuración' } },
       { path: 'purchase', name: 'purchase', component: () => import('@/pages/PurchasePage.vue'), meta: { title: 'Mirai AI - Planes' } },
       {

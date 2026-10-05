@@ -4,6 +4,8 @@
 // cargaba chat.html desde cdnjs, pero ahora solo se descargan la primera vez
 // que se adjunta un archivo de ese tipo.
 
+import { MAMMOTH_SRC, loadGlobal } from './cdn';
+
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const SUPPORTED_FORMATS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'];
 export const FILE_ACCEPT = SUPPORTED_FORMATS.map((f) => `.${f}`).join(',');
@@ -11,7 +13,6 @@ export const FILE_ACCEPT = SUPPORTED_FORMATS.map((f) => `.${f}`).join(',');
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs';
 const PDFJS = `${CDN}/pdf.js/3.11.174/pdf.min.js`;
 const PDFJS_WORKER = `${CDN}/pdf.js/3.11.174/pdf.worker.min.js`;
-const MAMMOTH = `${CDN}/mammoth/1.6.0/mammoth.browser.min.js`;
 const XLSX_LIB = `${CDN}/xlsx/0.18.5/xlsx.full.min.js`;
 const JSZIP = `${CDN}/jszip/3.10.1/jszip.min.js`;
 
@@ -37,42 +38,15 @@ interface JsZipInstance {
 }
 type JsZipCtor = new () => JsZipInstance;
 
-declare global {
-  interface Window {
-    pdfjsLib?: PdfJs;
-    mammoth?: Mammoth;
-    XLSX?: SheetJs;
-    JSZip?: JsZipCtor;
-  }
+async function lib<K extends 'pdfjsLib' | 'mammoth' | 'XLSX' | 'JSZip'>(name: K, src: string): Promise<LibTypes[K]> {
+  return loadGlobal<LibTypes[K]>(name, src);
 }
 
-const loading = new Map<string, Promise<void>>();
-
-function loadScript(src: string): Promise<void> {
-  let p = loading.get(src);
-  if (!p) {
-    p = new Promise<void>((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => {
-        loading.delete(src);
-        s.remove();
-        reject(new Error(`No se pudo cargar ${src}`));
-      };
-      document.head.appendChild(s);
-    });
-    loading.set(src, p);
-  }
-  return p;
-}
-
-async function lib<K extends 'pdfjsLib' | 'mammoth' | 'XLSX' | 'JSZip'>(name: K, src: string): Promise<NonNullable<Window[K]>> {
-  if (!window[name]) await loadScript(src);
-  const value = window[name];
-  if (!value) throw new Error(`${name} no disponible`);
-  return value as NonNullable<Window[K]>;
+interface LibTypes {
+  pdfjsLib: PdfJs;
+  mammoth: Mammoth;
+  XLSX: SheetJs;
+  JSZip: JsZipCtor;
 }
 
 export function fileExtension(name: string): string {
@@ -108,7 +82,7 @@ async function textFromPdf(file: File): Promise<string> {
 }
 
 async function textFromDocx(file: File): Promise<string> {
-  const mammoth = await lib('mammoth', MAMMOTH);
+  const mammoth = await lib('mammoth', MAMMOTH_SRC);
   return (await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })).value;
 }
 

@@ -1,0 +1,258 @@
+/* CSS de public/format.html que iba antes de styles.css, limitado a la página. */
+/* Únicos estilos nuevos estrictamente necesarios para Format */
+
+/* Zona de subida — variante sin fondo hover ya que upload-zone
+ en styles.css usa var(--surface-hover) que puede no existir */
+:where(body[data-page="format"]) .fmt-upload-zone {
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--border-radius-md);
+  padding: 36px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: var(--message-user-bg);
+}
+
+:where(body[data-page="format"]) .fmt-upload-zone:hover,
+:where(body[data-page="format"]) .fmt-upload-zone.drag-over {
+  border-color: var(--accent-color);
+  background: var(--accent-glow);
+}
+
+/* Barra de progreso — no existe en styles.css */
+:where(body[data-page="format"]) .fmt-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--glass-border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+:where(body[data-page="format"]) .fmt-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-gradient);
+  border-radius: 99px;
+  transition: width 0.4s var(--ease-smooth);
+}
+
+/* Fila de progreso */
+:where(body[data-page="format"]) .fmt-progress-row {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--glass-shadow);
+  margin-bottom: 20px;
+}
+
+:where(body[data-page="format"]) .fmt-progress-label {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* Fila de estado */
+:where(body[data-page="format"]) .fmt-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: 10px 0 2px;
+}
+
+/* Lista de archivos — variante compacta */
+:where(body[data-page="format"]) .fmt-file-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:where(body[data-page="format"]) .fmt-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--secondary-container);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+:where(body[data-page="format"]) .fmt-file-size {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  margin-left: 6px;
+}
+
+/* Checkboxes de estilos */
+:where(body[data-page="format"]) .fmt-style-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+:where(body[data-page="format"]) .fmt-style-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+:where(body[data-page="format"]) .fmt-style-check input {
+  accent-color: var(--accent-color);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Tabla de reglas */
+:where(body[data-page="format"]) .fmt-rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+:where(body[data-page="format"]) .fmt-rules-table th {
+  text-align: left;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+:where(body[data-page="format"]) .fmt-rules-table td {
+  padding: 8px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--glass-border);
+  vertical-align: middle;
+}
+
+:where(body[data-page="format"]) .fmt-rules-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badges B / I / U */
+:where(body[data-page="format"]) .fmt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  margin-right: 3px;
+  font-weight: 700;
+}
+
+:where(body[data-page="format"]) .fmt-badge-b {
+  background: var(--secondary-container);
+  color: var(--accent-color);
+}
+
+:where(body[data-page="format"]) .fmt-badge-i {
+  background: var(--tertiary-container);
+  color: var(--tertiary-color);
+  font-style: italic;
+}
+
+:where(body[data-page="format"]) .fmt-badge-u {
+  background: var(--message-user-bg);
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* Botón quitar elemento — igual que en inventory */
+:where(body[data-page="format"]) .btn-fmt-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+  line-height: 1;
+}
+
+:where(body[data-page="format"]) .btn-fmt-remove:hover {
+  color: #D00000;
+  background: rgba(208, 0, 0, 0.08);
+}
+
+/* Grid de dos columnas para el área de trabajo.
+ Mismo ancho máximo y centrado que `.courses-grid`, para que las
+ columnas queden alineadas con el hero, el buscador y el contador. */
+:where(body[data-page="format"]) .fmt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px 60px;
+}
+
+@media (max-width: 900px) {
+  :where(body[data-page="format"]) .fmt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* La barra de progreso comparte el mismo ancho que el resto */
+:where(body[data-page="format"]) .fmt-progress-row {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Tarjetas: idénticas a las de courses.html ──────────────────────
+ `.course-card` ya aporta el fondo, el borde, el radio y la sombra.
+ Aquí sólo se anulan los efectos pensados para tarjetas clicables:
+ estas columnas contienen formularios, así que ni se elevan al pasar
+ el ratón ni muestran la franja de acento superior (`::before`), que
+ es de donde salía la línea que aparecía encima de los cuadros. */
+:where(body[data-page="format"]) .fmt-grid .course-card {
+  padding: 28px 24px 24px;
+  cursor: default;
+}
+
+:where(body[data-page="format"]) .fmt-grid .course-card:hover {
+  transform: none;
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+:where(body[data-page="format"]) .fmt-grid .course-card::before {
+  display: none;
+}
+
+/* En courses la descripción crece para empujar el botón al pie; aquí
+ es sólo el subtítulo de la columna y debe ocupar su altura natural. */
+:where(body[data-page="format"]) .fmt-grid .course-card>.course-description {
+  flex: none;
+}
+
+/* Estadísticas de columna */
+:where(body[data-page="format"]) .fmt-col-stats {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}

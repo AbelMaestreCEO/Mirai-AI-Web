@@ -11,7 +11,8 @@ import type { Router } from 'vue-router';
 export const MIGRATED = new Set<string>([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings', 'chat', 'code',
+  'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
+  'apa',
 ]);
 
 export function isMigrated(slug: string): boolean {
