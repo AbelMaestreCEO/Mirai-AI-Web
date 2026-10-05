@@ -1,73 +1,46 @@
 // Estilos globales de la app Quasar.
 //
-// Los tokens son los mismos que define public/login-styles.css (Material You).
-// Mientras convivan páginas viejas y nuevas, un cambio de paleta hay que
-// hacerlo en los dos sitios.
+// Orden de carga: Quasar → este archivo → public/styles.css (boot/legacy-styles).
+// styles.css es la hoja de siempre de la app y manda sobre todo lo de aquí; las
+// páginas migradas usan sus mismas clases para verse igual que las antiguas.
 
-:root {
-  --primary: #6750A4;
-  --primary-container: #EADDFF;
-  --on-primary: #FFFFFF;
-  --on-primary-container: #21005D;
+@import './auth.scss';
 
-  --secondary: #625B71;
-  --secondary-container: #E8DEF8;
-
-  --tertiary: #7D5260;
-  --tertiary-container: #FFD8E4;
-
-  --surface: #FEF7FF;
-  --surface-variant: #E7E0EC;
-  --on-surface: #1C1B1F;
-  --on-surface-variant: #49454F;
-
-  --outline: #79747E;
-  --outline-variant: #CAC4D0;
-
-  --error: #B3261E;
-  --error-container: #F9DEDC;
-  --success: #006A4A;
-  --success-container: #D0FADF;
-
-  --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
-  --transition-normal: 250ms cubic-bezier(0.2, 0, 0, 1);
-
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 28px;
+// Quasar trae tipografía propia para h1–h6 y p (h1 de 6rem, márgenes en p…).
+// Las páginas antiguas contaban con los valores del navegador, así que se
+// devuelven a esos antes de que entre styles.css.
+h1, h2, h3, h4, h5, h6 {
+  font-size: revert;
+  font-weight: revert;
+  line-height: revert;
+  letter-spacing: normal;
+  margin: revert;
 }
 
-body {
-  background: var(--surface);
-  color: var(--on-surface);
+p {
+  margin: revert;
 }
 
-// Mensajes de error / éxito en línea (mismo aspecto que .error-message /
-// .success-message de las páginas antiguas).
+// ── Ayudantes compartidos (sobre todo para las páginas de cuenta) ────────
+
+// Mensajes de error / éxito en línea (aspecto de .error-message / .success-message).
 .app-message {
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
+  padding: 16px;
+  border-radius: 12px;
   font-size: 14px;
   font-weight: 500;
   animation: app-shake 0.4s ease;
 
   &--error {
-    background: var(--error-container);
-    color: var(--error);
-    border-left: 4px solid var(--error);
+    background: var(--error-container, #F9DEDC);
+    color: var(--error, #B3261E);
+    border-left: 4px solid var(--error, #B3261E);
   }
 
   &--success {
-    background: var(--success-container);
-    color: var(--success);
-    border-left: 4px solid var(--success);
+    background: var(--success-container, #D0FADF);
+    color: var(--success, #006A4A);
+    border-left: 4px solid var(--success, #006A4A);
   }
 }
 
@@ -77,46 +50,50 @@ body {
   75% { transform: translateX(8px); }
 }
 
-// Campo de texto con el aspecto de .input-field: borde de 2px, radio 12px y
-// fondo primary-container al enfocar. Se aplica a QInput con la clase app-input.
+// QInput con el aspecto de .input-field: borde de 2px, radio 12px y fondo
+// primary-container al enfocar.
 .app-input {
   .q-field__control {
     min-height: 54px;
-    border-radius: var(--radius-md);
-    background: var(--surface);
-    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+    border-radius: 12px;
+    background: var(--surface, #FEF7FF);
+    transition: background 150ms cubic-bezier(0.2, 0, 0, 1), box-shadow 150ms cubic-bezier(0.2, 0, 0, 1);
 
     &::before {
-      border: 2px solid var(--outline-variant);
-      border-radius: var(--radius-md);
+      border: 2px solid var(--outline-variant, #CAC4D0);
+      border-radius: 12px;
     }
 
     &::after {
-      border-radius: var(--radius-md);
+      border-radius: 12px;
     }
   }
 
   &.q-field--focused .q-field__control {
-    background: var(--primary-container);
+    background: var(--primary-container, #EADDFF);
     box-shadow: 0 0 0 4px rgba(103, 80, 164, 0.12);
   }
 
-  .q-field__native {
+  .q-field__native,
+  .q-field__input {
     font-size: 16px;
-    color: var(--on-surface);
+    color: var(--on-surface, #1C1B1F);
 
     &::placeholder {
-      color: var(--outline);
+      color: var(--outline, #79747E);
       opacity: 1;
     }
   }
 
   .q-field__prepend {
     font-size: 18px;
+  }
+
+  .q-field__prepend > .app-input-icon {
     opacity: 0.6;
   }
 
-  &.q-field--focused .q-field__prepend {
+  &.q-field--focused .q-field__prepend > .app-input-icon {
     opacity: 1;
   }
 }
@@ -124,27 +101,26 @@ body {
 // Botón principal (.btn .btn-primary).
 .app-btn-primary {
   min-height: 48px;
-  border-radius: var(--radius-lg);
+  border-radius: 16px;
   font-size: 16px;
   font-weight: 500;
   letter-spacing: normal;
+  transition: transform 150ms cubic-bezier(0.2, 0, 0, 1), box-shadow 150ms cubic-bezier(0.2, 0, 0, 1);
 
   &:not(.disabled):hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
   }
-
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 // Enlace con subrayado animado (.link).
 .app-link {
-  color: var(--primary);
+  color: var(--primary, #6750A4);
   text-decoration: none;
   font-weight: 500;
   position: relative;
   cursor: pointer;
-  transition: color var(--transition-fast);
+  transition: color 150ms cubic-bezier(0.2, 0, 0, 1);
 
   &::after {
     content: '';
@@ -153,8 +129,8 @@ body {
     left: 0;
     width: 0;
     height: 2px;
-    background: var(--primary);
-    transition: width var(--transition-normal);
+    background: var(--primary, #6750A4);
+    transition: width 250ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   &:hover {
@@ -167,8 +143,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-message,
-  .app-shake {
+  .app-message {
     animation: none !important;
   }
 }

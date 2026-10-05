@@ -15,6 +15,8 @@ export interface ApiResult<T> {
   data: T;
 }
 
+let sessionExpiredShown = false;
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<ApiResult<T>> {
   const init: RequestInit = { method, credentials: 'same-origin' };
   if (body !== undefined) {
@@ -22,6 +24,12 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     init.body = JSON.stringify(body);
   }
   const res = await fetch(path, init);
+  // Igual que el fetch envuelto de app.js: un 401 en mitad de la app es una
+  // sesión caducada; se avisa una sola vez (no en /api/me ni /api/login).
+  if (res.status === 401 && !path.startsWith('/api/me') && !path.startsWith('/api/login') && !sessionExpiredShown) {
+    sessionExpiredShown = true;
+    alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión y vuelve a iniciar sesión.');
+  }
   // Algunas rutas responden sin cuerpo JSON (p. ej. un 502 de la plataforma).
   const data = (await res.json().catch(() => ({}))) as T;
   return { ok: res.ok, status: res.status, data };

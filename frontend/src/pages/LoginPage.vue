@@ -27,7 +27,7 @@
               :rules="[required]"
               lazy-rules="ondemand"
             >
-              <template #prepend>📧</template>
+              <template #prepend><span class="app-input-icon">📧</span></template>
             </q-input>
           </div>
 
@@ -45,7 +45,7 @@
               :rules="[required]"
               lazy-rules="ondemand"
             >
-              <template #prepend>🔒</template>
+              <template #prepend><span class="app-input-icon">🔒</span></template>
             </q-input>
           </div>
 
@@ -72,7 +72,7 @@
 
     <!-- Recuperación de contraseña -->
     <q-dialog v-model="recoveryOpen" @hide="resetRecovery">
-      <div class="modal-card">
+      <div class="auth-dialog">
         <button type="button" class="modal-close" aria-label="Cerrar" @click="recoveryOpen = false">&times;</button>
         <div class="modal-header">
           <span class="modal-icon">📧</span>
@@ -98,7 +98,7 @@
               :rules="[required]"
               lazy-rules="ondemand"
             >
-              <template #prepend>📧</template>
+              <template #prepend><span class="app-input-icon">📧</span></template>
             </q-input>
           </div>
 
@@ -237,211 +237,3 @@ async function onRecovery() {
   }
 }
 </script>
-
-<style scoped lang="scss">
-// Mismo diseño que public/login-styles.css (.auth-wrapper, .auth-card...).
-
-.auth-page {
-  padding: var(--spacing-md);
-  background: var(--surface);
-}
-
-.auth-wrapper {
-  width: 100%;
-  max-width: 480px;
-  animation: fade-in-up 0.5s ease-out;
-}
-
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.auth-card {
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl);
-  box-shadow: 0 4px 24px rgba(103, 80, 164, 0.12);
-  border: 1px solid var(--outline-variant);
-  position: relative;
-  overflow: hidden;
-
-  // Barra decorativa superior.
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 50%, var(--tertiary) 100%);
-  }
-}
-
-.auth-header {
-  text-align: center;
-  margin-bottom: var(--spacing-xl);
-
-  h1 {
-    color: var(--on-surface);
-    font-size: 28px;
-    font-weight: 500;
-    line-height: 1.3;
-    letter-spacing: normal;
-    margin: 0 0 var(--spacing-xs);
-  }
-}
-
-.logo-container {
-  width: 64px;
-  height: 64px;
-  background: var(--primary-container);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto var(--spacing-md);
-  transition: transform var(--transition-normal);
-
-  &:hover {
-    transform: scale(1.05) rotate(5deg);
-  }
-}
-
-.logo-icon {
-  font-size: 32px;
-}
-
-.subtitle {
-  color: var(--on-surface-variant);
-  font-size: 14px;
-  margin: 0;
-}
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-
-  label {
-    color: var(--on-surface-variant);
-    font-size: 14px;
-    font-weight: 500;
-  }
-}
-
-.app-shake {
-  animation: app-shake 0.4s ease;
-}
-
-.auth-footer {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--outline-variant);
-  font-size: 14px;
-  color: var(--on-surface-variant);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-  text-align: center;
-}
-
-.divider {
-  color: var(--outline);
-}
-
-.modal-card {
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl);
-  max-width: 440px;
-  width: 100%;
-  position: relative;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-.modal-close {
-  position: absolute;
-  top: var(--spacing-md);
-  right: var(--spacing-md);
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: var(--surface-variant);
-  border-radius: 50%;
-  font-size: 24px;
-  color: var(--on-surface-variant);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: var(--outline-variant);
-    color: var(--on-surface);
-    transform: rotate(90deg);
-  }
-}
-
-.modal-header {
-  text-align: center;
-  margin-bottom: var(--spacing-lg);
-
-  h2 {
-    color: var(--on-surface);
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 1.3;
-    letter-spacing: normal;
-    margin: 0 0 var(--spacing-xs);
-  }
-
-  p {
-    color: var(--on-surface-variant);
-    font-size: 14px;
-    margin: 0;
-  }
-}
-
-.modal-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: var(--spacing-md);
-}
-
-@media (max-width: 480px) {
-  .auth-card {
-    padding: var(--spacing-lg);
-    border-radius: var(--radius-lg);
-  }
-
-  .auth-header h1 {
-    font-size: 24px;
-  }
-
-  .logo-container {
-    width: 56px;
-    height: 56px;
-  }
-
-  .modal-card {
-    padding: var(--spacing-lg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .auth-wrapper,
-  .app-shake {
-    animation: none;
-  }
-}
-</style>
