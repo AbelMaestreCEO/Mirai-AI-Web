@@ -8,6 +8,7 @@
 // delegación (ver ChatPage.vue).
 
 import { detectLang, langLabel, normalizeLang } from './code-languages';
+import { highlightCode } from './highlight';
 
 const ASSETS_ORIGIN = 'https://aiassets.aberumirai.com/';
 
@@ -55,6 +56,7 @@ function codeBlockHtml(rawLang: string, rawCode: string): string {
   const code = unescapeIfEscaped(rawCode.replace(/\r?\n$/, ''));
   const lang = normalizeLang(rawLang) || detectLang(code) || 'plaintext';
   const safeLang = lang.replace(/[^\w-]/g, '');
+  const highlighted = lang === 'plaintext' ? null : highlightCode(code, lang);
   return `<div class="code-block-wrapper">
       <div class="code-header">
         <span class="code-lang">${CODE_ICON}<span>${escapeHtml(langLabel(lang))}</span></span>
@@ -63,7 +65,7 @@ function codeBlockHtml(rawLang: string, rawCode: string): string {
           <span>Copiar</span>
         </button>
       </div>
-      <pre class="code-block"><code class="language-${safeLang}">${escapeHtml(code)}</code></pre>
+      <pre class="code-block"><code class="${highlighted === null ? '' : 'hljs '}language-${safeLang}">${highlighted ?? escapeHtml(code)}</code></pre>
     </div>`;
 }
 

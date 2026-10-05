@@ -1785,6 +1785,124 @@ footer.footer {
   background: none;
 }
 
+/* --- Resaltado de sintaxis (clases de highlight.js) ---
+   Las palabras clave toman el color de acento; el resto son tonos fijos
+   mezclados con un poco de acento para que casen con el color elegido. */
+.code-block-wrapper {
+  --tk-keyword: color-mix(in oklab, var(--accent-color) 85%, #000000);
+  --tk-string: color-mix(in oklab, #1A7F45 85%, var(--accent-color));
+  --tk-number: color-mix(in oklab, #B4531A 85%, var(--accent-color));
+  --tk-function: color-mix(in oklab, #1D63B8 85%, var(--accent-color));
+  --tk-type: color-mix(in oklab, #9A3A82 85%, var(--accent-color));
+  --tk-attr: color-mix(in oklab, #0B7A84 85%, var(--accent-color));
+  --tk-meta: color-mix(in oklab, #8A6400 85%, var(--accent-color));
+  --tk-comment: var(--text-tertiary);
+  --tk-add-bg: rgba(26, 127, 69, 0.12);
+  --tk-del-bg: rgba(200, 30, 30, 0.10);
+}
+
+[data-theme="dark"] .code-block-wrapper {
+  --tk-keyword: var(--accent-color);
+  --tk-string: color-mix(in oklab, #9AD7A4 85%, var(--accent-color));
+  --tk-number: color-mix(in oklab, #F5B07A 85%, var(--accent-color));
+  --tk-function: color-mix(in oklab, #8CC4FF 85%, var(--accent-color));
+  --tk-type: color-mix(in oklab, #EBA6DA 85%, var(--accent-color));
+  --tk-attr: color-mix(in oklab, #7FD6DC 85%, var(--accent-color));
+  --tk-meta: color-mix(in oklab, #E6C774 85%, var(--accent-color));
+  --tk-add-bg: rgba(154, 215, 164, 0.12);
+  --tk-del-bg: rgba(255, 140, 140, 0.12);
+}
+
+.code-block .hljs-keyword,
+.code-block .hljs-selector-tag,
+.code-block .hljs-doctag,
+.code-block .hljs-operator {
+  color: var(--tk-keyword);
+}
+
+.code-block .hljs-keyword,
+.code-block .hljs-selector-tag {
+  font-weight: 600;
+}
+
+.code-block .hljs-string,
+.code-block .hljs-regexp,
+.code-block .hljs-char,
+.code-block .hljs-template-string {
+  color: var(--tk-string);
+}
+
+.code-block .hljs-number,
+.code-block .hljs-literal,
+.code-block .hljs-symbol,
+.code-block .hljs-bullet {
+  color: var(--tk-number);
+}
+
+.code-block .hljs-title,
+.code-block .hljs-title.function_,
+.code-block .hljs-section,
+.code-block .hljs-built_in {
+  color: var(--tk-function);
+}
+
+.code-block .hljs-type,
+.code-block .hljs-title.class_,
+.code-block .hljs-title.class_.inherited__,
+.code-block .hljs-class .hljs-title {
+  color: var(--tk-type);
+}
+
+.code-block .hljs-attr,
+.code-block .hljs-attribute,
+.code-block .hljs-property,
+.code-block .hljs-name,
+.code-block .hljs-selector-id,
+.code-block .hljs-selector-class,
+.code-block .hljs-selector-attr,
+.code-block .hljs-selector-pseudo,
+.code-block .hljs-variable,
+.code-block .hljs-template-variable {
+  color: var(--tk-attr);
+}
+
+.code-block .hljs-meta,
+.code-block .hljs-meta .hljs-keyword,
+.code-block .hljs-tag,
+.code-block .hljs-subst,
+.code-block .hljs-link {
+  color: var(--tk-meta);
+}
+
+.code-block .hljs-params,
+.code-block .hljs-punctuation {
+  color: var(--code-muted);
+}
+
+.code-block .hljs-comment,
+.code-block .hljs-quote {
+  color: var(--tk-comment);
+  font-style: italic;
+}
+
+.code-block .hljs-addition {
+  background: var(--tk-add-bg);
+  color: var(--tk-string);
+}
+
+.code-block .hljs-deletion {
+  background: var(--tk-del-bg);
+  color: color-mix(in oklab, #C62828 70%, var(--code-text));
+}
+
+.code-block .hljs-emphasis {
+  font-style: italic;
+}
+
+.code-block .hljs-strong {
+  font-weight: 700;
+}
+
 .code-block::-webkit-scrollbar {
   height: 8px;
 }

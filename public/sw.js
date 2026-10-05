@@ -1,10 +1,9 @@
-const CACHE_NAME = 'mirai-ai-v322'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v326'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
   // App Quasar (frontend/): las páginas ya migradas viven aquí.
   '/app/',
-  '/apa',
   '/api_usage_admin',
   '/attendance_admin',
   '/attendance',
@@ -14,10 +13,7 @@ const HTML_PAGES = [
   '/course_category',
   '/courses',
   '/diet',
-  '/format',
-  '/generation',
   '/inventory',
-  '/investigation',
   '/location',
   '/mirror',
   '/panel',
@@ -33,7 +29,8 @@ const HTML_PAGES = [
 const MIGRATED_PAGES = new Set([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings', 'chat', 'code',
+  'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
+  'apa',
 ]);
 
 // ─── Assets estáticos a precargar ───────────────────────────────────────────
@@ -45,48 +42,25 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192.png',
   
-  '/js/apa/abstract.js',
   '/app.js',
   '/app-mirror.js',
   '/attendance.js',
   '/attendance_admin.js',
   '/auth-guard.js',
-  '/js/apa/citations.js',
   '/classroom.js',
   '/classroom_admin.js',
   '/classroom_details.js',
-  '/js/utils/constants.js',
   '/courses.js',
-  '/js/processors/docxReader.js',
-  '/js/processors/docxWriter.js',
-  '/js/apa/figures.js',
-  '/js/fileHandler.js',
-  '/format.js',
-  '/generation.js',
-  '/js/apa/headers.js',
   '/inventory.js',
-  '/investigation.js',
   '/location.js',
-  '/js/apa/margins.js',
   '/mirai-boot.js',
   '/mirai-realtime.js',
   '/pwa.js',
-  '/js/utils/notifications.js',
-  '/js/apa/pageNumbers.js',
-  '/js/apa/paragraphs.js',
   '/projects.js',
-  '/js/apa/references.js',
   '/report.js',
   '/report_admin.js',
-  '/js/apa/spacing.js',
-  '/js/apa/tables.js',
   '/task.js',
-  '/js/utils/themeManager.js',
-  '/js/apa/titlePage.js',
   '/transitions.js',
-  '/js/apa/typography.js',
-  '/js/uiHandler.js',
-  '/js/utils/validators.js',
 ];
 
 

@@ -1,0 +1,617 @@
+/* CSS de public/apa.html que iba antes de styles.css, limitado a la página. */
+/* ============================================
+ APA PAGE — Estilos mínimos específicos
+ Solo lo que no existe en styles.css
+ ============================================ */
+
+/* Zona de carga de archivo DOCX */
+:where(body[data-page="apa"]) .apa-dropzone {
+  border: 2px dashed var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  padding: 56px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+  background: var(--glass-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+:where(body[data-page="apa"]) .apa-dropzone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--accent-gradient);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+:where(body[data-page="apa"]) .apa-dropzone:hover,
+:where(body[data-page="apa"]) .apa-dropzone.drag-over {
+  border-color: var(--accent-color);
+  background: var(--message-user-bg);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px var(--accent-glow);
+}
+
+:where(body[data-page="apa"]) .apa-dropzone:hover::before,
+:where(body[data-page="apa"]) .apa-dropzone.drag-over::before {
+  opacity: 1;
+}
+
+:where(body[data-page="apa"]) .apa-dropzone-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  display: block;
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+:where(body[data-page="apa"]) .apa-dropzone:hover .apa-dropzone-icon {
+  transform: scale(1.15) translateY(-4px);
+}
+
+:where(body[data-page="apa"]) .apa-dropzone-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+:where(body[data-page="apa"]) .apa-dropzone-hint {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-bottom: 20px;
+}
+
+/* Barra de progreso de procesamiento */
+:where(body[data-page="apa"]) .apa-processing {
+  display: none;
+  margin-top: 24px;
+}
+
+:where(body[data-page="apa"]) .apa-processing.visible {
+  display: block;
+}
+
+:where(body[data-page="apa"]) .apa-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+  margin-bottom: 8px;
+  transition: all var(--transition-fast);
+  animation: cardFadeIn 0.4s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+  opacity: 0;
+}
+
+:where(body[data-page="apa"]) .apa-step:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+:where(body[data-page="apa"]) .apa-step:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+:where(body[data-page="apa"]) .apa-step:nth-child(3) {
+  animation-delay: 0.25s;
+}
+
+:where(body[data-page="apa"]) .apa-step:nth-child(4) {
+  animation-delay: 0.35s;
+}
+
+:where(body[data-page="apa"]) .apa-step:nth-child(5) {
+  animation-delay: 0.45s;
+}
+
+:where(body[data-page="apa"]) .apa-step.active {
+  border-color: var(--accent-color);
+  background: var(--message-user-bg);
+}
+
+:where(body[data-page="apa"]) .apa-step.done {
+  border-color: rgba(56, 106, 32, 0.3);
+  background: rgba(56, 106, 32, 0.06);
+}
+
+[data-theme="dark"] :where(body[data-page="apa"]) .apa-step.done {
+  background: rgba(168, 216, 140, 0.06);
+}
+
+:where(body[data-page="apa"]) .apa-step-icon {
+  font-size: 1.3rem;
+  width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+:where(body[data-page="apa"]) .apa-step-text {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+:where(body[data-page="apa"]) .apa-step-status {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+:where(body[data-page="apa"]) .apa-step.active .apa-step-status {
+  color: var(--accent-color);
+}
+
+:where(body[data-page="apa"]) .apa-step.done .apa-step-status {
+  color: #386A20;
+}
+
+[data-theme="dark"] :where(body[data-page="apa"]) .apa-step.done .apa-step-status {
+  color: #A8D88C;
+}
+
+/* Tarjetas de reglas APA */
+:where(body[data-page="apa"]) .apa-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1200px) {
+  :where(body[data-page="apa"]) .apa-rules-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  :where(body[data-page="apa"]) .apa-rules-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  :where(body[data-page="apa"]) .apa-rules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-rule-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  padding: 24px;
+  transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+  animation: cardFadeIn 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+  opacity: 0;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(7) {
+  animation-delay: 0.35s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:nth-child(8) {
+  animation-delay: 0.4s;
+}
+
+:where(body[data-page="apa"]) .apa-rule-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--card-accent, var(--accent-gradient));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1), 0 4px 20px var(--accent-glow);
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:hover::before {
+  opacity: 1;
+}
+
+:where(body[data-page="apa"]) .apa-rule-icon {
+  font-size: 1.8rem;
+  margin-bottom: 14px;
+  display: block;
+  transition: transform var(--transition-fast);
+}
+
+:where(body[data-page="apa"]) .apa-rule-card:hover .apa-rule-icon {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+:where(body[data-page="apa"]) .apa-rule-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+
+:where(body[data-page="apa"]) .apa-rule-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* Área de resultado */
+:where(body[data-page="apa"]) .apa-result-area {
+  display: none;
+  margin-top: 24px;
+}
+
+:where(body[data-page="apa"]) .apa-result-area.visible {
+  display: block;
+  animation: cardFadeIn 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+}
+
+:where(body[data-page="apa"]) .apa-result-card {
+  background: var(--glass-bg);
+  border: 1px solid rgba(56, 106, 32, 0.3);
+  border-radius: var(--border-radius-lg);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(56, 106, 32, 0.08);
+}
+
+:where(body[data-page="apa"]) .apa-result-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #386A20, #4caf50);
+}
+
+:where(body[data-page="apa"]) .apa-result-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+:where(body[data-page="apa"]) .apa-result-icon {
+  font-size: 2.5rem;
+}
+
+:where(body[data-page="apa"]) .apa-result-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #386A20;
+}
+
+[data-theme="dark"] :where(body[data-page="apa"]) .apa-result-title {
+  color: #A8D88C;
+}
+
+:where(body[data-page="apa"]) .apa-result-filename {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+:where(body[data-page="apa"]) .apa-result-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Input de archivo oculto */
+:where(body[data-page="apa"]) #apa-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Spinner de carga inline */
+:where(body[data-page="apa"]) .apa-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(103, 80, 164, 0.25);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* Sección de historial */
+:where(body[data-page="apa"]) .apa-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+:where(body[data-page="apa"]) .apa-history-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-fast);
+}
+
+:where(body[data-page="apa"]) .apa-history-item:hover {
+  border-color: var(--accent-color);
+  background: var(--message-user-bg);
+  transform: translateX(4px);
+}
+
+/* Contener texto largo sin romper el layout */
+:where(body[data-page="apa"]) .apa-history-list {
+  overflow: hidden;
+}
+
+:where(body[data-page="apa"]) .apa-history-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+:where(body[data-page="apa"]) .apa-history-info {
+  flex: 1;
+  min-width: 0;
+  /* clave: permite que flex hijo se encoja */
+  overflow: hidden;
+  /* impide que el texto empuje al padre */
+}
+
+:where(body[data-page="apa"]) .apa-history-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+
+:where(body[data-page="apa"]) .apa-history-date {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+
+:where(body[data-page="apa"]) .apa-history-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Empty state del historial */
+:where(body[data-page="apa"]) .apa-history-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+:where(body[data-page="apa"]) .apa-history-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  display: block;
+}
+
+/* Badge de versión APA */
+:where(body[data-page="apa"]) .apa-version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(103, 80, 164, 0.12);
+  border: 1px solid rgba(103, 80, 164, 0.25);
+  border-radius: var(--border-radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  letter-spacing: 0.03em;
+}
+
+[data-theme="dark"] :where(body[data-page="apa"]) .apa-version-badge {
+  background: rgba(208, 188, 255, 0.1);
+  border-color: rgba(208, 188, 255, 0.2);
+  color: var(--accent-color);
+}
+
+/* Animación de éxito */
+@keyframes successPop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-result-area.visible .apa-result-icon {
+  animation: successPop 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ============================================
+ LAYOUT PRINCIPAL — Mobile First
+ ============================================ */
+
+:where(body[data-page="apa"]) .apa-page-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+  box-sizing: border-box;
+}
+
+:where(body[data-page="apa"]) .apa-main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  :where(body[data-page="apa"]) .apa-main-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-rules-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 60px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  :where(body[data-page="apa"]) .apa-result-actions {
+    flex-direction: column;
+  }
+
+  :where(body[data-page="apa"]) .apa-result-actions .btn-primary,
+  :where(body[data-page="apa"]) .apa-result-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-metadata-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 480px) {
+  :where(body[data-page="apa"]) .apa-metadata-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-card-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  box-shadow: var(--glass-shadow);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  /* evita que el panel se expanda por contenido */
+  overflow: hidden;
+  /* contiene cualquier hijo que se desborde */
+}
+
+@media (min-width: 480px) {
+  :where(body[data-page="apa"]) .apa-card-panel {
+    padding: 24px;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-card-panel input[type="text"],
+:where(body[data-page="apa"]) .apa-card-panel input[type="date"] {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+:where(body[data-page="apa"]) .apa-dropzone {
+  padding: 36px 16px;
+}
+
+@media (min-width: 480px) {
+  :where(body[data-page="apa"]) .apa-dropzone {
+    padding: 56px 24px;
+  }
+}
+
+:where(body[data-page="apa"]) .apa-rules-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+@media (min-width: 480px) {
+  :where(body[data-page="apa"]) .apa-rules-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  :where(body[data-page="apa"]) .apa-rules-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (min-width: 1200px) {
+  :where(body[data-page="apa"]) .apa-rules-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+:where(body[data-page="apa"]) .courses-container {
+  min-width: 0;
+  overflow-x: hidden;
+}

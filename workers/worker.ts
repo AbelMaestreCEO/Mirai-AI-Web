@@ -29,7 +29,8 @@ const ANDROID_ASSET_LINKS = [{
 const MIGRATED_PAGES = new Set([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings', 'chat', 'code',
+  'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
+  'apa',
 ]);
 
 // --- HANDLER PRINCIPAL ---

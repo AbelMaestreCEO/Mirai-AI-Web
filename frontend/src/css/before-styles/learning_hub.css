@@ -1,0 +1,11 @@
+/* CSS de public/learning_hub.html que iba antes de styles.css, limitado a la página. */
+/* Único estilo nuevo: ancho de tarjeta de modo limitado para no exceder 3 columnas */
+:where(body[data-page="learning_hub"]) .hub-modes-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 900px) {
+  :where(body[data-page="learning_hub"]) .hub-modes-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  :where(body[data-page="learning_hub"]) .hub-modes-grid { grid-template-columns: 1fr; }
+}
