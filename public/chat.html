@@ -328,6 +328,8 @@
     </script>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="transitions.css">
+    <link rel="manifest" href="/manifest.json">
+    <script src="/pwa.js" defer></script>
 </head>
 
 <body>
@@ -615,14 +617,6 @@
     </div>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(r => console.log('SW registered:', r))
-                    .catch(e => console.log('SW failed:', e));
-            });
-        }
-
         // Inyectar initial_message desde la página de bienvenida
         (function () {
             const params = new URLSearchParams(window.location.search);

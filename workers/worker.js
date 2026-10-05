@@ -2087,12 +2087,36 @@ async function generateAndStoreTTS(text, conversationId, env) {
   }
 }
 
+// --- APP ANDROID (TWA) ---
+// Huella SHA-256 de android/mirai-release.keystore. Si se publica en Play Store
+// con "Play App Signing", añadir también la huella de la llave de Google
+// (Play Console > Integridad de la app) a sha256_cert_fingerprints.
+const ANDROID_ASSET_LINKS = [{
+  relation: ['delegate_permission/common.handle_all_urls'],
+  target: {
+    namespace: 'android_app',
+    package_name: 'com.aberumirai.ai',
+    sha256_cert_fingerprints: [
+      '16:F1:31:A6:E9:6B:E9:F1:62:26:39:D7:79:50:5D:30:3F:68:B6:57:CA:93:91:22:75:20:CD:25:8B:68:50:37'
+    ]
+  }
+}];
+
 // --- HANDLER PRINCIPAL ---
 export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
       const path = url.pathname;
+
+      // Digital Asset Links de la app Android (TWA en android/). Va antes del
+      // bloqueo de rutas '/.' porque Android la pide en /.well-known/. Sin ella
+      // la app abre la web con barra de URL en vez de a pantalla completa.
+      if (path === '/.well-known/assetlinks.json') {
+        return new Response(JSON.stringify(ANDROID_ASSET_LINKS), {
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' }
+        });
+      }
 
       // ✅ VERIFICACIÓN DE SEGURIDAD (AHORA DESPUÉS DE DEFINIR url)
       if (path.startsWith('/.') ||

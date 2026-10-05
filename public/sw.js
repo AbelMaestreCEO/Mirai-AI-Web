@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v315'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v317'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -43,6 +43,7 @@ const STATIC_ASSETS = [
   '/welcome-styles.css',
   
   '/manifest.json',
+  '/icons/icon-192.png',
   
   '/js/apa/abstract.js',
   '/app.js',
@@ -72,6 +73,7 @@ const STATIC_ASSETS = [
   '/login.js',
   '/mirai-boot.js',
   '/mirai-realtime.js',
+  '/pwa.js',
   '/js/utils/notifications.js',
   '/js/apa/pageNumbers.js',
   '/js/apa/paragraphs.js',
@@ -223,7 +225,7 @@ self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const title = data.notification?.title || 'Mirai AI';
   const body = data.notification?.body || 'Tienes una nueva notificación.';
-  const icon = data.notification?.icon || '/favicon.ico';
+  const icon = data.notification?.icon || '/icons/icon-192.png';
   const tag = data.notification?.tag || 'mirai-alert';
   const url = data.notification?.url || '/';
 
@@ -231,7 +233,8 @@ self.addEventListener('push', event => {
     self.registration.showNotification(title, {
       body,
       icon,
-      badge: '/favicon.ico',
+      // Android pinta el badge solo con el canal alfa: hace falta la silueta
+      badge: '/icons/monochrome-512.png',
       tag,
       renotify: true,
       requireInteraction: true,

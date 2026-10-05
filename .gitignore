@@ -10,3 +10,19 @@ node_modules/
 # Build
 dist/
 .wrangler/
+# App Android (TWA): la llave de firma y sus contraseñas NO se suben.
+# Guardar copia aparte: sin esa llave no se puede actualizar la app publicada.
+android/*.keystore
+android/keystore.env
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+# Binarios generados en cualquier subcarpeta (Android Studio deja los suyos en
+# android/app/release/), y la configuración local del IDE.
+android/**/*.apk
+android/**/*.aab
+android/**/*.idsig
+android/**/*.dm
+android/app/release/
+android/.idea/

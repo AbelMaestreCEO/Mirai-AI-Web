@@ -32,8 +32,10 @@
       showEmptyStates('No has iniciado sesión o tu sesión ha expirado.');
       return null;
     }
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    // Un 502/503 de Cloudflare llega como HTML: sin el catch, res.json() lanzaba
+    // un SyntaxError y se perdía el código de estado real.
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
     return data;
   }
 
@@ -592,7 +594,13 @@
 
   async function init() {
     if (window.miraiUserReady) await window.miraiUserReady;
-    await loadAll();
+    // Sin este catch, un 500 o la falta de red dejaban la página vacía sin aviso.
+    try {
+      await loadAll();
+    } catch (e) {
+      console.error('No se pudieron cargar las ventas:', e);
+      showEmptyStates('No se pudieron cargar los datos. Error del servidor o sin conexión; recarga la página para reintentar.');
+    }
   }
 
   init();

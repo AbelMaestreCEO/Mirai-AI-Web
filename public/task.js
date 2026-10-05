@@ -44,8 +44,10 @@
       ...options,
     });
     if (res.status === 401) { alert('Tu sesión ha expirado. Por favor, cierra sesión y vuelve a iniciar sesión.'); return null; }
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    // Un 502/503 de Cloudflare llega como HTML: sin el catch, res.json() lanzaba
+    // un SyntaxError y se perdía el código de estado real.
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
     return data;
   }
 
@@ -751,7 +753,17 @@
     const kanbanArea = document.getElementById('view-kanban');
     if (kanbanArea) kanbanArea.querySelectorAll('.task-card').forEach(c => c.remove());
 
-    const ok = await fetchTasks();
+    // fetchTasks devuelve false con 401 y lanza con cualquier otro fallo (500, sin
+    // red). Antes ese segundo caso no se capturaba: los contadores se quedaban en
+    // "…" y el tablero vacío sin ningún aviso.
+    let ok = false;
+    let failed = false;
+    try {
+      ok = await fetchTasks();
+    } catch (e) {
+      console.error('No se pudieron cargar las tareas:', e);
+      failed = true;
+    }
     if (ok) {
       updateStats();
       renderKanban();
@@ -759,9 +771,11 @@
       if (kanbanArea) {
         kanbanArea.innerHTML = `
           <div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-secondary);">
-            <div style="font-size:2rem;margin-bottom:1rem;">🔒</div>
+            <div style="font-size:2rem;margin-bottom:1rem;">${failed ? '⚠️' : '🔒'}</div>
             <p>No se pudieron cargar las tareas.</p>
-            <p style="font-size:.85rem;margin-top:.5rem;">Verifica que has iniciado sesión.</p>
+            <p style="font-size:.85rem;margin-top:.5rem;">${failed
+              ? 'Error del servidor o sin conexión. Recarga la página para reintentar.'
+              : 'Verifica que has iniciado sesión.'}</p>
           </div>`;
       }
       ['stat-total','stat-done','stat-progress','stat-overdue'].forEach(id => setText(id, '0'));

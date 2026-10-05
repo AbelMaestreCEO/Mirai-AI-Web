@@ -1146,6 +1146,8 @@
             }
         }
     </style>
+    <link rel="manifest" href="/manifest.json">
+    <script src="/pwa.js" defer></script>
 </head>
 
 <body>
@@ -1603,9 +1605,8 @@
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:14px;padding:12px 0;">
-                    <div id="two-factor-track"
-                        style="width:44px;height:24px;border-radius:12px;background:var(--glass-border);cursor:pointer;position:relative;transition:background 0.25s;flex-shrink:0;"
-                        onclick="toggleTwoFactor()">
+                    <div id="two-factor-track" role="switch" tabindex="0" aria-label="Verificación en dos pasos"
+                        style="width:44px;height:24px;border-radius:12px;background:var(--glass-border);cursor:pointer;position:relative;transition:background 0.25s;flex-shrink:0;">
                         <div id="two-factor-thumb"
                             style="width:18px;height:18px;border-radius:50%;background:white;position:absolute;top:3px;left:3px;transition:transform 0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.2);">
                         </div>
@@ -2080,6 +2081,7 @@
                     document.getElementById('two-factor-track').style.background = checked ? 'var(--accent-color)' : 'var(--glass-border)';
                     document.getElementById('two-factor-thumb').style.transform = checked ? 'translateX(20px)' : 'translateX(0)';
                     document.getElementById('two-factor-label').textContent = checked ? 'Activada' : 'Desactivada';
+                    document.getElementById('two-factor-track').setAttribute('aria-checked', String(checked));
                     _twoFactor = checked;
                 }
                 function toggleTwoFactor() {
@@ -2262,8 +2264,13 @@
                     updateToggle(this.checked);
                     document.documentElement.classList.toggle('reduce-motion', this.checked);
                 });
-                // No hay <input type="checkbox"> para 2FA, se maneja con onclick en el track
-                // (la función toggleTwoFactor() ya fue definida arriba)
+                // No hay <input type="checkbox"> para 2FA: el listener se enlaza aquí porque
+                // toggleTwoFactor() vive dentro de esta IIFE y un onclick inline no la vería.
+                const twoFactorTrack = document.getElementById('two-factor-track');
+                twoFactorTrack.addEventListener('click', toggleTwoFactor);
+                twoFactorTrack.addEventListener('keydown', (e) => {
+                    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleTwoFactor(); }
+                });
                 /* ── NOTIFICACIONES ───────────────────────────────────── */
                 // La suscripción real (permiso + PushManager + /api/notifications/subscribe)
                 // vive en notifications.js (miraiSubscribeUser) para no duplicar esa lógica
