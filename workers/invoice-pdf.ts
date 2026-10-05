@@ -1,5 +1,5 @@
 /* ============================================================
-   invoice-pdf.js — Generación de facturas PDF para el módulo de Ventas
+   invoice-pdf.ts — Generación de facturas PDF para el módulo de Ventas
    Usa pdf-lib (pura JS, sin dependencias de Node) para poder correr
    dentro del runtime de Cloudflare Workers.
    ============================================================ */

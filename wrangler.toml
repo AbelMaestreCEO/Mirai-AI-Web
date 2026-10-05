@@ -1,5 +1,5 @@
 name = "mirai-ai-web"
-main = "workers/worker.js"
+main = "workers/worker.ts"
 compatibility_date = "2024-01-01"
 # El binding send_email se expone como stub RPC: sin este flag, env.EMAIL.send
 # ni siquiera existe (wrangler avisa: "Tried to access method 'send' on a
@@ -58,7 +58,7 @@ allowed_sender_addresses = [ "mirai@aberumirai.com" ]
 # usan el chat interno, el Mirai Launcher y la atención por WhatsApp. Así una
 # corrección de Mirai hecha allí llega aquí sin volver a desplegar este Worker.
 # Solo trae texto: el modelo, la clave y las cuotas siguen siendo los de aquí.
-# Ver getMiraiPersona en workers/worker.js.
+# Ver getMiraiPersona en workers/worker.ts.
 #
 # mirai-assistant tiene que estar desplegado ANTES, o este despliegue fallará
 # al no encontrar el servicio.

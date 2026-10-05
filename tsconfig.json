@@ -1,0 +1,17 @@
+{
+  // Solo el Worker (workers/). El frontend de public/ sigue siendo JS sin build.
+  // No emite nada: wrangler compila los .ts con esbuild al hacer dev/deploy, y
+  // `npm run typecheck` solo comprueba tipos.
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2023"],
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "types": [],
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": ["workers/**/*.ts"]
+}

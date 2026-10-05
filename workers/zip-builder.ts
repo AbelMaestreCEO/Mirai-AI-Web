@@ -1,8 +1,8 @@
-// src/zip-builder.js
+// zip-builder.ts
 
-import { zipSync } from 'fflate';
+import { zipSync, type ZipOptions } from 'fflate';
 
-export const createZipArchive = (files, options = {}) => {
+export const createZipArchive = (files: any[], options: { level?: ZipOptions['level'] } = {}) => {
   if (!files || !Array.isArray(files) || files.length === 0) {
     throw new Error('No se proporcionaron archivos para comprimir. El ZIP estaría vacío.');
   }
@@ -10,7 +10,7 @@ export const createZipArchive = (files, options = {}) => {
   const compressionLevel = options.level ?? 6;
 
   // Validar y convertir cada archivo ANTES de pasar a zipSync
-  const validFiles = {};
+  const validFiles: Record<string, Uint8Array> = {};
   
   for (let i = 0; i < files.length; i++) {
     const file = files[i];

@@ -2,17 +2,15 @@
    MIRAI AI - Cloudflare Worker (CORREGIDO)
    Backend para integración con DeepSeek API
    ============================================ */
-import { processDocxFile, isValidDocx } from './docx-parser.js';
-import { createZipArchive, generateZipName } from './zip-builder.js';
-import { generateInvoicePdf, extractPngFromIco } from './invoice-pdf.js';
-import { handleClassroomApi, isAuthorizedProfessor } from './classroom.js';
+import { processDocxFile, isValidDocx } from './docx-parser';
+import { createZipArchive, generateZipName } from './zip-builder';
+import { generateInvoicePdf, extractPngFromIco } from './invoice-pdf';
+import { handleClassroomApi, isAuthorizedProfessor } from './classroom';
+import { AI_MODEL_NORMAL, AI_MODEL_PRO } from './ai-models';
 // --- CONFIGURACIÓN ---
 function getAIGatewayURL(env) {
   return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/compat/chat/completions`;
 }
-const AI_MODEL_NORMAL = 'deepseek-v4-flash';
-export const AI_MODEL_PRO = 'deepseek-v4-pro';
-
 // Techo de salida del chat de texto. Tiene que dar para el razonamiento Y la
 // respuesta: con 2000 el modelo se quedaba sin espacio deliberando y terminaba
 // sin escribir nada. Sólo se factura lo que realmente genera, no el techo.
@@ -331,7 +329,15 @@ Respond ONLY with valid JSON, nothing else:
 // antes se concatenaba `content || reasoning`, de modo que cuando el modelo sólo
 // emitía razonamiento el usuario veía el monólogo interno como si fuese la
 // respuesta. `onDelta` permite reenviar cada trozo al cliente en vivo.
-async function readSSEStream(response, usageOut = null, onDelta = null) {
+type AIDeltaKind = 'reasoning' | 'content' | 'reset';
+type AIDeltaHandler = (kind: AIDeltaKind, text: string) => void | Promise<void>;
+
+interface AIResultMeta {
+  reasoning?: string;
+  finishReason?: string | null;
+}
+
+async function readSSEStream(response: Response, usageOut: { usage?: any } | null = null, onDelta: AIDeltaHandler | null = null) {
   let content = '';
   let reasoning = '';
   let finishReason = null;
@@ -390,7 +396,14 @@ function splitAIResult({ content, reasoning, finishReason }) {
 
 // options.onDelta(tipo, texto) — se invoca por cada trozo recibido del modelo.
 // options.metaOut — objeto donde se dejan {reasoning, finishReason} de la llamada.
-export async function callAI(model, messages, options = {}, env) {
+export interface CallAIOptions {
+  temperature?: number;
+  max_tokens?: number;
+  onDelta?: AIDeltaHandler | null;
+  metaOut?: AIResultMeta;
+}
+
+export async function callAI(model: string, messages: any[], options: CallAIOptions = {}, env: Env) {
   const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
   const FALLBACK_MODEL = '@cf/zai-org/glm-5.2';
 
@@ -426,7 +439,7 @@ export async function callAI(model, messages, options = {}, env) {
       throw new Error(`DeepSeek error ${response.status}: ${err}`);
     }
 
-    const usageOut = {};
+    const usageOut: { usage?: any } = {};
     const raw = await readSSEStream(response, usageOut, onDelta);
     const result = splitAIResult(raw);
 
@@ -755,8 +768,10 @@ Escribe AHORA únicamente la respuesta final para el usuario, en su idioma y res
 
 // Envoltura de callAI para las rutas de conversación: garantiza que se devuelve
 // texto visible o se lanza un error, nunca el monólogo interno.
-async function callAIEnsuringAnswer({ aiModel, aiMessages, aiOptions, env, onDelta = null }) {
-  const meta = {};
+async function callAIEnsuringAnswer({ aiModel, aiMessages, aiOptions, env, onDelta = null }: {
+  aiModel: string; aiMessages: any[]; aiOptions?: CallAIOptions; env: Env; onDelta?: AIDeltaHandler | null;
+}) {
+  const meta: AIResultMeta = {};
   let text = await callAI(aiModel, aiMessages, { ...aiOptions, onDelta, metaOut: meta }, env);
   let reasoning = meta.reasoning || '';
 
@@ -766,7 +781,7 @@ async function callAIEnsuringAnswer({ aiModel, aiMessages, aiOptions, env, onDel
 
   if (!text.trim() && reasoning.trim()) {
     console.warn(`⚠️ Respuesta vacía (finish_reason=${meta.finishReason}); pidiendo la conclusión al modelo.`);
-    const retryMeta = {};
+    const retryMeta: AIResultMeta = {};
     const retryOptions = { ...aiOptions, max_tokens: Math.max(aiOptions.max_tokens ?? 2000, 3000) };
     text = await callAI(
       aiModel,
@@ -1737,7 +1752,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
     const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(query)}&key=${apiKey}`;
     const ytRes = await fetch(searchUrl);
     if (!ytRes.ok) throw new Error(`YouTube API: ${ytRes.status}`);
-    const ytData = await ytRes.json();
+    const ytData: any = await ytRes.json();
     await logApiUsage(env, { provider: 'youtube', unit_type: 'call', user_dni: userDni, cost_usd: 0 });
 
     const videos = (ytData.items || []).map(item => ({
@@ -2440,7 +2455,7 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
       return handleGetOrCreateLearningChat(request, env, corsHeaders);
     }
 
-    // ── AULA, CURSOS Y ASISTENCIA (workers/classroom.js) ────────────
+    // ── AULA, CURSOS Y ASISTENCIA (workers/classroom.ts) ────────────
     const classroomResponse = await handleClassroomApi(request, env, url, path, corsHeaders);
     if (classroomResponse) return classroomResponse;
 
@@ -3092,10 +3107,6 @@ async function handleApiRequest(request, env, ctx, corsHeaders) {
     if (path.startsWith('/api/image/') && request.method === 'GET') {
       return await handleServeImage(path, env);
     }
-    // Nueva ruta: POST /api/generate-image
-    if (path === '/api/generate-image' && request.method === 'POST') {
-      return await handleImageGeneration(request, env, corsHeaders);
-    }
 
     // ── CHATS DE CÓDIGO ──────────────────────────────────────────
 
@@ -3301,7 +3312,7 @@ async function handleSyncPoll(request, env, corsHeaders) {
     ).bind(userDni).first();
     const effectiveRole = isProfRow ? 'teacher' : role;
 
-    const changes = {};
+    const changes: Record<string, any> = {};
 
     // ── INVENTORY ──────────────────────────────────────────────
     // Tablas: inventory_products, inventory_logs
@@ -7076,7 +7087,7 @@ async function handleInvestigationSearch(request, env, corsHeaders) {
   }
 
   // ── 4. Scrapeo en paralelo con Firecrawl ──
-  let scrapedContents = [];
+  let scrapedContents = new Map<string, string>();
   try {
     scrapedContents = await scrapeAllUrls(exaResults, env);
     console.log(`✅ [Investigation] Firecrawl obtuvo contenido de ${scrapedContents.size} páginas`);
@@ -7268,7 +7279,7 @@ async function searchWithExa(question, env) {
   ];
 
   const fetchExa = async ({ category, type }) => {
-    const body = {
+    const body: Record<string, any> = {
       query: question,
       numResults: NUM_RESULTS,
       type: 'auto',
@@ -7292,7 +7303,7 @@ async function searchWithExa(question, env) {
       throw new Error(`Exa [${category || 'general'}] ${res.status}: ${err}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     await logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: type, cost_usd: calcCost('exa', null) });
     return (data.results || []).map(r => ({
       url: r.url,
@@ -7371,7 +7382,7 @@ async function scrapeAllUrls(exaResults, env) {
         return { url, markdown: null };
       }
 
-      const data = await res.json();
+      const data: any = await res.json();
       await logApiUsage(env, { provider: 'firecrawl', unit_type: 'scrape', cost_usd: calcCost('firecrawl', null) });
       return { url, markdown: data?.data?.markdown || null };
     } catch (err) {
@@ -7722,7 +7733,7 @@ async function handleTextChatInternal(message, conversation_id, audio_mode, cour
           body: JSON.stringify({ query: message, numResults: 5, type: 'auto', contents: { highlights: true } }),
         });
         if (exaRes.ok) {
-          const exaData = await exaRes.json();
+          const exaData: any = await exaRes.json();
           await logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: 'chat_websearch', cost_usd: calcCost('exa', null) });
           const results = (exaData.results || []).slice(0, 5);
           if (results.length > 0) {
@@ -8359,46 +8370,18 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary); // btoa() es global en Workers, NO usar window.btoa()
 }
 
-// --- ACTUALIZAR ICONO DEL BOTÓN DE ENVÍO ---
-function updateSendButtonIcon() {
-  if (!elements.sendButton) return;
-
-  const hasText = elements.messageInput.value.trim().length > 0;
-  const isRecording = isRecording; // Variable global definida en initializeVoiceRecorder
-
-  // Resetear clases y contenido base
-  elements.sendButton.classList.remove('recording');
-
-  if (isRecording) {
-    // ESTADO: GRABANDO
-    elements.sendButton.classList.add('recording');
-    elements.sendButton.innerHTML = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
-      </svg>
-    `;
-  } else if (hasText) {
-    // ESTADO: CON TEXTO (Enviar)
-    elements.sendButton.innerHTML = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-      </svg>
-    `;
-  } else {
-    // ESTADO: SIN TEXTO (Micrófono)
-    elements.sendButton.innerHTML = `
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-      </svg>
-    `;
-  }
-}
-
 // Normaliza las opciones de imagen que llegan del cliente. Todo lo que no esté
 // en la lista blanca cae al valor por defecto: Pruna rechaza la predicción
 // entera con un 400 si un enum no es exacto.
-function normalizeImageOptions(raw = {}) {
+interface ImageOptions {
+  engine?: string;
+  aspect_ratio?: string;
+  thinking?: string;
+  image_size?: string;
+  user_dni?: string | null;
+}
+
+function normalizeImageOptions(raw: ImageOptions = {}) {
   const engine = IMAGE_ENGINES.includes(raw.engine) ? raw.engine : 'p-image';
   const aspectRatio = IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : '1:1';
   const thinking = IDEOGRAM_THINKING_LEVELS.includes(raw.thinking) ? raw.thinking : 'high';
@@ -8407,7 +8390,7 @@ function normalizeImageOptions(raw = {}) {
 }
 
 // --- GENERAR IMAGEN CON PRUNA AI P-IMAGE / P-IMAGE-IDEOGRAM ---
-async function generateAndStoreImage(prompt, conversationId, env, options = {}) {
+async function generateAndStoreImage(prompt, conversationId, env, options: ImageOptions = {}) {
   try {
     const { engine, aspectRatio, thinking, imageSize } = normalizeImageOptions(options);
     const userDni = options.user_dni || null;
@@ -8418,7 +8401,7 @@ async function generateAndStoreImage(prompt, conversationId, env, options = {}) 
     // 1. Llamada directa a la API REST de Pruna (Try-Sync, ver resolvePrunaSync).
     //    Ideogram acepta además el nivel de "thinking" y el tamaño de salida,
     //    que son los que determinan su precio.
-    const prunaInput = { prompt: prompt, aspect_ratio: aspectRatio };
+    const prunaInput: PrunaInput = { prompt: prompt, aspect_ratio: aspectRatio };
     if (engine === 'p-image-ideogram') {
       prunaInput.thinking = thinking;
       prunaInput.image_size = imageSize;
@@ -8832,10 +8815,10 @@ async function sendRecoveryEmail(email, token, env) {
 // precio por segundo (hasta 4x más barato), así que se resuelve una sola vez
 // aquí y el valor normalizado es el que se manda a Pruna Y el que se usa para
 // calcular el costo: si se separaran, el panel de consumo mentiría.
-function normalizeVideoOptions(raw = {}) {
+function normalizeVideoOptions(raw: { resolution?: string; aspect_ratio?: string; duration?: number | string; draft?: boolean } = {}) {
   const resolution = VIDEO_RESOLUTIONS.includes(raw.resolution) ? raw.resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION;
   const aspectRatio = IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : VIDEO_CONFIG.DEFAULT_ASPECT_RATIO;
-  const rawDuration = parseInt(raw.duration, 10);
+  const rawDuration = parseInt(String(raw.duration), 10);
   const duration = Number.isFinite(rawDuration) ? Math.min(10, Math.max(1, rawDuration)) : VIDEO_CONFIG.DEFAULT_DURATION;
   return { resolution, aspectRatio, duration, draft: raw.draft === true };
 }
@@ -9164,9 +9147,21 @@ function requirePrunaApiKey(env) {
 // hasta 60s en su propio servidor y devuelva el resultado ya terminado en la
 // misma respuesta — lo usan p-image/p-image-edit/p-video, que generan en
 // segundos.
-async function createPrunaPrediction(env, modelId, input, { trySync = false } = {}) {
+// Pruna no publica tipos: solo se declaran los campos que se leen aquí.
+type PrunaInput = Record<string, any>;
+interface PrunaPrediction {
+  id?: string;
+  status?: string;
+  error?: string;
+  detail?: string;
+  output?: any;
+  result?: any;
+  [field: string]: any;
+}
+
+async function createPrunaPrediction(env: Env, modelId: string, input: PrunaInput, { trySync = false } = {}): Promise<PrunaPrediction> {
   const apiKey = requirePrunaApiKey(env);
-  const headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'apikey': apiKey,
     'Model': modelId,
@@ -9179,7 +9174,7 @@ async function createPrunaPrediction(env, modelId, input, { trySync = false } = 
     body: JSON.stringify({ input }),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data: PrunaPrediction = await res.json<PrunaPrediction>().catch(() => ({}));
   if (!res.ok) {
     console.error('❌ createPrunaPrediction error:', res.status, JSON.stringify(data).substring(0, 500));
     throw new Error(`Pruna rechazó la predicción (${res.status}): ${data.error || data.detail || JSON.stringify(data).substring(0, 200)}`);
@@ -9192,14 +9187,14 @@ async function createPrunaPrediction(env, modelId, input, { trySync = false } = 
   return data;
 }
 
-async function getPrunaPrediction(env, predictionId) {
+async function getPrunaPrediction(env: Env, predictionId: string): Promise<PrunaPrediction> {
   const apiKey = requirePrunaApiKey(env);
   // Endpoint real según la documentación oficial de Pruna
   // (https://docs.api.pruna.ai): /v1/predictions/status/{id}, no /v1/predictions/{id}.
   const res = await fetch(`${PRUNA_API_BASE}/predictions/status/${predictionId}`, {
     headers: { 'apikey': apiKey },
   });
-  const data = await res.json().catch(() => ({}));
+  const data: PrunaPrediction = await res.json<PrunaPrediction>().catch(() => ({}));
   if (!res.ok) {
     throw new Error(`Error consultando la predicción en Pruna (${res.status}): ${JSON.stringify(data).substring(0, 300)}`);
   }
@@ -9358,7 +9353,7 @@ async function handleVideoAvatarGeneration(request, env, corsHeaders) {
       }
     }
 
-    const input = {
+    const input: PrunaInput = {
       image: imageSource,
       voice: voice || VIDEO_AVATAR_CONFIG.DEFAULT_VOICE,
       voice_language: voice_language || VIDEO_AVATAR_CONFIG.DEFAULT_LANGUAGE,
@@ -9493,7 +9488,7 @@ async function handleAdvancedVideoGeneration(request, env, corsHeaders, kind) {
       ? (VIDEO_RESOLUTIONS.includes(resolution) ? resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION)
       : null;
 
-    const input = {
+    const input: PrunaInput = {
       video: videoSource,
       disable_safety_checker: true,
     };
@@ -10325,172 +10320,6 @@ async function handleDeleteConversation(request, conversationId, env, corsHeader
   }
 }
 
-async function loadConversationHistory(conversationId) {
-  try {
-    const response = await fetch(`/api/history/${conversationId}`);
-    if (!response.ok) {
-      console.error('Error al cargar historial:', response.status);
-      return;
-    }
-
-    const messages = await response.json();
-    elements.chatMessages.innerHTML = '';
-
-    messages.forEach(msg => {
-      if (msg.role === 'user') {
-        if (msg.audio_url) {
-          appendUserAudioMessage(msg.audio_url);
-        } else {
-          appendMessage('user', msg.content);
-        }
-      } else if (msg.role === 'assistant') {
-        // ✨ PRIORIDAD: Si hay video_url, mostrar video (ignorar audio/texto)
-        if (msg.video_url) {
-          // Extraer el prompt del contenido (formato: "🎬 Aquí tienes el video que pediste:\n\n_Prompt: ..._$")
-          let prompt = msg.content;
-          const match = msg.content.match(/_Prompt:\s*(.+?)_\s*$/);
-          if (match) {
-            prompt = match[1];
-          }
-
-          // Usar el thumbnail_url guardado en la DB
-          const thumbnail = msg.thumbnail_url || null;
-
-          console.log('🎬 Cargando video histórico:', {
-            video: msg.video_url,
-            thumb: thumbnail,
-            prompt: prompt
-          });
-
-          appendVideoMessage(msg.video_url, thumbnail, prompt);
-        }
-        // Si no hay video, pero hay audio (TTS)
-        else if (msg.audio_url) {
-          appendMessage('assistant', msg.content, true, msg.audio_url);
-        }
-        // Solo texto
-        else {
-          appendMessage('assistant', msg.content, true, null);
-        }
-      } else if (msg.role === 'system') {
-        appendMessage('system', msg.content);
-      }
-    });
-
-    // Scroll al final
-    setTimeout(() => {
-      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-    }, 100);
-
-  } catch (error) {
-    console.error('❌ Error crítico cargando historial:', error);
-  }
-}
-
-// --- APENDAR MENSAJE DE VIDEO (Versión final corregida) ---
-function appendVideoMessage(videoUrl, thumbnailUrl, prompt) {
-  const messageDiv = document.createElement('div');
-  messageDiv.className = 'message assistant fade-in';
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const videoId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  // Determinar si hay thumbnail válido
-  const hasThumbnail = thumbnailUrl && thumbnailUrl.startsWith('/api/image/');
-  const finalPoster = hasThumbnail ? thumbnailUrl : '';
-
-  messageDiv.innerHTML = `
-    <div class="message-avatar">M</div>
-    <div class="message-content">
-      <div class="video-container" id="${videoId}">
-        <div class="video-thumbnail-wrapper" style="${!hasThumbnail ? 'background: #222;' : ''}">
-          ${hasThumbnail ? `
-            <img 
-              src="${thumbnailUrl}" 
-              alt="Video thumbnail" 
-              class="video-thumbnail"
-              loading="lazy"
-              onerror="this.style.display='none'; this.parentElement.style.background='#222';"
-            >
-          ` : `
-            <div class="video-placeholder-icon" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#222; color:#666;">
-              <svg viewBox="0 0 24 24" width="64" height="64" fill="currentColor">
-                <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/>
-              </svg>
-            </div>
-          `}
-          <button class="video-play-overlay" title="Reproducir video">
-            <svg viewBox="0 0 24 24" width="48" height="48">
-              <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.6)" stroke="white" stroke-width="1.5"/>
-              <path d="M8 5v14l11-7z" fill="white"/>
-            </svg>
-          </button>
-        </div>
-        
-        <video 
-          class="video-player hidden" 
-          controls 
-          preload="metadata"
-          poster="${finalPoster}"
-          playsinline
-        >
-          <source src="${videoUrl}" type="video/mp4">
-          Tu navegador no soporta el elemento de video.
-        </video>
-
-        <div class="video-info">
-          <span class="video-badge">🎬 Video generado</span>
-          <span class="video-prompt">${escapeHtml(prompt || 'Sin descripción')}</span>
-        </div>
-
-        <div class="video-actions">
-          <button class="video-download-btn" data-video-url="${videoUrl}" title="Descargar video">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-            </svg>
-            <span>Descargar</span>
-          </button>
-        </div>
-      </div>
-      
-      <div class="message-meta">
-        <span class="message-time">${time}</span>
-        <div class="message-actions">
-          <button class="msg-action copy-full-btn" title="Copiar prompt" data-content="${escapeHtml(prompt || '')}">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  elements.chatMessages.appendChild(messageDiv);
-  scrollToBottom();
-
-  // Lógica del reproductor
-  const videoEl = messageDiv.querySelector('video');
-  const thumbWrapper = messageDiv.querySelector('.video-thumbnail-wrapper');
-  const playOverlay = messageDiv.querySelector('.video-play-overlay');
-
-  if (thumbWrapper && playOverlay && videoEl) {
-    thumbWrapper.addEventListener('click', () => {
-      thumbWrapper.classList.add('hidden');
-      videoEl.classList.remove('hidden');
-      videoEl.play().catch(err => console.error('Error al reproducir:', err));
-    });
-  }
-
-  // Botón de descarga
-  const downloadBtn = messageDiv.querySelector('.video-download-btn');
-  if (downloadBtn) {
-    downloadBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await downloadVideo(videoUrl, `mirai-video-${Date.now()}.mp4`);
-    });
-  }
-}
-
 async function handleListConversations(request, env, corsHeaders) {
   try {
     const userDni = await requireAuth(request, env);
@@ -10560,43 +10389,6 @@ async function handleRenameConversation(request, env, corsHeaders) {
   } catch (error) {
     console.error('Error renaming conversation:', error);
     return jsonResponse({ error: 'Error renombrando conversación' }, 500, corsHeaders);
-  }
-}
-
-// --- GENERAR IMAGEN (RUTA DIRECTA /api/generate-image) ---
-async function handleImageGeneration(request, env, corsHeaders) {
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Método no permitido' }, 405, corsHeaders);
-  }
-
-  try {
-    const { prompt, conversation_id, engine, aspect_ratio, thinking, image_size } = await request.json();
-
-    if (!prompt) {
-      return jsonResponse({ error: 'El prompt es requerido' }, 400, corsHeaders);
-    }
-
-    console.log('🎨 Generando imagen para:', prompt);
-
-    // Usar la misma función centralizada
-    const imageUrl = await generateAndStoreImage(prompt, conversation_id, env, {
-      engine, aspect_ratio, thinking, image_size
-    });
-
-    // Guardar en D1
-    await ensureConversationExists(conversation_id, prompt, env, courseId = null, lessonId = null, userDni = null, model = AI_MODEL_NORMAL);
-    const aiResponseText = `Aquí tienes la imagen que pediste:\n\n![Imagen generada](${imageUrl})\n\n_Prompt: ${prompt}_`;
-    await saveMessage(conversation_id, 'assistant', aiResponseText, env);
-
-    return jsonResponse({
-      success: true,
-      image_url: imageUrl,
-      response_text: aiResponseText
-    }, 200, corsHeaders);
-
-  } catch (error) {
-    console.error('Error generating image:', error);
-    return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
   }
 }
 
@@ -11213,11 +11005,12 @@ async function encryptWebPushPayload(subscription, payloadObj) {
   const authSecret = b64urlToBytes(subscription.keys.auth);    // 16 bytes
 
   const uaKey = await crypto.subtle.importKey('raw', uaPublicKey, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
-  const asKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
-  const asPublicRaw = new Uint8Array(await crypto.subtle.exportKey('raw', asKeyPair.publicKey));
+  const asKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']) as CryptoKeyPair;
+  const asPublicRaw = new Uint8Array(await crypto.subtle.exportKey('raw', asKeyPair.publicKey) as ArrayBuffer);
 
   const sharedSecret = new Uint8Array(
-    await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, asKeyPair.privateKey, 256)
+    // workers-types llama `$public` a este campo, pero el runtime lee `public`.
+    await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey } as unknown as SubtleCryptoDeriveKeyAlgorithm, asKeyPair.privateKey, 256)
   );
 
   const encoder = new TextEncoder();
@@ -11286,7 +11079,7 @@ async function shouldSendNotification(env, userDni, category) {
 }
 
 // 2. Enviar Notificación (Trigger manual o automático)
-async function sendPushNotification(env, userDni, title, body, { category, url = '/', tag = 'mirai-alert' } = {}) {
+async function sendPushNotification(env, userDni, title, body, { category, url = '/', tag = 'mirai-alert' }: { category?: string; url?: string; tag?: string } = {}) {
   try {
     if (category && !(await shouldSendNotification(env, userDni, category))) {
       console.log(`ℹ️ Usuario ${userDni} desactivó notificaciones de "${category}".`);
@@ -11740,7 +11533,7 @@ async function streamMirrorZip(env, manifest, writable) {
 
   try {
     // --- Carpetas ---
-    const folders = new Set();
+    const folders = new Set<string>();
     for (const entry of manifest) {
       const slash = entry.path.lastIndexOf('/');
       if (slash > 0) folders.add(entry.path.substring(0, slash) + '/');
@@ -12039,7 +11832,7 @@ function createZipWithFolders(files) {
   let dataOffset = 0;        // offset acumulado de la sección de datos locales
 
   // --- Entradas de carpetas ---
-  const folders = new Set();
+  const folders = new Set<string>();
   for (const f of files) {
     const slash = f.path.lastIndexOf('/');
     if (slash > 0) folders.add(f.path.substring(0, slash) + '/');
