@@ -12,7 +12,7 @@ import { sendPushNotification } from '../lib/push';
 // Listar Productos
 // ============================================
 
-export async function handleInventoryList(request, env, corsHeaders) {
+export async function handleInventoryList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     // 1. Obtener usuario autenticado
     const userDni = await requireAuth(request, env);
@@ -30,7 +30,7 @@ export async function handleInventoryList(request, env, corsHeaders) {
       FROM inventory_products
       WHERE user_dni = ?
       ORDER BY created_at DESC
-    `).bind(userDni).all();
+    `).bind(userDni).all<any>();
 
     return jsonResponse({
       success: true,
@@ -48,7 +48,7 @@ export async function handleInventoryList(request, env, corsHeaders) {
 // Subir Producto (con IA) - CORREGIDO
 // ============================================
 
-export async function handleInventoryUpload(request, env, ctx, corsHeaders) {
+export async function handleInventoryUpload(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>) {
   try {
     // 1. Autenticar
     const userDni = await requireAuth(request, env);
@@ -57,13 +57,13 @@ export async function handleInventoryUpload(request, env, ctx, corsHeaders) {
     }
 
     const formData = await request.formData();
-    const file = formData.get('photo');
-    const name = formData.get('name');
-    let sku = formData.get('sku') || '';
-    const category = formData.get('category') || 'general';
-    const quantity = parseInt(formData.get('quantity')) || 0;
-    const specs = formData.get('specs') || '';
-    const unit_price = parseFloat(formData.get('unit_price')) || 0;
+    const file = formData.get('photo') as File | null;
+    const name = formData.get('name') as string | null;
+    let sku = (formData.get('sku') as string | null) || '';
+    const category = (formData.get('category') as string | null) || 'general';
+    const quantity = parseInt(formData.get('quantity') as string) || 0;
+    const specs = (formData.get('specs') as string | null) || '';
+    const unit_price = parseFloat(formData.get('unit_price') as string) || 0;
 
     if (!file || !name) {
       return jsonResponse({ error: 'Foto y nombre son obligatorios' }, 400, corsHeaders);
@@ -88,7 +88,7 @@ export async function handleInventoryUpload(request, env, ctx, corsHeaders) {
       // Verificar duplicado SOLO para este usuario
       const existing = await env.MIRAI_AI_DB.prepare(
         "SELECT id FROM inventory_products WHERE sku = ? AND user_dni = ?"
-      ).bind(sku.toUpperCase().trim(), userDni).first();
+      ).bind(sku.toUpperCase().trim(), userDni).first<any>();
 
       if (existing) {
         return jsonResponse({ error: 'Ya existe un producto con ese SKU en tu inventario.' }, 409, corsHeaders);
@@ -143,7 +143,7 @@ export async function handleInventoryUpload(request, env, ctx, corsHeaders) {
 // Procesamiento IA (Background) - CORREGIDO
 // ============================================
 
-async function processInventoryAI(productId, r2Key, specs, env) {
+async function processInventoryAI(productId: string, r2Key: string, specs: string, env: Env) {
   try {
     // 1. Obtener imagen de R2
     const object = await env.MIRAI_AI_ASSETS.get(r2Key);
@@ -246,14 +246,14 @@ async function processInventoryAI(productId, r2Key, specs, env) {
 // ============================================
 // ACTUALIZAR PRODUCTO (EDITAR)
 // ============================================
-export async function handleInventoryUpdate(request, env, corsHeaders) {
+export async function handleInventoryUpdate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) {
       return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
     }
 
-    const { id, name, sku, category, quantity, unit_price, ai_description, ai_tags, demand_score } = await request.json();
+    const { id, name, sku, category, quantity, unit_price, ai_description, ai_tags, demand_score } = await request.json<any>();
 
     if (!id) {
       return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
@@ -262,7 +262,7 @@ export async function handleInventoryUpdate(request, env, corsHeaders) {
     // Verificar que el producto existe Y pertenece a este usuario
     const existing = await env.MIRAI_AI_DB.prepare(
       "SELECT id FROM inventory_products WHERE id = ? AND user_dni = ?"
-    ).bind(id, userDni).first();
+    ).bind(id, userDni).first<any>();
 
     if (!existing) {
       return jsonResponse({ error: 'Producto no encontrado o no tienes permiso para editarlo' }, 404, corsHeaders);
@@ -305,7 +305,7 @@ export async function handleInventoryUpdate(request, env, corsHeaders) {
 // ============================================
 // ELIMINAR PRODUCTO
 // ============================================
-export async function handleInventoryDelete(request, env, corsHeaders) {
+export async function handleInventoryDelete(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) {
@@ -322,7 +322,7 @@ export async function handleInventoryDelete(request, env, corsHeaders) {
     // Verificar propiedad
     const existing = await env.MIRAI_AI_DB.prepare(
       "SELECT photo_r2_key FROM inventory_products WHERE id = ? AND user_dni = ?"
-    ).bind(id, userDni).first();
+    ).bind(id, userDni).first<any>();
 
     if (!existing) {
       return jsonResponse({ error: 'Producto no encontrado o no tienes permiso para eliminarlo' }, 404, corsHeaders);

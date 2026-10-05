@@ -7,7 +7,7 @@ import { jsonResponse } from '../lib/http';
 
 // ── GET /api/diet/state ─────────────────────────────────────────────────────
 // Devuelve goals, planner, shopping y log del día actual del usuario.
-export async function handleDietGetState(request, env, corsHeaders) {
+export async function handleDietGetState(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
@@ -15,9 +15,9 @@ export async function handleDietGetState(request, env, corsHeaders) {
 
   const { results } = await env.MIRAI_AI_DB.prepare(
     `SELECT data_key, data_json FROM diet_data WHERE user_dni = ?`
-  ).bind(userDni).all();
+  ).bind(userDni).all<any>();
 
-  const map = {};
+  const map: Record<string, any> = {};
   results.forEach(r => {
     try { map[r.data_key] = JSON.parse(r.data_json); }
     catch { map[r.data_key] = {}; }
@@ -33,12 +33,12 @@ export async function handleDietGetState(request, env, corsHeaders) {
 
 // ── PUT /api/diet/:key (goals | planner | shopping) ─────────────────────────
 // Guarda un blob JSON asociado a la clave dada para el usuario.
-export async function handleDietPutKey(request, env, corsHeaders, key) {
+export async function handleDietPutKey(request: Request, env: Env, corsHeaders: Record<string, string>, key: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); }
+  try { body = await request.json<any>(); }
   catch { return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders); }
 
   await env.MIRAI_AI_DB.prepare(`
@@ -52,7 +52,7 @@ export async function handleDietPutKey(request, env, corsHeaders, key) {
 }
 
 // ── DELETE /api/diet/:key (planner) ─────────────────────────────────────────
-export async function handleDietDeleteKey(request, env, corsHeaders, key) {
+export async function handleDietDeleteKey(request: Request, env: Env, corsHeaders: Record<string, string>, key: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
@@ -65,12 +65,12 @@ export async function handleDietDeleteKey(request, env, corsHeaders, key) {
 
 // ── PUT /api/diet/log ────────────────────────────────────────────────────────
 // Guarda el log del día actual (clave dinámica log_YYYY-MM-DD).
-export async function handleDietPutLog(request, env, corsHeaders) {
+export async function handleDietPutLog(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); }
+  try { body = await request.json<any>(); }
   catch { return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders); }
 
   const today = new Date().toISOString().split('T')[0];
@@ -88,7 +88,7 @@ export async function handleDietPutLog(request, env, corsHeaders) {
 
 // ── DELETE /api/diet/log ─────────────────────────────────────────────────────
 // Borra el log del día actual del usuario.
-export async function handleDietDeleteLog(request, env, corsHeaders) {
+export async function handleDietDeleteLog(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
@@ -103,7 +103,7 @@ export async function handleDietDeleteLog(request, env, corsHeaders) {
 
 // ── GET /api/diet/history ────────────────────────────────────────────────────
 // Lista los últimos 60 días archivados del usuario.
-export async function handleDietGetHistory(request, env, corsHeaders) {
+export async function handleDietGetHistory(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
@@ -113,7 +113,7 @@ export async function handleDietGetHistory(request, env, corsHeaders) {
     WHERE user_dni = ?
     ORDER BY date DESC
     LIMIT 60
-  `).bind(userDni).all();
+  `).bind(userDni).all<any>();
 
   return jsonResponse(results.map(r => ({
     date: r.date,
@@ -128,12 +128,12 @@ export async function handleDietGetHistory(request, env, corsHeaders) {
 // ── POST /api/diet/history ───────────────────────────────────────────────────
 // Archiva el log del día como entrada de historial.
 // Body: { date, totalKcal, prot, carb, fat, meals[] }
-export async function handleDietPostHistory(request, env, corsHeaders) {
+export async function handleDietPostHistory(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); }
+  try { body = await request.json<any>(); }
   catch { return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders); }
 
   const { date, totalKcal, prot, carb, fat, meals } = body;

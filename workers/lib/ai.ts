@@ -6,7 +6,7 @@
 import { calcCost, logApiUsage } from './usage';
 
 // --- CONFIGURACIÓN ---
-function getAIGatewayURL(env) {
+function getAIGatewayURL(env: Env) {
   return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/compat/chat/completions`;
 }
 
@@ -15,7 +15,7 @@ function getAIGatewayURL(env) {
 // antes se concatenaba `content || reasoning`, de modo que cuando el modelo sólo
 // emitía razonamiento el usuario veía el monólogo interno como si fuese la
 // respuesta. `onDelta` permite reenviar cada trozo al cliente en vivo.
-type AIDeltaKind = 'reasoning' | 'content' | 'reset';
+export type AIDeltaKind = 'reasoning' | 'content' | 'reset';
 
 type AIDeltaHandler = (kind: AIDeltaKind, text: string) => void | Promise<void>;
 
@@ -74,7 +74,7 @@ async function readSSEStream(response: Response, usageOut: { usage?: any } | nul
 // se promocionaba a respuesta y el usuario veía en pantalla "We need to parse the
 // user's message...". Ahora ese caso devuelve texto vacío y quien llama decide
 // qué hacer (en el chat: pedirle la conclusión, ver completeTruncatedAnswer).
-function splitAIResult({ content, reasoning, finishReason }) {
+function splitAIResult({ content, reasoning, finishReason }: { content: string; reasoning: string; finishReason: string | null }) {
   return {
     text: content || '',
     reasoning: reasoning || '',
@@ -84,7 +84,7 @@ function splitAIResult({ content, reasoning, finishReason }) {
 
 // options.onDelta(tipo, texto) — se invoca por cada trozo recibido del modelo.
 // options.metaOut — objeto donde se dejan {reasoning, finishReason} de la llamada.
-interface CallAIOptions {
+export interface CallAIOptions {
   temperature?: number;
   max_tokens?: number;
   onDelta?: AIDeltaHandler | null;
@@ -210,7 +210,7 @@ Piensa lo justo antes de responder y escribe siempre una respuesta. No deliberes
 
 // El reintento reescribe el último turno en lugar de añadir uno nuevo: así se
 // mantiene la alternancia usuario/asistente que exigen los modelos razonadores.
-function buildAnswerRetryMessages(aiMessages, reasoning) {
+function buildAnswerRetryMessages(aiMessages: any[], reasoning: string) {
   const lastTurn = aiMessages[aiMessages.length - 1];
   // La conclusión suele estar al final del razonamiento, así que se conserva
   // la cola y no la cabeza.

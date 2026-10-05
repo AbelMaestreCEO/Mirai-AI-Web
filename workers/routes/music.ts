@@ -7,7 +7,7 @@ import { jsonResponse } from '../lib/http';
 import { ensureConversationExists, saveMessage, updateConversationTimestamp } from './conversations';
 
 // --- GENERAR MÚSICA CON MINIMAX 2.6 ---
-export async function handleMusicGeneration(prompt, conversationId, userDni, env, corsHeaders, skipHistory = false) {
+export async function handleMusicGeneration(prompt: any, conversationId: string, userDni: string, env: Env, corsHeaders: Record<string, string>, skipHistory = false) {
   console.log('🎵 Iniciando handleMusicGeneration...');
   try {
     console.log('🎵 Iniciando generación de música con MiniMax 2.6');
@@ -31,7 +31,7 @@ export async function handleMusicGeneration(prompt, conversationId, userDni, env
     console.log('🎵 Parámetros enviados:', JSON.stringify(musicParams));
 
     // 4. Llamar a Cloudflare AI
-    const aiResponse = await env.AI.run('minimax/music-2.6', musicParams, {
+    const aiResponse: any = await env.AI.run('minimax/music-2.6', musicParams, {
       gateway: { id: 'default' },
     });
 
@@ -39,14 +39,14 @@ export async function handleMusicGeneration(prompt, conversationId, userDni, env
     console.log('🎵 Respuesta completa:', JSON.stringify(aiResponse).substring(0, 500));
 
     // 5. Extraer audio de la respuesta
-    let audioBuffer: ArrayBuffer | SharedArrayBuffer | null = null;
+    let audioBuffer: ArrayBuffer | null = null;
 
     if (aiResponse instanceof ArrayBuffer && aiResponse.byteLength > 0) {
       audioBuffer = aiResponse;
       console.log('✅ Audio recibido como ArrayBuffer directo:', audioBuffer.byteLength, 'bytes');
     }
     else if (aiResponse instanceof Uint8Array && aiResponse.byteLength > 0) {
-      audioBuffer = aiResponse.buffer;
+      audioBuffer = aiResponse.buffer as ArrayBuffer;
       console.log('✅ Audio recibido como Uint8Array:', audioBuffer.byteLength, 'bytes');
     }
     else if (aiResponse?.result?.audio && typeof aiResponse.result.audio === 'string') {
@@ -162,7 +162,7 @@ export async function handleMusicGeneration(prompt, conversationId, userDni, env
 }
 
 // --- SIMPLIFICAR PROMPT PARA MINIMAX ---
-function simplifyMusicPrompt(prompt) {
+function simplifyMusicPrompt(prompt: any) {
   // Si el prompt es corto, usarlo tal cual
   if (prompt.length <= 200) return prompt;
 

@@ -11,12 +11,12 @@ import { sendPushNotification } from '../lib/push';
 // ============================================
 
 // 1. Suscribirse (Guardar en D1)
-export async function handleSubscribe(request, env, corsHeaders) {
+export async function handleSubscribe(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    const { endpoint, p256dh, auth } = await request.json();
+    const { endpoint, p256dh, auth } = await request.json<any>();
 
     if (!endpoint || !p256dh || !auth) {
       return jsonResponse({ error: 'Datos de suscripción incompletos' }, 400, corsHeaders);
@@ -44,11 +44,11 @@ export async function handleSubscribe(request, env, corsHeaders) {
 }
 
 // 3. Ruta para activar notificación (Trigger)
-export async function handleTriggerNotification(request, env, corsHeaders) {
+export async function handleTriggerNotification(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-  const { title, body, category, url } = await request.json();
+  const { title, body, category, url } = await request.json<any>();
 
   await sendPushNotification(env, userDni, title, body, { category, url });
 

@@ -5,7 +5,7 @@
 import { jsonResponse } from './http';
 
 // Hash de contraseña usando PBKDF2 nativo
-export async function hashPassword(password, salt) {
+export async function hashPassword(password: any, salt: string) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + salt);
   const keyMaterial = await crypto.subtle.importKey(
@@ -39,13 +39,13 @@ export function generateSalt() {
 }
 
 // --- NUEVO: VALIDACIÓN DE EMAIL ---
-export function isValidEmail(email) {
+export function isValidEmail(email: any) {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return re.test(email);
 }
 
 // --- INTERCEPTOR DE AUTENTICACIÓN (cookie HttpOnly + Bearer como fallback) ---
-export function getTokenFromRequest(request) {
+export function getTokenFromRequest(request: Request) {
   // 1. Intentar leer desde cookie HttpOnly (método seguro)
   const cookieHeader = request.headers.get('Cookie') || '';
   const cookieMatch = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
@@ -63,7 +63,7 @@ export function getTokenFromRequest(request) {
 // pedir más se trunca igualmente, así que es el techo práctico para "no expira".
 export const SESSION_MAX_AGE_SECS = 400 * 24 * 3600;
 
-export function makeSessionCookie(token, maxAgeSecs = SESSION_MAX_AGE_SECS) {
+export function makeSessionCookie(token: string, maxAgeSecs = SESSION_MAX_AGE_SECS) {
   return `session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSecs}`;
 }
 
@@ -71,25 +71,25 @@ export function clearSessionCookie() {
   return `session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
 }
 
-export async function requireAuth(request, env) {
+export async function requireAuth(request: Request, env: Env): Promise<string | null> {
   const token = getTokenFromRequest(request);
   if (!token) return null;
 
   // La sesión no vence por tiempo: solo se invalida con logout (borrado explícito de la fila).
   const session = await env.MIRAI_AI_DB.prepare(
     "SELECT user_dni FROM sessions WHERE token = ?"
-  ).bind(token).first();
+  ).bind(token).first<any>();
 
   if (!session) return null;
   return session.user_dni;
 }
 
 /** ¿El usuario tiene rol 'admin' en la tabla users? */
-export async function isAdminUser(userDni, env) {
+export async function isAdminUser(userDni: string, env: Env) {
   try {
     const row = await env.MIRAI_AI_DB.prepare(
       'SELECT role FROM users WHERE dni = ?'
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
     return row?.role === 'admin';
   } catch (error) {
     console.error('isAdminUser error:', error.message);
@@ -97,7 +97,7 @@ export async function isAdminUser(userDni, env) {
   }
 }
 
-export function clientIp(request) {
+export function clientIp(request: Request) {
   return request.headers.get('CF-Connecting-IP') || 'desconocida';
 }
 
@@ -107,14 +107,14 @@ export function clientIp(request) {
  * La protección real del OTP es otp_attempts en D1, que sí es consistente.
  * @returns {Promise<boolean>} true si la petición se permite.
  */
-export async function rateLimit(env, key, limit, windowSecs) {
+export async function rateLimit(env: Env, key: string, limit: number, windowSecs: number) {
   if (!env.KV_RATE) return true;
 
   const bucket = Math.floor(Date.now() / (windowSecs * 1000));
   const kvKey = `rl:${key}:${bucket}`;
 
   try {
-    const current = parseInt(await env.KV_RATE.get(kvKey), 10) || 0;
+    const current = parseInt((await env.KV_RATE.get(kvKey)) ?? '', 10) || 0;
     if (current >= limit) return false;
     await env.KV_RATE.put(kvKey, String(current + 1), { expirationTtl: Math.max(60, windowSecs * 2) });
     return true;
@@ -125,7 +125,7 @@ export async function rateLimit(env, key, limit, windowSecs) {
 }
 
 /** Comparación en tiempo constante: no filtra cuántos dígitos se acertaron. */
-export function safeEqual(a, b) {
+export function safeEqual(a: string, b: string) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
@@ -139,7 +139,7 @@ export function safeEqual(a, b) {
 
 export const CEDULA_RE = /^[A-Za-z]-\d{5,9}$/;
 
-export function normalizeCedula(raw) {
+export function normalizeCedula(raw: any) {
   const v = (raw || '').trim().toUpperCase().replace(/\s+/g, '');
   return v;
 }
@@ -159,7 +159,7 @@ const DNI_PATTERN = /^[A-Z]{1,5}-[A-Z0-9]{5,15}$/;
  *
  * @returns {string|null} el DNI canónico, o null si no es válido
  */
-export function normalizeDni(raw) {
+export function normalizeDni(raw: any) {
   const value = (raw == null ? '' : String(raw)).trim().toUpperCase().replace(/\s+/g, '');
   if (!value) return null;
 
@@ -169,7 +169,7 @@ export function normalizeDni(raw) {
   return DNI_PATTERN.test(candidate) ? candidate : null;
 }
 
-export async function requireAdminAuth(request, env, corsHeaders) {
+export async function requireAdminAuth(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) {
     return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
@@ -177,7 +177,7 @@ export async function requireAdminAuth(request, env, corsHeaders) {
 
   const row = await env.MIRAI_AI_DB.prepare(
     "SELECT role FROM users WHERE dni = ?"
-  ).bind(userDni.toUpperCase()).first();
+  ).bind(userDni.toUpperCase()).first<any>();
 
   if (!row || row.role !== 'admin') {
     return jsonResponse({ error: 'Acceso denegado. Requiere rol de administrador.' }, 403, corsHeaders);

@@ -14,12 +14,12 @@ import { jsonResponse } from '../lib/http';
 // así que añadir una pestaña obligaba a acordarse de los tres sitios.
 const GEN_HISTORY_TYPES = ['texto', 'imagen', 'editar', 'activos', 'video', 'avatar', 'videoedit', 'musica'];
 
-export async function handleGenHistorySave(request, env, corsHeaders) {
+export async function handleGenHistorySave(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -59,7 +59,7 @@ export async function handleGenHistorySave(request, env, corsHeaders) {
   }
 }
 
-export async function handleGenHistoryGet(request, env, corsHeaders) {
+export async function handleGenHistoryGet(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -97,7 +97,7 @@ export async function handleGenHistoryGet(request, env, corsHeaders) {
       params = [userDni.toUpperCase(), limit, offset];
     }
 
-    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...params).all();
+    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...params).all<any>();
     return jsonResponse({ items: results, page, limit }, 200, corsHeaders);
   } catch (error) {
     console.error('❌ gen-history get error:', error);
@@ -105,7 +105,7 @@ export async function handleGenHistoryGet(request, env, corsHeaders) {
   }
 }
 
-export async function handleGenHistoryDelete(request, env, corsHeaders) {
+export async function handleGenHistoryDelete(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 

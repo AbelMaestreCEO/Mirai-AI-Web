@@ -3,7 +3,7 @@
    Clasificación de intención, chat de texto (con y sin streaming) y búsqueda
    en YouTube.
    ============================================ */
-import { REASONING_STYLE_NOTE, callAI, callAIEnsuringAnswer } from '../lib/ai';
+import { type AIDeltaKind, type CallAIOptions, REASONING_STYLE_NOTE, callAI, callAIEnsuringAnswer } from '../lib/ai';
 import { AI_MODEL_NORMAL, AI_MODEL_PRO } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
 import { jsonResponse } from '../lib/http';
@@ -28,7 +28,7 @@ import {
 } from './conversations';
 import { handleRoutedImageGeneration } from './image';
 import { handleMusicGeneration } from './music';
-import { checkAndConsumeToken } from './plans';
+import { type TokenType, checkAndConsumeToken } from './plans';
 import { handleVideoGeneration } from './video';
 
 // Techo de salida del chat de texto. Tiene que dar para el razonamiento Y la
@@ -71,7 +71,7 @@ Respond ONLY with valid JSON, nothing else:
 {"intent": <number>, "prompt": "<detailed English prompt for generation if intent 2/3/4, search query if intent 6, empty string if 1/5>", "is_copyright": <true if user asked for copyrighted/real person, false otherwise>}`;
 
 // --- CLASIFICAR INTENCIÓN DEL USUARIO ---
-async function classifyIntent(message, env) {
+async function classifyIntent(message: string, env: Env): Promise<IntentClassification> {
   try {
     const content = await callAI(
       AI_MODEL_NORMAL,
@@ -90,7 +90,7 @@ async function classifyIntent(message, env) {
   }
 }
 
-async function handleYouTubeSearch(query, originalMessage, conversationId, userDni, env, corsHeaders, skipHistory) {
+async function handleYouTubeSearch(query: any, originalMessage: string, conversationId: string, userDni: string, env: Env, corsHeaders: Record<string, string>, skipHistory: boolean) {
   const apiKey = env.GOOGLE_MAPS_KEY;
   if (!apiKey) {
     return jsonResponse({ type: 'text', response: '⚠️ YouTube no está configurado en este momento.' }, 200, corsHeaders);
@@ -100,10 +100,10 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
     const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(query)}&key=${apiKey}`;
     const ytRes = await fetch(searchUrl);
     if (!ytRes.ok) throw new Error(`YouTube API: ${ytRes.status}`);
-    const ytData: any = await ytRes.json();
+    const ytData: any = await ytRes.json<any>();
     await logApiUsage(env, { provider: 'youtube', unit_type: 'call', user_dni: userDni, cost_usd: 0 });
 
-    const videos = (ytData.items || []).map(item => ({
+    const videos = (ytData.items || []).map((item: any) => ({
       videoId: item.id.videoId,
       title: item.snippet.title,
       channel: item.snippet.channelTitle,
@@ -118,7 +118,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
     if (!skipHistory && conversationId) {
       try {
         const DB = env.MIRAI_AI_DB;
-        const titles = videos.slice(0, 3).map((v, i) => `${i + 1}. ${v.title}`).join('\n');
+        const titles = videos.slice(0, 3).map((v: any, i: number) => `${i + 1}. ${v.title}`).join('\n');
         const assistantContent = `🎬 Videos encontrados para "${originalMessage}":\n${titles}`;
         await DB.prepare('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)')
           .bind(conversationId, 'user', originalMessage).run();
@@ -142,7 +142,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
   }
 }
 
-export async function handleChat(request, env, corsHeaders, ctx: ExecutionContext | null = null) {
+export async function handleChat(request: Request, env: Env, corsHeaders: Record<string, string>, ctx: ExecutionContext | null = null) {
   // 1. Autenticar
   const userDni = await requireAuth(request, env);
   if (!userDni) {
@@ -154,7 +154,7 @@ export async function handleChat(request, env, corsHeaders, ctx: ExecutionContex
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone, image_options, video_options } = await request.json();
+    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone, image_options, video_options } = await request.json<any>();
 
     // Validar entrada
     if (!message || typeof message !== 'string') {
@@ -169,13 +169,13 @@ export async function handleChat(request, env, corsHeaders, ctx: ExecutionContex
       // 2. ASEGURAR PERMISO DE ACCESO (MODIFICADO)
       let convData = await env.MIRAI_AI_DB.prepare(
         "SELECT user_dni, course_id FROM conversations WHERE id = ?"
-      ).bind(conversation_id).first();
+      ).bind(conversation_id).first<any>();
 
       if (!convData) {
         await ensureConversationExists(conversation_id, message, env, course_id, lesson_id, userDni, model);
         const newConvData = await env.MIRAI_AI_DB.prepare(
           "SELECT user_dni, course_id FROM conversations WHERE id = ?"
-        ).bind(conversation_id).first();
+        ).bind(conversation_id).first<any>();
         if (!newConvData) {
           return jsonResponse({ error: 'Error interno al crear conversación' }, 500, corsHeaders);
         }
@@ -214,7 +214,7 @@ export async function handleChat(request, env, corsHeaders, ctx: ExecutionContex
     console.log(`🎯 Clasificación final: intent=${classification.intent}, prompt="${classification.prompt.substring(0, 80)}"`);
 
     // ✨ PASO 2: VERIFICAR CUOTA DIARIA ANTES DE ENRUTAR
-    const intentToTokenType = {
+    const intentToTokenType: Record<number, TokenType> = {
       [INTENT_TYPES.IMAGE]: 'imagen',
       [INTENT_TYPES.VIDEO]: 'video',
       [INTENT_TYPES.MUSIC]: 'musica',
@@ -223,7 +223,7 @@ export async function handleChat(request, env, corsHeaders, ctx: ExecutionContex
     if (tokenType) {
       const tokenCheck = await checkAndConsumeToken(userDni, tokenType, env);
       if (!tokenCheck.allowed) {
-        const typeLabels = { imagen: 'imágenes', musica: 'canciones', video: 'videos' };
+        const typeLabels: Record<TokenType, string> = { imagen: 'imágenes', musica: 'canciones', video: 'videos' };
         return jsonResponse({
           error: `Has alcanzado el límite diario de ${tokenCheck.limit} ${typeLabels[tokenType]}. Vuelve a intentarlo mañana.`,
           token_limit_reached: true,
@@ -311,14 +311,21 @@ export async function handleChat(request, env, corsHeaders, ctx: ExecutionContex
 }
 
 // --- PARSEAR RESPUESTA DE CLASIFICACIÓN ---
-function parseClassification(content) {
+interface IntentClassification {
+  intent: number;
+  prompt: string;
+  is_copyright?: boolean;
+}
+
+function parseClassification(content: any): IntentClassification {
   // Intent 1: JSON directo
   try {
     const parsed = JSON.parse(content.trim());
     if (parsed.intent >= 1 && parsed.intent <= 6) {
       return {
         intent: parsed.intent,
-        prompt: parsed.prompt || ''
+        prompt: parsed.prompt || '',
+        is_copyright: parsed.is_copyright === true
       };
     }
   } catch (e) {
@@ -333,7 +340,8 @@ function parseClassification(content) {
       if (parsed.intent >= 1 && parsed.intent <= 6) {
         return {
           intent: parsed.intent,
-          prompt: parsed.prompt || ''
+          prompt: parsed.prompt || '',
+          is_copyright: parsed.is_copyright === true
         };
       }
     } catch (e2) {
@@ -352,7 +360,8 @@ function parseClassification(content) {
       const promptMatch = content.match(/"prompt"\s*:\s*"([^"]*)"/);
       return {
         intent,
-        prompt: promptMatch ? promptMatch[1] : ''
+        prompt: promptMatch ? promptMatch[1] : '',
+        is_copyright: /"is_copyright"\s*:\s*true/.test(content)
       };
     }
   }
@@ -362,7 +371,7 @@ function parseClassification(content) {
   return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' };
 }
 
-export async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null) {
+export async function handleTextChatInternal(message: string, conversation_id: string, audio_mode: string | boolean, course_id: string | null, lesson_id: string | null, model: any, env: Env, corsHeaders: Record<string, string>, userDni: string, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -394,7 +403,7 @@ export async function handleTextChatInternal(message, conversation_id, audio_mod
       try {
         const userData = await env.MIRAI_AI_DB.prepare(
           "SELECT first_name, last_name, ai_preferences_json FROM users WHERE dni = ?"
-        ).bind(userDni).first();
+        ).bind(userDni).first<any>();
         if (userData) {
           const personalInfo = `\n\n[DATOS DEL USUARIO] El usuario con quien hablas se llama ${userData.first_name || ''} ${userData.last_name || ''}. Usa su nombre para personalizar tus respuestas, salúdalo por su nombre cuando sea apropiado. Si el usuario se presenta con otro nombre o te pide que lo llames de otra forma, respeta su preferencia sin discutir ni darle vueltas.`;
           systemPrompt += personalInfo;
@@ -435,12 +444,12 @@ export async function handleTextChatInternal(message, conversation_id, audio_mod
           body: JSON.stringify({ query: message, numResults: 5, type: 'auto', contents: { highlights: true } }),
         });
         if (exaRes.ok) {
-          const exaData: any = await exaRes.json();
+          const exaData: any = await exaRes.json<any>();
           await logApiUsage(env, { provider: 'exa', unit_type: 'search', sub_type: 'chat_websearch', cost_usd: calcCost('exa', null) });
           const results = (exaData.results || []).slice(0, 5);
           if (results.length > 0) {
             webContext = '\n\n[CONTEXTO WEB — Resultados de búsqueda recientes]\n' +
-              results.map((r, i) => {
+              results.map((r: any, i: number) => {
                 const highlights = (r.highlights || []).join(' ').slice(0, 800);
                 return `[${i + 1}] ${r.title || 'Sin título'} (${r.url})\n${highlights}`;
               }).join('\n\n') +
@@ -548,7 +557,10 @@ export async function handleTextChatInternal(message, conversation_id, audio_mod
 //   {type:'error', error}
 // El bloque [SUGGESTIONS]…[/SUGGESTIONS] se retiene en el servidor para que no
 // aparezca a medio escribir dentro de la burbuja.
-function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_id, env, corsHeaders, userDni, ctx }) {
+function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_id, env, corsHeaders, userDni, ctx }: {
+  aiModel: string; aiMessages: any[]; aiOptions: CallAIOptions; message: string; conversation_id: string;
+  env: Env; corsHeaders: Record<string, string>; userDni: string; ctx: ExecutionContext | null;
+}) {
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
@@ -557,7 +569,7 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
   // debe propagarse a callAI: allí un error se interpreta como caída de DeepSeek
   // y dispararía una segunda generación completa con el modelo de respaldo.
   let clientGone = false;
-  const send = async (payload) => {
+  const send = async (payload: unknown) => {
     if (clientGone) return;
     try {
       await writer.write(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
@@ -570,7 +582,7 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
 
   // Cuánto del buffer puede emitirse sin riesgo de partir el marcador de
   // sugerencias por la mitad.
-  const safeLength = (buf) => {
+  const safeLength = (buf: string) => {
     const i = buf.lastIndexOf('[');
     if (i === -1) return buf.length;
     const tail = buf.slice(i);
@@ -587,7 +599,7 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
     let emitted = 0;
     let suggestionsStarted = false;
 
-    const onDelta = async (type, text) => {
+    const onDelta = async (type: AIDeltaKind, text: string) => {
       if (type === 'reset') {
         contentBuffer = '';
         emitted = 0;
@@ -652,7 +664,7 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
   });
 }
 
-function extractSuggestions(aiResponse) {
+function extractSuggestions(aiResponse: any) {
   if (!aiResponse || typeof aiResponse !== 'string') {
     return { cleanResponse: aiResponse || '', suggestions: [] };
   }

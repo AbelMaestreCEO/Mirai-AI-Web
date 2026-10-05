@@ -8,14 +8,14 @@ import { requireAuth } from '../lib/auth';
 import { jsonResponse } from '../lib/http';
 
 // ── BLOQUE 2: handleGetProfile ────────────────────────────────
-export async function handleGetProfile(request, env, corsHeaders) {
+export async function handleGetProfile(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT dni, first_name, last_name, email, avatar_r2_key FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
 
     if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
 
@@ -43,14 +43,14 @@ export async function handleGetProfile(request, env, corsHeaders) {
 }
 
 // ── Settings cross-device: GET ─────────────────────────────────
-export async function handleGetUserSettings(request, env, corsHeaders) {
+export async function handleGetUserSettings(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     const row = await env.MIRAI_AI_DB.prepare(
       "SELECT settings_json FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
 
     const settings = row?.settings_json ? JSON.parse(row.settings_json) : {};
     return jsonResponse({ success: true, settings }, 200, corsHeaders);
@@ -61,16 +61,16 @@ export async function handleGetUserSettings(request, env, corsHeaders) {
 }
 
 // ── Settings cross-device: PUT ─────────────────────────────────
-export async function handleSaveUserSettings(request, env, corsHeaders) {
+export async function handleSaveUserSettings(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    const body = await request.json();
+    const body = await request.json<any>();
 
     // Solo guardamos campos permitidos (whitelist)
     const allowed = ['accentColor', 'fontFamily', 'fontSize', 'reducedMotion', 'themeMode', 'aiModel', 'notifications', 'twoFactor', 'notifyGeneration', 'notifyClassroom', 'notifyInventory', 'notifyReport', 'notifyTask'];
-    const clean = {};
+    const clean: Record<string, unknown> = {};
     for (const key of allowed) {
       if (body[key] !== undefined) clean[key] = body[key];
     }
@@ -87,14 +87,14 @@ export async function handleSaveUserSettings(request, env, corsHeaders) {
 }
 
 // ── Preferencias detectadas por IA: GET ──────────────────────
-export async function handleGetUserPreferences(request, env, corsHeaders) {
+export async function handleGetUserPreferences(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     const row = await env.MIRAI_AI_DB.prepare(
       "SELECT ai_preferences_json FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
 
     const preferences = row?.ai_preferences_json ? JSON.parse(row.ai_preferences_json) : {};
     return jsonResponse({ success: true, preferences }, 200, corsHeaders);
@@ -105,13 +105,13 @@ export async function handleGetUserPreferences(request, env, corsHeaders) {
 }
 
 // ── Preferencias detectadas por IA: POST (análisis) ──────────
-export async function handleAnalyzePreferences(request, env, corsHeaders) {
+export async function handleAnalyzePreferences(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     let conversationId: any = null;
-    try { conversationId = (await request.json()).conversation_id; } catch (_) { }
+    try { conversationId = (await request.json<any>()).conversation_id; } catch (_) { }
 
     let query, binds;
     if (conversationId) {
@@ -125,7 +125,7 @@ export async function handleAnalyzePreferences(request, env, corsHeaders) {
       binds = [userDni];
     }
 
-    const recentMessages = await env.MIRAI_AI_DB.prepare(query).bind(...binds).all();
+    const recentMessages = await env.MIRAI_AI_DB.prepare(query).bind(...binds).all<any>();
 
     if (!recentMessages.results || recentMessages.results.length < 6) {
       return jsonResponse({ success: true, skipped: true, reason: 'No hay suficientes mensajes' }, 200, corsHeaders);
@@ -139,7 +139,7 @@ export async function handleAnalyzePreferences(request, env, corsHeaders) {
 
     const existingRow = await env.MIRAI_AI_DB.prepare(
       "SELECT ai_preferences_json FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
     const existingPrefs = existingRow?.ai_preferences_json || '{}';
 
     const analysisPrompt = `Extrae preferencias del USUARIO de estos mensajes. Cada valor debe ser MUY CORTO (máximo 6 palabras), como "batido de fresa" o "rock alternativo". Si no hay dato claro, deja "".
@@ -168,7 +168,7 @@ Responde SOLO con JSON válido:
       return jsonResponse({ success: false, error: 'Error al parsear respuesta de IA' }, 500, corsHeaders);
     }
 
-    const filtered = {};
+    const filtered: Record<string, string> = {};
     for (const [key, value] of Object.entries(preferences)) {
       if (value && typeof value === 'string' && value.trim()) {
         filtered[key] = value.trim().substring(0, 60);
@@ -187,12 +187,12 @@ Responde SOLO con JSON válido:
 }
 
 // ── BLOQUE 3: handleUpdateProfile ─────────────────────────────
-export async function handleUpdateProfile(request, env, corsHeaders) {
+export async function handleUpdateProfile(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-    const { firstName, lastName } = await request.json();
+    const { firstName, lastName } = await request.json<any>();
 
     if (!firstName || !firstName.trim()) {
       return jsonResponse({ error: 'El nombre es obligatorio' }, 400, corsHeaders);
@@ -219,13 +219,13 @@ export async function handleUpdateProfile(request, env, corsHeaders) {
 }
 
 // ── BLOQUE 4: handleUploadAvatar ──────────────────────────────
-export async function handleUploadAvatar(request, env, corsHeaders) {
+export async function handleUploadAvatar(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     const formData = await request.formData();
-    const file = formData.get('avatar');
+    const file = formData.get('avatar') as File | null;
 
     if (!file) return jsonResponse({ error: 'No se recibió ninguna imagen' }, 400, corsHeaders);
 
@@ -243,7 +243,7 @@ export async function handleUploadAvatar(request, env, corsHeaders) {
     // Eliminar avatar anterior si existe
     const existing = await env.MIRAI_AI_DB.prepare(
       "SELECT avatar_r2_key FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
 
     if (existing?.avatar_r2_key) {
       await env.MIRAI_AI_ASSETS.delete(existing.avatar_r2_key).catch(() => null);
@@ -282,14 +282,14 @@ export async function handleUploadAvatar(request, env, corsHeaders) {
 }
 
 // ── BLOQUE 5: handleDeleteAvatar ──────────────────────────────
-export async function handleDeleteAvatar(request, env, corsHeaders) {
+export async function handleDeleteAvatar(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT avatar_r2_key FROM users WHERE dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
 
     if (user?.avatar_r2_key) {
       await env.MIRAI_AI_ASSETS.delete(user.avatar_r2_key).catch(() => null);
@@ -307,7 +307,7 @@ export async function handleDeleteAvatar(request, env, corsHeaders) {
 }
 
 // ── BLOQUE 6: handleServeAvatar (sirve la imagen desde R2) ────
-export async function handleServeAvatar(request, env, corsHeaders) {
+export async function handleServeAvatar(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     // Extraer DNI de la URL: /api/user/avatar/{dni}
     const url = new URL(request.url);
@@ -318,7 +318,7 @@ export async function handleServeAvatar(request, env, corsHeaders) {
 
     const user = await env.MIRAI_AI_DB.prepare(
       "SELECT avatar_r2_key FROM users WHERE dni = ?"
-    ).bind(dni).first();
+    ).bind(dni).first<any>();
 
     if (!user?.avatar_r2_key) {
       return new Response('No avatar', { status: 404 });

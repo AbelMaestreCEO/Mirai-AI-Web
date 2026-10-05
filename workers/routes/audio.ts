@@ -6,7 +6,7 @@ import { jsonResponse } from '../lib/http';
 import { saveMessage } from './conversations';
 
 // --- GENERAR TTS Y GUARDAR EN R2 (CORREGIDO) ---
-export async function generateAndStoreTTS(text, conversationId, env) {
+export async function generateAndStoreTTS(text: any, conversationId: any, env: Env) {
   try {
     if (!env.AI) {
       console.error('❌ CRÍTICO: env.AI no está definido.');
@@ -26,7 +26,7 @@ export async function generateAndStoreTTS(text, conversationId, env) {
 
     for (const segment of segments) {
       try {
-        const ttsResult = await env.AI.run('inworld/tts-1.5-mini', {
+        const ttsResult: any = await env.AI.run('inworld/tts-1.5-mini', {
           text: segment,
           voice_id: 'Serena',
           output_format: 'mp3',
@@ -146,11 +146,11 @@ export async function generateAndStoreTTS(text, conversationId, env) {
 }
 
 // --- MANEJAR SUBIDA DE AUDIO DE USUARIO ---
-export async function handleUploadUserAudio(request, env, corsHeaders) {
+export async function handleUploadUserAudio(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const formData = await request.formData();
-    const audioFile = formData.get('audio');
-    const conversationId = formData.get('conversation_id');
+    const audioFile = formData.get('audio') as File | null;
+    const conversationId = formData.get('conversation_id') as string | null;
 
     if (!audioFile || !conversationId) {
       return jsonResponse({ error: 'Faltan el audio o conversation_id' }, 400, corsHeaders);
@@ -185,11 +185,11 @@ export async function handleUploadUserAudio(request, env, corsHeaders) {
 }
 
 // --- MANEJAR TRANSCRIPCIÓN CON WHISPER (ACTUALIZADO) ---
-export async function handleTranscribeAudio(request, env, corsHeaders) {
+export async function handleTranscribeAudio(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const formData = await request.formData();
-    const audioFile = formData.get('audio');
-    const conversationId = formData.get('conversation_id');
+    const audioFile = formData.get('audio') as File | null;
+    const conversationId = formData.get('conversation_id') as string | null;
 
     if (!audioFile) {
       return jsonResponse({ error: 'Falta el archivo de audio' }, 400, corsHeaders);
@@ -202,7 +202,8 @@ export async function handleTranscribeAudio(request, env, corsHeaders) {
     await env.MIRAI_AI_ASSETS.put(filename, audioFile.stream(), {
       httpMetadata: { contentType: audioFile.type },
       customMetadata: {
-        conversation_id: conversationId,
+        // Mismo valor que ya va en la ruta del archivo (user-audio/<id>/...).
+        conversation_id: String(conversationId),
         uploaded_at: new Date().toISOString()
       }
     });
@@ -219,7 +220,7 @@ export async function handleTranscribeAudio(request, env, corsHeaders) {
       task: "transcribe"
     });
 
-    const transcription = whisperResult.text || whisperResult.transcription || '';
+    const transcription = whisperResult.text || '';
 
     if (!transcription || transcription.trim().length === 0) {
       return jsonResponse({
@@ -254,7 +255,7 @@ export async function handleTranscribeAudio(request, env, corsHeaders) {
 }
 
 // --- Utilidad: ArrayBuffer a Base64 (SIN window) ---
-function arrayBufferToBase64(buffer) {
+function arrayBufferToBase64(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer);
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -264,7 +265,7 @@ function arrayBufferToBase64(buffer) {
 }
 
 // --- LIMPIAR TEXTO PARA TTS ---
-function cleanTextForTTS(text) {
+function cleanTextForTTS(text: any) {
   let cleaned = text;
   // Remover bloques de código
   cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
@@ -285,7 +286,7 @@ function cleanTextForTTS(text) {
   return cleaned.trim();
 }
 
-function segmentTextForTTS(text, maxLength = 2000) {
+function segmentTextForTTS(text: any, maxLength = 2000) {
   if (text.length <= maxLength) return [text];
 
   const segments: any[] = [];
@@ -316,7 +317,7 @@ function segmentTextForTTS(text, maxLength = 2000) {
 }
 
 // --- SERVIR AUDIO DESDE R2 ---
-export async function handleServeAudio(path, env) {
+export async function handleServeAudio(path: string, env: Env) {
   try {
     const r2Key = path.replace('/api/audio/', '');
 

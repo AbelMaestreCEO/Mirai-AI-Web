@@ -52,7 +52,7 @@ function normalizeImageOptions(raw: ImageOptions = {}) {
 }
 
 // --- GENERAR IMAGEN CON PRUNA AI P-IMAGE / P-IMAGE-IDEOGRAM ---
-async function generateAndStoreImage(prompt, conversationId, env, options: ImageOptions = {}) {
+async function generateAndStoreImage(prompt: any, conversationId: string, env: Env, options: ImageOptions = {}) {
   try {
     const { engine, aspectRatio, thinking, imageSize } = normalizeImageOptions(options);
     const userDni = options.user_dni || null;
@@ -110,7 +110,7 @@ async function generateAndStoreImage(prompt, conversationId, env, options: Image
 }
 
 // --- EDITAR IMAGEN CON PRUNA AI P-IMAGE-EDIT ---
-export async function handleImageEdit(request, env, corsHeaders) {
+export async function handleImageEdit(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) {
@@ -125,7 +125,7 @@ export async function handleImageEdit(request, env, corsHeaders) {
       }, 429, corsHeaders);
     }
 
-    const { prompt, image_url, aspect_ratio } = await request.json();
+    const { prompt, image_url, aspect_ratio } = await request.json<any>();
 
     if (!prompt || !image_url) {
       return jsonResponse({ error: 'Se requiere prompt e image_url' }, 400, corsHeaders);
@@ -185,7 +185,7 @@ export async function handleImageEdit(request, env, corsHeaders) {
 // Convierte una referencia de imagen del cliente en una URL http(s) absoluta.
 // Pruna descarga los inputs desde internet, así que una ruta relativa
 // (/api/image/...) o un data URI no le sirven tal cual.
-export async function toPublicImageUrl(env, request, userDni, imageRef) {
+export async function toPublicImageUrl(env: Env, request: Request, userDni: string, imageRef: any) {
   if (imageRef.startsWith('http://') || imageRef.startsWith('https://')) return imageRef;
 
   const origin = new URL(request.url).origin;
@@ -213,7 +213,7 @@ const UPSCALE_MAX_MEGAPIXELS = 128;
 
 const UPSCALE_DEFAULT_MEGAPIXELS = 4;
 
-export async function handleImageUpscale(request, env, corsHeaders) {
+export async function handleImageUpscale(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
@@ -226,7 +226,7 @@ export async function handleImageUpscale(request, env, corsHeaders) {
       }, 429, corsHeaders);
     }
 
-    const { image_url, target, enhance_details, enhance_realism } = await request.json();
+    const { image_url, target, enhance_details, enhance_realism } = await request.json<any>();
     if (!image_url) {
       return jsonResponse({ error: 'Se requiere image_url' }, 400, corsHeaders);
     }
@@ -285,12 +285,12 @@ export async function handleImageUpscale(request, env, corsHeaders) {
 // --- EVALUAR IMAGEN CONTRA SU PROMPT CON PRUNA AI P-JUDGER ---
 // A diferencia del resto de modelos, la salida no es un fichero sino un JSON de
 // puntuaciones, así que aquí se usa la predicción cruda en vez de extraer una URL.
-export async function handleImageJudge(request, env, corsHeaders) {
+export async function handleImageJudge(request: Request, env: Env, corsHeaders: Record<string, string>) {
   try {
     const userDni = await requireAuth(request, env);
     if (!userDni) return jsonResponse({ error: 'No autenticado' }, 401, corsHeaders);
 
-    const { image_url, prompt } = await request.json();
+    const { image_url, prompt } = await request.json<any>();
     if (!image_url || !prompt) {
       return jsonResponse({ error: 'Se requiere image_url y prompt' }, 400, corsHeaders);
     }
@@ -326,7 +326,7 @@ export async function handleImageJudge(request, env, corsHeaders) {
   }
 }
 
-export async function handleRoutedImageGeneration(prompt, originalMessage, conversationId, userDni, env, corsHeaders, isCopyright = false, skipHistory = false, imageOptions = {}) {
+export async function handleRoutedImageGeneration(prompt: any, originalMessage: string, conversationId: string, userDni: string, env: Env, corsHeaders: Record<string, string>, isCopyright = false, skipHistory = false, imageOptions = {}) {
   try {
     if (!skipHistory) {
       await ensureConversationExists(conversationId, originalMessage, env, null, null, userDni, AI_MODEL_NORMAL);
@@ -404,7 +404,7 @@ export async function handleRoutedImageGeneration(prompt, originalMessage, conve
 }
 
 // Descarga una imagen (URL http(s) o data URI base64) y devuelve un ArrayBuffer
-export async function downloadImageAsBuffer(source) {
+export async function downloadImageAsBuffer(source: any) {
   if (source.startsWith('data:')) {
     const base64 = source.replace(/^data:image\/[a-z0-9.+-]+;base64,/i, '').trim();
     if (base64.length < 100) throw new Error('Imagen inválida');
@@ -419,7 +419,7 @@ export async function downloadImageAsBuffer(source) {
 }
 
 // --- SERVIR IMÁGENES DESDE R2 CON CORS ---
-export async function handleServeImage(path, env) {
+export async function handleServeImage(path: string, env: Env) {
   try {
     const r2Key = path.replace('/api/image/', '');
 

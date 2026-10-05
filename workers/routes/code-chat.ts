@@ -14,7 +14,7 @@ import { handleTextChatInternal } from './chat';
 // GET /api/code-chats?project_id=xxx
 // Lista los chats de código asociados a un proyecto del usuario
 // ─────────────────────────────────────────────────────────────
-export async function handleCodeChatList(request, env, corsHeaders, url) {
+export async function handleCodeChatList(request: Request, env: Env, corsHeaders: Record<string, string>, url: URL) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -24,7 +24,7 @@ export async function handleCodeChatList(request, env, corsHeaders, url) {
   // Verificar que el proyecto pertenece al usuario
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id, name FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(projectId, userDni.toUpperCase()).first();
+  ).bind(projectId, userDni.toUpperCase()).first<any>();
 
   if (!project) return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
 
@@ -35,7 +35,7 @@ export async function handleCodeChatList(request, env, corsHeaders, url) {
       WHERE project_id = ? AND user_dni = ?
       ORDER BY updated_at DESC
       LIMIT 50
-    `).bind(projectId, userDni.toUpperCase()).all();
+    `).bind(projectId, userDni.toUpperCase()).all<any>();
 
     return jsonResponse({ chats: results }, 200, corsHeaders);
   } catch (error) {
@@ -51,12 +51,12 @@ export async function handleCodeChatList(request, env, corsHeaders, url) {
 // Fetcha el contexto del proyecto y lo guarda como system_prompt
 // para que handleTextChatInternal lo use automáticamente.
 // ─────────────────────────────────────────────────────────────
-export async function handleCodeChatCreate(request, env, corsHeaders) {
+export async function handleCodeChatCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -66,7 +66,7 @@ export async function handleCodeChatCreate(request, env, corsHeaders) {
   // Verificar propiedad del proyecto y obtener su info
   const project = await env.MIRAI_AI_DB.prepare(
     'SELECT id, name, tech_stack FROM projects WHERE id = ? AND user_dni = ?'
-  ).bind(project_id, userDni.toUpperCase()).first();
+  ).bind(project_id, userDni.toUpperCase()).first<any>();
 
   if (!project) return jsonResponse({ error: 'Proyecto no encontrado o sin permiso' }, 404, corsHeaders);
 
@@ -74,7 +74,7 @@ export async function handleCodeChatCreate(request, env, corsHeaders) {
     // Obtener archivos del proyecto para construir el contexto
     const { results: files } = await env.MIRAI_AI_DB.prepare(
       'SELECT id, name, r2_key, size FROM project_files WHERE project_id = ? ORDER BY uploaded_at ASC'
-    ).bind(project_id).all();
+    ).bind(project_id).all<any>();
 
     // Construir el system prompt con el contexto de los archivos
     const systemPrompt = await buildCodeSystemPrompt(project, files, env);
@@ -118,14 +118,14 @@ export async function handleCodeChatCreate(request, env, corsHeaders) {
 // DELETE /api/code-chats/:id
 // Elimina el chat y todos sus mensajes
 // ─────────────────────────────────────────────────────────────
-export async function handleCodeChatDelete(request, env, corsHeaders, chatId) {
+export async function handleCodeChatDelete(request: Request, env: Env, corsHeaders: Record<string, string>, chatId: string) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   // Verificar propiedad
   const chat = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM conversations WHERE id = ? AND user_dni = ? AND project_id IS NOT NULL'
-  ).bind(chatId, userDni.toUpperCase()).first();
+  ).bind(chatId, userDni.toUpperCase()).first<any>();
 
   if (!chat) return jsonResponse({ error: 'Chat no encontrado o sin permiso' }, 404, corsHeaders);
 
@@ -154,12 +154,12 @@ export async function handleCodeChatDelete(request, env, corsHeaders, chatId) {
 // Delega en handleTextChatInternal() que ya lee el system_prompt
 // guardado en la conversación (el contexto del proyecto).
 // ─────────────────────────────────────────────────────────────
-export async function handleCodeChatMessage(request, env, corsHeaders) {
+export async function handleCodeChatMessage(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
   let body;
-  try { body = await request.json(); } catch {
+  try { body = await request.json<any>(); } catch {
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
@@ -175,7 +175,7 @@ export async function handleCodeChatMessage(request, env, corsHeaders) {
   // Verificar que la conversación pertenece al usuario y es un code chat
   const conv = await env.MIRAI_AI_DB.prepare(
     'SELECT id, project_id FROM conversations WHERE id = ? AND user_dni = ?'
-  ).bind(conversation_id, userDni.toUpperCase()).first();
+  ).bind(conversation_id, userDni.toUpperCase()).first<any>();
 
   if (!conv) {
     return jsonResponse({ error: 'Conversación no encontrada o sin permiso' }, 404, corsHeaders);
@@ -204,7 +204,7 @@ export async function handleCodeChatMessage(request, env, corsHeaders) {
 // ─────────────────────────────────────────────────────────────
 // Helper: construir el system prompt de código con contexto
 // ─────────────────────────────────────────────────────────────
-async function buildCodeSystemPrompt(project, files, env) {
+async function buildCodeSystemPrompt(project: any, files: any[], env: Env) {
   const techStack = safeJsonParse(project.tech_stack, []);
   const stackStr = techStack.join(', ') || 'no especificado';
 
@@ -241,7 +241,7 @@ No repites información innecesariamente. Siempre priorizas las mejores práctic
     }
 
     const text = await obj.text();
-    const lang = file.name.split('.').pop().toLowerCase();
+    const lang = (file.name.split('.').pop() ?? '').toLowerCase();
     const block = `\n### ${file.name}\n\`\`\`${lang}\n${text.trimEnd()}\n\`\`\`\n`;
 
     if (totalChars + block.length > MAX_TOTAL_CHARS) {

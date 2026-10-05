@@ -10,7 +10,7 @@
 // (RFC 8291) y la firma VAPID (RFC 8292) se hacen aquí directamente con
 // crypto.subtle, sin dependencias externas.
 
-function b64urlToBytes(b64url) {
+function b64urlToBytes(b64url: string) {
   const pad = '='.repeat((4 - b64url.length % 4) % 4);
   const b64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
   const raw = atob(b64);
@@ -19,13 +19,13 @@ function b64urlToBytes(b64url) {
   return arr;
 }
 
-function bytesToB64url(bytes) {
+function bytesToB64url(bytes: Uint8Array) {
   let str = '';
   for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function concatBytes(...arrays) {
+function concatBytes(...arrays: Uint8Array[]) {
   const total = arrays.reduce((n, a) => n + a.length, 0);
   const out = new Uint8Array(total);
   let offset = 0;
@@ -33,19 +33,19 @@ function concatBytes(...arrays) {
   return out;
 }
 
-async function hmacSha256(keyBytes, dataBytes) {
+async function hmacSha256(keyBytes: Uint8Array, dataBytes: Uint8Array) {
   const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('HMAC', key, dataBytes);
   return new Uint8Array(sig);
 }
 
-async function hkdf(salt, ikm, info, length) {
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, length: number) {
   const prk = await hmacSha256(salt, ikm);
   const t = await hmacSha256(prk, concatBytes(info, new Uint8Array([1])));
   return t.slice(0, length);
 }
 
-async function importVapidPrivateKey(privateKeyB64url, publicKeyB64url) {
+async function importVapidPrivateKey(privateKeyB64url: string, publicKeyB64url: string) {
   const d = b64urlToBytes(privateKeyB64url);
   const pub = b64urlToBytes(publicKeyB64url); // 0x04 || X(32) || Y(32)
   const jwk = {
@@ -57,7 +57,7 @@ async function importVapidPrivateKey(privateKeyB64url, publicKeyB64url) {
 }
 
 // JWT firmado ES256 requerido por VAPID (RFC 8292) para autenticar al servidor ante el push service
-async function buildVapidJWT(endpoint, publicKeyB64url, privateKeyB64url, subject) {
+async function buildVapidJWT(endpoint: any, publicKeyB64url: string, privateKeyB64url: string, subject: string) {
   const url = new URL(endpoint);
   const encoder = new TextEncoder();
   const headerB64 = bytesToB64url(encoder.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
@@ -73,7 +73,7 @@ async function buildVapidJWT(endpoint, publicKeyB64url, privateKeyB64url, subjec
 }
 
 // Cifrado aes128gcm del payload para el destinatario (RFC 8291)
-async function encryptWebPushPayload(subscription, payloadObj) {
+async function encryptWebPushPayload(subscription: PushSubscriptionRecord, payloadObj: unknown) {
   const uaPublicKey = b64urlToBytes(subscription.keys.p256dh); // 65 bytes
   const authSecret = b64urlToBytes(subscription.keys.auth);    // 16 bytes
 
@@ -106,7 +106,13 @@ async function encryptWebPushPayload(subscription, payloadObj) {
   return concatBytes(salt, rs, new Uint8Array([asPublicRaw.length]), asPublicRaw, ciphertext);
 }
 
-async function sendWebPush(env, subscription, payloadObj, { ttl = 4 * 3600, urgency = 'high' } = {}) {
+// Lo que se guarda en user_notifications por cada dispositivo suscrito.
+interface PushSubscriptionRecord {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+async function sendWebPush(env: Env, subscription: PushSubscriptionRecord, payloadObj: unknown, { ttl = 4 * 3600, urgency = 'high' } = {}) {
   const publicKey = env.VAPID_PUBLIC_KEY;
   const privateKey = env.VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) throw new Error('VAPID keys no configuradas');
@@ -129,7 +135,7 @@ async function sendWebPush(env, subscription, payloadObj, { ttl = 4 * 3600, urge
 }
 
 // Mapea cada "categoría" de notificación a la preferencia por-página guardada en settings_json
-const NOTIF_CATEGORY_SETTING_KEY = {
+const NOTIF_CATEGORY_SETTING_KEY: Record<string, string> = {
   generation: 'notifyGeneration',
   classroom: 'notifyClassroom',
   inventory: 'notifyInventory',
@@ -137,9 +143,9 @@ const NOTIF_CATEGORY_SETTING_KEY = {
   task: 'notifyTask'
 };
 
-async function shouldSendNotification(env, userDni, category) {
+async function shouldSendNotification(env: Env, userDni: string, category: string) {
   try {
-    const row = await env.MIRAI_AI_DB.prepare("SELECT settings_json FROM users WHERE dni = ?").bind(userDni).first();
+    const row = await env.MIRAI_AI_DB.prepare("SELECT settings_json FROM users WHERE dni = ?").bind(userDni).first<any>();
     const settings = row?.settings_json ? JSON.parse(row.settings_json) : {};
     if (settings.notifications === false) return false;
     const key = NOTIF_CATEGORY_SETTING_KEY[category];
@@ -152,7 +158,7 @@ async function shouldSendNotification(env, userDni, category) {
 }
 
 // 2. Enviar Notificación (Trigger manual o automático)
-export async function sendPushNotification(env, userDni, title, body, { category, url = '/', tag = 'mirai-alert' }: { category?: string; url?: string; tag?: string } = {}) {
+export async function sendPushNotification(env: Env, userDni: string, title: string, body: string, { category, url = '/', tag = 'mirai-alert' }: { category?: string; url?: string; tag?: string } = {}) {
   try {
     if (category && !(await shouldSendNotification(env, userDni, category))) {
       console.log(`ℹ️ Usuario ${userDni} desactivó notificaciones de "${category}".`);
@@ -161,7 +167,7 @@ export async function sendPushNotification(env, userDni, title, body, { category
 
     const sub = await env.MIRAI_AI_DB.prepare(
       "SELECT subscription_endpoint, subscription_p256dh, subscription_auth FROM user_notifications WHERE user_dni = ?"
-    ).bind(userDni).first();
+    ).bind(userDni).first<any>();
 
     if (!sub) {
       console.log(`⚠️ Usuario ${userDni} no tiene suscripción activa.`);

@@ -5,7 +5,7 @@
 import { requireAuth } from '../lib/auth';
 import { jsonResponse } from '../lib/http';
 
-async function ensureLocImagesColumn(env) {
+async function ensureLocImagesColumn(env: Env) {
   try {
     await env.MIRAI_AI_DB.prepare(
       `ALTER TABLE location_markers ADD COLUMN images TEXT DEFAULT '[]'`
@@ -13,7 +13,7 @@ async function ensureLocImagesColumn(env) {
   } catch (_) { }
 }
 
-export async function handleLocList(request, env, corsHeaders) {
+export async function handleLocList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -24,7 +24,7 @@ export async function handleLocList(request, env, corsHeaders) {
       FROM location_markers
       WHERE user_dni = ?
       ORDER BY created_at DESC
-    `).bind(userDni).all();
+    `).bind(userDni).all<any>();
 
     const markers = results.map(m => ({
       ...m,
@@ -38,7 +38,7 @@ export async function handleLocList(request, env, corsHeaders) {
   }
 }
 
-export async function handleLocCreate(request, env, corsHeaders) {
+export async function handleLocCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -47,8 +47,8 @@ export async function handleLocCreate(request, env, corsHeaders) {
     const formData = await request.formData();
     const title = (formData.get('title') || '').toString().trim();
     const description = (formData.get('description') || '').toString().trim();
-    const lat = parseFloat(formData.get('lat'));
-    const lng = parseFloat(formData.get('lng'));
+    const lat = parseFloat(formData.get('lat') as string);
+    const lng = parseFloat(formData.get('lng') as string);
 
     if (!title || isNaN(lat) || isNaN(lng)) {
       return jsonResponse({ error: 'Faltan campos: title, lat, lng' }, 400, corsHeaders);
@@ -57,12 +57,12 @@ export async function handleLocCreate(request, env, corsHeaders) {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    const imageFiles = formData.getAll('images');
+    const imageFiles = formData.getAll('images') as File[];
     const imageUrls: any[] = [];
     for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
       const file = imageFiles[i];
       if (!file || !file.size) continue;
-      const ext = (file.name || 'img').split('.').pop().toLowerCase();
+      const ext = ((file.name || 'img').split('.').pop() ?? '').toLowerCase();
       const r2Key = `locations/${id}/${crypto.randomUUID()}.${ext}`;
       await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
         httpMetadata: { contentType: file.type || 'image/jpeg' },
@@ -82,7 +82,7 @@ export async function handleLocCreate(request, env, corsHeaders) {
   }
 }
 
-export async function handleLocDelete(markerId, request, env, corsHeaders) {
+export async function handleLocDelete(markerId: string, request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
@@ -94,7 +94,7 @@ export async function handleLocDelete(markerId, request, env, corsHeaders) {
       DELETE FROM location_markers WHERE id = ? AND user_dni = ?
     `).bind(markerId, userDni).run();
 
-    if (result.rowsAffected === 0) {
+    if (result.meta.changes === 0) {
       return jsonResponse({ error: 'Marcador no encontrado o no autorizado' }, 404, corsHeaders);
     }
 

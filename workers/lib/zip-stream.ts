@@ -32,7 +32,7 @@ const CRC_T0 = CRC_TABLES[0], CRC_T1 = CRC_TABLES[1], CRC_T2 = CRC_TABLES[2],
  * 0xFFFFFFFF y se invierte al final), asi que se puede llamar trozo a trozo
  * sobre un stream sin tener el archivo entero en memoria.
  */
-export function crc32Update(crc, buf) {
+export function crc32Update(crc: number, buf: any) {
   let c = crc >>> 0;
   const n = buf.length;
   const n8 = n - (n % 8);
@@ -54,7 +54,7 @@ export function crc32Update(crc, buf) {
   return c >>> 0;
 }
 
-export function crc32(data) {
+export function crc32(data: Uint8Array) {
   return (crc32Update(0xFFFFFFFF, data) ^ 0xFFFFFFFF) >>> 0;
 }
 
@@ -74,12 +74,12 @@ export const ZIP_FLAG_DATA_DESCRIPTOR = 0x08;
 const ZIP_FLAG_UTF8 = 0x0800;
 
 /** Escribe un entero de 64 bits little-endian sin depender de BigInt. */
-function writeUint64(view, offset, value) {
+function writeUint64(view: DataView, offset: number, value: number) {
   view.setUint32(offset, value >>> 0, true);
   view.setUint32(offset + 4, Math.floor(value / 0x100000000), true);
 }
 
-export function buildLocalHeader(nameBytes, crc, size, flags) {
+export function buildLocalHeader(nameBytes: Uint8Array, crc: number, size: number, flags: number) {
   const out = new Uint8Array(30 + nameBytes.length);
   const v = new DataView(out.buffer);
   v.setUint32(0, 0x04034b50, true); // signature
@@ -98,7 +98,7 @@ export function buildLocalHeader(nameBytes, crc, size, flags) {
 }
 
 /** Va detras de los datos cuando la cabecera local salio con las medidas a 0. */
-export function buildDataDescriptor(crc, size) {
+export function buildDataDescriptor(crc: number, size: number) {
   const out = new Uint8Array(16);
   const v = new DataView(out.buffer);
   v.setUint32(0, 0x08074b50, true);
@@ -108,7 +108,7 @@ export function buildDataDescriptor(crc, size) {
   return out;
 }
 
-export function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr, localOffset, flags = 0) {
+export function buildCentralHeader(nameBytes: Uint8Array, crc: number, compSize: number, uncompSize: number, extAttr: number, localOffset: number, flags = 0) {
   // Ningun archivo suelto llega a 4 GB (el tope de subida son 25 MB), pero el
   // DESPLAZAMIENTO si se pasa en un ZIP unico de varios GB. En ese caso el
   // campo de 32 bits lleva el centinela y el valor real viaja en el extra
@@ -151,7 +151,7 @@ export function buildCentralHeader(nameBytes, crc, compSize, uncompSize, extAttr
  * Cierre del ZIP. Devuelve una o tres piezas: si el archivo pasa de 4 GB o de
  * 65535 entradas hacen falta ademas el registro y el localizador ZIP64.
  */
-export function buildEndOfCentralDirectory(entryCount, cdSize, cdStart) {
+export function buildEndOfCentralDirectory(entryCount: number, cdSize: number, cdStart: number) {
   const needsZip64 = entryCount >= 0xFFFF || cdSize >= ZIP64_SENTINEL || cdStart >= ZIP64_SENTINEL;
   const parts: any[] = [];
 

@@ -14,7 +14,7 @@ import { jsonResponse } from '../lib/http';
  * Rutas del aula, los cursos y la asistencia.
  * @returns {Promise<Response|null>} null si la ruta no es de este módulo.
  */
-export async function handleClassroomApi(request, env, url, path, corsHeaders) {
+export async function handleClassroomApi(request: Request, env: Env, url: URL, path: string, corsHeaders: Record<string, string>) {
   // ── ASISTENCIA: Empleado ──────────────────────────────────
   if (path === '/api/attendance/my-profile' && request.method === 'GET')
     return handleAttMyProfile(request, env, corsHeaders);
@@ -98,7 +98,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
             FROM user_courses 
             WHERE user_dni = ? 
             ORDER BY created_at DESC
-        `).bind(authenticatedDni).all();
+        `).bind(authenticatedDni).all<any>();
 
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
@@ -112,7 +112,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { title, description } = await request.json();
+    const { title, description } = await request.json<any>();
 
     if (!title) return jsonResponse({ error: 'El nombre del curso es obligatorio' }, 400, corsHeaders);
 
@@ -157,7 +157,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
             JOIN users u ON s.user_dni = u.dni
             WHERE s.dispute_status = 'pending'
             ORDER BY s.submitted_at DESC
-        `).all();
+        `).all<any>();
 
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
@@ -210,7 +210,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
       query += ' ORDER BY s.submitted_at DESC LIMIT 500';
 
       const stmt = env.MIRAI_AI_DB.prepare(query);
-      const { results } = await stmt.bind(...bindings).all();
+      const { results } = await stmt.bind(...bindings).all<any>();
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
       console.error('Error obteniendo entregas:', error);
@@ -241,7 +241,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     LEFT JOIN sections     s  ON a.section_id = s.id
     WHERE uc.user_dni = ?
     ORDER BY a.created_at DESC
-`).bind(userDni).all();
+`).bind(userDni).all<any>();
 
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
@@ -292,7 +292,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { assignment_id, user_dni } = await request.json();
+    const { assignment_id, user_dni } = await request.json<any>();
 
     if (!assignment_id || !user_dni) {
       return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
@@ -334,7 +334,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     try {
       const { results } = await env.MIRAI_AI_DB.prepare(`
             SELECT * FROM assignment_students WHERE assignment_id = ?
-        `).bind(assignmentId).all();
+        `).bind(assignmentId).all<any>();
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
       console.error('Error listando estudiantes:', error);
@@ -347,7 +347,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { assignment_id, user_dni } = await request.json();
+    const { assignment_id, user_dni } = await request.json<any>();
     if (!assignment_id || !user_dni) {
       return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
     }
@@ -388,7 +388,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     WHERE s.professor_dni = ?
     GROUP BY s.id
     ORDER BY s.created_at DESC
-  `).bind(userDni).all();
+  `).bind(userDni).all<any>();
 
     return jsonResponse(results, 200, corsHeaders);
   }
@@ -398,7 +398,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { name, description, course_id } = await request.json();
+    const { name, description, course_id } = await request.json<any>();
     if (!name || !course_id) {
       return jsonResponse({ error: 'Nombre y Materia son requeridos' }, 400, corsHeaders);
     }
@@ -406,7 +406,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     // Verificar que el curso pertenece al profesor
     const course = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM user_courses WHERE id = ? AND user_dni = ?'
-    ).bind(course_id, userDni).first();
+    ).bind(course_id, userDni).first<any>();
     if (!course) return jsonResponse({ error: 'Materia no encontrada o no autorizada' }, 403, corsHeaders);
 
     const id = crypto.randomUUID();
@@ -429,7 +429,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     // Verificar propiedad
     const sec = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-    ).bind(id, userDni).first();
+    ).bind(id, userDni).first<any>();
     if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
     await env.MIRAI_AI_DB.prepare('DELETE FROM section_students WHERE section_id = ?').bind(id).run();
@@ -450,7 +450,7 @@ export async function handleClassroomApi(request, env, url, path, corsHeaders) {
     // Verificar propiedad
     const sec = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-    ).bind(sectionId, userDni).first();
+    ).bind(sectionId, userDni).first<any>();
     if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
     const { results } = await env.MIRAI_AI_DB.prepare(`
@@ -461,7 +461,7 @@ FROM section_students ss
 LEFT JOIN users u ON ss.user_dni = u.dni
 WHERE ss.section_id = ?
 ORDER BY u.last_name, u.first_name
-  `).bind(sectionId).all();
+  `).bind(sectionId).all<any>();
 
     return jsonResponse(results, 200, corsHeaders);
   }
@@ -471,7 +471,7 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { section_id, dnis } = await request.json();
+    const { section_id, dnis } = await request.json<any>();
     if (!section_id || !Array.isArray(dnis) || dnis.length === 0)
       return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
 
@@ -493,13 +493,13 @@ ORDER BY u.last_name, u.first_name
 
     const sec = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-    ).bind(section_id, userDni).first();
+    ).bind(section_id, userDni).first<any>();
     if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
     // Obtener tareas existentes de la sección antes del loop
     const { results: sectionTasks } = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM assignments WHERE section_id = ?'
-    ).bind(section_id).all();
+    ).bind(section_id).all<any>();
 
     let inserted = 0, skipped = 0;
     for (const dni of [...new Set(normalized)]) {
@@ -527,7 +527,7 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { section_id, user_dni } = await request.json();
+    const { section_id, user_dni } = await request.json<any>();
     if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
 
     // Misma normalización que la importación por lotes, para que ambos caminos
@@ -537,7 +537,7 @@ ORDER BY u.last_name, u.first_name
 
     const sec = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-    ).bind(section_id, userDni).first();
+    ).bind(section_id, userDni).first<any>();
     if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
     await env.MIRAI_AI_DB.prepare(
@@ -547,7 +547,7 @@ ORDER BY u.last_name, u.first_name
     // Auto-asignar tareas existentes de esta sección al nuevo estudiante
     const { results: sectionTasks } = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM assignments WHERE section_id = ?'
-    ).bind(section_id).all();
+    ).bind(section_id).all<any>();
     for (const task of sectionTasks) {
       await env.MIRAI_AI_DB.prepare(
         'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
@@ -562,12 +562,12 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { section_id, user_dni } = await request.json();
+    const { section_id, user_dni } = await request.json<any>();
     if (!section_id || !user_dni) return jsonResponse({ error: 'Faltan parámetros' }, 400, corsHeaders);
 
     const sec = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-    ).bind(section_id, userDni).first();
+    ).bind(section_id, userDni).first<any>();
     if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
     await env.MIRAI_AI_DB.prepare(
@@ -594,7 +594,7 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { title, description, course_id, due_date, section_id, max_score, submission_type } = await request.json();
+    const { title, description, course_id, due_date, section_id, max_score, submission_type } = await request.json<any>();
 
     if (!title || !course_id) {
       return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
@@ -604,7 +604,7 @@ ORDER BY u.last_name, u.first_name
     // course_id, así que se podían colgar tareas del curso de otro profesor.
     const ownCourse = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM user_courses WHERE id = ? AND user_dni = ?'
-    ).bind(course_id, userDni).first();
+    ).bind(course_id, userDni).first<any>();
     if (!ownCourse) {
       return jsonResponse({ error: 'Materia inválida o no autorizada' }, 403, corsHeaders);
     }
@@ -613,7 +613,7 @@ ORDER BY u.last_name, u.first_name
     if (section_id) {
       const sec = await env.MIRAI_AI_DB.prepare(
         'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-      ).bind(section_id, userDni).first();
+      ).bind(section_id, userDni).first<any>();
       if (!sec) return jsonResponse({ error: 'Sección inválida o no autorizada' }, 403, corsHeaders);
     }
 
@@ -630,7 +630,7 @@ ORDER BY u.last_name, u.first_name
     if (section_id) {
       const { results: secStudents } = await env.MIRAI_AI_DB.prepare(
         'SELECT user_dni FROM section_students WHERE section_id = ?'
-      ).bind(section_id).all();
+      ).bind(section_id).all<any>();
 
       for (const st of secStudents) {
         await env.MIRAI_AI_DB.prepare(
@@ -675,12 +675,12 @@ ORDER BY u.last_name, u.first_name
         WHERE UPPER(ast.user_dni) = UPPER(?)
     )
     ORDER BY created_at DESC
-`).bind(userDni.toUpperCase(), userDni.toUpperCase()).all();
+`).bind(userDni.toUpperCase(), userDni.toUpperCase()).all<any>();
 
       // Obtener entregas del estudiante
       const { results: submissions } = await env.MIRAI_AI_DB.prepare(`
             SELECT * FROM submissions WHERE user_dni = ?
-        `).bind(userDni.toUpperCase()).all();
+        `).bind(userDni.toUpperCase()).all<any>();
 
       return jsonResponse({ assignments, submissions }, 200, corsHeaders);
 
@@ -722,7 +722,7 @@ ORDER BY u.last_name, u.first_name
     WHERE a.id = ? AND ast.user_dni = ?
 `);
 
-      const assignment = await assignStmt.bind(id, userDni.toUpperCase()).first();
+      const assignment = await assignStmt.bind(id, userDni.toUpperCase()).first<any>();
 
       if (!assignment) {
         // Puede ser que:
@@ -735,7 +735,7 @@ ORDER BY u.last_name, u.first_name
       const subStmt = env.MIRAI_AI_DB.prepare(`
             SELECT * FROM submissions WHERE assignment_id = ? AND user_dni = ?
         `);
-      const submission = await subStmt.bind(id, userDni.toUpperCase()).first();
+      const submission = await subStmt.bind(id, userDni.toUpperCase()).first<any>();
 
       return jsonResponse({ ...assignment, submission }, 200, corsHeaders);
 
@@ -750,7 +750,7 @@ ORDER BY u.last_name, u.first_name
     if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
     try {
-      const { submission_id } = await request.json();
+      const { submission_id } = await request.json<any>();
 
       if (!submission_id) {
         return jsonResponse({ error: 'ID de entrega requerido' }, 400, corsHeaders);
@@ -771,7 +771,7 @@ ORDER BY u.last_name, u.first_name
   FROM submissions s
   JOIN assignments a ON s.assignment_id = a.id
   WHERE s.id = ?
-`).bind(submission_id).first();
+`).bind(submission_id).first<any>();
 
       if (!submissionData) {
         return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
@@ -792,7 +792,7 @@ ORDER BY u.last_name, u.first_name
 
       const r2Key = submissionData.file_url.replace('/api/file/', '');
       const filename = r2Key.split('/').pop();
-      const fileExtension = filename.split('.').pop().toLowerCase();
+      const fileExtension = (filename.split('.').pop() ?? '').toLowerCase();
       const isImage = ['png', 'jpg', 'jpeg', 'webp'].includes(fileExtension);
 
       let aiContent;
@@ -1008,7 +1008,7 @@ NO agregues texto adicional fuera del JSON.`;
       if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
       try {
-        const { submission_id, reason } = await request.json();
+        const { submission_id, reason } = await request.json<any>();
 
         if (!submission_id || !reason) {
           return jsonResponse({ error: 'ID de entrega y motivo requeridos' }, 400, corsHeaders);
@@ -1017,7 +1017,7 @@ NO agregues texto adicional fuera del JSON.`;
         // Verificar que el estudiante es el dueño de la entrega
         const submission = await env.MIRAI_AI_DB.prepare(`
           SELECT id FROM submissions WHERE id = ? AND user_dni = ?
-      `).bind(submission_id, userDni).first();
+      `).bind(submission_id, userDni).first<any>();
 
         if (!submission) {
           return jsonResponse({ error: 'Entrega no encontrada o no tienes acceso' }, 404, corsHeaders);
@@ -1044,7 +1044,7 @@ NO agregues texto adicional fuera del JSON.`;
       if (!userDni || userDni instanceof Response) return userDni;
 
       try {
-        const { submission_id, new_score, feedback } = await request.json();
+        const { submission_id, new_score, feedback } = await request.json<any>();
 
         if (!submission_id || new_score === undefined) {
           return jsonResponse({ error: 'ID de entrega y nueva nota requeridos' }, 400, corsHeaders);
@@ -1053,7 +1053,7 @@ NO agregues texto adicional fuera del JSON.`;
         // Verificar que la entrega existe
         const submission = await env.MIRAI_AI_DB.prepare(`
           SELECT id, assignment_id FROM submissions WHERE id = ?
-      `).bind(submission_id).first();
+      `).bind(submission_id).first<any>();
 
         if (!submission) {
           return jsonResponse({ error: 'Entrega no encontrada' }, 404, corsHeaders);
@@ -1068,7 +1068,7 @@ NO agregues texto adicional fuera del JSON.`;
         // Obtener max_score de la tarea
         const assignment = await env.MIRAI_AI_DB.prepare(`
           SELECT max_score FROM assignments WHERE id = ?
-      `).bind(submission.assignment_id).first();
+      `).bind(submission.assignment_id).first<any>();
 
         if (!assignment) {
           return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
@@ -1106,8 +1106,8 @@ NO agregues texto adicional fuera del JSON.`;
 
       try {
         const formData = await request.formData();
-        const file = formData.get('file');
-        const assignmentId = formData.get('assignment_id');
+        const file = formData.get('file') as File | null;
+        const assignmentId = formData.get('assignment_id') as string | null;
 
         if (!file || !assignmentId) {
           return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
@@ -1116,7 +1116,7 @@ NO agregues texto adicional fuera del JSON.`;
         // Obtener el tipo de entrega configurado por el profesor
         const assignmentData = await env.MIRAI_AI_DB.prepare(
           'SELECT id, submission_type FROM assignments WHERE id = ?'
-        ).bind(assignmentId).first();
+        ).bind(assignmentId).first<any>();
         if (!assignmentData) {
           return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
         }
@@ -1132,7 +1132,7 @@ NO agregues texto adicional fuera del JSON.`;
         SELECT 1 FROM assignments a
           JOIN section_students ss ON ss.section_id = a.section_id
          WHERE a.id = ? AND UPPER(ss.user_dni) = UPPER(?)
-      `).bind(assignmentId, userDni, assignmentId, userDni).first();
+      `).bind(assignmentId, userDni, assignmentId, userDni).first<any>();
 
         if (!isAssigned) {
           return jsonResponse({ error: 'No tienes esta tarea asignada' }, 403, corsHeaders);
@@ -1141,13 +1141,13 @@ NO agregues texto adicional fuera del JSON.`;
         // Una entrega por alumno y tarea: antes se acumulaban duplicados sin límite.
         const alreadySubmitted = await env.MIRAI_AI_DB.prepare(
           'SELECT id FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
-        ).bind(assignmentId, userDni).first();
+        ).bind(assignmentId, userDni).first<any>();
 
         if (alreadySubmitted) {
           return jsonResponse({ error: 'Ya entregaste esta tarea' }, 409, corsHeaders);
         }
 
-        const extension = file.name.split('.').pop().toLowerCase();
+        const extension = (file.name.split('.').pop() ?? '').toLowerCase();
         const isImageExt = ['png', 'jpg', 'jpeg', 'webp'].includes(extension);
         const isDocExt = ['pdf', 'docx'].includes(extension);
 
@@ -1170,7 +1170,7 @@ NO agregues texto adicional fuera del JSON.`;
         // canReadSubmissionKey() deduce el dueño del segundo segmento de la clave.
         const ownerDni = userDni.toUpperCase();
         const uniqueId = crypto.randomUUID();
-        const fileExtension = file.name.split('.').pop().toLowerCase();
+        const fileExtension = (file.name.split('.').pop() ?? '').toLowerCase();
         const r2Key = `submissions/${ownerDni}/${assignmentId}/${uniqueId}.${fileExtension}`;
 
         await env.MIRAI_AI_ASSETS.put(r2Key, file.stream(), {
@@ -1236,7 +1236,7 @@ NO agregues texto adicional fuera del JSON.`;
       const requesterDni = await requireAuth(request, env);
       if (!requesterDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
 
-      const { submission_id, extracted_text } = await request.json();
+      const { submission_id, extracted_text } = await request.json<any>();
 
       if (!submission_id || !extracted_text) {
         return jsonResponse({ error: 'Faltan datos' }, 400, corsHeaders);
@@ -1279,14 +1279,14 @@ NO agregues texto adicional fuera del JSON.`;
  * Se usa para cerrar los IDOR entre profesores: ser profesor activo no basta,
  * la tarea tiene que colgar de un curso suyo.
  */
-async function canManageAssignment(assignmentId, userDni, env) {
+async function canManageAssignment(assignmentId: string, userDni: string, env: Env) {
   if (await isAdminUser(userDni, env)) return true;
   const row = await env.MIRAI_AI_DB.prepare(`
     SELECT a.id
     FROM assignments a
     JOIN user_courses uc ON uc.id = a.course_id
     WHERE a.id = ? AND uc.user_dni = ?
-  `).bind(assignmentId, userDni.toUpperCase()).first();
+  `).bind(assignmentId, userDni.toUpperCase()).first<any>();
   return !!row;
 }
 
@@ -1295,11 +1295,11 @@ async function canManageAssignment(assignmentId, userDni, env) {
  * el profesor dueño del curso de la tarea, o un admin.
  * @returns {Promise<{allowed:boolean, isOwner:boolean, submission:Object|null}>}
  */
-async function canAccessSubmission(submissionId, userDni, env) {
+async function canAccessSubmission(submissionId: any, userDni: string, env: Env) {
   const dni = userDni.toUpperCase();
   const submission = await env.MIRAI_AI_DB.prepare(
     'SELECT id, assignment_id, user_dni, file_url FROM submissions WHERE id = ?'
-  ).bind(submissionId).first();
+  ).bind(submissionId).first<any>();
 
   if (!submission) return { allowed: false, isOwner: false, submission: null };
 
@@ -1315,7 +1315,7 @@ async function canAccessSubmission(submissionId, userDni, env) {
  * Las claves tienen la forma submissions/<dni>/<assignmentId>/<uuid>.<ext>, así que
  * el dueño se deduce de la propia clave sin tocar D1.
  */
-async function canReadSubmissionKey(r2Key, userDni, env) {
+async function canReadSubmissionKey(r2Key: string, userDni: string, env: Env) {
   const parts = r2Key.split('/');
   if (parts[0] !== 'submissions' || parts.length < 3) return false;
 
@@ -1364,12 +1364,12 @@ function attLocalTime(date = new Date()) {
  * Instante UTC (formato de datetime() de SQLite) en el que termina el día local
  * `localDate`, para comparar contra datetime('now') sin desfase.
  */
-function attLocalEndOfDayUtc(localDate) {
+function attLocalEndOfDayUtc(localDate: any) {
   const endLocal = Date.parse(`${localDate}T23:59:59Z`) - ATT_UTC_OFFSET_HOURS * 3600 * 1000;
   return new Date(endLocal).toISOString().slice(0, 19).replace('T', ' ');
 }
 
-async function attRequireAdmin(request, env, corsHeaders) {
+async function attRequireAdmin(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni || typeof userDni !== 'string') {
     return { dni: null, errorResponse: jsonResponse({ error: 'No autorizado' }, 401, corsHeaders) };
@@ -1378,7 +1378,7 @@ async function attRequireAdmin(request, env, corsHeaders) {
   try {
     const professor = await env.MIRAI_AI_DB.prepare(
       'SELECT dni FROM professors WHERE dni = ? AND is_active = 1'
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
     if (!professor) {
       return { dni: null, errorResponse: jsonResponse({ error: 'Acceso restringido a administradores' }, 403, corsHeaders) };
     }
@@ -1392,7 +1392,7 @@ async function attRequireAdmin(request, env, corsHeaders) {
 // HANDLERS — Empleado
 // ════════════════════════════════════════════════════════════
 
-async function handleAttMyProfile(request, env, corsHeaders) {
+async function handleAttMyProfile(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni || typeof userDni !== 'string') {
     return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -1400,7 +1400,7 @@ async function handleAttMyProfile(request, env, corsHeaders) {
   try {
     const staff = await env.MIRAI_AI_DB.prepare(
       'SELECT name, dni, department, position, email FROM att_staff WHERE dni = ? AND is_active = 1'
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
     if (!staff) return jsonResponse({ error: 'Personal no registrado' }, 404, corsHeaders);
     return jsonResponse(staff, 200, corsHeaders);
   } catch (e) {
@@ -1408,7 +1408,7 @@ async function handleAttMyProfile(request, env, corsHeaders) {
   }
 }
 
-async function handleAttMyHistory(request, env, corsHeaders) {
+async function handleAttMyHistory(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni || typeof userDni !== 'string') {
     return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -1421,7 +1421,7 @@ async function handleAttMyHistory(request, env, corsHeaders) {
   try {
     const staff = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
     if (!staff) return jsonResponse({ records: [] }, 200, corsHeaders);
 
     let query = `
@@ -1442,14 +1442,14 @@ async function handleAttMyHistory(request, env, corsHeaders) {
     }
     query += ' ORDER BY r.date DESC, r.time DESC LIMIT 50';
 
-    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
+    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all<any>();
     return jsonResponse({ records: results }, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
 
-async function handleAttMyClasses(request, env, corsHeaders) {
+async function handleAttMyClasses(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni || typeof userDni !== 'string') {
     return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
@@ -1457,27 +1457,27 @@ async function handleAttMyClasses(request, env, corsHeaders) {
   try {
     const staff = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
     if (!staff) return jsonResponse({ classes: [] }, 200, corsHeaders);
     const { results } = await env.MIRAI_AI_DB.prepare(`
       SELECT c.id, c.name FROM att_classes c
       JOIN att_class_students cs ON cs.class_id = c.id
       WHERE cs.staff_id = ? AND c.is_active = 1 ORDER BY c.name
-    `).bind(staff.id).all();
+    `).bind(staff.id).all<any>();
     return jsonResponse({ classes: results }, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ classes: [] }, 200, corsHeaders);
   }
 }
 
-async function handleAttRecord(request, env, corsHeaders) {
+async function handleAttRecord(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni || typeof userDni !== 'string') {
     return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
   }
 
   let body;
-  try { body = await request.json(); } catch (_) { body = {}; }
+  try { body = await request.json<any>(); } catch (_) { body = {}; }
   const { qr_token } = body;
   if (!qr_token) return jsonResponse({ error: 'Token QR requerido' }, 400, corsHeaders);
 
@@ -1486,20 +1486,20 @@ async function handleAttRecord(request, env, corsHeaders) {
     const session = await env.MIRAI_AI_DB.prepare(`
             SELECT id, date, class_id FROM att_qr_sessions
             WHERE token = ? AND expires_at > datetime('now')
-        `).bind(qr_token).first();
+        `).bind(qr_token).first<any>();
     if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
 
     // 2. Buscar al empleado
     const staff = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
     if (!staff) return jsonResponse({ error: 'No estás registrado como personal activo' }, 403, corsHeaders);
 
     // 2b. Si el QR es de una clase, verificar que el empleado esté inscrito
     if (session.class_id) {
       const enrolled = await env.MIRAI_AI_DB.prepare(
         'SELECT 1 FROM att_class_students WHERE class_id = ? AND staff_id = ?'
-      ).bind(session.class_id, staff.id).first();
+      ).bind(session.class_id, staff.id).first<any>();
       if (!enrolled) return jsonResponse({ error: 'No estás inscrito en esta clase' }, 403, corsHeaders);
     }
 
@@ -1508,7 +1508,7 @@ async function handleAttRecord(request, env, corsHeaders) {
             SELECT type FROM att_records
             WHERE staff_id = ? AND date = ?
             ORDER BY time DESC LIMIT 1
-        `).bind(staff.id, session.date).first();
+        `).bind(staff.id, session.date).first<any>();
     const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
 
     const time = attLocalTime();
@@ -1535,7 +1535,7 @@ async function handleAttRecord(request, env, corsHeaders) {
 // HANDLERS — Admin
 // ════════════════════════════════════════════════════════════
 
-async function handleAttActiveQr(request, env, corsHeaders) {
+async function handleAttActiveQr(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
@@ -1544,7 +1544,7 @@ async function handleAttActiveQr(request, env, corsHeaders) {
   try {
     const session = await env.MIRAI_AI_DB.prepare(
       'SELECT id, token, date, expires_at, scan_count FROM att_qr_sessions WHERE date = ? AND class_id IS NULL'
-    ).bind(date).first();
+    ).bind(date).first<any>();
     if (!session) return jsonResponse({ error: 'Sin QR activo para esta fecha' }, 404, corsHeaders);
     return jsonResponse(session, 200, corsHeaders);
   } catch (e) {
@@ -1552,12 +1552,12 @@ async function handleAttActiveQr(request, env, corsHeaders) {
   }
 }
 
-async function handleAttGenerateQr(request, env, corsHeaders) {
+async function handleAttGenerateQr(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
   let body;
-  try { body = await request.json(); } catch (_) { body = {}; }
+  try { body = await request.json<any>(); } catch (_) { body = {}; }
   const targetDate = body.date || attLocalDate();
   const token = crypto.randomUUID();
   const expiresAt = attLocalEndOfDayUtc(targetDate);
@@ -1582,7 +1582,7 @@ async function handleAttGenerateQr(request, env, corsHeaders) {
   }
 }
 
-async function handleAttAdminRecords(request, env, corsHeaders) {
+async function handleAttAdminRecords(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
@@ -1618,14 +1618,14 @@ async function handleAttAdminRecords(request, env, corsHeaders) {
     if (classId) { query += ' AND q.class_id = ?'; bindings.push(classId); }
     query += ' ORDER BY r.date DESC, r.time DESC';
 
-    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all();
+    const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all<any>();
     return jsonResponse({ records: results }, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
 
-async function handleAttAdminStats(request, env, corsHeaders) {
+async function handleAttAdminStats(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
@@ -1635,10 +1635,10 @@ async function handleAttAdminStats(request, env, corsHeaders) {
   try {
     const totalStaff = await env.MIRAI_AI_DB.prepare(
       'SELECT COUNT(*) AS c FROM att_staff WHERE is_active = 1'
-    ).first();
+    ).first<any>();
     const { results } = await env.MIRAI_AI_DB.prepare(
       'SELECT type, COUNT(*) AS c FROM att_records WHERE date = ? GROUP BY type'
-    ).bind(date).all();
+    ).bind(date).all<any>();
 
     const entries = results.find(r => r.type === 'entrada')?.c ?? 0;
     const exits = results.find(r => r.type === 'salida')?.c ?? 0;
@@ -1654,13 +1654,13 @@ async function handleAttAdminStats(request, env, corsHeaders) {
   }
 }
 
-async function handleAttStaffList(request, env, corsHeaders) {
+async function handleAttStaffList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
     const { results } = await env.MIRAI_AI_DB.prepare(
       'SELECT id, name, dni, department, position, email, is_active FROM att_staff ORDER BY name'
-    ).all();
+    ).all<any>();
     return jsonResponse({ staff: results }, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
@@ -1674,7 +1674,7 @@ async function handleAttStaffList(request, env, corsHeaders) {
 // ════════════════════════════════════════════════════════════
 // HANDLERS — Clases
 // ════════════════════════════════════════════════════════════
-async function handleAttSectionList(request, env, corsHeaders) {
+async function handleAttSectionList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
@@ -1687,13 +1687,13 @@ async function handleAttSectionList(request, env, corsHeaders) {
       LEFT JOIN section_students ss ON s.id = ss.section_id
       GROUP BY s.id
       ORDER BY s.name
-    `).all();
+    `).all<any>();
     return jsonResponse(results, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
-async function handleAttClassList(request, env, corsHeaders) {
+async function handleAttClassList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
@@ -1720,17 +1720,17 @@ async function handleAttClassList(request, env, corsHeaders) {
       `SELECT c.id, c.name, c.description, c.created_at,
               (SELECT COUNT(*) FROM att_class_students cs WHERE cs.class_id = c.id) AS student_count
        FROM att_classes c WHERE c.is_active = 1 ORDER BY c.name`
-    ).all();
+    ).all<any>();
     return jsonResponse({ classes: results }, 200, corsHeaders);
   } catch (e) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
 
-async function handleAttClassCreate(request, env, corsHeaders) {
+async function handleAttClassCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
-  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  let body; try { body = await request.json<any>(); } catch (_) { body = {}; }
   const { name, description } = body;
   if (!name || !name.trim()) return jsonResponse({ error: 'Nombre de clase requerido' }, 400, corsHeaders);
   try {
@@ -1756,10 +1756,10 @@ async function handleAttClassCreate(request, env, corsHeaders) {
   }
 }
 
-async function handleAttClassUpdate(request, env, corsHeaders, classId) {
+async function handleAttClassUpdate(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
-  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  let body; try { body = await request.json<any>(); } catch (_) { body = {}; }
   const { name, description } = body;
   if (!name) return jsonResponse({ error: 'Nombre requerido' }, 400, corsHeaders);
   try {
@@ -1769,7 +1769,7 @@ async function handleAttClassUpdate(request, env, corsHeaders, classId) {
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
-async function handleAttClassDelete(request, env, corsHeaders, classId) {
+async function handleAttClassDelete(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
@@ -1778,7 +1778,7 @@ async function handleAttClassDelete(request, env, corsHeaders, classId) {
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
-async function handleAttClassStudents(request, env, corsHeaders, classId) {
+async function handleAttClassStudents(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
@@ -1788,22 +1788,22 @@ async function handleAttClassStudents(request, env, corsHeaders, classId) {
       JOIN att_staff s ON cs.staff_id = s.id
       WHERE cs.class_id = ? AND s.is_active = 1
       ORDER BY s.name
-    `).bind(classId).all();
+    `).bind(classId).all<any>();
     return jsonResponse({ students: results }, 200, corsHeaders);
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 // Helper: garantiza que un DNI exista en att_staff (lo crea si no está)
-async function ensureAttStaff(env, dni) {
+async function ensureAttStaff(env: Env, dni: any) {
   const upper = dni.toUpperCase();
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id, name FROM att_staff WHERE dni = ?'
-  ).bind(upper).first();
+  ).bind(upper).first<any>();
   if (existing) return existing;
 
   const user = await env.MIRAI_AI_DB.prepare(
     'SELECT first_name, last_name, email FROM users WHERE dni = ?'
-  ).bind(upper).first();
+  ).bind(upper).first<any>();
   if (!user) return null;
 
   const fullName = `${user.first_name} ${user.last_name}`.trim();
@@ -1815,10 +1815,10 @@ async function ensureAttStaff(env, dni) {
   return { id: newId, name: fullName };
 }
 
-async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
+async function handleAttClassAddStudent(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
-  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  let body; try { body = await request.json<any>(); } catch (_) { body = {}; }
   const { dni, section_id } = body;
 
   // ── Modo sección: agregar todos los estudiantes de una sección ──
@@ -1826,7 +1826,7 @@ async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
     try {
       const { results: sectionMembers } = await env.MIRAI_AI_DB.prepare(
         'SELECT user_dni FROM section_students WHERE section_id = ?'
-      ).bind(section_id).all();
+      ).bind(section_id).all<any>();
       if (!sectionMembers.length) return jsonResponse({ error: 'La sección no tiene estudiantes', added: 0 }, 200, corsHeaders);
 
       let added = 0;
@@ -1854,13 +1854,13 @@ async function handleAttClassAddStudent(request, env, corsHeaders, classId) {
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
-async function handleAttClassRemoveStudent(request, env, corsHeaders, classId, studentDni) {
+async function handleAttClassRemoveStudent(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string, studentDni: string) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
     const staff = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM att_staff WHERE dni = ?'
-    ).bind(studentDni.toUpperCase()).first();
+    ).bind(studentDni.toUpperCase()).first<any>();
     if (!staff) return jsonResponse({ error: 'Personal no encontrado' }, 404, corsHeaders);
     await env.MIRAI_AI_DB.prepare(
       'DELETE FROM att_class_students WHERE class_id = ? AND staff_id = ?'
@@ -1869,7 +1869,7 @@ async function handleAttClassRemoveStudent(request, env, corsHeaders, classId, s
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
-async function handleAttClassActiveQr(request, env, corsHeaders, classId) {
+async function handleAttClassActiveQr(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   const url = new URL(request.url);
@@ -1877,16 +1877,16 @@ async function handleAttClassActiveQr(request, env, corsHeaders, classId) {
   try {
     const session = await env.MIRAI_AI_DB.prepare(
       'SELECT id, token, date, expires_at, scan_count, class_id FROM att_qr_sessions WHERE date = ? AND class_id = ?'
-    ).bind(date, classId).first();
+    ).bind(date, classId).first<any>();
     if (!session) return jsonResponse({ error: 'Sin QR activo para esta clase/fecha' }, 404, corsHeaders);
     return jsonResponse(session, 200, corsHeaders);
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
-async function handleAttClassGenerateQr(request, env, corsHeaders, classId) {
+async function handleAttClassGenerateQr(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
-  let body; try { body = await request.json(); } catch (_) { body = {}; }
+  let body; try { body = await request.json<any>(); } catch (_) { body = {}; }
   const targetDate = body.date || attLocalDate();
   const token = crypto.randomUUID();
   const expiresAt = attLocalEndOfDayUtc(targetDate);
@@ -1900,7 +1900,7 @@ async function handleAttClassGenerateQr(request, env, corsHeaders, classId) {
   } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
-async function handleAttLookupUser(request, env, corsHeaders) {
+async function handleAttLookupUser(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
@@ -1911,12 +1911,12 @@ async function handleAttLookupUser(request, env, corsHeaders) {
   try {
     const user = await env.MIRAI_AI_DB.prepare(
       'SELECT first_name, last_name, email FROM users WHERE dni = ?'
-    ).bind(dni).first();
+    ).bind(dni).first<any>();
 
     if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
 
     // Censurar email: a****m@g***.com
-    function censorEmail(email) {
+    function censorEmail(email: any) {
       const [local, domain] = email.split('@');
       const cLocal = local[0] + '****' + local[local.length - 1];
       const [dName, dExt] = domain.split('.');
@@ -1934,12 +1934,12 @@ async function handleAttLookupUser(request, env, corsHeaders) {
   }
 }
 
-async function handleAttStaffCreate(request, env, corsHeaders) {
+async function handleAttStaffCreate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
   let body;
-  try { body = await request.json(); } catch (_) { body = {}; }
+  try { body = await request.json<any>(); } catch (_) { body = {}; }
   const { dni, department, position } = body;
   if (!dni) return jsonResponse({ error: 'DNI requerido' }, 400, corsHeaders);
 
@@ -1947,7 +1947,7 @@ async function handleAttStaffCreate(request, env, corsHeaders) {
     // Obtener nombre y email reales desde users
     const user = await env.MIRAI_AI_DB.prepare(
       'SELECT first_name, last_name, email FROM users WHERE dni = ?'
-    ).bind(dni.toUpperCase()).first();
+    ).bind(dni.toUpperCase()).first<any>();
     if (!user) return jsonResponse({ error: 'Usuario no encontrado o no verificado' }, 404, corsHeaders);
 
     const name = `${user.first_name} ${user.last_name}`.trim();
@@ -1964,12 +1964,12 @@ async function handleAttStaffCreate(request, env, corsHeaders) {
   }
 }
 
-async function handleAttStaffUpdate(request, env, corsHeaders) {
+async function handleAttStaffUpdate(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni: adminDni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
 
   let body;
-  try { body = await request.json(); } catch (_) { body = {}; }
+  try { body = await request.json<any>(); } catch (_) { body = {}; }
   const { id, name, dni, department, position, email } = body;
   if (!id || !name || !dni) return jsonResponse({ error: 'Datos incompletos' }, 400, corsHeaders);
 
@@ -1986,7 +1986,7 @@ async function handleAttStaffUpdate(request, env, corsHeaders) {
 }
 
 
-async function handleGetSubcategories(url, env, corsHeaders) {
+async function handleGetSubcategories(url: any, env: Env, corsHeaders: Record<string, string>) {
   try {
     const category = url.searchParams.get('category');
 
@@ -2018,7 +2018,7 @@ async function handleGetSubcategories(url, env, corsHeaders) {
   }
 }
 
-async function handleGetCategoriesWithCount(env, corsHeaders) {
+async function handleGetCategoriesWithCount(env: Env, corsHeaders: Record<string, string>) {
   try {
     // Consulta que une categorías con conteo de cursos
     const stmt = env.MIRAI_AI_DB.prepare(`
@@ -2035,7 +2035,7 @@ async function handleGetCategoriesWithCount(env, corsHeaders) {
             ORDER BY c.title ASC
         `);
 
-    const { results } = await stmt.all();
+    const { results } = await stmt.all<any>();
     return jsonResponse(results, 200, corsHeaders);
 
   } catch (error) {
@@ -2045,7 +2045,7 @@ async function handleGetCategoriesWithCount(env, corsHeaders) {
 }
 
 
-async function handleGetCourses(env, corsHeaders) {
+async function handleGetCourses(env: Env, corsHeaders: Record<string, string>) {
   const stmt = env.MIRAI_AI_DB.prepare(`
     SELECT 
       id, 
@@ -2061,22 +2061,22 @@ async function handleGetCourses(env, corsHeaders) {
     ORDER BY category, subcategory, level
   `);
 
-  const { results } = await stmt.all();
+  const { results } = await stmt.all<any>();
   return jsonResponse(results, 200, corsHeaders);
 }
 
-async function handleGetCategories(env, corsHeaders) {
+async function handleGetCategories(env: Env, corsHeaders: Record<string, string>) {
   const stmt = env.MIRAI_AI_DB.prepare(`
     SELECT id, title, description, icon, color
     FROM categories
     ORDER BY title ASC
   `);
 
-  const { results } = await stmt.all();
+  const { results } = await stmt.all<any>();
   return jsonResponse(results, 200, corsHeaders);
 }
 
-async function handleGetCourseDetails(request, env, corsHeaders) {
+async function handleGetCourseDetails(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const url = new URL(request.url);
   const courseId = url.searchParams.get('id');
 
@@ -2093,7 +2093,7 @@ async function handleGetCourseDetails(request, env, corsHeaders) {
       FROM courses
       WHERE id = ?
     `);
-    const courseResult = await courseStmt.bind(courseId).first();
+    const courseResult = await courseStmt.bind(courseId).first<any>();
 
     if (!courseResult) {
       console.warn('⚠️ Curso no encontrado:', courseId);
@@ -2107,7 +2107,7 @@ async function handleGetCourseDetails(request, env, corsHeaders) {
       WHERE course_id = ?
       ORDER BY order_index ASC
     `);
-    const lessonsResult = await lessonsStmt.bind(courseId).all();
+    const lessonsResult = await lessonsStmt.bind(courseId).all<any>();
 
     const lessonsList = lessonsResult.results || [];
 
@@ -2131,7 +2131,7 @@ async function handleGetCourseDetails(request, env, corsHeaders) {
 }
 
 
-async function requireProfessorAuth(request, env, corsHeaders) {
+async function requireProfessorAuth(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const userDni = await requireAuth(request, env);
   if (!userDni) {
     return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
@@ -2145,11 +2145,11 @@ async function requireProfessorAuth(request, env, corsHeaders) {
   return userDni; // Retorna el DNI si todo OK
 }
 
-export async function isAuthorizedProfessor(userDni, env) {
+export async function isAuthorizedProfessor(userDni: string, env: Env) {
   try {
     const professor = await env.MIRAI_AI_DB.prepare(
       "SELECT dni FROM professors WHERE dni = ? AND is_active = 1"
-    ).bind(userDni.toUpperCase()).first();
+    ).bind(userDni.toUpperCase()).first<any>();
 
     return !!professor;
   } catch (error) {

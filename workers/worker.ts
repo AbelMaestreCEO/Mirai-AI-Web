@@ -25,7 +25,7 @@ const ANDROID_ASSET_LINKS = [{
 
 // --- HANDLER PRINCIPAL ---
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     try {
       const url = new URL(request.url);
       const path = url.pathname;
@@ -86,7 +86,7 @@ export default {
       );
     }
   },
-  async scheduled(event, env) {
+  async scheduled(event: ScheduledController, env: Env) {
     // Los dos crons de wrangler.toml entraban por aquí sin mirar event.cron, así
     // que la "limpieza horaria" de format/ corría en realidad cada 2 minutos.
     // Además, un fallo del list() de R2 impedía que llegase a ejecutarse
@@ -125,7 +125,7 @@ export default {
  * Todo contenido de R2 se sirve exclusivamente por sus rutas /api/... que sí
  * comprueban permisos.
  */
-async function serveStatic(url, env, corsHeaders) {
+async function serveStatic(url: URL, env: Env, corsHeaders: Record<string, string>) {
   return jsonResponse({ error: 'Recurso no encontrado' }, 404, {
     ...corsHeaders,
     'Cache-Control': 'no-store',
