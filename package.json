@@ -1,6 +1,17 @@
 {
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "typecheck": "tsc -p .",
+    "deploy": "npm run typecheck && wrangler deploy",
+    "cf-typegen": "wrangler types --path workers/worker-configuration.d.ts"
+  },
   "dependencies": {
     "fflate": "^0.8.2",
     "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "wrangler": "^4.147.0"
   }
 }

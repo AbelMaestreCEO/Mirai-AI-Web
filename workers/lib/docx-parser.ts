@@ -1,5 +1,5 @@
 // ============================================
-// docx-parser.js - Manipulación de Documentos DOCX
+// docx-parser.ts - Manipulación de Documentos DOCX
 // ============================================
 // Estrategia correcta: operar sobre <w:r> completos, NO sobre <w:t> aislados.
 //
@@ -26,13 +26,13 @@ import { unzipSync, zipSync } from 'fflate';
 // 1. Descompresión / Compresión
 // ============================================
 
-export const decompressDocx = (docxBuffer) => {
+export const decompressDocx = (docxBuffer: ArrayBuffer | Uint8Array): Map<string, Uint8Array> => {
   const buffer = docxBuffer instanceof Uint8Array
     ? docxBuffer
     : new Uint8Array(docxBuffer);
 
   const unzipped = unzipSync(buffer);
-  const files = new Map();
+  const files = new Map<string, Uint8Array>();
   for (const [path, data] of Object.entries(unzipped)) {
     files.set(path, data);
   }
@@ -49,13 +49,13 @@ export const decompressDocx = (docxBuffer) => {
   return files;
 };
 
-export const extractDocumentXml = (files) => {
+export const extractDocumentXml = (files: Map<string, Uint8Array>) => {
   const raw = files.get('word/document.xml');
   if (!raw) throw new Error('No se encontró word/document.xml');
   return new TextDecoder('utf-8').decode(raw);
 };
 
-export const xmlToUint8Array = (xmlString) =>
+export const xmlToUint8Array = (xmlString: string) =>
   new TextEncoder().encode(xmlString);
 
 // ============================================
@@ -262,11 +262,11 @@ export const processDocument = (xmlContent, rules) => {
 // 5. Reconstrucción del DOCX
 // ============================================
 
-export const recompressDocx = (files, modifiedXml) => {
+export const recompressDocx = (files: Map<string, Uint8Array>, modifiedXml: string) => {
   const updated = new Map(files);
   updated.set('word/document.xml', xmlToUint8Array(modifiedXml));
 
-  const obj = {};
+  const obj: Record<string, Uint8Array> = {};
   for (const [path, data] of updated) obj[path] = data;
 
   return zipSync(obj, { level: 6 });
