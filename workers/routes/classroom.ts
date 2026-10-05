@@ -125,7 +125,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
         `).bind(id, userDni, title, description || '').run();
 
       return jsonResponse({ success: true, id }, 201, corsHeaders);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creando curso:', error);
       if (error.message.includes('UNIQUE constraint failed')) {
         return jsonResponse({ error: 'Ya existe un curso con ese nombre para tu perfil' }, 409, corsHeaders);
@@ -739,7 +739,7 @@ ORDER BY u.last_name, u.first_name
 
       return jsonResponse({ ...assignment, submission }, 200, corsHeaders);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error en assignment-details:', error);
       return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
     }
@@ -828,7 +828,7 @@ ORDER BY u.last_name, u.first_name
           if (finalVisionText) {
             console.log(`✅ [DEBUG] Llama Vision respondió: ${finalVisionText.substring(0, 200)}`);
           }
-        } catch (visionError) {
+        } catch (visionError: any) {
           console.error('❌ [DEBUG] Error con Llama Vision:', visionError.message);
         }
 
@@ -892,7 +892,7 @@ NO agregues texto fuera del JSON.`;
             } else if (fileExtension === 'docx') {
               textContent = await extractTextFromDocx(fileBuffer);
             }
-          } catch (extractError) {
+          } catch (extractError: any) {
             console.error('❌ [DEBUG] Extracción del archivo falló:', extractError.message);
             return jsonResponse({
               error: 'No se pudo extraer texto del archivo. Por favor, vuelve a subir el documento.'
@@ -996,7 +996,7 @@ NO agregues texto adicional fuera del JSON.`;
           reasoning: evaluation.reasoning
         }, 200, corsHeaders);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error evaluando entrega:', error);
         return jsonResponse({ error: 'Error al evaluar', details: error.message }, 500, corsHeaders);
       }
@@ -1032,7 +1032,7 @@ NO agregues texto adicional fuera del JSON.`;
 
         return jsonResponse({ success: true, message: 'Disputa registrada. El profesor revisará tu caso.' }, 200, corsHeaders);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error registrando disputa:', error);
         return jsonResponse({ error: 'Error al registrar disputa', details: error.message }, 500, corsHeaders);
       }
@@ -1093,7 +1093,7 @@ NO agregues texto adicional fuera del JSON.`;
 
         return jsonResponse({ success: true, new_score: finalScore }, 200, corsHeaders);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error actualizando nota:', error);
         return jsonResponse({ error: 'Error al actualizar nota', details: error.message }, 500, corsHeaders);
       }
@@ -1403,7 +1403,7 @@ async function handleAttMyProfile(request: Request, env: Env, corsHeaders: Recor
     ).bind(userDni.toUpperCase()).first<any>();
     if (!staff) return jsonResponse({ error: 'Personal no registrado' }, 404, corsHeaders);
     return jsonResponse(staff, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1444,7 +1444,7 @@ async function handleAttMyHistory(request: Request, env: Env, corsHeaders: Recor
 
     const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all<any>();
     return jsonResponse({ records: results }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1525,7 +1525,7 @@ async function handleAttRecord(request: Request, env: Env, corsHeaders: Record<s
     ).bind(session.id).run();
 
     return jsonResponse({ success: true, type, date: session.date, time }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1547,7 +1547,7 @@ async function handleAttActiveQr(request: Request, env: Env, corsHeaders: Record
     ).bind(date).first<any>();
     if (!session) return jsonResponse({ error: 'Sin QR activo para esta fecha' }, 404, corsHeaders);
     return jsonResponse(session, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1577,7 +1577,7 @@ async function handleAttGenerateQr(request: Request, env: Env, corsHeaders: Reco
       expires_at: expiresAt,
       scan_count: 0,
     }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1620,7 +1620,7 @@ async function handleAttAdminRecords(request: Request, env: Env, corsHeaders: Re
 
     const { results } = await env.MIRAI_AI_DB.prepare(query).bind(...bindings).all<any>();
     return jsonResponse({ records: results }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1649,7 +1649,7 @@ async function handleAttAdminStats(request: Request, env: Env, corsHeaders: Reco
       total_entries: entries,
       total_exits: exits,
     }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1662,7 +1662,7 @@ async function handleAttStaffList(request: Request, env: Env, corsHeaders: Recor
       'SELECT id, name, dni, department, position, email, is_active FROM att_staff ORDER BY name'
     ).all<any>();
     return jsonResponse({ staff: results }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1689,7 +1689,7 @@ async function handleAttSectionList(request: Request, env: Env, corsHeaders: Rec
       ORDER BY s.name
     `).all<any>();
     return jsonResponse(results, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1722,7 +1722,7 @@ async function handleAttClassList(request: Request, env: Env, corsHeaders: Recor
        FROM att_classes c WHERE c.is_active = 1 ORDER BY c.name`
     ).all<any>();
     return jsonResponse({ classes: results }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1751,7 +1751,7 @@ async function handleAttClassCreate(request: Request, env: Env, corsHeaders: Rec
       'INSERT INTO att_classes (id, name, description, created_by) VALUES (?,?,?,?)'
     ).bind(id, name.trim(), description || null, dni).run();
     return jsonResponse({ success: true, id, name: name.trim() }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1766,7 +1766,7 @@ async function handleAttClassUpdate(request: Request, env: Env, corsHeaders: Rec
     await env.MIRAI_AI_DB.prepare('UPDATE att_classes SET name=?, description=? WHERE id=?')
       .bind(name.trim(), description || null, classId).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 async function handleAttClassDelete(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
@@ -1775,7 +1775,7 @@ async function handleAttClassDelete(request: Request, env: Env, corsHeaders: Rec
   try {
     await env.MIRAI_AI_DB.prepare("UPDATE att_classes SET is_active=0 WHERE id=?").bind(classId).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 async function handleAttClassStudents(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
@@ -1790,7 +1790,7 @@ async function handleAttClassStudents(request: Request, env: Env, corsHeaders: R
       ORDER BY s.name
     `).bind(classId).all<any>();
     return jsonResponse({ students: results }, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 // Helper: garantiza que un DNI exista en att_staff (lo crea si no está)
@@ -1839,7 +1839,7 @@ async function handleAttClassAddStudent(request: Request, env: Env, corsHeaders:
         if (meta.changes > 0) added++;
       }
       return jsonResponse({ success: true, added }, 200, corsHeaders);
-    } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+    } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
   }
 
   // ── Modo DNI individual ──
@@ -1851,7 +1851,7 @@ async function handleAttClassAddStudent(request: Request, env: Env, corsHeaders:
       'INSERT OR IGNORE INTO att_class_students (id, class_id, staff_id) VALUES (?,?,?)'
     ).bind(crypto.randomUUID(), classId, staff.id).run();
     return jsonResponse({ success: true, name: staff.name }, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 async function handleAttClassRemoveStudent(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string, studentDni: string) {
@@ -1866,7 +1866,7 @@ async function handleAttClassRemoveStudent(request: Request, env: Env, corsHeade
       'DELETE FROM att_class_students WHERE class_id = ? AND staff_id = ?'
     ).bind(classId, staff.id).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 async function handleAttClassActiveQr(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
@@ -1880,7 +1880,7 @@ async function handleAttClassActiveQr(request: Request, env: Env, corsHeaders: R
     ).bind(date, classId).first<any>();
     if (!session) return jsonResponse({ error: 'Sin QR activo para esta clase/fecha' }, 404, corsHeaders);
     return jsonResponse(session, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 async function handleAttClassGenerateQr(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
@@ -1897,7 +1897,7 @@ async function handleAttClassGenerateQr(request: Request, env: Env, corsHeaders:
       VALUES (?, ?, ?, ?, 0, ?, ?)
     `).bind(crypto.randomUUID(), token, targetDate, expiresAt, dni, classId).run();
     return jsonResponse({ success: true, token, date: targetDate, expires_at: expiresAt, scan_count: 0, class_id: classId }, 200, corsHeaders);
-  } catch (e) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+  } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
 async function handleAttLookupUser(request: Request, env: Env, corsHeaders: Record<string, string>) {
@@ -1929,7 +1929,7 @@ async function handleAttLookupUser(request: Request, env: Env, corsHeaders: Reco
       full_name: `${user.first_name} ${user.last_name}`,
       email_hint: censorEmail(user.email),
     }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -1958,7 +1958,7 @@ async function handleAttStaffCreate(request: Request, env: Env, corsHeaders: Rec
         `).bind(crypto.randomUUID(), name, dni.toUpperCase(), department || null, position || null, user.email).run();
 
     return jsonResponse({ success: true, name }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     const msg = e.message.includes('UNIQUE') ? 'Este empleado ya está registrado' : e.message;
     return jsonResponse({ error: msg }, 400, corsHeaders);
   }
@@ -1980,7 +1980,7 @@ async function handleAttStaffUpdate(request: Request, env: Env, corsHeaders: Rec
             WHERE id=?
         `).bind(name, dni.toUpperCase(), department || null, position || null, email || null, id).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (e) {
+  } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
@@ -2012,7 +2012,7 @@ async function handleGetSubcategories(url: any, env: Env, corsHeaders: Record<st
       return jsonResponse(results, 200, corsHeaders);
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting subcategories:', error);
     return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
   }
@@ -2038,7 +2038,7 @@ async function handleGetCategoriesWithCount(env: Env, corsHeaders: Record<string
     const { results } = await stmt.all<any>();
     return jsonResponse(results, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting categories with count:', error);
     return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
   }
@@ -2124,7 +2124,7 @@ async function handleGetCourseDetails(request: Request, env: Env, corsHeaders: R
 
     return jsonResponse(responseData, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en course-details:', error.message);
     return jsonResponse({ error: 'Error interno', details: error.message }, 500, corsHeaders);
   }

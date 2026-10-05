@@ -301,7 +301,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
 
         return jsonResponse({ conversation_id: convId }, 200, corsHeaders);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ [Education] Error:', error.message);
         return jsonResponse({ error: error.message }, 500, corsHeaders);
       }
@@ -340,7 +340,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         console.log('✅ [Enrolled] Lista obtenida:', enrolled.length);
         return jsonResponse(enrolled, 200, corsHeaders);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ [Enrolled] Error:', error.message);
         return jsonResponse({ error: error.message }, 500, corsHeaders);
       }
@@ -659,7 +659,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         ).bind(role, dni.toUpperCase().trim()).run();
 
         return jsonResponse({ success: true, dni: dni.toUpperCase(), role }, 200, corsHeaders);
-      } catch (error) {
+      } catch (error: any) {
         return jsonResponse({ error: 'Error al cambiar rol', details: error.message }, 500, corsHeaders);
       }
     }
@@ -684,7 +684,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         ).bind(plan, dni.toUpperCase().trim()).run();
 
         return jsonResponse({ success: true, dni: dni.toUpperCase(), plan }, 200, corsHeaders);
-      } catch (error) {
+      } catch (error: any) {
         return jsonResponse({ error: 'Error al cambiar plan', details: error.message }, 500, corsHeaders);
       }
     }
@@ -738,7 +738,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
           providers,
           available_months: monthRows.map(m => m.usage_month)
         }, 200, corsHeaders);
-      } catch (error) {
+      } catch (error: any) {
         return jsonResponse({ error: 'Error al obtener consumo de APIs', details: error.message }, 500, corsHeaders);
       }
     }
@@ -777,7 +777,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
           cost_usd: calcCost('google_maps', type)
         });
         return new Response(null, { status: 204, headers: corsHeaders });
-      } catch (error) {
+      } catch (error: any) {
         return jsonResponse({ error: 'Error registrando uso de Maps', details: error.message }, 500, corsHeaders);
       }
     }

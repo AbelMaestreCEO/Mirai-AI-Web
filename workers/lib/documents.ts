@@ -39,7 +39,7 @@ export async function extractTextFromPDF(buffer: ArrayBuffer) {
     // Si todo falla, devolver un mensaje de error amigable
     throw new Error("No se pudo extraer texto legible. El PDF podría estar escaneado o protegido.");
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error extrayendo PDF:', error.message);
     throw error;
   }
@@ -95,7 +95,7 @@ export async function extractTextFromDocx(buffer: ArrayBuffer) {
 
     throw new Error("No se pudo extraer el contenido XML. El archivo podría estar altamente comprimido o corrupto.");
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ extractTextFromDocx error:', error.message);
     throw error;
   }

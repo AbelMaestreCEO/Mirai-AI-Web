@@ -37,7 +37,7 @@ export async function handleSubscribe(request: Request, env: Env, corsHeaders: R
 
     return jsonResponse({ success: true, message: 'Suscripción guardada' }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error subscribing:', error);
     return jsonResponse({ error: 'Error al suscribirse', details: error.message }, 500, corsHeaders);
   }

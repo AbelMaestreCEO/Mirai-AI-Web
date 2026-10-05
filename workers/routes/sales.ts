@@ -75,7 +75,7 @@ export async function handleSaleListingCreate(request: Request, env: Env, corsHe
     ).run();
 
     return jsonResponse({ success: true, id }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al crear listing:', error);
     return jsonResponse({ error: 'Error al poner el artículo a la venta', details: error.message }, 500, corsHeaders);
   }
@@ -123,7 +123,7 @@ export async function handleSaleListingUpdate(request: Request, env: Env, corsHe
       `UPDATE sale_listings SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`
     ).bind(...values).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al actualizar listing:', error);
     return jsonResponse({ error: 'Error al actualizar artículo en venta', details: error.message }, 500, corsHeaders);
   }
@@ -146,7 +146,7 @@ export async function handleSaleListingDelete(request: Request, env: Env, corsHe
       'DELETE FROM sale_listings WHERE id = ? AND user_dni = ?'
     ).bind(listingId, userDni.toUpperCase()).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al eliminar listing:', error);
     return jsonResponse({ error: 'Error al eliminar artículo en venta', details: error.message }, 500, corsHeaders);
   }
@@ -223,7 +223,7 @@ export async function handleSaleBuyerCreate(request: Request, env: Env, corsHead
     const hasAccount = await env.MIRAI_AI_DB.prepare('SELECT dni FROM users WHERE dni = ?').bind(cedula).first<any>();
 
     return jsonResponse({ success: true, id, has_account: !!hasAccount }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al crear comprador:', error);
     return jsonResponse({ error: 'Error al registrar comprador', details: error.message }, 500, corsHeaders);
   }
@@ -274,7 +274,7 @@ export async function handleSaleBuyerUpdate(request: Request, env: Env, corsHead
       `UPDATE sale_buyers SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`
     ).bind(...values).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al actualizar comprador:', error);
     return jsonResponse({ error: 'Error al actualizar comprador', details: error.message }, 500, corsHeaders);
   }
@@ -297,7 +297,7 @@ export async function handleSaleBuyerDelete(request: Request, env: Env, corsHead
       'DELETE FROM sale_buyers WHERE id = ? AND user_dni = ?'
     ).bind(buyerId, userDni.toUpperCase()).run();
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al eliminar comprador:', error);
     return jsonResponse({ error: 'Error al eliminar comprador', details: error.message }, 500, corsHeaders);
   }
@@ -426,7 +426,7 @@ export async function handleSaleTransactionCreate(request: Request, env: Env, co
       success: true, id, total_amount: totalAmount,
       invoice_id: invoice?.id || null, invoice_number: invoice?.invoiceNumber || null,
     }, 201, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al crear transacción:', error);
     return jsonResponse({ error: 'Error al registrar la compra', details: error.message }, 500, corsHeaders);
   }
@@ -647,7 +647,7 @@ export async function handleSaleTransactionUpdate(request: Request, env: Env, co
     }
 
     return jsonResponse({ success: true }, 200, corsHeaders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Sales] Error al actualizar transacción:', error);
     return jsonResponse({ error: 'Error al actualizar la compra', details: error.message }, 500, corsHeaders);
   }

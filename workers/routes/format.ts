@@ -114,7 +114,7 @@ export async function handleFormatProcess(request: Request, env: Env, corsHeader
       });
 
       results.push({ original: obj.key, modified: modKey, matches: result.matches });
-    } catch (err) {
+    } catch (err: any) {
       results.push({ original: obj.key, error: err.message });
     }
   }

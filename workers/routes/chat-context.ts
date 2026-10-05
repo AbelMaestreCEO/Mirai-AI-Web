@@ -117,7 +117,7 @@ export async function buildConversationTaskPrompt(conversationId: any, courseId:
         if (lessonContext) return buildEducationSystemPrompt(lessonContext);
       }
     }
-  } catch (err) {
+  } catch (err: any) {
     console.warn('⚠️ No se pudo armar la tarea de la conversación:', err.message);
   }
   return null;
@@ -247,7 +247,7 @@ export async function getLessonContext(courseId: string, lessonId: string, env: 
        WHERE l.course_id = ? AND l.id = ?`
     ).bind(courseId, lessonId).first<any>();
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error obteniendo contexto de lección:', error.message);
     return null;
   }

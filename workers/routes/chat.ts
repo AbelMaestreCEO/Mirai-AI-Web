@@ -84,7 +84,7 @@ async function classifyIntent(message: string, env: Env): Promise<IntentClassifi
 
     return parseClassification(content);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ classifyIntent error:', error.message);
     return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' }; // Fallback seguro
   }
@@ -303,7 +303,7 @@ export async function handleChat(request: Request, env: Env, corsHeaders: Record
         );
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Chat handler error:', error.message);
     console.error('Stack:', error.stack);
     return jsonResponse({ error: 'Error procesando el mensaje', details: error.message }, 500, corsHeaders);
@@ -418,7 +418,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
             } catch (e) { /* ignore malformed prefs */ }
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn('⚠️ Error al obtener datos del usuario para system prompt:', e.message);
       }
     }
@@ -457,7 +457,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
             console.log(`🌐 ${results.length} resultados web inyectados`);
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn('⚠️ Web search falló:', e.message);
       }
     }
@@ -542,7 +542,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
       suggestions: suggestions
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en handleTextChatInternal:', error.message);
     return jsonResponse({ error: 'Error procesando mensaje', details: error.message }, 500, corsHeaders);
   }
@@ -632,14 +632,14 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
         await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
         await saveMessage(conversation_id, 'assistant', cleanResponse, env, null, null, null, userDni, AI_MODEL_NORMAL, reasoning);
         await updateConversationTimestamp(conversation_id, env);
-      } catch (dbError) {
+      } catch (dbError: any) {
         // La respuesta ya se entregó al usuario: un fallo al persistirla no debe
         // convertirse en un error visible en pantalla.
         console.error('❌ Error guardando mensajes del stream:', dbError.message);
       }
 
       await send({ type: 'done', response: cleanResponse, reasoning, suggestions, audio_url: null });
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error en streamTextChat:', error.message);
       await send({ type: 'error', error: error.message || 'Error procesando mensaje' });
     } finally {

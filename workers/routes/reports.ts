@@ -46,7 +46,7 @@ async function uploadReportImage(base64DataUrl: string, reportId: string, studen
     // URL pública — ajusta el dominio a tu worker/R2 custom domain
     return `/api/report-images/${r2Key}`;
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] uploadReportImage error:', err.message);
     return null;
   }
@@ -233,7 +233,7 @@ export async function handleReportList(request: Request, env: Env, corsHeaders: 
 
     return jsonResponse(reports, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportList error:', err.message);
     return jsonResponse({ error: 'Error al obtener reportes.' }, 500, corsHeaders);
   }
@@ -284,7 +284,7 @@ export async function handleReportCreate(request: Request, env: Env, corsHeaders
   let validSectionId: any = null;
   try {
     validSectionId = await resolveReportSectionId(sectionId, teacherDni, isAdmin, env);
-  } catch (err) {
+  } catch (err: any) {
     return jsonResponse({ error: err.message }, 403, corsHeaders);
   }
 
@@ -332,7 +332,7 @@ export async function handleReportCreate(request: Request, env: Env, corsHeaders
       updatedAt: now,
     }, 201, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportCreate error:', err.message);
     return jsonResponse({ error: 'Error al crear el reporte.' }, 500, corsHeaders);
   }
@@ -409,7 +409,7 @@ export async function handleReportUpdate(request: Request, env: Env, corsHeaders
     let validSectionId: any = null;
     try {
       validSectionId = await resolveReportSectionId(body.sectionId, existing.teacher_dni, isAdmin, env);
-    } catch (err) {
+    } catch (err: any) {
       return jsonResponse({ error: err.message }, 403, corsHeaders);
     }
     fields.push('section_id = ?');
@@ -432,7 +432,7 @@ export async function handleReportUpdate(request: Request, env: Env, corsHeaders
 
     return jsonResponse({ ok: true }, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportUpdate error:', err.message);
     return jsonResponse({ error: 'Error al actualizar el reporte.' }, 500, corsHeaders);
   }
@@ -469,13 +469,13 @@ export async function handleReportDelete(request: Request, env: Env, corsHeaders
       for (const obj of listed.objects) {
         await env.MIRAI_AI_ASSETS.delete(obj.key);
       }
-    } catch (r2Err) {
+    } catch (r2Err: any) {
       console.warn('[Reports] R2 cleanup parcial:', r2Err.message);
     }
 
     return jsonResponse({ ok: true }, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportDelete error:', err.message);
     return jsonResponse({ error: 'Error al eliminar el reporte.' }, 500, corsHeaders);
   }
@@ -526,7 +526,7 @@ export async function handleReportSubmissions(request: Request, env: Env, corsHe
 
     return jsonResponse(submissions, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportSubmissions error:', err.message);
     return jsonResponse({ error: 'Error al obtener respuestas.' }, 500, corsHeaders);
   }
@@ -576,7 +576,7 @@ export async function handleReportImageServe(request: Request, env: Env, corsHea
 
     return new Response(obj.body, { headers });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportImageServe error:', err.message);
     return jsonResponse({ error: 'Error al servir la imagen.' }, 500, corsHeaders);
   }
@@ -612,7 +612,7 @@ export async function handleStudentList(request: Request, env: Env, corsHeaders:
 
     return jsonResponse(results, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleStudentList error:', err.message);
     return jsonResponse({ error: 'Error al obtener estudiantes.' }, 500, corsHeaders);
   }
@@ -647,7 +647,7 @@ export async function handleReportSections(request: Request, env: Env, corsHeade
 
     return jsonResponse(results, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleReportSections error:', err.message);
     return jsonResponse({ error: 'Error al obtener secciones.' }, 500, corsHeaders);
   }
@@ -725,7 +725,7 @@ export async function handleMyReports(request: Request, env: Env, corsHeaders: R
 
     return jsonResponse(myReports, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleMyReports error:', err.message);
     return jsonResponse({ error: 'Error al obtener tus reportes.' }, 500, corsHeaders);
   }
@@ -773,7 +773,7 @@ export async function handleMySubmission(request: Request, env: Env, corsHeaders
       submittedAt: submission.submitted_at,
     }, 200, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Reports] handleMySubmission error:', err.message);
     return jsonResponse({ error: 'Error al obtener tu respuesta.' }, 500, corsHeaders);
   }
@@ -910,7 +910,7 @@ export async function handleReportSubmit(request: Request, env: Env, corsHeaders
 
     return jsonResponse({ ok: true, submittedAt }, 201, corsHeaders);
 
-  } catch (err) {
+  } catch (err: any) {
     // Manejo de UNIQUE constraint si ya existe una fila (race condition)
     if (err.message?.includes('UNIQUE constraint failed')) {
       return jsonResponse({ error: 'Ya enviaste este reporte.' }, 409, corsHeaders);

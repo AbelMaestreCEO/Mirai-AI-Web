@@ -140,7 +140,7 @@ export async function callAI(model: string, messages: any[], options: CallAIOpti
     metaOut.finishReason = result.finishReason;
     deepseekUsage = usageOut.usage;
 
-  } catch (err) {
+  } catch (err: any) {
     console.warn(`⚠️ DeepSeek falló: ${err.message}. Usando fallback GLM...`);
 
     // El fallback regenera la respuesta desde cero: si ya se habían enviado

@@ -235,7 +235,7 @@ export async function logApiUsage(env: Env, {
       user_dni ? user_dni.toUpperCase() : null, via_gateway ? 1 : 0,
       usage_date, usage_date.slice(0, 7)
     ).run();
-  } catch (e) {
+  } catch (e: any) {
     console.warn('⚠️ logApiUsage falló (no crítico):', e.message);
   }
 }

@@ -60,7 +60,7 @@ export async function handleMusicGeneration(prompt: any, conversationId: string,
           if (!audioFetch.ok) throw new Error(`HTTP ${audioFetch.status} al descargar audio`);
           audioBuffer = await audioFetch.arrayBuffer();
           console.log('✅ Audio descargado desde URL:', audioBuffer.byteLength, 'bytes');
-        } catch (fetchErr) {
+        } catch (fetchErr: any) {
           throw new Error('No se pudo descargar el audio: ' + fetchErr.message);
         }
       }
@@ -140,7 +140,7 @@ export async function handleMusicGeneration(prompt: any, conversationId: string,
       prompt: prompt
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ handleMusicGeneration error:', error.message);
 
     // Si es error del proveedor, dar mensaje amigable

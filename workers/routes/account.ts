@@ -232,7 +232,7 @@ export async function handleVerify(request: Request, env: Env, corsHeaders: Reco
           'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
         ).bind(task.assignment_id, user.dni.toUpperCase()).run();
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('No se pudieron asignar tareas retroactivas al verificar:', e.message);
     }
 

@@ -96,14 +96,14 @@ export default {
     if (event.cron === HOURLY_CRON) {
       try {
         await cleanupExpiredFormatFiles(env);
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ [Scheduled] Format cleanup falló:', error.message);
       }
     }
 
     try {
       await finalizePendingVideoAvatarJobs(env);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [Scheduled] finalizePendingVideoAvatarJobs falló:', error.message);
     }
   }

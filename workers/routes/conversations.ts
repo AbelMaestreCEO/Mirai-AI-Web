@@ -195,7 +195,7 @@ export async function saveMessage(conversationId: string, role: string, content:
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `);
       await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl, reasoning).run();
-    } catch (columnError) {
+    } catch (columnError: any) {
       // Base de datos aún sin la columna 'reasoning' (la migración corre en
       // handleApiRequest): guardar el mensaje sin el pensamiento antes que perderlo.
       console.warn('⚠️ INSERT con reasoning falló, reintentando sin la columna:', columnError.message);
@@ -242,7 +242,7 @@ export async function ensureConversationExists(conversationId: string, firstMess
     } else {
       console.log(`ℹ️ Conversación ya existe: ${conversationId}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`❌ ERROR CRÍTICO al asegurar conversación ${conversationId}:`, error.message);
     console.error(`Stack:`, error.stack);
     // No lanzamos el error aquí para no romper el flujo, pero sí loguearlo
@@ -336,7 +336,7 @@ export async function handleUpload(request: Request, env: Env, corsHeaders: Reco
           `INSERT INTO attachments (id, conversation_id, r2_key, original_name, file_type)
            VALUES (?, ?, ?, ?, ?)`
         ).bind(attachmentId, conversationId, r2Key, file.name, extension).run();
-      } catch (dbError) {
+      } catch (dbError: any) {
         console.warn('⚠️ No se pudo registrar el adjunto en D1:', dbError.message);
       }
     }
@@ -390,7 +390,7 @@ export async function handleDeleteConversation(request: Request, conversationId:
       was_course: !!conv.course_id
     }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting conversation:', error);
     return jsonResponse({ error: error.message }, 500, corsHeaders);
   }
@@ -438,7 +438,7 @@ export async function handleListConversations(request: Request, env: Env, corsHe
 
     return jsonResponse({ regular, courses }, 200, corsHeaders);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error listing conversations:', error);
     return jsonResponse({ error: 'Error obteniendo conversaciones', details: error.message }, 500, corsHeaders);
   }
@@ -475,7 +475,7 @@ export async function saveConversationContext(conversationId: any, courseId: any
        WHERE id = ?`
     ).bind(courseId, lessonId, conversationId).run();
     console.log('🎓 Contexto educativo guardado:', courseId, lessonId);
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error guardando contexto educativo:', error.message);
   }
 }
@@ -486,7 +486,7 @@ export async function getConversationEducationContext(conversationId: any, env: 
       `SELECT course_id, lesson_id FROM conversations WHERE id = ?`
     ).bind(conversationId).first<any>();
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error obteniendo contexto educativo:', error.message);
     return null;
   }
@@ -521,7 +521,7 @@ export async function getOrCreateEducationConversation(courseId: string, lessonI
     console.log(`✅ Nueva conversación creada para usuario ${userDni}: ${newConvId}`);
     return newConvId;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error en getOrCreateEducationConversation:', error.message);
     throw error;
   }
