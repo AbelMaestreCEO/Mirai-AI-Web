@@ -1,11 +1,13 @@
 // Formateo de los mensajes del chat (port de formatMessageContent de app.js).
 //
-// Markdown propio y limitado: bloques de código con botón de copiar, imágenes
-// con botón de descarga, negrita, *acciones* de rol, código en línea,
-// encabezados, listas, citas y tablas con botón de "Copiar tabla". Recibe el
+// Markdown propio y limitado: bloques de código con su lenguaje y botón de
+// copiar, imágenes con botón de descarga, negrita, *acciones* de rol, código en
+// línea, encabezados, listas, citas y tablas con botón de "Copiar tabla". Recibe el
 // texto crudo del mensaje y lo escapa una sola vez; lo que devuelve es HTML
 // seguro para v-html. Los botones no llevan listeners: el chat los atiende por
 // delegación (ver ChatPage.vue).
+
+import { detectLang, langLabel, normalizeLang } from './code-languages';
 
 const ASSETS_ORIGIN = 'https://aiassets.aberumirai.com/';
 
@@ -30,18 +32,38 @@ export function balanceCodeFences(text: string): string {
 
 const COPY_ICON =
   '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+const CODE_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>';
 
-function codeBlockHtml(lang: string, code: string): string {
+/**
+ * Algunos modelos devuelven el código ya escapado (&amp;, &lt;…) y se vería y
+ * copiaría así. Solo se deshace si el bloque no trae ningún <, > o & suelto:
+ * un ejemplo de HTML que enseña entidades siempre lleva alguna etiqueta.
+ */
+function unescapeIfEscaped(code: string): string {
+  if (!/&(amp|lt|gt|quot|#0?39|#x27);/.test(code)) return code;
+  if (/[<>]|&(?!(amp|lt|gt|quot|#0?39|#x27);)/.test(code)) return code;
+  return code
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&#x27;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function codeBlockHtml(rawLang: string, rawCode: string): string {
+  const code = unescapeIfEscaped(rawCode.replace(/\r?\n$/, ''));
+  const lang = normalizeLang(rawLang) || detectLang(code) || 'plaintext';
   const safeLang = lang.replace(/[^\w-]/g, '');
   return `<div class="code-block-wrapper">
-      <pre class="code-block"><code class="language-${safeLang}">${escapeHtml(code)}</code></pre>
       <div class="code-header">
-        <span class="code-lang">${safeLang || 'plaintext'}</span>
-        <button class="copy-code-btn" data-code="${encodeURIComponent(code)}" title="Copiar código">
+        <span class="code-lang">${CODE_ICON}<span>${escapeHtml(langLabel(lang))}</span></span>
+        <button class="copy-code-btn" data-code="${encodeURIComponent(code)}" title="Copiar todo el código">
           ${COPY_ICON}
           <span>Copiar</span>
         </button>
       </div>
+      <pre class="code-block"><code class="language-${safeLang}">${escapeHtml(code)}</code></pre>
     </div>`;
 }
 
@@ -103,7 +125,7 @@ export function formatMessageContent(content: string): string {
   // 1. Los bloques de código se apartan antes de escapar: su contenido se
   //    escapa por separado y no debe pasar por el resto de reglas.
   const codeBlocks: string[] = [];
-  let formatted = content.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang: string, code: string) => {
+  let formatted = content.replace(/```([^\n`]*)\r?\n([\s\S]*?)```/g, (_m, lang: string, code: string) => {
     codeBlocks.push(codeBlockHtml(lang, code));
     return `__CODEHTML_${codeBlocks.length - 1}__`;
   });

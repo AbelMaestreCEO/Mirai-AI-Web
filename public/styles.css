@@ -1523,25 +1523,6 @@ footer.footer {
 }
 
 /* --- CÓDIGO --- */
-.code-block {
-  background: var(--secondary-container);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--border-radius-sm);
-  padding: 16px;
-  margin: 12px 0;
-  overflow-x: auto;
-  font-family: 'Roboto Mono', 'SF Mono', 'Monaco', 'Courier New', monospace;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
-}
-
-[data-theme="dark"] .code-block {
-  background: var(--secondary-color);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
 .inline-code {
   background: var(--message-user-bg);
   border: 1px solid var(--message-user-border);
@@ -1641,8 +1622,8 @@ footer.footer {
 
 /* --- RESPONSIVE PARA CÓDIGO --- */
 @media (max-width: 768px) {
-  .code-block {
-    font-size: 0.75rem;
+  .code-block-wrapper .code-block {
+    font-size: 0.78rem;
     padding: 12px;
   }
 
@@ -1660,80 +1641,92 @@ footer.footer {
 }
 
 /* ============================================
-   ESTILOS PARA BLOQUES DE CÓDIGO CON BOTÓN COPIAR
+   BLOQUES DE CÓDIGO (cabecera con lenguaje + botón copiar)
+   Los tonos salen de --accent-color, que cambia con el color elegido en
+   Configuración, sobre una base clara u oscura según el tema.
    ============================================ */
 
-/* Contenedor del bloque de código */
 .code-block-wrapper {
+  --code-bg: color-mix(in srgb, var(--accent-color) 4%, #FFFFFF);
+  --code-header-bg: color-mix(in srgb, var(--accent-color) 10%, #FFFFFF);
+  --code-border: color-mix(in srgb, var(--accent-color) 22%, transparent);
+  --code-text: var(--text-primary);
+  --code-muted: var(--text-secondary);
+
+  display: flex;
+  flex-direction: column;
   margin: 12px 0;
   border-radius: var(--border-radius-sm);
   overflow: hidden;
-  border: 1px solid var(--glass-border);
-  background: var(--secondary-container);
-  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--code-border);
+  background: var(--code-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  max-width: 100%;
 }
 
 [data-theme="dark"] .code-block-wrapper {
-  background: var(--secondary-color);
+  --code-bg: color-mix(in srgb, var(--accent-color) 5%, #111014);
+  --code-header-bg: color-mix(in srgb, var(--accent-color) 12%, #18171C);
+  --code-border: color-mix(in srgb, var(--accent-color) 20%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Cabecera del bloque de código */
+/* Cabecera: siempre arriba, aunque el HTML (app.js antiguo) la ponga debajo */
 .code-header {
+  order: -1;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.04);
-  border-bottom: 1px solid var(--glass-border);
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  background: var(--code-header-bg, rgba(0, 0, 0, 0.04));
+  border-bottom: 1px solid var(--code-border, var(--glass-border));
   font-size: 0.75rem;
 }
 
-[data-theme="dark"] .code-header {
-  background: rgba(255, 255, 255, 0.04);
+.code-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--accent-color);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.code-lang {
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.code-lang svg {
+  fill: currentColor;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 /* Botón de copiar */
 .copy-code-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  flex-shrink: 0;
   background: transparent;
-  border: 1px solid var(--glass-border);
-  border-radius: 6px;
-  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 10px;
   cursor: pointer;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  font: inherit;
+  font-size: 0.75rem;
   font-weight: 500;
-  position: relative;
-  overflow: hidden;
+  color: var(--code-muted, var(--text-secondary));
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.copy-code-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--accent-color);
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-
-.copy-code-btn:hover {
+.copy-code-btn:hover,
+.copy-code-btn:focus-visible {
   color: var(--accent-color);
-  border-color: var(--accent-color);
-}
-
-.copy-code-btn:hover::after {
-  opacity: 0.06;
+  background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+  border-color: var(--code-border, var(--glass-border));
+  outline: none;
 }
 
 .copy-code-btn svg {
@@ -1753,10 +1746,6 @@ footer.footer {
   border-color: #A8D88C;
 }
 
-.copy-code-btn.copied svg {
-  fill: currentColor;
-}
-
 /* Estado: Error */
 .copy-code-btn.error {
   background: rgba(208, 0, 0, 0.1);
@@ -1764,51 +1753,49 @@ footer.footer {
   border-color: #D00000;
 }
 
-.copy-code-btn.error svg {
-  fill: #D00000;
+[data-theme="dark"] .copy-code-btn.error {
+  background: rgba(255, 180, 171, 0.1);
+  color: #FFB4AB;
+  border-color: #FFB4AB;
 }
 
 /* Bloque de código */
 .code-block {
   margin: 0;
-  padding: 16px;
+  padding: 14px 16px;
   overflow-x: auto;
-  font-family: 'Roboto Mono', 'SF Mono', 'Monaco', 'Courier New', monospace;
+  font-family: 'Roboto Mono', 'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
   font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-primary);
+  line-height: 1.55;
+  color: var(--code-text, var(--text-primary));
   background: transparent;
   border: none;
+  white-space: pre;
+  tab-size: 4;
+  /* Sin ligaduras: en Excel "<>" debe verse tal cual, no como un rombo */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--code-border, var(--glass-border)) transparent;
 }
 
-/* Resaltar sintaxis básico (colores por lenguaje) */
-.code-block .language-javascript,
-.code-block .language-js {
-  color: #F7DF1E;
+.code-block code {
+  font-family: inherit;
+  color: inherit;
+  background: none;
 }
 
-.code-block .language-python {
-  color: #3776AB;
+.code-block::-webkit-scrollbar {
+  height: 8px;
 }
 
-.code-block .language-html {
-  color: #E34C26;
+.code-block::-webkit-scrollbar-thumb {
+  background: var(--code-border, var(--glass-border));
+  border-radius: 4px;
 }
 
-.code-block .language-css {
-  color: #264DE4;
-}
-
-.code-block .language-json {
-  color: #F1E05A;
-}
-
-.code-block .language-bash {
-  color: #4EAA25;
-}
-
-.code-block .language-sql {
-  color: #00758F;
+.code-block::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Código inline */
@@ -1821,12 +1808,6 @@ footer.footer {
   font-size: 0.85em;
   color: var(--accent-color);
   word-break: break-word;
-}
-
-/* code-header como footer */
-.code-block-wrapper .code-header {
-  border-bottom: none;
-  border-top: 1px solid var(--glass-border);
 }
 
 /* Asegurar que el texto sea seleccionable */
