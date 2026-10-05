@@ -27,7 +27,8 @@ interface AIResultMeta {
 async function readSSEStream(response: Response, usageOut: { usage?: any } | null = null, onDelta: AIDeltaHandler | null = null) {
   let content = '';
   let reasoning = '';
-  let finishReason = null;
+  let finishReason: string | null = null;
+  if (!response.body) throw new Error('Respuesta sin cuerpo: no hay stream que leer');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -38,7 +39,7 @@ async function readSSEStream(response: Response, usageOut: { usage?: any } | nul
     buffer += decoder.decode(value, { stream: true });
 
     const lines = buffer.split('\n');
-    buffer = lines.pop();
+    buffer = lines.pop() ?? '';
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -101,8 +102,8 @@ export async function callAI(model: string, messages: any[], options: CallAIOpti
   metaOut.reasoning = '';
   metaOut.finishReason = null;
 
-  let deepseekResult = null;
-  let deepseekUsage = null;
+  let deepseekResult: string | null = null;
+  let deepseekUsage: any = null;
 
   try {
     const response = await fetch(DEEPSEEK_URL, {
@@ -233,7 +234,7 @@ Escribe AHORA únicamente la respuesta final para el usuario, en su idioma y res
 // Envoltura de callAI para las rutas de conversación: garantiza que se devuelve
 // texto visible o se lanza un error, nunca el monólogo interno.
 export async function callAIEnsuringAnswer({ aiModel, aiMessages, aiOptions, env, onDelta = null }: {
-  aiModel: string; aiMessages: any[]; aiOptions?: CallAIOptions; env: Env; onDelta?: AIDeltaHandler | null;
+  aiModel: string; aiMessages: any[]; aiOptions: CallAIOptions; env: Env; onDelta?: AIDeltaHandler | null;
 }) {
   const meta: AIResultMeta = {};
   let text = await callAI(aiModel, aiMessages, { ...aiOptions, onDelta, metaOut: meta }, env);

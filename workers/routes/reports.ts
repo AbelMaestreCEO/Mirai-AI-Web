@@ -281,7 +281,7 @@ export async function handleReportCreate(request, env, corsHeaders) {
   }
 
   // Validar sección de asignación (opcional)
-  let validSectionId = null;
+  let validSectionId: any = null;
   try {
     validSectionId = await resolveReportSectionId(sectionId, teacherDni, isAdmin, env);
   } catch (err) {
@@ -360,8 +360,8 @@ export async function handleReportUpdate(request, env, corsHeaders, reportId) {
   catch { return jsonResponse({ error: 'JSON inválido.' }, 400, corsHeaders); }
 
   // Construir SET dinámico con solo los campos enviados
-  const fields = [];
-  const values = [];
+  const fields: any[] = [];
+  const values: any[] = [];
 
   if (body.title !== undefined) {
     if (!strLen(body.title, 1, 120)) {
@@ -406,7 +406,7 @@ export async function handleReportUpdate(request, env, corsHeaders, reportId) {
   }
 
   if (body.sectionId !== undefined) {
-    let validSectionId = null;
+    let validSectionId: any = null;
     try {
       validSectionId = await resolveReportSectionId(body.sectionId, existing.teacher_dni, isAdmin, env);
     } catch (err) {
@@ -844,7 +844,7 @@ export async function handleReportSubmit(request, env, corsHeaders, reportId) {
 
     // ── 3. Validar que todas las preguntas estén respondidas ───────────────────
     const questions = safeJson(report.questions_json, []);
-    const missingLabels = [];
+    const missingLabels: any[] = [];
 
     for (const q of questions) {
       const val = answers[q.id];
@@ -873,7 +873,7 @@ export async function handleReportSubmit(request, env, corsHeaders, reportId) {
 
       if (dataUrls.length === 0) continue;
 
-      const urls = [];
+      const urls: any[] = [];
       for (const dataUrl of dataUrls) {
         if (typeof dataUrl !== 'string') continue;
 

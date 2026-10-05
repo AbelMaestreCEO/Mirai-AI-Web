@@ -44,10 +44,10 @@ interface ImageOptions {
 }
 
 function normalizeImageOptions(raw: ImageOptions = {}) {
-  const engine = IMAGE_ENGINES.includes(raw.engine) ? raw.engine : 'p-image';
-  const aspectRatio = IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : '1:1';
-  const thinking = IDEOGRAM_THINKING_LEVELS.includes(raw.thinking) ? raw.thinking : 'high';
-  const imageSize = IDEOGRAM_IMAGE_SIZES.includes(raw.image_size) ? raw.image_size : '1K';
+  const engine = raw.engine && IMAGE_ENGINES.includes(raw.engine) ? raw.engine : 'p-image';
+  const aspectRatio = raw.aspect_ratio && IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : '1:1';
+  const thinking = raw.thinking && IDEOGRAM_THINKING_LEVELS.includes(raw.thinking) ? raw.thinking : 'high';
+  const imageSize = raw.image_size && IDEOGRAM_IMAGE_SIZES.includes(raw.image_size) ? raw.image_size : '1K';
   return { engine, aspectRatio, thinking, imageSize };
 }
 

@@ -27,7 +27,7 @@ export async function handleGetOrCreateLearningChat(request, env, corsHeaders) {
   const courseId = url.searchParams.get('course_id');
   const lessonId = url.searchParams.get('lesson_id');
 
-  if (!LEARNING_MODES[mode]) {
+  if (!mode || !LEARNING_MODES[mode]) {
     return jsonResponse({ error: 'Modo no válido: theory, quiz o practice' }, 400, corsHeaders);
   }
 
@@ -168,7 +168,7 @@ export async function getConversationHistory(conversationId, env, limit = 20) {
 }
 
 // --- GUARDAR MENSAJE (CORREGIDO) ---
-export async function saveMessage(conversationId, role, content, env, audioUrl = null, videoUrl = null, thumbnailUrl = null, userDni = null, model = AI_MODEL_NORMAL, reasoning = null) {
+export async function saveMessage(conversationId, role, content, env, audioUrl: string | null = null, videoUrl: string | null = null, thumbnailUrl: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL, reasoning: string | null = null) {
   try {
     await ensureConversationExists(conversationId, content, env, null, null, userDni, model);
 
@@ -213,7 +213,7 @@ export async function saveMessage(conversationId, role, content, env, audioUrl =
   }
 }
 
-export async function ensureConversationExists(conversationId, firstMessage, env, courseId = null, lessonId = null, userDni = null, model = AI_MODEL_NORMAL) {
+export async function ensureConversationExists(conversationId, firstMessage, env, courseId: string | null = null, lessonId: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL) {
   try {
     // 1. Verificar si ya existe
     const existing = await env.MIRAI_AI_DB.prepare(

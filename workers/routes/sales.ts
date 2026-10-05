@@ -104,8 +104,8 @@ export async function handleSaleListingUpdate(request, env, corsHeaders, listing
     return jsonResponse({ error: `Estado inválido: ${body.status}` }, 400, corsHeaders);
   }
 
-  const fields = [];
-  const values = [];
+  const fields: any[] = [];
+  const values: any[] = [];
   const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
 
   if (body.quantity !== undefined) addField('quantity', parseInt(body.quantity, 10) || 0);
@@ -247,8 +247,8 @@ export async function handleSaleBuyerUpdate(request, env, corsHeaders, buyerId) 
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
-  const fields = [];
-  const values = [];
+  const fields: any[] = [];
+  const values: any[] = [];
   const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
 
   if (body.first_name !== undefined) addField('first_name', (body.first_name || '').trim());
@@ -413,7 +413,7 @@ export async function handleSaleTransactionCreate(request, env, corsHeaders) {
 
     // Generar y guardar la factura PDF (D1 + R2). Un fallo aquí no debe
     // revertir la venta, que ya quedó registrada arriba.
-    let invoice = null;
+    let invoice: any = null;
     try {
       invoice = await createSaleInvoice(env, request, userDni.toUpperCase(), {
         transactionId: id, listing, buyer, quantity: qty, unitPrice: listing.unit_price,
@@ -467,8 +467,8 @@ async function createSaleInvoice(env, request, userDni, { transactionId, listing
   const taxAmount = subtotal * 0.16;
   const total = subtotal + taxAmount;
 
-  let logoPngBytes = null;
-  let companyLogoPngBytes = null;
+  let logoPngBytes: any = null;
+  let companyLogoPngBytes: Uint8Array | null = null;
   try {
     const [faviconBytes, corpLogoBytes] = await Promise.all([
       fetchAssetBytes(request, '/favicon.ico'),
@@ -480,7 +480,7 @@ async function createSaleInvoice(env, request, userDni, { transactionId, listing
     console.error('[Sales] No se pudieron cargar los logos para la factura:', assetError);
   }
 
-  let productImageBytes = null;
+  let productImageBytes: Uint8Array | null = null;
   let productImageIsPng = true;
   if (listing.photo_r2_key) {
     try {
@@ -614,7 +614,7 @@ export async function handleSaleTransactionUpdate(request, env, corsHeaders, txI
         'SELECT id, product_id, quantity, status FROM sale_listings WHERE id = ?'
       ).bind(tx.listing_id).first();
 
-      const statements = [];
+      const statements: any[] = [];
 
       if (listing) {
         const restoredQty = listing.quantity + tx.quantity;

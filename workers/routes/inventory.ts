@@ -164,7 +164,7 @@ async function processInventoryAI(productId, r2Key, specs, env) {
       max_tokens: 256
     });
 
-    let aiTags = [];
+    let aiTags: any[] = [];
     let aiDescription = '';
     let aiCategory = 'general';
 
@@ -269,8 +269,8 @@ export async function handleInventoryUpdate(request, env, corsHeaders) {
     }
 
     // Construir la consulta dinámica
-    const fields = [];
-    const values = [];
+    const fields: any[] = [];
+    const values: any[] = [];
 
     if (name !== undefined) { fields.push("name = ?"); values.push(name); }
     if (sku !== undefined) { fields.push("sku = ?"); values.push(sku.toUpperCase().trim()); }

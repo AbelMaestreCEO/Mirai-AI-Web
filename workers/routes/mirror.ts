@@ -98,8 +98,8 @@ function mirrorMediaKind(mime) {
  * estables entre llamadas.
  */
 function buildMirrorBatches(rows) {
-  const batches = [];
-  let current = null;
+  const batches: any[] = [];
+  let current: any = null;
 
   rows.forEach((row, i) => {
     const size = Number(row.size_bytes) || 0;
@@ -438,7 +438,7 @@ export async function mirrorPackageSession(request, env, corsHeaders) {
 async function streamMirrorZip(env, manifest, writable) {
   const writer = writable.getWriter();
   const enc = new TextEncoder();
-  const centralEntries = [];
+  const centralEntries: any[] = [];
   let offset = 0;
 
   // `await` en cada escritura: es lo que aplica contrapresion. Sin el, el
@@ -745,8 +745,8 @@ function extractDateFromFilename(filename) {
 // ============================================
 function createZipWithFolders(files) {
   const enc = new TextEncoder();
-  const localEntries = [];   // { headerBytes, dataBytes }
-  const centralEntries = []; // Uint8Array
+  const localEntries: any[] = [];   // { headerBytes, dataBytes }
+  const centralEntries: any[] = []; // Uint8Array
   let dataOffset = 0;        // offset acumulado de la sección de datos locales
 
   // --- Entradas de carpetas ---
@@ -788,7 +788,7 @@ function createZipWithFolders(files) {
   for (const c of centralEntries) cdSize += c.length;
 
   // --- Ensamblar ---
-  const parts = [];
+  const parts: any[] = [];
   for (const e of localEntries) {
     parts.push(e.header);
     parts.push(e.data);

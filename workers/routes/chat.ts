@@ -142,7 +142,7 @@ async function handleYouTubeSearch(query, originalMessage, conversationId, userD
   }
 }
 
-export async function handleChat(request, env, corsHeaders, ctx = null) {
+export async function handleChat(request, env, corsHeaders, ctx: ExecutionContext | null = null) {
   // 1. Autenticar
   const userDni = await requireAuth(request, env);
   if (!userDni) {
@@ -362,7 +362,7 @@ function parseClassification(content) {
   return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' };
 }
 
-export async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false, stream = false, ctx = null, timeZone = null) {
+export async function handleTextChatInternal(message, conversation_id, audio_mode, course_id, lesson_id, model, env, corsHeaders, userDni, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -517,7 +517,7 @@ export async function handleTextChatInternal(message, conversation_id, audio_mod
     // 6. Procesar respuesta
     const { cleanResponse, suggestions } = extractSuggestions(aiResponse);
 
-    let audio_url = null;
+    let audio_url: string | null = null;
     if (audio_mode === 'always' && cleanResponse.length > 0) {
       audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
     }

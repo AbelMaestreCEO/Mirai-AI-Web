@@ -119,7 +119,7 @@ function buildRun(rPrBlock, text) {
  * Se omiten runs sin <w:t> (bookmarks, proofErr, instrText…).
  */
 function extractRuns(xmlContent) {
-  const runs = [];
+  const runs: any[] = [];
   const runRe = /<w:r(?:\s[^>]*)?>[\s\S]*?<\/w:r>/g;
   let m;
 
@@ -148,7 +148,7 @@ function extractRuns(xmlContent) {
 
 export const processDocument = (xmlContent, rules) => {
   let totalMatches = 0;
-  const errors = [];
+  const errors: any[] = [];
 
   const runs = extractRuns(xmlContent);
 

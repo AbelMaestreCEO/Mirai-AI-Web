@@ -180,8 +180,8 @@ export async function handleTaskUpdate(request, env, corsHeaders, taskId) {
   }
 
   // Construir SET dinámico con solo los campos enviados
-  const fields = [];
-  const values = [];
+  const fields: any[] = [];
+  const values: any[] = [];
 
   const addField = (col, val) => { fields.push(`${col} = ?`); values.push(val); };
 

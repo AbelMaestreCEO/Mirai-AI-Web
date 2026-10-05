@@ -63,7 +63,7 @@ export async function handleFormatUpload(request, env, corsHeaders) {
     return jsonResponse({ error: `Máximo ${FORMAT_MAX_FILES} archivos por lote.` }, 400, corsHeaders);
 
   const prefix = formatPrefix('temp', userDni, tempId);
-  const keys = [];
+  const keys: any[] = [];
   for (const file of files) {
     if (file.size > FORMAT_MAX_FILE_SIZE) continue;
     const buf = await file.arrayBuffer();
@@ -97,7 +97,7 @@ export async function handleFormatProcess(request, env, corsHeaders) {
   if (listed.objects.length === 0)
     return jsonResponse({ error: 'Archivos no encontrados.' }, 404, corsHeaders);
 
-  const results = [];
+  const results: any[] = [];
   for (const obj of listed.objects) {
     try {
       const fileObj = await env.MIRAI_AI_ASSETS.get(obj.key);
@@ -144,7 +144,7 @@ export async function handleFormatDownload(request, env, corsHeaders) {
     });
   }
 
-  const zipFiles = [];
+  const zipFiles: any[] = [];
   for (const obj of listed.objects) {
     const file = await env.MIRAI_AI_ASSETS.get(obj.key);
     zipFiles.push({ filename: obj.key.split('/').pop(), data: new Uint8Array(await file.arrayBuffer()) });

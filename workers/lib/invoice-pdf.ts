@@ -25,7 +25,7 @@ export function extractPngFromIco(icoBytes) {
     const count = view.getUint16(4, true);
     if (!count) return null;
 
-    let best = null;
+    let best: any = null;
     for (let i = 0; i < count; i++) {
       const entryOffset = 6 + i * 16;
       const bytesInRes = view.getUint32(entryOffset + 8, true);

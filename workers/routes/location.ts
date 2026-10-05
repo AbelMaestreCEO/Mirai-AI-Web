@@ -58,7 +58,7 @@ export async function handleLocCreate(request, env, corsHeaders) {
     const createdAt = new Date().toISOString();
 
     const imageFiles = formData.getAll('images');
-    const imageUrls = [];
+    const imageUrls: any[] = [];
     for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
       const file = imageFiles[i];
       if (!file || !file.size) continue;
