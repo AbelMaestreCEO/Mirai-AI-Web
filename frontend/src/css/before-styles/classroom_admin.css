@@ -1,0 +1,9 @@
+/* CSS de public/classroom_admin.html que iba antes de styles.css, limitado a la página. */
+/* Tabs críticos — garantizan el comportamiento correcto */
+:where(body[data-page="classroom_admin"]) .admin-tab-content {
+  display: none !important;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-tab-content.active {
+  display: block !important;
+}

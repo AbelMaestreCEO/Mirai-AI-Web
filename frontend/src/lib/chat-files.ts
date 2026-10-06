@@ -4,7 +4,7 @@
 // cargaba chat.html desde cdnjs, pero ahora solo se descargan la primera vez
 // que se adjunta un archivo de ese tipo.
 
-import { MAMMOTH_SRC, loadGlobal } from './cdn';
+import { MAMMOTH_SRC, XLSX_SRC, loadGlobal, type SheetJs } from './cdn';
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const SUPPORTED_FORMATS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'];
@@ -13,7 +13,6 @@ export const FILE_ACCEPT = SUPPORTED_FORMATS.map((f) => `.${f}`).join(',');
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs';
 const PDFJS = `${CDN}/pdf.js/3.11.174/pdf.min.js`;
 const PDFJS_WORKER = `${CDN}/pdf.js/3.11.174/pdf.worker.min.js`;
-const XLSX_LIB = `${CDN}/xlsx/0.18.5/xlsx.full.min.js`;
 const JSZIP = `${CDN}/jszip/3.10.1/jszip.min.js`;
 
 // Lo mínimo que se usa de cada librería global.
@@ -28,10 +27,6 @@ interface PdfJs {
 }
 interface Mammoth {
   extractRawText(input: { arrayBuffer: ArrayBuffer }): Promise<{ value: string }>;
-}
-interface SheetJs {
-  read(data: ArrayBuffer, opts: { type: 'array' }): { SheetNames: string[]; Sheets: Record<string, unknown> };
-  utils: { sheet_to_csv(sheet: unknown): string };
 }
 interface JsZipInstance {
   loadAsync(data: ArrayBuffer): Promise<{ files: Record<string, { async(type: 'string'): Promise<string> }> }>;
@@ -87,7 +82,7 @@ async function textFromDocx(file: File): Promise<string> {
 }
 
 async function textFromExcel(file: File): Promise<string> {
-  const XLSX = await lib('XLSX', XLSX_LIB);
+  const XLSX = await lib('XLSX', XLSX_SRC);
   const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
   let fullText = '';
   for (const sheetName of workbook.SheetNames) {

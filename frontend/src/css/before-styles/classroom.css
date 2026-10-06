@@ -1,0 +1,370 @@
+/* CSS de public/classroom.html que iba antes de styles.css, limitado a la página. */
+/* Estilos mínimos necesarios no cubiertos por styles.css */
+
+/* Header de la página (igual que courses-hero) */
+:where(body[data-page="classroom"]) .classroom-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+}
+
+/* Grid de stats — reutiliza stat-card de styles.css */
+:where(body[data-page="classroom"]) .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  padding: 0 0 32px;
+}
+
+/* Tarjeta de tarea — inspirada en course-card */
+:where(body[data-page="classroom"]) .task-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  padding: 28px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.35s cubic-bezier(0.05, 0.7, 0.1, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+  animation: cardFadeIn 0.5s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+  opacity: 0;
+}
+
+:where(body[data-page="classroom"]) .task-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--card-accent, var(--accent-gradient));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+:where(body[data-page="classroom"]) .task-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1), 0 4px 20px var(--accent-glow);
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="classroom"]) .task-card:hover::before {
+  opacity: 1;
+}
+
+:where(body[data-page="classroom"]) .task-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+:where(body[data-page="classroom"]) .task-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+:where(body[data-page="classroom"]) .task-card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+:where(body[data-page="classroom"]) .task-card:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+:where(body[data-page="classroom"]) .task-card:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+:where(body[data-page="classroom"]) .task-card:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+/* Icono de la tarea — igual que course-icon */
+:where(body[data-page="classroom"]) .task-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--border-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 16px;
+  background: var(--secondary-container);
+  border: 1px solid var(--glass-border);
+  transition: transform var(--transition-fast);
+}
+
+:where(body[data-page="classroom"]) .task-card:hover .task-icon {
+  transform: scale(1.1) rotate(-5deg);
+}
+
+/* Título y descripción */
+:where(body[data-page="classroom"]) .task-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+:where(body[data-page="classroom"]) .task-course-name {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 16px;
+  flex: 1;
+}
+
+/* Meta info — reutiliza course-meta */
+:where(body[data-page="classroom"]) .task-meta {
+  display: flex;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-border);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+:where(body[data-page="classroom"]) .task-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+/* Botones de acción — en columna en móvil */
+:where(body[data-page="classroom"]) .task-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+:where(body[data-page="classroom"]) .task-actions .btn-primary,
+:where(body[data-page="classroom"]) .task-actions .btn-learn,
+:where(body[data-page="classroom"]) .task-actions .btn-secondary {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+}
+
+/* En móvil los botones van en columna */
+@media (max-width: 600px) {
+  :where(body[data-page="classroom"]) .task-actions {
+    flex-direction: column;
+  }
+
+  :where(body[data-page="classroom"]) .task-actions .btn-primary,
+  :where(body[data-page="classroom"]) .task-actions .btn-learn,
+  :where(body[data-page="classroom"]) .task-actions .btn-secondary {
+    width: 100%;
+    flex: none;
+  }
+}
+
+/* Grid de tareas — igual que courses-grid */
+:where(body[data-page="classroom"]) .task-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding: 0;
+}
+
+@media (max-width: 1200px) {
+  :where(body[data-page="classroom"]) .task-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  :where(body[data-page="classroom"]) .task-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  :where(body[data-page="classroom"]) .task-list {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+/* Hero — igual que courses-hero pero ajustado */
+:where(body[data-page="classroom"]) .classroom-hero {
+  text-align: center;
+  padding: 60px 20px 20px;
+}
+
+:where(body[data-page="classroom"]) .classroom-hero h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+:where(body[data-page="classroom"]) .classroom-hero p {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Header row con botón profesor */
+:where(body[data-page="classroom"]) .classroom-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 0 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Contador — igual que courses-count */
+:where(body[data-page="classroom"]) .tasks-count {
+  padding: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  margin-bottom: 16px;
+}
+
+/* Estado loading / vacío */
+:where(body[data-page="classroom"]) .loading-state,
+:where(body[data-page="classroom"]) .empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-tertiary);
+  font-size: 1rem;
+}
+
+:where(body[data-page="classroom"]) .empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  display: block;
+}
+
+/* Badge de estado — reutiliza course-level */
+:where(body[data-page="classroom"]) .status-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 3px 10px;
+  border-radius: var(--border-radius-pill);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+:where(body[data-page="classroom"]) .status-pending {
+  background: rgba(255, 159, 10, 0.15);
+  color: #FF9F0A;
+  border: 1px solid rgba(255, 159, 10, 0.25);
+}
+
+:where(body[data-page="classroom"]) .status-completed {
+  background: rgba(56, 106, 32, 0.15);
+  color: #386A20;
+  border: 1px solid rgba(56, 106, 32, 0.25);
+}
+
+:where(body[data-page="classroom"]) .status-late {
+  background: rgba(208, 0, 0, 0.15);
+  color: #D00000;
+  border: 1px solid rgba(208, 0, 0, 0.25);
+}
+
+[data-theme="dark"] :where(body[data-page="classroom"]) .status-completed {
+  background: rgba(168, 216, 140, 0.15);
+  color: #A8D88C;
+  border-color: rgba(168, 216, 140, 0.25);
+}
+
+/* Tarea completada — opacidad reducida */
+:where(body[data-page="classroom"]) .task-card.completed {
+  opacity: 0.75;
+}
+
+/* Ajuste: stat-card en classroom usa stat-number */
+:where(body[data-page="classroom"]) .stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent-color);
+  line-height: 1.2;
+}
+
+/* Promedio con color especial */
+:where(body[data-page="classroom"]) .stat-number.avg {
+  color: #386A20;
+}
+
+[data-theme="dark"] :where(body[data-page="classroom"]) .stat-number.avg {
+  color: #A8D88C;
+}
+
+@media (max-width: 768px) {
+  :where(body[data-page="classroom"]) .classroom-hero {
+    padding: 40px 16px 12px;
+  }
+
+  :where(body[data-page="classroom"]) .classroom-hero h1 {
+    font-size: 1.8rem;
+  }
+
+  :where(body[data-page="classroom"]) .classroom-hero p {
+    font-size: 0.92rem;
+  }
+}
+
+/* ── Clases y estadísticas en el panel lateral ── */
+:where(body[data-page="classroom"]) .sidebar-panel-section {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+:where(body[data-page="classroom"]) .sidebar-panel-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin: 4px 0 8px;
+}
+
+:where(body[data-page="classroom"]) .sidebar-course-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+
+:where(body[data-page="classroom"]) .sidebar-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:where(body[data-page="classroom"]) .sidebar-stats .stat-card {
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+:where(body[data-page="classroom"]) .sidebar-stats .stat-icon {
+  width: 36px;
+  height: 36px;
+  font-size: 1.3rem;
+}
+
+:where(body[data-page="classroom"]) .sidebar-stats .stat-value {
+  font-size: 1.1rem;
+}

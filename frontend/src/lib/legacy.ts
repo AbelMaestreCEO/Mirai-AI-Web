@@ -12,7 +12,8 @@ export const MIGRATED = new Set<string>([
   'login', 'registration', 'verify', 'reset-password',
   'about', 'documentation', 'purchase', 'learning_hub',
   'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
-  'apa',
+  'apa', 'courses', 'course_category', 'course_details', 'classroom',
+  'classroom_details', 'classroom_admin', 'attendance', 'attendance_admin',
 ]);
 
 export function isMigrated(slug: string): boolean {
