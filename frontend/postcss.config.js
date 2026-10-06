@@ -15,9 +15,24 @@ const quasarDisabledOnlyOnComponents = {
   },
 };
 
+// Con `backdrop-filter` seguido de `-webkit-backdrop-filter` (como escriben
+// las hojas antiguas), el minificador se queda solo con el prefijado, que
+// Chrome no aplica: se perdía el desenfoque. Se quita el prefijado escrito a
+// mano y autoprefixer lo vuelve a añadir, delante del estándar.
+const backdropFilterPrefixFirst = {
+  postcssPlugin: 'backdrop-filter-prefix-first',
+  Rule(rule) {
+    if (!rule.some((node) => node.type === 'decl' && node.prop === 'backdrop-filter')) return;
+    rule.each((node) => {
+      if (node.type === 'decl' && node.prop === '-webkit-backdrop-filter') node.remove();
+    });
+  },
+};
+
 export default {
   plugins: [
     quasarDisabledOnlyOnComponents,
+    backdropFilterPrefixFirst,
     autoprefixer({
       overrideBrowserslist: ['baseline widely available'],
     }),
