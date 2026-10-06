@@ -3,7 +3,8 @@
 //   paso: "goto:<url>" navega con el protocolo; "size:<ancho>x<alto>" fija la ventana; "href:<url>" hace location.href desde la página;
 //         "eval:<js>" evalúa y muestra el resultado; "wait:<ms>"; "shot:<archivo.png>" guarda una captura;
 //         "init:<archivo.js>" ejecuta ese script al empezar cada documento que se cargue después (p. ej. una API
-//         simulada para una página antigua, que tiene que estar antes que sus propios scripts).
+//         simulada para una página antigua, que tiene que estar antes que sus propios scripts);
+//         "nocache:" salta la caché HTTP y el service worker (tras recompilar el frontend).
 const port = process.argv[2];
 const steps = process.argv.slice(3);
 
@@ -65,6 +66,10 @@ for (const step of steps) {
     const r = await send('Page.captureScreenshot', { format: 'png' });
     (await import('node:fs')).writeFileSync(arg, Buffer.from(r.result.data, 'base64'));
     console.log('captura:', arg);
+    continue;
+  } else if (kind === 'nocache') {
+    await send('Network.setCacheDisabled', { cacheDisabled: true });
+    await send('Network.setBypassServiceWorker', { bypass: true });
     continue;
   } else if (kind === 'init') {
     const source = (await import('node:fs')).readFileSync(arg, 'utf8');
