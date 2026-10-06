@@ -667,7 +667,6 @@ async function submitForm() {
         quantity,
         unit_price: price,
         ai_description: form.specs,
-        ai_tags: form.category,
       });
       if (!ok) {
         throw new Error(
