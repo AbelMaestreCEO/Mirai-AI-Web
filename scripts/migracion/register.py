@@ -7,7 +7,8 @@ Los recursos van sin "/" inicial (Git Bash convierte "/x" en una ruta de Windows
 - añade la ruta a frontend/src/router/routes.ts (dentro de MainLayout);
 - añade el slug a MIGRATED (legacy.ts) y MIGRATED_PAGES (worker.ts y sw.js);
 - quita '/<slug>' y los recursos indicados de la precarga de sw.js y sube su
-  CACHE_NAME.
+  CACHE_NAME;
+- si mkpage escribió css/before-styles/<slug>.css, lo añade a before-styles.css.
 
 Los archivos antiguos de public/ se borran aparte (git rm).
 """
@@ -76,6 +77,12 @@ def main() -> None:
         )
 
     edit('public/sw.js', sw)
+
+    # CSS que la página antigua ponía antes de styles.css (lo escribe mkpage).
+    if (ROOT / 'frontend' / 'src' / 'css' / 'before-styles' / f'{slug}.css').exists():
+        line = f"@import './before-styles/{slug}.css';\n"
+        edit('frontend/src/css/before-styles.css', lambda s: s if line in s else s.rstrip('\n') + '\n' + line)
+
     print(f'{slug} registrada')
 
 

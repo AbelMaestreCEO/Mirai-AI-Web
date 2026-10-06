@@ -6,8 +6,8 @@ termine la migración.
 - `mkpage.py <slug> <Componente>`: genera el esqueleto de la página Vue (plantilla
   con `MenuToggle`/`AppLink`, rutas de recursos absolutas y el CSS propio de la
   página limitado a ella). El CSS que la página antigua ponía antes de
-  `styles.css` va a `frontend/src/css/before-styles/<slug>.css` (hay que
-  añadirlo a `css/before-styles.css`). El JS de la página se porta a mano.
+  `styles.css` va a `frontend/src/css/before-styles/<slug>.css` (register.py
+  lo añade a `css/before-styles.css`). El JS de la página se porta a mano.
 - `scope_css.py <slug>` (stdin → stdout): prefija cada selector con
   `:where(body[data-page="<slug>"])`. `:where()` no suma especificidad, así que
   las reglas pesan lo mismo que en la página antigua pero no afectan a otras.
