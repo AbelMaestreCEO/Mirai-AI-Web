@@ -757,7 +757,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
       return jsonResponse({ key }, 200, { ...corsHeaders, 'Cache-Control': 'no-store' });
     }
 
-    // POST /api/track-maps-usage — beacon desde el frontend (public/location.js) para
+    // POST /api/track-maps-usage — beacon desde el frontend (frontend/src/lib/google-maps.ts) para
     // aproximar consumo real de Google Maps/Places/Geocoding, que ocurre en el navegador
     // y nunca pasa por este Worker.
     if (path === '/api/track-maps-usage' && request.method === 'POST') {
