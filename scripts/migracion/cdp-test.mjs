@@ -1,7 +1,9 @@
 // Prueba de navegación en Edge headless (perfil temporal) contra wrangler dev.
 // Uso: node cdp-test.mjs <puerto-cdp> <paso1> <paso2> ...
 //   paso: "goto:<url>" navega con el protocolo; "size:<ancho>x<alto>" fija la ventana; "href:<url>" hace location.href desde la página;
-//         "eval:<js>" evalúa y muestra el resultado; "wait:<ms>"; "shot:<archivo.png>" guarda una captura.
+//         "eval:<js>" evalúa y muestra el resultado; "wait:<ms>"; "shot:<archivo.png>" guarda una captura;
+//         "init:<archivo.js>" ejecuta ese script al empezar cada documento que se cargue después (p. ej. una API
+//         simulada para una página antigua, que tiene que estar antes que sus propios scripts).
 const port = process.argv[2];
 const steps = process.argv.slice(3);
 
@@ -63,6 +65,10 @@ for (const step of steps) {
     const r = await send('Page.captureScreenshot', { format: 'png' });
     (await import('node:fs')).writeFileSync(arg, Buffer.from(r.result.data, 'base64'));
     console.log('captura:', arg);
+    continue;
+  } else if (kind === 'init') {
+    const source = (await import('node:fs')).readFileSync(arg, 'utf8');
+    await send('Page.addScriptToEvaluateOnNewDocument', { source });
     continue;
   } else if (kind === 'eval') {
     console.log('eval:', JSON.stringify(await evaluate(arg)));
