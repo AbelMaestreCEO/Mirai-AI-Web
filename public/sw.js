@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mirai-ai-v337'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v338'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
@@ -22,7 +22,7 @@ const MIGRATED_PAGES = new Set([
   'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
   'apa', 'courses', 'course_category', 'course_details', 'classroom',
   'classroom_details', 'classroom_admin', 'attendance', 'attendance_admin',
-  'task', 'projects', 'inventory',
+  'task', 'projects', 'inventory', 'sales',
 ]);
 
 // ─── Assets estáticos a precargar ───────────────────────────────────────────
