@@ -34,6 +34,13 @@ const routes: RouteRecordRaw[] = [
       { path: 'classroom_admin', name: 'classroom_admin', component: () => import('@/pages/ClassroomAdminPage.vue'), meta: { title: 'Panel Docente - Mirai AI' } },
       { path: 'attendance', name: 'attendance', component: () => import('@/pages/AttendancePage.vue'), meta: { title: 'Mirai AI - Asistencia' } },
       { path: 'attendance_admin', name: 'attendance_admin', component: () => import('@/pages/AttendanceAdminPage.vue'), meta: { title: 'Mirai AI - Admin Asistencia' } },
+      { path: 'task', name: 'task', component: () => import('@/pages/TaskPage.vue'), meta: { title: 'Mirai AI - Tareas' } },
+      { path: 'projects', name: 'projects', component: () => import('@/pages/ProjectsPage.vue'), meta: { title: 'Mirai AI - Proyectos' } },
+      { path: 'inventory', name: 'inventory', component: () => import('@/pages/InventoryPage.vue'), meta: { title: 'Mirai AI - Inventario' } },
+      { path: 'sales', name: 'sales', component: () => import('@/pages/SalesPage.vue'), meta: { title: 'Mirai AI - Ventas' } },
+      { path: 'diet', name: 'diet', component: () => import('@/pages/DietPage.vue'), meta: { title: 'Mirai AI - Dieta' } },
+      { path: 'location', name: 'location', component: () => import('@/pages/LocationPage.vue'), meta: { title: 'Mirai AI - Ubicaciones' } },
+      { path: 'mirror', name: 'mirror', component: () => import('@/pages/MirrorPage.vue'), meta: { title: 'Organizador de Fotos' } },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Mirai AI - Configuración' } },
       { path: 'purchase', name: 'purchase', component: () => import('@/pages/PurchasePage.vue'), meta: { title: 'Mirai AI - Planes' } },
       {

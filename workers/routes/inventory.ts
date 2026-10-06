@@ -273,7 +273,8 @@ export async function handleInventoryUpdate(request: Request, env: Env, corsHead
     const values: any[] = [];
 
     if (name !== undefined) { fields.push("name = ?"); values.push(name); }
-    if (sku !== undefined) { fields.push("sku = ?"); values.push(sku.toUpperCase().trim()); }
+    // Un SKU vacío (o null) no borra el que ya tenía el producto.
+    if (typeof sku === 'string' && sku.trim()) { fields.push("sku = ?"); values.push(sku.toUpperCase().trim()); }
     if (category !== undefined) { fields.push("category = ?"); values.push(category); }
     if (quantity !== undefined) { fields.push("quantity = ?"); values.push(quantity); }
     if (unit_price !== undefined) { fields.push("unit_price = ?"); values.push(unit_price); }
@@ -285,7 +286,7 @@ export async function handleInventoryUpdate(request: Request, env: Env, corsHead
     values.push(id);
 
     const sql = `UPDATE inventory_products SET ${fields.join(', ')} WHERE id = ? AND user_dni = ?`;
-    values.push(id); // El WHERE ya tiene user_dni
+    values.push(userDni);
 
     await env.MIRAI_AI_DB.prepare(sql).bind(...values).run();
 
