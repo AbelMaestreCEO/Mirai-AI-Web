@@ -39,6 +39,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'inventory', name: 'inventory', component: () => import('@/pages/InventoryPage.vue'), meta: { title: 'Mirai AI - Inventario' } },
       { path: 'sales', name: 'sales', component: () => import('@/pages/SalesPage.vue'), meta: { title: 'Mirai AI - Ventas' } },
       { path: 'diet', name: 'diet', component: () => import('@/pages/DietPage.vue'), meta: { title: 'Mirai AI - Dieta' } },
+      { path: 'location', name: 'location', component: () => import('@/pages/LocationPage.vue'), meta: { title: 'Mirai AI - Ubicaciones' } },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Mirai AI - Configuración' } },
       { path: 'purchase', name: 'purchase', component: () => import('@/pages/PurchasePage.vue'), meta: { title: 'Mirai AI - Planes' } },
       {
