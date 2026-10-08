@@ -258,7 +258,8 @@ export async function handleChat(request: Request, env: Env, corsHeaders: Record
           env,
           corsHeaders,
           !!skip_history,
-          video_options || {}
+          video_options || {},
+          request
         );
 
       case INTENT_TYPES.MUSIC:

@@ -163,7 +163,34 @@
 
       <!-- ── PANEL VÍDEO ── -->
       <div id="panel-video" class="gen-panel" :class="{ active: tab === 'video' }">
-        <p class="gen-options-label">Estilo de vídeo</p>
+        <div id="gen-video-image-source" class="gen-edit-source" :style="{ display: s.videoImage ? 'block' : 'none' }">
+          <p class="gen-options-label">Imagen de referencia</p>
+          <div class="gen-edit-preview-wrap">
+            <img id="gen-video-image-preview" class="gen-edit-preview-img" :src="s.videoImage || undefined" alt="Imagen de referencia">
+            <button id="gen-video-image-change-btn" class="gen-edit-change-btn" title="Quitar imagen" @click="s.videoImage = ''">✕</button>
+          </div>
+        </div>
+        <div id="gen-video-image-upload" class="gen-edit-upload" :style="{ display: s.videoImage ? 'none' : 'block' }">
+          <p class="gen-options-label">Imagen de referencia (opcional)</p>
+          <div
+            id="gen-video-image-drop-zone"
+            class="gen-edit-upload-zone"
+            :class="{ dragover: dragZone === 'video-image' }"
+            @click="videoImageInput?.click()"
+            @dragover.prevent="dragZone = 'video-image'"
+            @dragleave="dragZone = null"
+            @drop.prevent="onDropSingle($event, 'image/', onVideoImageFile)"
+          >
+            <span style="font-size:2rem;">🖼️</span>
+            <p style="margin:6px 0 0;font-size:0.88rem;color:var(--text-secondary)">Arrastra una imagen para animarla o haz clic para seleccionar</p>
+            <input id="gen-video-image-input" ref="videoImageInput" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" @change="onPicked($event, onVideoImageFile)">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
+            <input id="gen-video-image-url-input" v-model="videoImageUrlInput" type="text" class="gen-edit-url-input" placeholder="O pega la URL de la imagen...">
+            <button id="gen-video-image-url-load-btn" class="filter-pill" @click="videoImageUrlInput.trim() && (s.videoImage = videoImageUrlInput.trim())">Cargar</button>
+          </div>
+        </div>
+        <p class="gen-options-label" style="margin-top:16px;">Estilo de vídeo</p>
         <div id="video-style-opts" class="gen-options-row">
           <button v-for="o in STYLE_OPTS" :key="o.val" class="filter-pill" :class="{ active: s.videoStyle === o.val }" :data-val="o.val" @click="s.videoStyle = o.val">{{ o.label }}</button>
         </div>
@@ -172,8 +199,11 @@
           <button v-for="o in RESOLUTION_OPTS" :key="o.val" class="filter-pill" :class="{ active: s.videoResolution === o.val }" :data-val="o.val" @click="s.videoResolution = o.val">{{ o.label }}</button>
         </div>
         <p class="gen-options-label">Relación de aspecto</p>
-        <div id="video-aspect-opts" class="gen-options-row">
+        <div v-if="!s.videoImage" id="video-aspect-opts" class="gen-options-row">
           <button v-for="o in VIDEO_ASPECT_OPTS" :key="o.val" class="filter-pill" :class="{ active: s.videoAspect === o.val }" :data-val="o.val" @click="s.videoAspect = o.val">{{ o.label }}</button>
+        </div>
+        <div v-else style="font-size:0.82rem;color:var(--text-secondary);margin:0 0 16px;">
+          Se usa la proporción de la imagen de referencia.
         </div>
         <p class="gen-options-label">Duración</p>
         <div id="video-duration-opts" class="gen-options-row">
@@ -930,6 +960,7 @@ const s = reactive({
   videoAspect: '16:9',
   videoDuration: '5',
   videoDraft: false,
+  videoImage: '',
   vidEditMode: 'edit' as VidEditMode,
   vidEditVideo: '',
   vidEditImages: [] as string[],
@@ -953,9 +984,11 @@ const s = reactive({
 
 const editUrlInput = ref('');
 const vidEditUrlInput = ref('');
+const videoImageUrlInput = ref('');
 const dragZone = ref<string | null>(null);
 const editFileInput = ref<HTMLInputElement | null>(null);
 const vidEditFileInput = ref<HTMLInputElement | null>(null);
+const videoImageInput = ref<HTMLInputElement | null>(null);
 const vidEditImgInput = ref<HTMLInputElement | null>(null);
 const avatarFileInput = ref<HTMLInputElement | null>(null);
 const avatarAudioInput = ref<HTMLInputElement | null>(null);
@@ -973,6 +1006,7 @@ const placeholder = computed(() => {
   if (tab.value === 'videoedit') {
     return s.vidEditMode === 'edit' ? 'Describe la edición: "Cambia el cielo por un atardecer"...' : 'Instrucción opcional sobre el personaje y el movimiento...';
   }
+  if (tab.value === 'video' && s.videoImage) return 'Describe cómo se mueve la imagen: "La cámara se acerca lentamente mientras sopla el viento"...';
   return PLACEHOLDERS[tab.value];
 });
 
@@ -1109,7 +1143,7 @@ function resultBadge(): string {
     case 'activos':
       return `🧩 ${ASSET_STYLE_LABELS[s.assetStyle] || ''}`;
     case 'video':
-      return `🎬 ${STYLE_LABELS[s.videoStyle] || ''}`;
+      return `🎬 ${STYLE_LABELS[s.videoStyle] || ''}${s.videoImage ? ' · desde imagen' : ''}`;
     case 'musica':
       return `🎵 ${GENRE_LABELS[s.musicGenre] || ''}`;
     default:
@@ -1172,7 +1206,14 @@ async function generateBasic(userText: string) {
   } else if (current === 'activos') {
     payload.image_options = { engine: s.assetEngine, aspect_ratio: s.assetAspect };
   } else if (current === 'video') {
-    payload.video_options = { resolution: s.videoResolution, aspect_ratio: s.videoAspect, duration: parseInt(s.videoDuration, 10), draft: s.videoDraft };
+    payload.video_options = {
+      resolution: s.videoResolution,
+      aspect_ratio: s.videoAspect,
+      duration: parseInt(s.videoDuration, 10),
+      draft: s.videoDraft,
+      // Con imagen, p-video la usa como primer fotograma (imagen-a-vídeo).
+      ...(s.videoImage ? { image: s.videoImage } : {}),
+    };
   }
 
   try {
@@ -1310,6 +1351,10 @@ function onDropSingle(e: DragEvent, typePrefix: string, handler: (file: File) =>
 
 async function onEditFile(file: File) {
   s.editImageUrl = await readDataUrl(file);
+}
+
+async function onVideoImageFile(file: File) {
+  s.videoImage = await readDataUrl(file);
 }
 
 async function onVidEditFile(file: File) {

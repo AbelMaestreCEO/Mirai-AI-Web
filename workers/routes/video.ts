@@ -120,7 +120,11 @@ export async function handleServeVideo(path: string, env: Env) {
 // precio por segundo (hasta 4x más barato), así que se resuelve una sola vez
 // aquí y el valor normalizado es el que se manda a Pruna Y el que se usa para
 // calcular el costo: si se separaran, el panel de consumo mentiría.
-function normalizeVideoOptions(raw: { resolution?: string; aspect_ratio?: string; duration?: number | string; draft?: boolean } = {}) {
+// `image` (opcional) convierte la generación en imagen-a-vídeo: la imagen pasa
+// a ser el primer fotograma y fija la proporción del vídeo.
+interface VideoOptions { resolution?: string; aspect_ratio?: string; duration?: number | string; draft?: boolean; image?: string }
+
+function normalizeVideoOptions(raw: VideoOptions = {}) {
   const resolution = raw.resolution && VIDEO_RESOLUTIONS.includes(raw.resolution) ? raw.resolution : VIDEO_CONFIG.DEFAULT_RESOLUTION;
   const aspectRatio = raw.aspect_ratio && IMAGE_ASPECT_RATIOS.includes(raw.aspect_ratio) ? raw.aspect_ratio : VIDEO_CONFIG.DEFAULT_ASPECT_RATIO;
   const rawDuration = parseInt(String(raw.duration), 10);
@@ -128,12 +132,18 @@ function normalizeVideoOptions(raw: { resolution?: string; aspect_ratio?: string
   return { resolution, aspectRatio, duration, draft: raw.draft === true };
 }
 
-export async function handleVideoGeneration(prompt: any, conversationId: string, userDni: string, env: Env, corsHeaders: Record<string, string>, skipHistory = false, videoOptions = {}) {
+export async function handleVideoGeneration(prompt: any, conversationId: string, userDni: string, env: Env, corsHeaders: Record<string, string>, skipHistory = false, videoOptions: VideoOptions = {}, request: Request | null = null) {
   try {
     const { resolution, aspectRatio, duration, draft } = normalizeVideoOptions(videoOptions);
+    // Pruna exige una URL http(s) pública para `image`, no un data URI: las
+    // subidas del cliente se guardan antes en R2 (toPublicImageUrl necesita el
+    // request para conocer el origen público del Worker).
+    const imageRef = typeof videoOptions.image === 'string' ? videoOptions.image.trim() : '';
+    if (imageRef && !request) throw new Error('No se puede resolver la imagen de referencia sin la petición original');
+    const imageSource = imageRef && request ? await toPublicImageUrl(env, request, userDni, imageRef) : null;
 
     console.log('🎬 Iniciando generación de video con Pruna AI P-Video');
-    console.log(`🎬 Opciones: ${resolution}, ${duration}s, ${aspectRatio}, draft=${draft}`);
+    console.log(`🎬 Opciones: ${resolution}, ${duration}s, ${imageSource ? 'desde imagen' : aspectRatio}, draft=${draft}`);
     console.log('🎬 Prompt original:', prompt);
 
     // 1. Guardar traza inicial
@@ -147,13 +157,11 @@ export async function handleVideoGeneration(prompt: any, conversationId: string,
 
     // 2. Llamada directa a la API REST de Pruna (Try-Sync, ver resolvePrunaSync)
     console.log('🚀 Invocando p-video (API directa de Pruna)...');
-    const outputRef = await resolvePrunaSync(env, 'p-video', {
-      prompt: videoPrompt,
-      resolution,
-      aspect_ratio: aspectRatio,
-      duration,
-      draft,
-    });
+    const input: PrunaInput = { prompt: videoPrompt, resolution, duration, draft };
+    // Con imagen, Pruna ignora aspect_ratio y usa la proporción de la imagen.
+    if (imageSource) input.image = imageSource;
+    else input.aspect_ratio = aspectRatio;
+    const outputRef = await resolvePrunaSync(env, 'p-video', input);
 
     console.log('📦 Resultado de Pruna Video:', outputRef.substring(0, 80));
 
@@ -177,12 +185,15 @@ export async function handleVideoGeneration(prompt: any, conversationId: string,
         generated_at: new Date().toISOString(),
         model: 'p-video',
         resolution,
-        draft: String(draft)
+        draft: String(draft),
+        image_to_video: String(!!imageSource)
       }
     });
 
     const videoUrl = `/api/video/${videoFilename}`;
-    const assistantContent = `🎬 Aquí tienes el video generado a partir de tu prompt:`;
+    const assistantContent = imageSource
+      ? `🎬 Aquí tienes el video generado a partir de tu imagen:`
+      : `🎬 Aquí tienes el video generado a partir de tu prompt:`;
 
     if (!skipHistory) {
       await saveMessage(conversationId, 'assistant', assistantContent, env, null, videoUrl, null, userDni);
