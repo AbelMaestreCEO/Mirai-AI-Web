@@ -1,13 +1,9 @@
-const CACHE_NAME = 'mirai-ai-v341'; // 👈 Cambia esto en cada deploy
+const CACHE_NAME = 'mirai-ai-v345'; // 👈 Cambia esto en cada deploy
 
 // ─── Páginas HTML a precargar ────────────────────────────────────────────────
 const HTML_PAGES = [
   // App Quasar (frontend/): las páginas ya migradas viven aquí.
   '/app/',
-  '/api_usage_admin',
-  '/panel',
-  '/report',
-  '/report_admin',
 ];
 
 // Páginas que ya viven en la app Quasar (/app/<slug>): su URL antigua es una
@@ -20,6 +16,7 @@ const MIGRATED_PAGES = new Set([
   'apa', 'courses', 'course_category', 'course_details', 'classroom',
   'classroom_details', 'classroom_admin', 'attendance', 'attendance_admin',
   'task', 'projects', 'inventory', 'sales', 'diet', 'location', 'mirror',
+  'panel', 'api_usage_admin', 'report', 'report_admin',
 ]);
 
 // ─── Assets estáticos a precargar ───────────────────────────────────────────
@@ -36,8 +33,6 @@ const STATIC_ASSETS = [
   '/mirai-boot.js',
   '/mirai-realtime.js',
   '/pwa.js',
-  '/report.js',
-  '/report_admin.js',
   '/transitions.js',
 ];
 

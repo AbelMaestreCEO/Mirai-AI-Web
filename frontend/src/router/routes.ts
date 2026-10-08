@@ -41,6 +41,11 @@ const routes: RouteRecordRaw[] = [
       { path: 'diet', name: 'diet', component: () => import('@/pages/DietPage.vue'), meta: { title: 'Mirai AI - Dieta' } },
       { path: 'location', name: 'location', component: () => import('@/pages/LocationPage.vue'), meta: { title: 'Mirai AI - Ubicaciones' } },
       { path: 'mirror', name: 'mirror', component: () => import('@/pages/MirrorPage.vue'), meta: { title: 'Organizador de Fotos' } },
+      { path: 'panel', name: 'panel', component: () => import('@/pages/PanelPage.vue'), meta: { title: 'Mirai AI - Panel Admin' } },
+      { path: 'api_usage_admin', name: 'api_usage_admin', component: () => import('@/pages/ApiUsageAdminPage.vue'), meta: { title: 'Mirai AI - Consumo de APIs' } },
+      { path: 'report', name: 'report', component: () => import('@/pages/ReportPage.vue'), meta: { title: 'Mirai AI - Mis Reportes' } },
+      // La antigua gestión de reportes (report_admin.html) es ahora la pestaña "Gestionar".
+      { path: 'report_admin', name: 'report_admin', redirect: (to) => ({ path: '/report', query: { ...to.query, tab: 'manage' } }) },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Mirai AI - Configuración' } },
       { path: 'purchase', name: 'purchase', component: () => import('@/pages/PurchasePage.vue'), meta: { title: 'Mirai AI - Planes' } },
       {

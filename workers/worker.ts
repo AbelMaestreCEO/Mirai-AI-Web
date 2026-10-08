@@ -33,6 +33,7 @@ const MIGRATED_PAGES = new Set([
   'apa', 'courses', 'course_category', 'course_details', 'classroom',
   'classroom_details', 'classroom_admin', 'attendance', 'attendance_admin',
   'task', 'projects', 'inventory', 'sales', 'diet', 'location', 'mirror',
+  'panel', 'api_usage_admin', 'report', 'report_admin',
 ]);
 
 // --- HANDLER PRINCIPAL ---
