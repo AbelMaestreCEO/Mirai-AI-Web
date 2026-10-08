@@ -1,41 +1,14 @@
-const CACHE_NAME = 'mirai-ai-v345'; // 👈 Cambia esto en cada deploy
+// Service worker de Mirai AI: abrir la app sin conexión y notificaciones push.
+// Lo registra frontend/src/boot/pwa.ts.
+//
+// Cambiar CACHE_NAME cuando cambie la lista de precarga o este archivo: el
+// service worker nuevo borra las cachés con otro nombre al activarse. Los
+// archivos de la app (/app/assets/*) llevan hash en el nombre y no hace falta.
+const CACHE_NAME = 'mirai-ai-v346';
 
-// ─── Páginas HTML a precargar ────────────────────────────────────────────────
-const HTML_PAGES = [
-  // App Quasar (frontend/): las páginas ya migradas viven aquí.
-  '/app/',
-];
-
-// Páginas que ya viven en la app Quasar (/app/<slug>): su URL antigua es una
-// redirección del Worker. Mantener en sincronía con MIGRATED_PAGES de
-// workers/worker.ts y MIGRATED de frontend/src/lib/legacy.ts.
-const MIGRATED_PAGES = new Set([
-  'login', 'registration', 'verify', 'reset-password',
-  'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
-  'apa', 'courses', 'course_category', 'course_details', 'classroom',
-  'classroom_details', 'classroom_admin', 'attendance', 'attendance_admin',
-  'task', 'projects', 'inventory', 'sales', 'diet', 'location', 'mirror',
-  'panel', 'api_usage_admin', 'report', 'report_admin',
-]);
-
-// ─── Assets estáticos a precargar ───────────────────────────────────────────
-const STATIC_ASSETS = [
-  '/styles.css',
-  '/transitions.css',
-  '/welcome-styles.css',
-  
-  '/manifest.json',
-  '/icons/icon-192.png',
-  
-  '/app.js',
-  '/auth-guard.js',
-  '/mirai-boot.js',
-  '/mirai-realtime.js',
-  '/pwa.js',
-  '/transitions.js',
-];
-
+// El index.html de la app: todas las rutas (/chat, /task...) lo reciben, así
+// que sin conexión se sirve esta copia para cualquiera de ellas.
+const APP_SHELL = '/';
 
 // ─── Iconos de módulo (Icons8) ──────────────────────────────────────────────
 // Se precachean sólo los 48 px: el 2x (96) lo pide el navegador únicamente en
@@ -63,132 +36,72 @@ const MODULE_ICONS = [
   '/icons/ui/tasks-48.png',
 ];
 
-const urlsToCache = [...HTML_PAGES, ...STATIC_ASSETS, ...MODULE_ICONS];
+const PRECACHE = [APP_SHELL, '/manifest.json', '/icons/icon-192.png', ...MODULE_ICONS];
 
-// ─── Instalación: Precachear todo ───────────────────────────────────────────
-// DESPUÉS
+// ─── Instalación: precarga ───────────────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log('[SW] Precacheando páginas y assets...');
-      // Promise.all + catch individual: si un recurso falla, los demás siguen
-      return Promise.all(
-        urlsToCache.map(url =>
-          cache.add(url).catch(err =>
-            console.warn('[SW] No se pudo cachear (probablemente redirect/auth):', url, err.message)
-          )
-        )
-      );
-    })
+    caches.open(CACHE_NAME).then(cache =>
+      // Cada recurso por separado: si uno falla, los demás se cachean igual.
+      Promise.all(PRECACHE.map(url => cache.add(url).catch(err => console.warn('[SW] No se pudo cachear:', url, err.message))))
+    )
   );
   self.skipWaiting();
 });
 
-// ─── Activación: Limpiar cachés antiguas ────────────────────────────────────
+// ─── Activación: borrar cachés antiguas ─────────────────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames =>
-      Promise.all(
-        cacheNames
-          .filter(name => name !== CACHE_NAME)
-          .map(name => {
-            console.log('[SW] Eliminando caché antigua:', name);
-            return caches.delete(name);
-          })
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(names => Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))))
+      .then(() => self.clients.claim())
   );
 });
 
-// ─── Fetch: Estrategia mixta ─────────────────────────────────────────────────
+function cacheCopy(key, response) {
+  if (response.ok && !response.redirected && response.type === 'basic') {
+    const copy = response.clone();
+    caches.open(CACHE_NAME).then(cache => cache.put(key, copy));
+  }
+  return response;
+}
+
+// ─── Fetch ───────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
-
-  if (!event.request) return;
-  if (event.request.method !== 'GET') return;
-
   const { request } = event;
+  if (request.method !== 'GET') return;
   const url = new URL(request.url);
-
-  // Solo manejar requests del mismo origen
   if (url.origin !== location.origin) return;
 
-  // /api/*: siempre red, nunca caché. Cachear /api/me (u otros endpoints) provocaba que,
-  // al vencer/invalidarse la sesión, el navegador siguiera viendo una respuesta 200 vieja
-  // mientras el servidor ya devolvía 401 — eso generaba el rebote infinito login↔index
-  // entre auth-guard.js y login-guard.js.
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(request));
-    return;
-  }
+  // /api/*: siempre red, nunca caché. Cachear /api/me hacía que, con la sesión
+  // ya caducada, se siguiera viendo un 200 viejo.
+  if (url.pathname.startsWith('/api/')) return;
 
-  const isHTML = request.headers.get('accept')?.includes('text/html');
-
-  // URL antiguas de páginas ya migradas a /app/: el Worker las redirige. No
-  // hay nada que cachear y una redirección dentro de respondWith() es fácil de
-  // romper (ver más abajo), así que se dejan pasar sin tocar.
-  const legacySlug = url.pathname.replace(/^\/+/, '').replace(/\.html$/, '') || 'index';
-  if (MIGRATED_PAGES.has(legacySlug)) return;
-
-  // App Quasar (/app/): su index.html apunta a archivos con hash que cambian en
-  // cada deploy y los viejos dejan de existir. Servirlo desde caché primero
-  // (como el resto del HTML) podía dejar la app en blanco pidiendo JS borrado,
-  // así que va red primero y la caché solo queda para cuando no hay conexión.
-  // Sus /app/assets/* sí pueden ir por caché: el nombre cambia si cambian.
-  if (isHTML && url.pathname === '/app') return; // 307 a /app/: que lo siga el navegador
-  if (isHTML && url.pathname.startsWith('/app/')) {
+  // Navegaciones: red primero (el index.html apunta a archivos con hash que
+  // cambian en cada deploy) y, sin conexión, la última copia de la app.
+  // `fetch(request)` conserva el modo de redirección de la navegación: una
+  // redirección (/reset-password.html -> /reset-password) llega tal cual al
+  // navegador, que es quien la sigue.
+  if (request.mode === 'navigate') {
     event.respondWith(
-      // Petición nueva a la URL en vez de reenviar `request`: si la navegación
-      // venía de una redirección (/about -> /app/about), reenviar la petición
-      // original acababa en un error de red.
-      fetch(url.href, { credentials: 'same-origin' }).then(response => {
-        if (response.ok && !response.redirected) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-        }
-        return response;
-      }).catch(() => caches.match(request).then(cached => cached || Response.error()))
+      fetch(request)
+        .then(response => cacheCopy(APP_SHELL, response))
+        .catch(() => caches.match(APP_SHELL).then(cached => cached || Response.error()))
     );
     return;
   }
 
-  if (isHTML) {
-    // HTML: Cache First para que la navegación sea INSTANTÁNEA (ilusión de app nativa)
-    // Si no está en caché o hay red, actualiza en background
-    event.respondWith(
-      caches.match(request).then(cached => {
-        // Sin { redirect: 'follow' }: en una navegación (modo de redirección
-        // 'manual') devolver una respuesta ya redirigida es un error de red, y
-        // las páginas migradas (/about -> /app/about) acababan en una página de
-        // error. Así una redirección llega como opaqueredirect y la sigue el
-        // propio navegador.
-        const networkFetch = fetch(request).then(response => {
-          // No cachear respuestas redirigidas (ej. auth redirects)
-          if (response.ok && !response.redirected) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-          }
-          return response;
-        }).catch(() => null);
-
-        // Devuelve caché inmediatamente si existe, si no espera la red
-        return cached || networkFetch;
-      })
-    );
+  // Archivos de la app: el nombre cambia si cambia el contenido; caché primero.
+  if (url.pathname.startsWith('/app/assets/')) {
+    event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => cacheCopy(request, response))));
     return;
   }
 
-  // CSS, JS, imágenes: Cache First con actualización en background
+  // Iconos, manifest y demás: caché primero y se actualiza en segundo plano.
   event.respondWith(
     caches.match(request).then(cached => {
-      const networkFetch = fetch(request, { redirect: 'follow' }).then(response => {
-        if (response.ok && !response.redirected) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
-        }
-        return response;
-      }).catch(() => null);
-
-      return cached || networkFetch;
+      const network = fetch(request).then(response => cacheCopy(request, response)).catch(() => null);
+      return cached || network.then(response => response || Response.error());
     })
   );
 });

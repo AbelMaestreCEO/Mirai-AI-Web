@@ -86,7 +86,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 import { capitalizeFirst, loadCourseDetails, type CourseDetails, type Lesson } from '@/lib/courses';
 
 const MODES = [

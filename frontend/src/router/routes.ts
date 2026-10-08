@@ -1,8 +1,8 @@
 import type { RouteRecordRaw } from 'vue-router';
 
-// Rutas relativas a /app/. Cada página conserva el slug de su .html antiguo
-// (/registration, /verify...), y el Worker redirige la URL antigua a esta.
-// Las que aún no se han migrado siguen en public/ (ver lib/legacy.ts).
+// Cada página conserva el slug de su antiguo .html (/registration, /verify...).
+// El Worker sirve la app en cualquier ruta que no sea de la API ni un archivo,
+// y redirige las URLs con .html (enlaces de correos, marcadores) a la suya.
 const routes: RouteRecordRaw[] = [
   // Páginas de la app: barra lateral y sesión obligatoria.
   // Va antes que el de cuenta: los dos cuelgan de '/', y '/' (el inicio) tiene

@@ -51,7 +51,7 @@
 // Worker por la cookie HttpOnly otp_pending, que viaja sola.
 import { onBeforeUnmount, ref } from 'vue';
 import { api, errorMessage, type ApiErrorBody } from '@/lib/api';
-import { goToLegacy, pageHref } from '@/lib/legacy';
+import { fullNavigate, pageHref } from '@/lib/pages';
 
 interface Message {
   kind: 'error' | 'success';
@@ -88,7 +88,7 @@ async function onVerify() {
     // La cookie de sesión ya la ha puesto el Worker.
     show('success', '✅ ¡Verificación exitosa! Redirigiendo a tu panel...');
     code.value = '';
-    later(() => goToLegacy(pageHref('')), 1500);
+    later(() => fullNavigate(pageHref('')), 1500);
   } catch (err) {
     show('error', '❌ ' + (err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'No se pudo conectar.'));
     shaking.value = false;

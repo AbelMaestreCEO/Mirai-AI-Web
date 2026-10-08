@@ -127,7 +127,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppLink from '@/components/AppLink.vue';
 import { api, errorMessage, isNeedsVerification, type ApiErrorBody, type LoginResponse } from '@/lib/api';
-import { goToLegacy, pageHref } from '@/lib/legacy';
+import { fullNavigate, pageHref } from '@/lib/pages';
 
 interface Message {
   kind: 'error' | 'success';
@@ -171,7 +171,7 @@ function shake() {
 onMounted(async () => {
   try {
     const { ok } = await api.get('/api/me');
-    if (ok) goToLegacy(pageHref(''), { replace: true });
+    if (ok) fullNavigate(pageHref(''), { replace: true });
   } catch {
     // Sin conexión o sin sesión: se queda en el login.
   }
@@ -188,7 +188,7 @@ async function onLogin() {
 
     if (ok) {
       // La cookie de sesión ya la ha puesto el Worker.
-      goToLegacy(pageHref(''));
+      fullNavigate(pageHref(''));
       return;
     }
 

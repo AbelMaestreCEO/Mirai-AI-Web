@@ -139,7 +139,7 @@ import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { apiFetch } from '@/lib/api';
 import { accentColor, loadGoogleMaps, mapColorScheme, pinSvg, trackMapsUsage } from '@/lib/google-maps';
-import { goToPage, pageHref } from '@/lib/legacy';
+import { goToPage, pageHref } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
 
 interface LocMarker {

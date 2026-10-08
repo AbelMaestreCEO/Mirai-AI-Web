@@ -94,7 +94,7 @@
 import { useRoute } from 'vue-router';
 import AppLink from '@/components/AppLink.vue';
 import { NAV_ITEMS } from '@/lib/nav';
-import { pageHref } from '@/lib/legacy';
+import { pageHref } from '@/lib/pages';
 import { resetSession } from '@/lib/session';
 import { closeMenu, shell, toggleCollapsed } from '@/lib/shell';
 

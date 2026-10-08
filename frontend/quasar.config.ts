@@ -1,17 +1,19 @@
 // Configuración de la app Quasar.
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 //
-// Mientras conviva con las páginas HTML de public/, la app vive bajo /app/:
-// se compila a public/app/ (lo sirve Workers Assets) y el Worker devuelve
-// /app/index.html para cualquier ruta /app/... que no sea un archivo
-// (ver workers/worker.ts).
+// La app responde en la raíz del sitio (/chat, /task...), pero se compila a
+// public/app/: Workers Assets sirve sus archivos bajo /app/ (index.html y
+// /app/assets/*, con hash en el nombre) junto al resto de public/, y el Worker
+// devuelve /app/index.html en cualquier ruta que no sea de la API ni un
+// archivo (ver workers/worker.ts).
 
 import { defineConfig } from '#q-app';
 
 export default defineConfig(() => {
   return {
-    // appearance: tema/acento y public/styles.css antes de montar nada.
-    boot: ['appearance'],
+    // appearance: tema/acento y la hoja de estilos antes de montar nada;
+    // pwa: registra el service worker (public/sw.js).
+    boot: ['appearance', 'pwa'],
 
     css: ['app.scss'],
 
@@ -33,19 +35,13 @@ export default defineConfig(() => {
       },
 
       vueRouterMode: 'history',
-      vueRouterBase: '/app/',
+      vueRouterBase: '/',
+      // Solo la URL de los archivos compilados: las rutas van desde la raíz.
       publicPath: '/app/',
       distDir: '../public/app',
       // public/app/ está fuera de frontend/ a propósito: es lo que sirve Workers Assets.
       allowOutsideProjectDistDir: true,
 
-      // El dev server de Vite solo sirve archivos de frontend/ por defecto; la
-      // app importa public/styles.css del proyecto padre.
-      extendViteConf(viteConf) {
-        viteConf.server ??= {};
-        viteConf.server.fs ??= {};
-        viteConf.server.fs.allow = [...(viteConf.server.fs.allow ?? []), '..'];
-      },
     },
 
     devServer: {
