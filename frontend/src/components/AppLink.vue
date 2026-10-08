@@ -3,11 +3,11 @@
 </template>
 
 <script setup lang="ts">
-// Enlace a una página por su slug antiguo. Si la página ya está migrada se
-// navega con el router (sin recargar); si no, es un enlace normal a public/.
+// Enlace a una página por su slug. Navega con el router (sin recargar); con
+// Ctrl/Cmd/Mayús o el botón central el navegador abre la pestaña como siempre.
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { isMigrated, pageHref } from '@/lib/legacy';
+import { pageHref } from '@/lib/pages';
 
 defineOptions({ inheritAttrs: false });
 
@@ -21,15 +21,12 @@ const props = defineProps<{
 const emit = defineEmits<{ navigate: [] }>();
 
 const router = useRouter();
-const slug = computed(() => (props.to === 'index' ? '' : props.to));
-const href = computed(() => pageHref(slug.value) + (props.query ? `?${props.query}` : ''));
+const href = computed(() => pageHref(props.to) + (props.query ? `?${props.query}` : ''));
 
 function onClick(e: MouseEvent) {
   emit('navigate');
-  const migrated = slug.value === '' ? isMigrated('index') : isMigrated(slug.value);
-  // Ctrl/Cmd/Shift/clic central: que el navegador abra la pestaña como siempre.
-  if (!migrated || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
-  void router.push(href.value.replace(/^\/app/, '') || '/');
+  void router.push(href.value);
 }
 </script>

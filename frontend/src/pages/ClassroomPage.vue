@@ -119,7 +119,7 @@ import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 import { ensureSubscribed } from '@/lib/push';
 import { flashElement, showToast, useRealtime } from '@/lib/realtime';
 import { currentUser } from '@/lib/session';

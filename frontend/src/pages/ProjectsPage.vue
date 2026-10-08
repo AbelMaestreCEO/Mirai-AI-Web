@@ -231,7 +231,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 
 interface Project {
   id: string;

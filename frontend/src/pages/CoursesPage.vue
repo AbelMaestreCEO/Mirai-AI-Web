@@ -75,7 +75,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 import { flashElement, useRealtime } from '@/lib/realtime';
 import {
   CATEGORY_DESCRIPTIONS,

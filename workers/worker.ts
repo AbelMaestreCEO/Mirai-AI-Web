@@ -1,7 +1,8 @@
 /* ============================================
    MIRAI AI - Cloudflare Worker (entrada)
    fetch y scheduled. Las rutas /api/ las resuelve router.ts; los ficheros
-   de public/ los sirve la plataforma antes de llegar aquí.
+   de public/ los sirve la plataforma antes de llegar aquí, y el resto de
+   rutas reciben la app Quasar (frontend/).
    ============================================ */
 import { jsonResponse } from './lib/http';
 import { handleApiRequest } from './router';
@@ -22,19 +23,6 @@ const ANDROID_ASSET_LINKS = [{
     ]
   }
 }];
-
-// --- PÁGINAS MIGRADAS A LA APP QUASAR ---
-// Slugs de public/<slug>.html que ya viven en /app/<slug>. Mantener en sincronía
-// con MIGRATED de frontend/src/lib/legacy.ts.
-const MIGRATED_PAGES = new Set([
-  'login', 'registration', 'verify', 'reset-password',
-  'about', 'documentation', 'purchase', 'learning_hub',
-  'index', 'settings', 'chat', 'code', 'format', 'investigation', 'generation',
-  'apa', 'courses', 'course_category', 'course_details', 'classroom',
-  'classroom_details', 'classroom_admin', 'attendance', 'attendance_admin',
-  'task', 'projects', 'inventory', 'sales', 'diet', 'location', 'mirror',
-  'panel', 'api_usage_admin', 'report', 'report_admin',
-]);
 
 // --- HANDLER PRINCIPAL ---
 export default {
@@ -60,22 +48,24 @@ export default {
         return new Response('Not Found', { status: 404 });
       }
 
-      // Páginas ya migradas a la app Quasar: la URL antigua (/login,
-      // /reset-password.html?token=..., enlaces de las páginas que aún no se
-      // han migrado) se redirige a la nueva conservando la query. Su .html se
-      // ha borrado de public/, así que estas peticiones llegan al Worker.
-      const legacySlug = path.replace(/^\/+/, '').replace(/\.html$/, '') || 'index';
-      if (MIGRATED_PAGES.has(legacySlug)) {
-        const target = legacySlug === 'index' ? '/app/' : `/app/${legacySlug}`;
-        return Response.redirect(new URL(`${target}${url.search}`, url).toString(), 302);
-      }
-
       // App Quasar (frontend/, compilada a public/app/). Workers Assets ya ha
-      // servido cualquier archivo que exista; si una ruta /app/... llega aquí
-      // es una ruta del router de Vue (p. ej. /app/login) y se devuelve el
-      // index.html de la app. Las que parecen archivo (/app/x.js) siguen al 404.
-      if ((path === '/app' || path.startsWith('/app/')) && !/\.[a-z0-9]+$/i.test(path)) {
-        return env.ASSETS.fetch(new Request(new URL('/app/', url), request));
+      // servido cualquier archivo que exista, así que una petición que llega
+      // aquí sin ser de la API es una ruta de la app (/chat, /login...) o algo
+      // que no existe.
+      if ((request.method === 'GET' || request.method === 'HEAD') && !path.startsWith('/api/')) {
+        // URLs de las antiguas páginas .html (correos ya enviados, marcadores):
+        // a su ruta sin .html, conservando la query (/reset-password?token=...).
+        if (/\.html$/i.test(path) || path === '/index') {
+          const target = path.replace(/\.html$/i, '').replace(/^\/index$/, '/');
+          return Response.redirect(new URL(`${target}${url.search}`, url).toString(), 302);
+        }
+        // Cualquier ruta que no parezca un archivo recibe el index.html de la
+        // app, también las de /app/... de antes: la propia app les quita el
+        // prefijo (ver frontend/src/router/index.ts). Sin redirección, porque
+        // el service worker antiguo no sabe seguirlas en una navegación.
+        if (!/\.[a-z0-9]+$/i.test(path)) {
+          return env.ASSETS.fetch(new Request(new URL('/app/', url), request));
+        }
       }
 
       // Habilitar CORS para todas las rutas

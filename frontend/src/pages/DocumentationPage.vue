@@ -58,7 +58,7 @@
 import { computed, h, onBeforeUnmount, onMounted, reactive, ref, type FunctionalComponent } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { DOC_MODULES, DOC_TOPICS, type DocModule } from '@/lib/docs-content';
-import { pageHref } from '@/lib/legacy';
+import { pageHref } from '@/lib/pages';
 
 // Módulos con PNG en /icons/ui; los demás guardan un emoji en `icon`.
 const MODULE_ICONS = new Set(['apa', 'attendance', 'chat', 'classroom', 'courses', 'diet', 'docs', 'format', 'generation',
@@ -91,8 +91,8 @@ const filtered = computed(() => {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// Los textos enlazan a otras páginas por su slug ("purchase"); dentro de /app/
-// un enlace relativo apuntaría a /app/purchase aunque no esté migrada.
+// Los textos enlazan a otras páginas por su slug ("purchase"): se pasan a ruta
+// absoluta para que no dependan de la página en la que se esté.
 const withPageLinks = (html: string) => html.replace(/href="([a-z_-]+)"/g, (_m, slug: string) => `href="${pageHref(slug)}"`);
 
 function onCard(m: DocModule) {

@@ -241,7 +241,7 @@ import { api, apiFetch, errorMessage } from '@/lib/api';
 import { handleMarkdownClick } from '@/lib/markdown-actions';
 import { currentUser } from '@/lib/session';
 import { closeMenu } from '@/lib/shell';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 import { FILE_ACCEPT, MAX_FILE_SIZE, SUPPORTED_FORMATS, extractText, fileExtension, fileIcon } from '@/lib/chat-files';
 import {
   AUDIO_MODES,

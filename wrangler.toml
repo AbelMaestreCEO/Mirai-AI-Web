@@ -10,9 +10,10 @@ compatibility_date = "2024-01-01"
 compatibility_flags = [ "rpc" ]
 
 # Configuración de Assets Estáticos (Frontend)
-# Esto sirve automáticamente los archivos de la carpeta 'public/'.
-# El binding ASSETS lo usa el Worker para devolver /app/index.html en las rutas
-# de la app Quasar (ver workers/worker.ts).
+# Sirve los archivos de 'public/': iconos, manifest, sw.js y la app compilada
+# en public/app/. El binding ASSETS lo usa el Worker para devolver
+# /app/index.html en las rutas de la app (/chat, /login...; ver
+# workers/worker.ts).
 assets = { directory = "./public", binding = "ASSETS" }
 
 # --- BUILD DEL FRONTEND (Quasar, carpeta frontend/) ---

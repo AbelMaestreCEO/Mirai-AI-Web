@@ -342,7 +342,7 @@ import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
 import { useRouter } from 'vue-router';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 
 const router = useRouter();
 const year = new Date().getFullYear();

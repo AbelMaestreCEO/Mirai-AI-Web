@@ -66,7 +66,7 @@ import { onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 
 const route = useRoute();
 const router = useRouter();

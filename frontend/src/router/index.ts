@@ -24,8 +24,18 @@ declare module 'vue-router' {
   }
 }
 
-// El modo y la base (/app/) se configuran en quasar.config.ts, no aquí.
+// El modo (history) se configura en quasar.config.ts, no aquí.
 export default defineRouter(() => {
+  // URLs de cuando la app vivía bajo /app/ (marcadores, la app Android, el
+  // service worker que aún tenga instalado cada navegador): el Worker sirve la
+  // app también ahí y aquí se quita el prefijo antes de que el router lea la URL.
+  if (!import.meta.env.QUASAR_SERVER) {
+    const { pathname, search, hash } = window.location;
+    if (pathname === '/app' || pathname.startsWith('/app/')) {
+      window.history.replaceState(window.history.state, '', `${pathname.slice(4) || '/'}${search}${hash}`);
+    }
+  }
+
   const createHistory = import.meta.env.QUASAR_SERVER
     ? createMemoryHistory
     : import.meta.env.QUASAR_VUE_ROUTER_MODE === 'history'

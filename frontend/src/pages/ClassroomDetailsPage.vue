@@ -176,7 +176,7 @@ import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
 import { extractText, fileExtension } from '@/lib/chat-files';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 
 interface Submission {
   id: number | string;

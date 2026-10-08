@@ -450,7 +450,7 @@ import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
 import { escapeHtml } from '@/lib/markdown';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
 import { currentUser } from '@/lib/session';
 

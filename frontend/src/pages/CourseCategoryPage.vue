@@ -51,7 +51,7 @@
 import { computed, onMounted, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { useRouter } from 'vue-router';
-import { goToPage } from '@/lib/legacy';
+import { goToPage } from '@/lib/pages';
 import { loadCategories, type Category } from '@/lib/courses';
 
 const router = useRouter();

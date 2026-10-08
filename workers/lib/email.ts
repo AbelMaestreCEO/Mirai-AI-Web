@@ -117,7 +117,8 @@ export async function sendVerificationEmail(email: any, code: string, env: Env) 
 
 // --- ENVIAR CORREO DE RECUPERACIÓN ---
 export async function sendRecoveryEmail(email: any, token: string, env: Env) {
-  const recoveryLink = `https://aberumirai.com/reset-password.html?token=${encodeURIComponent(token)}`;
+  // La app está en ai.aberumirai.com: en aberumirai.com este enlace daba 404.
+  const recoveryLink = `https://ai.aberumirai.com/reset-password?token=${encodeURIComponent(token)}`;
 
   const bodyHtml = `            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:6px auto;">
               <tr>

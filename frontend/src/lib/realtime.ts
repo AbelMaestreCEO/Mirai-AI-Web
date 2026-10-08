@@ -7,8 +7,7 @@
 // desmontar el componente (useRealtime).
 //
 // Los cambios de módulos sin suscriptor se guardan en sessionStorage y se
-// entregan al suscribirse, igual que hacía (y sigue haciendo) el script de las
-// páginas antiguas, con las mismas claves.
+// entregan al suscribirse, como hacía el script antiguo (con las mismas claves).
 
 import { onBeforeUnmount } from 'vue';
 import { currentUser } from './session';
