@@ -6,6 +6,7 @@ import { callAI } from '../lib/ai';
 import { AI_MODEL_NORMAL } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
 import { jsonResponse } from '../lib/http';
+import { callVision } from '../lib/vision';
 import { sendPushNotification } from '../lib/push';
 
 // ============================================
@@ -154,23 +155,20 @@ async function processInventoryAI(productId: string, r2Key: string, specs: strin
 
     const imageBuffer = await object.arrayBuffer();
 
-    const imageBytes = new Uint8Array(imageBuffer);
-    const imageArray = [...imageBytes];
-
-    // 2. Llamada a Workers AI para visión (Llama 3.2 Vision)
-    const visionResponse = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
-      image: imageArray,
-      prompt: "Identifica el producto en esta imagen. Devuelve SOLO un JSON válido con: { 'tags': ['tag1', 'tag2'], 'category': 'categoria', 'description': 'breve descripción' }. No incluyas texto extra.",
-      max_tokens: 256
-    });
+    // 2. DeepSeek Flash mira la foto (lib/vision.ts). Sin pensar: etiquetar un
+    //    producto no lo necesita, y así tarda segundos. Con las especificaciones
+    //    que escribió quien lo dio de alta, que ayudan a nombrarlo bien.
+    const visionPrompt = `Identifica el producto de esta foto para un inventario.${specs ? `\nEspecificaciones que dio quien lo registró: ${specs.slice(0, 1000)}` : ''}
+Devuelve SOLO un JSON válido, en español: { "tags": ["etiqueta1", "etiqueta2"], "category": "categoría", "description": "descripción técnica breve, máx. 150 palabras" }. No incluyas texto extra.`;
+    const visionText = await callVision(visionPrompt, imageBuffer, { thinking: false, max_tokens: 600, temperature: 0.3 }, env);
 
     let aiTags: any[] = [];
     let aiDescription = '';
     let aiCategory = 'general';
 
     try {
-      const content = visionResponse.response || '';
-      console.log(`🤖 Respuesta Llama Vision raw: ${content.substring(0, 200)}...`);
+      const content = visionText;
+      console.log(`🤖 Respuesta de DeepSeek (visión) raw: ${content.substring(0, 200)}...`);
 
       // Intentar extraer JSON (a veces el modelo incluye texto antes/después)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -190,8 +188,7 @@ async function processInventoryAI(productId: string, r2Key: string, specs: strin
       aiDescription = 'Descripción generada por IA (error de parseo)';
     }
 
-    // 3. Llamada a DeepSeek para refinar descripción (Opcional pero recomendado)
-    // Si LLaVA ya dio una buena descripción, podemos saltarnos esto o usarla para mejorarla
+    // 3. Solo si la visión no dio descripción: escribirla con las especificaciones y las etiquetas.
     if (env.DEEPSEEK_API_KEY && (!aiDescription || aiDescription.length < 10)) {
       const deepseekPrompt = `
         Eres un experto en inventarios. Genera una descripción técnica breve y atractiva para:

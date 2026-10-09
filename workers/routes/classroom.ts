@@ -9,6 +9,7 @@ import { AI_MODEL_PRO } from '../lib/ai-models';
 import { isAdminUser, normalizeDni, requireAuth } from '../lib/auth';
 import { extractTextFromDocx, extractTextFromPDF } from '../lib/documents';
 import { jsonResponse } from '../lib/http';
+import { callVision } from '../lib/vision';
 
 /**
  * Rutas del aula, los cursos y la asistencia.
@@ -807,47 +808,21 @@ ORDER BY u.last_name, u.first_name
         }
 
         const imageBuffer = await r2Object.arrayBuffer();
-        const imageBytes = new Uint8Array(imageBuffer);
-        const imageArray = [...imageBytes];
 
         console.log(`🖼️ [DEBUG] Imagen cargada: ${imageBuffer.byteLength} bytes, extensión: ${fileExtension}`);
 
-        // Paso 1: Llama 3.2 Vision describe la imagen
-        let finalVisionText = '';
-
-        try {
-          console.log('🖼️ [DEBUG] Llamando a Llama 3.2 Vision...');
-          const visionResponse = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
-            image: imageArray,
-            prompt: 'Describe this image in detail. What objects, colors, shapes, text, and elements do you see? Be very specific about colors, positions, and quantities.',
-            max_tokens: 512,
-            temperature: 0.3
-          });
-          console.log('🖼️ [DEBUG] Response completo:', JSON.stringify(visionResponse).substring(0, 500));
-          finalVisionText = (visionResponse.response || '').trim();
-          if (finalVisionText) {
-            console.log(`✅ [DEBUG] Llama Vision respondió: ${finalVisionText.substring(0, 200)}`);
-          }
-        } catch (visionError: any) {
-          console.error('❌ [DEBUG] Error con Llama Vision:', visionError.message);
-        }
-
-        if (!finalVisionText) {
-          finalVisionText = 'No se pudo analizar la imagen con el modelo de visión.';
-        }
-
-        // Paso 2: DeepSeek evalúa basándose en la descripción del modelo de visión
-        const refinePrompt = `Eres un profesor evaluador académico. Un sistema de visión artificial analizó la imagen entregada por un estudiante y generó esta descripción:
-
-DESCRIPCIÓN DE LA IMAGEN: "${finalVisionText}"
+        // DeepSeek Flash VE la imagen y la califica en la misma llamada (ver
+        // lib/vision.ts). Antes Llama 3.2 Vision la describía y DeepSeek
+        // calificaba la descripción: lo que esta no contara no se evaluaba.
+        const gradePrompt = `Eres un profesor evaluador académico. Esta es la imagen entregada por un estudiante.
 
 TAREA ASIGNADA: ${submissionData.title}
 REQUISITOS DE LA TAREA: ${submissionData.description}
 PUNTUACIÓN MÁXIMA: ${submissionData.max_score}
 
 INSTRUCCIONES:
-1. Compara la descripción de la imagen con los requisitos de la tarea.
-2. Si la descripción indica que la imagen NO cumple los requisitos, penaliza fuertemente.
+1. Mira la imagen con atención (objetos, colores, formas, textos, posiciones y cantidades) y compárala con los requisitos de la tarea.
+2. Si la imagen NO cumple los requisitos, penaliza fuertemente.
 3. Si cumple, califica según calidad y esfuerzo visible.
 4. Devuelve EXCLUSIVAMENTE un JSON con este formato:
 {
@@ -865,12 +840,18 @@ INSTRUCCIONES:
 }
 NO agregues texto fuera del JSON.`;
 
-        aiContent = await callAI(
-          AI_MODEL_PRO,
-          [{ role: 'user', content: refinePrompt }],
-          { temperature: 0.3, max_tokens: 5000 },
-          env
-        );
+        try {
+          // Pensando, como el modelo Pro con el que se califican los documentos:
+          // max_tokens cubre también el razonamiento.
+          aiContent = await callVision(gradePrompt, imageBuffer, { thinking: true, max_tokens: 8000 }, env);
+        } catch (visionError: any) {
+          // Sin ver la imagen no se califica: antes se ponía nota sobre «no se
+          // pudo analizar», y el estudiante pagaba un fallo que no era suyo.
+          console.error('❌ [DEBUG] Error con DeepSeek (visión):', visionError.message);
+          return jsonResponse({
+            error: 'No se pudo analizar la imagen ahora mismo. Vuelve a intentarlo en unos minutos.'
+          }, 502, corsHeaders);
+        }
 
       } else {
         // ── EVALUACIÓN DE DOCUMENTO (PDF/DOCX) ──

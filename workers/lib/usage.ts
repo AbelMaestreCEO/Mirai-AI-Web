@@ -35,6 +35,9 @@ const API_PRICING: {
   deepseek: {
     'deepseek-v4-flash': { input_cache_miss_per_1m: 0.14, input_cache_hit_per_1m: 0.0028, output_per_1m: 0.28 },
     'deepseek-v4-pro': { input_cache_miss_per_1m: 0.435, input_cache_hit_per_1m: 0.003625, output_per_1m: 0.87 },
+    // El que ve imágenes (lib/vision.ts). Tarifa fuera de hora punta, verificada 2026-10-09;
+    // en hora punta (01–04 y 06–10 UTC, lunes a viernes) es el doble.
+    'deepseek-flash': { input_cache_miss_per_1m: 0.15, input_cache_hit_per_1m: 0.003, output_per_1m: 0.6 },
   },
   pruna: {
     // Precio fijo por unidad. p-judger cobra por imagen *de entrada* evaluada.

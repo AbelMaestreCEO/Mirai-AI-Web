@@ -5,3 +5,5 @@
 // si exporta un string ("Incorrect type for map entry 'AI_MODEL_PRO'").
 export const AI_MODEL_NORMAL = 'deepseek-v4-flash';
 export const AI_MODEL_PRO = 'deepseek-v4-pro';
+// El único que VE imágenes. Lo usa lib/vision.ts (aula e inventario).
+export const AI_MODEL_VISION = 'deepseek-flash';
