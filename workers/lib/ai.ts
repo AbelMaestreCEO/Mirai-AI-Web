@@ -3,6 +3,7 @@
    DeepSeek directo con fallback a Workers AI, lectura de streams SSE y
    reintento cuando el modelo se queda sin espacio razonando.
    ============================================ */
+import { withoutImages } from './chat-images';
 import { calcCost, logApiUsage } from './usage';
 
 // --- CONFIGURACIÓN ---
@@ -156,7 +157,8 @@ export async function callAI(model: string, messages: any[], options: CallAIOpti
       },
       body: JSON.stringify({
         model: FALLBACK_MODEL,
-        messages,
+        // GLM no ve imágenes: van como una nota (ver lib/chat-images.ts).
+        messages: withoutImages(messages),
         temperature: options.temperature ?? 0.7,
         max_tokens: options.max_tokens ?? 2000,
         stream: true
@@ -216,18 +218,23 @@ function buildAnswerRetryMessages(aiMessages: any[], reasoning: string) {
   // la cola y no la cabeza.
   const tail = reasoning.slice(-3000);
 
-  return [
-    ...aiMessages.slice(0, -1),
-    {
-      role: lastTurn.role,
-      content: `${lastTurn.content}
+  const notice = `
 
 [AVISO DEL SISTEMA] En tu intento anterior gastaste todo el espacio razonando y no llegaste a escribir nada para el usuario. Este era tu razonamiento:
 """
 ${tail}
 """
-Escribe AHORA únicamente la respuesta final para el usuario, en su idioma y respetando todas tus reglas. No razones más, no expliques este aviso y no menciones que hubo ningún problema.`
-    }
+Escribe AHORA únicamente la respuesta final para el usuario, en su idioma y respetando todas tus reglas. No razones más, no expliques este aviso y no menciones que hubo ningún problema.`;
+
+  // Con imágenes el contenido es una lista de partes: el aviso va como un
+  // trozo de texto más, detrás, y las imágenes se quedan.
+  const content = Array.isArray(lastTurn.content)
+    ? [...lastTurn.content, { type: 'text', text: notice.trim() }]
+    : `${lastTurn.content}${notice}`;
+
+  return [
+    ...aiMessages.slice(0, -1),
+    { role: lastTurn.role, content }
   ];
 }
 

@@ -178,6 +178,17 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
     globalThis._migratedMessagesReasoning = true;
   }
 
+  // Migración: columna images en messages (claves en R2 de las imágenes que
+  // mandó el usuario con su mensaje; ver lib/chat-images.ts)
+  if (!globalThis._migratedMessagesImages) {
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        "ALTER TABLE messages ADD COLUMN images TEXT"
+      ).run();
+    } catch (_) { /* columna ya existe */ }
+    globalThis._migratedMessagesImages = true;
+  }
+
   try {
 
     // Ruta: POST /api/chat
@@ -883,11 +894,23 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
       const object = await env.MIRAI_AI_ASSETS.get(r2Key);
       if (!object) return jsonResponse({ error: 'Archivo no encontrado' }, 404, corsHeaders);
 
+      const contentType = object.httpMetadata?.contentType || 'application/octet-stream';
       const headers = new Headers();
-      headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
-      headers.set('Content-Disposition',
-        `attachment; filename="${object.customMetadata?.original_name || r2Key.split('/').pop()}"`);
-      headers.set('Cache-Control', 'private, no-store');
+      headers.set('Content-Type', contentType);
+      headers.set('X-Content-Type-Options', 'nosniff');
+
+      // Las imágenes del chat se pintan en cada conversación que se abre: se
+      // sirven en línea y con caché del navegador. La clave lleva un UUID, así
+      // que lo que hay detrás no cambia nunca; `private` evita que la guarde
+      // ningún intermediario. Nada de SVG: puede llevar script.
+      if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(contentType)) {
+        headers.set('Content-Disposition', 'inline');
+        headers.set('Cache-Control', 'private, max-age=31536000, immutable');
+      } else {
+        headers.set('Content-Disposition',
+          `attachment; filename="${object.customMetadata?.original_name || r2Key.split('/').pop()}"`);
+        headers.set('Cache-Control', 'private, no-store');
+      }
 
       return new Response(object.body, { headers });
     }

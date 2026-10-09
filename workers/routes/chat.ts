@@ -4,8 +4,9 @@
    en YouTube.
    ============================================ */
 import { type AIDeltaKind, type CallAIOptions, REASONING_STYLE_NOTE, callAI, callAIEnsuringAnswer } from '../lib/ai';
-import { AI_MODEL_NORMAL, AI_MODEL_PRO } from '../lib/ai-models';
+import { AI_MODEL_NORMAL, AI_MODEL_PRO, AI_MODEL_VISION } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
+import { IMAGES_TO_MODEL, hasImages, imageParts, validateImageKeys } from '../lib/chat-images';
 import { jsonResponse } from '../lib/http';
 import { buildMiraiSystemPrompt } from '../lib/persona';
 import { calcCost, logApiUsage } from '../lib/usage';
@@ -154,10 +155,23 @@ export async function handleChat(request: Request, env: Env, corsHeaders: Record
 
   try {
     // ✨ LEER body UNA SOLA VEZ
-    const { message, conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone, image_options, video_options } = await request.json<any>();
+    const body = await request.json<any>();
+    const { conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone, image_options, video_options } = body;
+
+    // Las imágenes del mensaje: claves en R2 subidas con /api/upload, solo
+    // del propio usuario (lib/chat-images.ts).
+    let images: string[];
+    try {
+      images = validateImageKeys(body.images, userDni);
+    } catch (error: any) {
+      return jsonResponse({ error: error.message }, 400, corsHeaders);
+    }
+
+    // Con imágenes, el texto puede ir vacío: «¿qué es esto?» lo dice la foto.
+    const message: string = typeof body.message === 'string' ? body.message : '';
 
     // Validar entrada
-    if (!message || typeof message !== 'string') {
+    if (!message && images.length === 0) {
       return jsonResponse({ error: 'El campo "message" es requerido' }, 400, corsHeaders);
     }
     if (!conversation_id || typeof conversation_id !== 'string') {
@@ -207,6 +221,11 @@ export async function handleChat(request: Request, env: Env, corsHeaders: Record
     if (force_type && [1, 2, 3, 4].includes(force_type)) {
       classification = { intent: force_type, prompt: message };
       console.log(`⚡ Tipo forzado desde frontend: intent=${force_type}`);
+    } else if (images.length > 0) {
+      // Con imágenes se contesta mirándolas: generar una imagen, música o un
+      // vídeo no las usaría, y el clasificador solo lee el texto.
+      classification = { intent: INTENT_TYPES.TEXT, prompt: message };
+      console.log(`🖼️ Mensaje con ${images.length} imagen(es): chat de texto con visión`);
     } else {
       classification = await classifyIntent(message, env);
     }
@@ -300,7 +319,8 @@ export async function handleChat(request: Request, env: Env, corsHeaders: Record
           !!web_search,
           !!stream,
           ctx,
-          time_zone
+          time_zone,
+          images
         );
     }
 
@@ -372,7 +392,7 @@ function parseClassification(content: any): IntentClassification {
   return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' };
 }
 
-export async function handleTextChatInternal(message: string, conversation_id: string, audio_mode: string | boolean, course_id: string | null, lesson_id: string | null, model: any, env: Env, corsHeaders: Record<string, string>, userDni: string, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null) {
+export async function handleTextChatInternal(message: string, conversation_id: string, audio_mode: string | boolean, course_id: string | null, lesson_id: string | null, model: any, env: Env, corsHeaders: Record<string, string>, userDni: string, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null, images: string[] = []) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -436,7 +456,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
 
     // 4.5 Web search — single Exa call, inject context
     let webContext = '';
-    if (webSearch && env.EXA_API_KEY) {
+    if (webSearch && env.EXA_API_KEY && message.trim()) {
       try {
         console.log('🌐 Web search activado para chat');
         const exaRes = await fetch('https://api.exa.ai/search', {
@@ -468,16 +488,54 @@ export async function handleTextChatInternal(message: string, conversation_id: s
     // 4.6 Sellado temporal
     const zone = normalizeTimeZone(timeZone);
     const now = new Date();
-    const historyTurns = annotateHistoryTurns(history, zone);
+    const historyTurns: any[] = annotateHistoryTurns(history, zone);
     const stampedMessage = `${buildCurrentTurnHeader(now, zone, history)}\n${finalMessage}`;
     console.log(`🕒 Contexto temporal: ${formatShortStamp(now, zone)} (${zone})`);
+
+    // 4.7 Imágenes: las de este mensaje van siempre; de las anteriores, las
+    // más recientes hasta IMAGES_TO_MODEL. Las que se quedan fuera se nombran,
+    // para que el modelo no conteste como si nunca hubieran existido.
+    const currentParts = await imageParts(env, images);
+    let budget = IMAGES_TO_MODEL - currentParts.length;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const keys: string[] = history[i].role === 'user' ? history[i].images || [] : [];
+      if (keys.length === 0) continue;
+      const parts = budget > 0 ? await imageParts(env, keys.slice(-budget)) : [];
+      budget -= parts.length;
+      const missing = keys.length - parts.length;
+      const note = missing > 0
+        ? `[Con este mensaje el usuario adjuntó ${missing === 1 ? 'una imagen que' : `${missing} imágenes que`} ya no tienes delante.]\n`
+        : '';
+      historyTurns[i] = {
+        role: 'user',
+        content: parts.length > 0
+          ? [{ type: 'text', text: note + historyTurns[i].content }, ...parts]
+          : note + historyTurns[i].content
+      };
+    }
+    const userContent: any = currentParts.length > 0
+      ? [{ type: 'text', text: stampedMessage }, ...currentParts]
+      : stampedMessage;
 
     // 5. ENRUTAR SEGÚN EL MODELO
     let aiModel;
     let aiMessages;
     let aiOptions;
 
-    if (model === 'llama') {
+    if (hasImages([...historyTurns, { role: 'user', content: userContent }])) {
+      // Con imágenes solo vale el modelo que ve, sea cual sea el elegido. Piensa
+      // por defecto, como deepseek-v4-flash (que hoy es ese mismo modelo), así
+      // que la respuesta sigue llegando con su razonamiento.
+      console.log('👁️ Usando DeepSeek Flash (imágenes)');
+      aiModel = AI_MODEL_VISION;
+      aiMessages = [
+        { role: 'system', content: systemPrompt },
+        ...historyTurns,
+        { role: 'user', content: userContent }
+      ];
+      aiOptions = { temperature: 0.7, max_tokens: model === 'deepseek-reasoner' ? 8000 : CHAT_MAX_TOKENS };
+
+    } else if (model === 'llama') {
       console.log('🦙 Usando DeepLlama (Gateway)');
       aiModel = AI_MODEL_NORMAL;
       aiMessages = [
@@ -516,7 +574,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
     if (stream && audio_mode !== 'always') {
       return streamTextChat({
         aiModel, aiMessages, aiOptions,
-        message, conversation_id, env, corsHeaders, userDni, ctx
+        message, images, conversation_id, env, corsHeaders, userDni, ctx
       });
     }
 
@@ -532,7 +590,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
       audio_url = await generateAndStoreTTS(cleanResponse, conversation_id, env);
     }
 
-    await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
+    await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni, AI_MODEL_NORMAL, null, images);
     await saveMessage(conversation_id, 'assistant', cleanResponse, env, audio_url, null, null, userDni, AI_MODEL_NORMAL, aiReasoning || null);
     await updateConversationTimestamp(conversation_id, env);
 
@@ -558,8 +616,8 @@ export async function handleTextChatInternal(message: string, conversation_id: s
 //   {type:'error', error}
 // El bloque [SUGGESTIONS]…[/SUGGESTIONS] se retiene en el servidor para que no
 // aparezca a medio escribir dentro de la burbuja.
-function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_id, env, corsHeaders, userDni, ctx }: {
-  aiModel: string; aiMessages: any[]; aiOptions: CallAIOptions; message: string; conversation_id: string;
+function streamTextChat({ aiModel, aiMessages, aiOptions, message, images, conversation_id, env, corsHeaders, userDni, ctx }: {
+  aiModel: string; aiMessages: any[]; aiOptions: CallAIOptions; message: string; images: string[]; conversation_id: string;
   env: Env; corsHeaders: Record<string, string>; userDni: string; ctx: ExecutionContext | null;
 }) {
   const { readable, writable } = new TransformStream();
@@ -630,7 +688,7 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, conversation_
       const reasoning = aiReasoning || null;
 
       try {
-        await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni);
+        await saveMessage(conversation_id, 'user', message, env, null, null, null, userDni, AI_MODEL_NORMAL, null, images);
         await saveMessage(conversation_id, 'assistant', cleanResponse, env, null, null, null, userDni, AI_MODEL_NORMAL, reasoning);
         await updateConversationTimestamp(conversation_id, env);
       } catch (dbError: any) {

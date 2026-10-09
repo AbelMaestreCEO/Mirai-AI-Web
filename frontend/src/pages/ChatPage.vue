@@ -95,10 +95,11 @@
           <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z" />
         </svg>
       </button>
-      <input id="file-input" ref="fileInput" type="file" :accept="FILE_ACCEPT" style="display: none;" @change="onFilesChosen">
+      <input id="file-input" ref="fileInput" type="file" :accept="FILE_ACCEPT" multiple style="display: none;" @change="onFilesChosen">
       <div id="attachments-area" class="attachments-area">
         <div v-for="chip in chips" :key="chip.id" class="attachment-chip">
-          <span class="attachment-icon">{{ fileIcon(fileExtension(chip.name)) }}</span>
+          <img v-if="chip.preview" class="attachment-thumb" :src="chip.preview" alt="">
+          <span v-else class="attachment-icon">{{ fileIcon(fileExtension(chip.name)) }}</span>
           <span class="attachment-name" :title="chip.name">{{ chip.name }}</span>
           <span v-if="chip.loading" class="attachment-loading">⏳</span>
           <span v-else class="attachment-remove" @click="removeAttachment(chip.id)">×</span>
@@ -115,6 +116,7 @@
         spellcheck="false"
         @input="autoResize"
         @keydown.enter.exact.prevent="send"
+        @paste="onPaste"
       />
       <button id="web-search-btn" class="web-search-btn" :class="{ active: webSearch }" title="Búsqueda web" aria-label="Activar búsqueda web" @click="webSearch = !webSearch">
         <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
@@ -242,7 +244,17 @@ import { handleMarkdownClick } from '@/lib/markdown-actions';
 import { currentUser } from '@/lib/session';
 import { closeMenu } from '@/lib/shell';
 import { goToPage } from '@/lib/pages';
-import { FILE_ACCEPT, MAX_FILE_SIZE, SUPPORTED_FORMATS, extractText, fileExtension, fileIcon } from '@/lib/chat-files';
+import {
+  FILE_ACCEPT,
+  IMAGE_FORMATS,
+  MAX_CHAT_IMAGES,
+  MAX_FILE_SIZE,
+  SUPPORTED_FORMATS,
+  extractText,
+  fileExtension,
+  fileIcon,
+  prepareImage,
+} from '@/lib/chat-files';
 import {
   AUDIO_MODES,
   AUDIO_MODE_KEY,
@@ -398,6 +410,8 @@ interface ChatRequest {
   web_search?: boolean;
   course_id?: string;
   lesson_id?: string;
+  /** Claves en R2 de las imágenes subidas con /api/upload. */
+  images?: string[];
 }
 
 function postChat(body: ChatRequest): Promise<Response> {
@@ -550,24 +564,35 @@ async function send() {
   if ((!userInput && attachments.value.length === 0) || sending.value) return;
   countSentMessage();
 
+  // Las imágenes no van en el texto: van por su clave en R2 y las ve el modelo.
+  const imageAtts = attachments.value.filter((att) => att.image && att.r2_key);
+  const fileAtts = attachments.value.filter((att) => !att.image);
+
   let fullMessage = userInput;
-  if (attachments.value.length) {
-    const section = attachments.value.map((att) => `[Archivo: ${att.name}]\n${att.text}`).join('\n\n---\n\n');
+  if (fileAtts.length) {
+    const section = fileAtts.map((att) => `[Archivo: ${att.name}]\n${att.text}`).join('\n\n---\n\n');
     fullMessage = fullMessage ? `${fullMessage}\n\n---\n\n${section}` : section;
   }
 
   input.value = '';
   attachments.value = [];
+  for (const chip of chips.value) if (!chip.loading && chip.preview) URL.revokeObjectURL(chip.preview);
   chips.value = chips.value.filter((c) => c.loading);
   void nextTick(autoResize);
 
-  pushMessage({ role: 'user', kind: 'text', content: fullMessage });
+  pushMessage({ role: 'user', kind: 'text', content: fullMessage, images: imageAtts.map((att) => att.url!).filter(Boolean) });
   sending.value = true;
   showTyping(typingKindFor(userInput));
 
   let stream: ReturnType<typeof startStreamingMessage> | null = null;
   try {
-    const res = await postChat({ message: fullMessage, force_type: null, web_search: webSearch.value, stream: true });
+    const res = await postChat({
+      message: fullMessage,
+      force_type: null,
+      web_search: webSearch.value,
+      stream: true,
+      ...(imageAtts.length ? { images: imageAtts.map((att) => att.r2_key!) } : {}),
+    });
     if (!res.ok) throw new Error(`Error HTTP: ${res.status}`);
 
     // El servidor solo responde en SSE para las respuestas de texto; imagen,
@@ -689,47 +714,76 @@ interface Attachment {
   text: string;
   r2_key?: string;
   url?: string;
+  /** Una imagen: no lleva texto, la ve el modelo (va en `images` de /api/chat). */
+  image?: boolean;
 }
 
 const attachments = ref<Attachment[]>([]);
-const chips = ref<{ id: string; name: string; loading: boolean }[]>([]);
+/** `preview`: la miniatura de una imagen, mientras sigue en el navegador. */
+const chips = ref<{ id: string; name: string; loading: boolean; preview?: string }[]>([]);
 
 async function processFile(file: File) {
   if (file.size > MAX_FILE_SIZE) {
     alert(`El archivo "${file.name}" excede el tamaño máximo de 10MB`);
     return;
   }
-  const extension = fileExtension(file.name);
+  // Una captura pegada llega como «image.png»; una foto puede venir sin extensión.
+  const isImage = file.type.startsWith('image/');
+  const extension = isImage && !IMAGE_FORMATS.includes(fileExtension(file.name)) ? 'jpg' : fileExtension(file.name);
   if (!SUPPORTED_FORMATS.includes(extension)) {
     alert(`El formato .${extension} no es soportado`);
     return;
   }
+  if (isImage && chips.value.filter((c) => c.preview).length >= MAX_CHAT_IMAGES) {
+    alert(`Como mucho ${MAX_CHAT_IMAGES} imágenes por mensaje`);
+    return;
+  }
 
   const id = crypto.randomUUID();
-  chips.value.push({ id, name: file.name, loading: true });
+  // Reducida antes de subir: es lo que verá el modelo (ver prepareImage).
+  const image = isImage ? await prepareImage(file).catch(() => null) : null;
+  if (isImage && !image) {
+    alert(`No se ha podido abrir la imagen "${file.name}".`);
+    return;
+  }
+  const preview = image ? URL.createObjectURL(image) : undefined;
+  chips.value.push({ id, name: file.name, loading: true, ...(preview ? { preview } : {}) });
   try {
-    const text = await extractText(file, extension);
+    const text = image ? '' : await extractText(file, extension);
 
     const form = new FormData();
-    form.append('file', file);
+    form.append('file', image ? new File([image], 'imagen.jpg', { type: 'image/jpeg' }) : file);
     form.append('conversation_id', conversationId.value);
     const res = await apiFetch('/api/upload', { method: 'POST', body: form });
     if (!res.ok) throw new Error(`Error subiendo archivo: ${res.status}`);
     const upload = (await res.json()) as { r2_key?: string; url?: string };
 
-    attachments.value.push({ id, name: file.name, type: extension, text, ...upload });
+    attachments.value.push({ id, name: file.name, type: extension, text, image: !!image, ...upload });
     const chip = chips.value.find((c) => c.id === id);
     if (chip) chip.loading = false;
   } catch (error) {
     console.error(`Error procesando archivo ${file.name}:`, error);
     chips.value = chips.value.filter((c) => c.id !== id);
+    if (preview) URL.revokeObjectURL(preview);
     alert(`Error al procesar "${file.name}". Intenta con otro archivo.`);
   }
 }
 
 function removeAttachment(id: string) {
   attachments.value = attachments.value.filter((a) => a.id !== id);
+  const chip = chips.value.find((c) => c.id === id);
+  if (chip?.preview) URL.revokeObjectURL(chip.preview);
   chips.value = chips.value.filter((c) => c.id !== id);
+}
+
+/** Una captura copiada se pega con Ctrl+V, como en cualquier chat. */
+function onPaste(e: ClipboardEvent) {
+  const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+  if (files.length === 0) return;
+  e.preventDefault();
+  void (async () => {
+    for (const file of files) await processFile(file);
+  })();
 }
 
 async function processFiles(files: FileList | null | undefined) {
@@ -876,7 +930,7 @@ async function loadHistory(id: string) {
     for (const msg of history) {
       if (msg.role === 'user') {
         if (msg.audio_url) pushMessage({ role: 'user', kind: 'user-audio', content: msg.content, audioUrl: msg.audio_url });
-        else pushMessage({ role: 'user', kind: 'text', content: msg.content });
+        else pushMessage({ role: 'user', kind: 'text', content: msg.content, images: msg.images || [] });
       } else if (msg.role === 'assistant') {
         if (msg.video_url) {
           const prompt = msg.content.replace('🎬 Aquí tienes el video que pediste:\n\n_Prompt: ', '').replace(/_$/, '');

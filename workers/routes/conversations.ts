@@ -4,6 +4,7 @@
    ============================================ */
 import { AI_MODEL_NORMAL } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
+import { attachmentUrl, parseImageKeys } from '../lib/chat-images';
 import { jsonResponse } from '../lib/http';
 import { LEARNING_MODES, getAssignmentForStudent, getLessonContext } from './chat-context';
 
@@ -111,23 +112,22 @@ export async function handleHistory(request: Request, conversationId: string | u
     }
 
     // 3. OBTENER HISTORIAL COMPLETO para el frontend
-    // `reasoning` puede no existir todavía si la migración aún no ha corrido en
-    // este aislado, así que se consulta con reserva.
-    let results;
-    try {
-      ({ results } = await env.MIRAI_AI_DB.prepare(`
-        SELECT id, role, content, audio_url, video_url, reasoning, created_at
-        FROM messages
-        WHERE conversation_id = ?
-        ORDER BY created_at ASC
-      `).bind(conversationId).all<any>());
-    } catch (columnError) {
-      ({ results } = await env.MIRAI_AI_DB.prepare(`
-        SELECT id, role, content, audio_url, video_url, created_at
-        FROM messages
-        WHERE conversation_id = ?
-        ORDER BY created_at ASC
-      `).bind(conversationId).all<any>());
+    // `reasoning` e `images` pueden no existir todavía si la migración aún no
+    // ha corrido en este aislado, así que se consulta con reserva: primero con
+    // las dos, luego sin `images`, y al final sin ninguna.
+    let results: any[] = [];
+    for (const extra of [', reasoning, images', ', reasoning', '']) {
+      try {
+        ({ results } = await env.MIRAI_AI_DB.prepare(`
+          SELECT id, role, content, audio_url, video_url${extra}, created_at
+          FROM messages
+          WHERE conversation_id = ?
+          ORDER BY created_at ASC
+        `).bind(conversationId).all<any>());
+        break;
+      } catch (columnError) {
+        if (!extra) throw columnError;
+      }
     }
     const messages = results.map(row => ({
       id: row.id,
@@ -136,6 +136,7 @@ export async function handleHistory(request: Request, conversationId: string | u
       audio_url: row.audio_url,
       video_url: row.video_url,
       reasoning: row.reasoning ?? null,
+      images: parseImageKeys(row.images).map(attachmentUrl),
       created_at: row.created_at
     }));
 
@@ -148,14 +149,26 @@ export async function handleHistory(request: Request, conversationId: string | u
 }
 
 export async function getConversationHistory(conversationId: any, env: Env, limit = 20) {
-  const stmt = env.MIRAI_AI_DB.prepare(`
-    SELECT id, role, content, audio_url, video_url, created_at
-    FROM messages
-    WHERE conversation_id = ?
-    ORDER BY created_at DESC
-    LIMIT ?
-  `);
-  const { results } = await stmt.bind(conversationId, limit).all<any>();
+  // `images` puede no existir todavía si la migración no ha corrido en este
+  // aislado: se consulta con reserva, como `reasoning` en el historial.
+  let results;
+  try {
+    ({ results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, role, content, audio_url, video_url, images, created_at
+      FROM messages
+      WHERE conversation_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).bind(conversationId, limit).all<any>());
+  } catch (columnError) {
+    ({ results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT id, role, content, audio_url, video_url, created_at
+      FROM messages
+      WHERE conversation_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).bind(conversationId, limit).all<any>());
+  }
   results.reverse();
   return results.map(row => ({
     id: row.id,
@@ -163,12 +176,14 @@ export async function getConversationHistory(conversationId: any, env: Env, limi
     content: row.content,
     audio_url: row.audio_url,
     video_url: row.video_url,
+    // Las claves en R2 de las imágenes que mandó el usuario (lib/chat-images.ts).
+    images: parseImageKeys(row.images),
     created_at: row.created_at
   }));
 }
 
 // --- GUARDAR MENSAJE (CORREGIDO) ---
-export async function saveMessage(conversationId: string, role: string, content: string, env: Env, audioUrl: string | null = null, videoUrl: string | null = null, thumbnailUrl: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL, reasoning: string | null = null) {
+export async function saveMessage(conversationId: string, role: string, content: string, env: Env, audioUrl: string | null = null, videoUrl: string | null = null, thumbnailUrl: string | null = null, userDni: string | null = null, model = AI_MODEL_NORMAL, reasoning: string | null = null, images: string[] | null = null) {
   try {
     await ensureConversationExists(conversationId, content, env, null, null, userDni, model);
 
@@ -190,11 +205,19 @@ export async function saveMessage(conversationId: string, role: string, content:
     const messageId = crypto.randomUUID();
 
     try {
-      const stmt = env.MIRAI_AI_DB.prepare(`
-        INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, reasoning, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-      `);
-      await stmt.bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl, reasoning).run();
+      if (images && images.length > 0) {
+        // Solo se nombra la columna `images` cuando hay imágenes: así un
+        // mensaje de texto no depende de la migración.
+        await env.MIRAI_AI_DB.prepare(`
+          INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, reasoning, images, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        `).bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl, reasoning, JSON.stringify(images)).run();
+      } else {
+        await env.MIRAI_AI_DB.prepare(`
+          INSERT INTO messages (id, conversation_id, role, content, audio_url, video_url, thumbnail_url, reasoning, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        `).bind(messageId, conversationId, role, content, audioUrl, videoUrl, thumbnailUrl, reasoning).run();
+      }
     } catch (columnError: any) {
       // Base de datos aún sin la columna 'reasoning' (la migración corre en
       // handleApiRequest): guardar el mensaje sin el pensamiento antes que perderlo.
@@ -274,7 +297,9 @@ export async function updateConversationTimestamp(conversationId: string, env: E
  * handleApiRequest convertía en un 500 genérico, así que adjuntar archivos en
  * el chat estaba roto de forma silenciosa. public/app.js espera { r2_key, url }.
  */
-const UPLOAD_ALLOWED_EXTENSIONS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'];
+// Las imágenes van luego en `images` de /api/chat y las ve deepseek-flash
+// (lib/chat-images.ts); el resto se lee en el navegador y viaja como texto.
+const UPLOAD_ALLOWED_EXTENSIONS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'jpg', 'jpeg', 'png', 'webp', 'gif'];
 
 const UPLOAD_MAX_FILE_SIZE = 10 * 1024 * 1024;
 

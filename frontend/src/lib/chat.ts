@@ -53,6 +53,8 @@ export interface HistoryMessage {
   video_url?: string | null;
   thumbnail_url?: string | null;
   reasoning?: string | null;
+  /** Las imágenes que mandó el usuario, como /api/attachment/… (con la sesión). */
+  images?: string[];
 }
 
 export interface Conversation {
@@ -88,6 +90,8 @@ export interface ChatMessage {
   videoUrl?: string;
   thumbnailUrl?: string;
   videos?: YouTubeVideo[];
+  /** Las imágenes que mandó el usuario con el mensaje. */
+  images?: string[];
 }
 
 export function nowTime(): string {

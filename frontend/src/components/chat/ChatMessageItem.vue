@@ -99,6 +99,12 @@
           </div>
         </div>
 
+        <!-- Imágenes que mandó el usuario: encima del texto («esto» → «¿qué es?»).
+             Con lightbox-trigger se abren en grande, como las generadas. -->
+        <div v-if="msg.images?.length" class="message-images">
+          <img v-for="src in msg.images" :key="src" :src="src" alt="Imagen adjunta" class="lightbox-trigger" loading="lazy">
+        </div>
+
         <!-- Texto -->
         <div v-if="showText" class="message-body" v-html="html" />
 

@@ -7,8 +7,47 @@
 import { MAMMOTH_SRC, XLSX_SRC, loadGlobal, type SheetJs } from './cdn';
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
-export const SUPPORTED_FORMATS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv'];
+/** Las imágenes no se leen aquí: las ve el modelo (deepseek-flash). Ver prepareImage. */
+export const IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+export const SUPPORTED_FORMATS = ['txt', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', ...IMAGE_FORMATS];
 export const FILE_ACCEPT = SUPPORTED_FORMATS.map((f) => `.${f}`).join(',');
+/** Cuántas imágenes admite un mensaje (MAX_CHAT_IMAGES del Worker). */
+export const MAX_CHAT_IMAGES = 4;
+
+/**
+ * DeepSeek reduce cada imagen a una superficie de unos 1300×1300 antes de
+ * mirarla, así que se reduce aquí y se sube ya en JPEG: una foto del móvil de
+ * 4 MB pasa a unos cientos de KB sin perder nada de lo que el modelo ve. Lo
+ * transparente de un PNG se pinta sobre blanco (en JPEG saldría negro, justo
+ * donde suele estar el texto oscuro de una captura).
+ */
+export async function prepareImage(file: Blob): Promise<Blob> {
+  const MAX_PIXELS = 1300 * 1300;
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error('No se ha podido abrir la imagen');
+  }
+  try {
+    const scale = Math.min(1, Math.sqrt(MAX_PIXELS / (bitmap.width * bitmap.height)));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('No se ha podido preparar la imagen');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    if (!blob) throw new Error('No se ha podido preparar la imagen');
+    return blob;
+  } finally {
+    bitmap.close();
+  }
+}
 
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs';
 const PDFJS = `${CDN}/pdf.js/3.11.174/pdf.min.js`;
@@ -59,6 +98,11 @@ export function fileIcon(extension: string): string {
     PPTX: '📽️',
     TXT: '📃',
     CSV: '📋',
+    JPG: '🖼️',
+    JPEG: '🖼️',
+    PNG: '🖼️',
+    WEBP: '🖼️',
+    GIF: '🖼️',
   };
   return icons[extension.toUpperCase()] || '📎';
 }

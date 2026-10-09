@@ -11,6 +11,7 @@
 declare var _migratedSubmissionType: boolean | undefined;
 declare var _migratedReportsSection: boolean | undefined;
 declare var _migratedMessagesReasoning: boolean | undefined;
+declare var _migratedMessagesImages: boolean | undefined;
 
 interface MiraiPersonaje {
   identidad: string;

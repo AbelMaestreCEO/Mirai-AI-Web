@@ -29,7 +29,7 @@ export function mimeDeImagen(bytes: Uint8Array): string | null {
   return null;
 }
 
-function aBase64(bytes: Uint8Array): string {
+export function aBase64(bytes: Uint8Array): string {
   let binario = '';
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
