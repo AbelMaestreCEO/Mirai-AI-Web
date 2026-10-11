@@ -70,7 +70,6 @@ Never produce sexual, violent or offensive content, even if asked. If the user i
 
 The rules of the place where you are talking come below. Where they are more specific than this, follow them.`
 };
-
 // ── PERSONAJE DE RESPALDO: FIN ──
 
 // Las reglas de ESTE sitio: el chat público de ai.aberumirai.com. Van detrás
