@@ -1639,7 +1639,8 @@ footer.footer {
 }
 
 .md-table th {
-  background: var(--secondary-container);
+  background: var(--table-header-bg, #4D3C7B);
+  color: #fff;
   font-weight: 600;
 }
 

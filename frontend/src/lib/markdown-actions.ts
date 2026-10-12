@@ -3,6 +3,7 @@
 // mensajes los atiende por delegación con handleMarkdownClick.
 
 import { downloadImage } from './chat';
+import { accentPalette, tableHeaderColor } from './settings';
 
 const CHECK_16 = '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
 const CHECK_14 = '<svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
@@ -32,15 +33,25 @@ async function copyCode(btn: HTMLButtonElement) {
 async function copyTable(btn: HTMLButtonElement) {
   const table = btn.closest('.md-table-wrapper')?.querySelector<HTMLTableElement>('.md-table');
   if (!table) return;
+  // Word no entiende variables CSS ni :nth-child: los colores del acento van
+  // en hex y escritos en cada celda.
+  const header = tableHeaderColor();
+  const stripe = accentPalette().sc;
+  const clone = table.cloneNode(true) as HTMLTableElement;
+  clone.querySelectorAll<HTMLElement>('th').forEach((th) => {
+    th.style.cssText = `background:${header};color:#FFFFFF;padding:6px 12px;border:1px solid ${header};font-weight:bold;`;
+  });
+  clone.querySelectorAll('tbody tr').forEach((tr, i) => {
+    tr.querySelectorAll<HTMLElement>('td').forEach((td) => {
+      td.style.cssText = `padding:5px 12px;border:1px solid #ccc;${i % 2 ? `background:${stripe};` : ''}`;
+    });
+  });
   const tableHTML = `
         <html><body>
         <style>
           table { border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
-          th { background: #5c4a9e; color: white; padding: 6px 12px; border: 1px solid #999; font-weight: bold; }
-          td { padding: 5px 12px; border: 1px solid #ccc; }
-          tr:nth-child(even) td { background: #f5f2ff; }
         </style>
-        ${table.outerHTML}
+        ${clone.outerHTML}
         </body></html>`;
   try {
     await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([tableHTML], { type: 'text/html' }) })]);

@@ -20,7 +20,7 @@ export interface AppearanceSettings {
   [key: string]: unknown;
 }
 
-interface AccentPalette {
+export interface AccentPalette {
   c: string; cD: string;
   g: string; gD: string;
   glow: string; glowD: string;
@@ -88,6 +88,18 @@ export function resolveTheme(): Theme {
 
 export const currentTheme = ref<Theme>('light');
 
+/** Paleta del acento elegido (morado si no hay ninguno). */
+export function accentPalette(): AccentPalette {
+  return ACCENT_COLORS[readSettings().accentColor ?? ''] ?? ACCENT_COLORS.purple!;
+}
+
+/** Tono oscuro del acento para encabezados de tabla (texto blanco legible en ambos temas y en Word). */
+export function tableHeaderColor(): string {
+  return '#' + accentPalette().c.slice(1).match(/../g)!
+    .map((h) => Math.round(parseInt(h, 16) * 0.75).toString(16).padStart(2, '0'))
+    .join('');
+}
+
 /** Aplica tema, color de acento, fuente y movimiento reducido al documento. */
 export function applyAppearance(theme: Theme = resolveTheme()): void {
   const root = document.documentElement;
@@ -97,6 +109,7 @@ export function applyAppearance(theme: Theme = resolveTheme()): void {
   const s = readSettings();
   const isDark = theme === 'dark';
   const c = s.accentColor ? ACCENT_COLORS[s.accentColor] : undefined;
+  root.style.setProperty('--table-header-bg', tableHeaderColor());
   if (c) {
     root.style.setProperty('--accent-color', isDark ? c.cD : c.c);
     root.style.setProperty('--accent-gradient', isDark ? c.gD : c.g);

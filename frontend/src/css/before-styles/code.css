@@ -14,7 +14,7 @@
 }
 
 :where(body[data-page="code"]) .md-table th {
-  background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
+  background: var(--table-header-bg, #4D3C7B);
   color: #fff;
   font-weight: 600;
   padding: 8px 14px;
