@@ -2038,9 +2038,14 @@ footer.footer {
 }
 
 /* Mostrar botones al hacer hover sobre el mensaje */
-.message.ai:hover .msg-action,
-.message.ai .msg-action:focus {
+.message:hover .msg-action,
+.msg-action:focus-visible,
+.msg-action.active {
   opacity: 1;
+}
+
+.msg-action.active {
+  color: var(--accent-color);
 }
 
 /* En móvil siempre visibles pero sutiles */
@@ -2080,16 +2085,30 @@ footer.footer {
 /* --- MENÚ DESPLEGABLE --- */
 .action-menu {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
   background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
-  border-radius: var(--border-radius-sm);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  min-width: 160px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px var(--accent-glow, rgba(0, 0, 0, 0.12)), 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-width: 200px;
   z-index: 200;
-  overflow: hidden;
   animation: menuSlideUp 0.25s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+.action-menu-title {
+  padding: 6px 10px 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 
 @keyframes menuSlideUp {
@@ -2107,40 +2126,32 @@ footer.footer {
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 9px 10px;
   background: transparent;
+  border: none;
+  border-radius: 10px;
   color: var(--text-primary);
   cursor: pointer;
   width: 100%;
   text-align: left;
-  font-size: 0.85rem;
-  transition: all var(--transition-fast);
-  position: relative;
-  overflow: hidden;
+  font-family: var(--font-family, inherit);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.menu-item::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--accent-color);
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 0.25s;
+.menu-item svg {
+  flex-shrink: 0;
+  fill: var(--accent-color);
 }
 
-.menu-item:hover {
+.menu-item:hover,
+.menu-item:focus-visible {
   color: var(--accent-color);
-  background: var(--message-user-bg);
-}
-
-.menu-item:hover::after {
-  opacity: 0.06;
-}
-
-.menu-item span {
-  font-size: 1rem;
+  background: var(--secondary-container);
+  outline: none;
 }
 
 /* --- RESPONSIVE --- */

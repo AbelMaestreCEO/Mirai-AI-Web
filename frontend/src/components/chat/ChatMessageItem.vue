@@ -112,7 +112,12 @@
         <div v-if="!msg.streaming" class="message-meta">
           <span class="message-time">{{ msg.time }}</span>
           <div v-if="msg.role === 'user' && msg.kind === 'text'" class="message-actions">
-            <button class="msg-action edit-btn" title="Editar mensaje" @click="emit('edit')">
+            <button class="msg-action copy-full-btn" :class="copyState" title="Copiar mensaje" @click="copyContent">
+              <svg v-if="copyState === 'success'" viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+              <svg v-else-if="copyState === 'error'" viewBox="0 0 24 24" width="14" height="14"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+              <svg v-else viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg>
+            </button>
+            <button v-if="isLast" class="msg-action edit-btn" title="Editar mensaje" @click="emit('edit')">
               <svg viewBox="0 0 24 24" width="14" height="14">
                 <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
               </svg>
@@ -130,17 +135,23 @@
               <svg v-else-if="copyState === 'error'" viewBox="0 0 24 24" width="14" height="14"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
               <svg v-else viewBox="0 0 24 24" width="14" height="14"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg>
             </button>
-            <button class="msg-action regenerate-btn" title="Regenerar respuesta" @click="emit('regenerate')">
-              <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" /></svg>
-            </button>
-            <div class="options-wrapper">
-              <button class="msg-action options-btn" title="Más opciones" @click.stop="menuOpen = !menuOpen">
-                <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" /></svg>
+            <template v-if="isLast">
+              <button class="msg-action regenerate-btn" title="Regenerar respuesta" @click="emit('regenerate')">
+                <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" /></svg>
               </button>
-              <div class="action-menu" :class="{ hidden: !menuOpen }">
-                <button v-for="a in MODIFY_ACTIONS" :key="a.action" class="menu-item" @click="modify(a.action)"><span>{{ a.icon }}</span> {{ a.label }}</button>
+              <div class="options-wrapper">
+                <button class="msg-action options-btn" :class="{ active: menuOpen }" title="Más opciones" :aria-expanded="menuOpen" @click.stop="menuOpen = !menuOpen">
+                  <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" /></svg>
+                </button>
+                <div class="action-menu" :class="{ hidden: !menuOpen }" role="menu">
+                  <div class="action-menu-title">Reescribir respuesta</div>
+                  <button v-for="a in MODIFY_ACTIONS" :key="a.action" class="menu-item" role="menuitem" @click="modify(a.action)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path :d="a.icon" /></svg>
+                    {{ a.label }}
+                  </button>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </template>
@@ -156,15 +167,18 @@ import { downloadVideo, type ChatMessage } from '@/lib/chat';
 export type ModifyAction = 'summarize' | 'extend' | 'formal' | 'friendly';
 
 const MODIFY_ACTIONS: { action: ModifyAction; icon: string; label: string }[] = [
-  { action: 'summarize', icon: '📝', label: 'Resumir' },
-  { action: 'extend', icon: '📈', label: 'Extender' },
-  { action: 'formal', icon: '👔', label: 'Tono Formal' },
-  { action: 'friendly', icon: '😊', label: 'Tono Amigable' },
+  // icon: trazo SVG (Material Icons) que se pinta con el color de acento.
+  { action: 'summarize', icon: 'M4 9h16v2H4zm0 4h10v2H4z', label: 'Resumir' },
+  { action: 'extend', icon: 'M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z', label: 'Extender' },
+  { action: 'formal', icon: 'M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z', label: 'Tono formal' },
+  { action: 'friendly', icon: 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z', label: 'Tono amigable' },
 ];
 
 const props = defineProps<{
   msg: ChatMessage;
   avatar: { url: string | null; initial: string };
+  /** Último mensaje de su lado: solo ahí se ofrece editar / regenerar / reescribir. */
+  isLast?: boolean;
 }>();
 
 const emit = defineEmits<{

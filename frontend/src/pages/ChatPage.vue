@@ -29,6 +29,7 @@
         :key="m.id"
         :msg="m"
         :avatar="avatar"
+        :is-last="i === (m.role === 'user' ? lastUserIndex : lastAiIndex)"
         @edit="editMessage(i)"
         @regenerate="regenerate(i)"
         @modify="(action) => modifyResponse(i, action)"
@@ -294,6 +295,9 @@ const AUDIO_MODE_UI: Record<AudioMode, { label: string; class: string; notice: s
 
 // ── Estado ────────────────────────────────────────────────────────────────
 const messages = ref<ChatMessage[]>([]);
+// Editar y regenerar solo se ofrecen en el último mensaje de cada lado.
+const lastUserIndex = computed(() => messages.value.findLastIndex((m) => m.role === 'user'));
+const lastAiIndex = computed(() => messages.value.findLastIndex((m) => m.role === 'assistant'));
 const showWelcome = ref(true);
 const conversationId = ref<string>('');
 const currentCourseId = ref<string | null>(null);
