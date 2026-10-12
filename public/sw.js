@@ -4,7 +4,7 @@
 // Cambiar CACHE_NAME cuando cambie la lista de precarga o este archivo: el
 // service worker nuevo borra las cachés con otro nombre al activarse. Los
 // archivos de la app (/app/assets/*) llevan hash en el nombre y no hace falta.
-const CACHE_NAME = 'mirai-ai-v346';
+const CACHE_NAME = 'mirai-ai-v347';
 
 // El index.html de la app: todas las rutas (/chat, /task...) lo reciben, así
 // que sin conexión se sirve esta copia para cualquiera de ellas.

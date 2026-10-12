@@ -296,17 +296,6 @@
         </div>
       </div>
       <div class="welcome-footer-col">
-        <h4 class="footer-col-title">Navegación</h4>
-        <ul class="footer-col-links">
-          <li><AppLink to="chat">💬 Chat IA</AppLink></li>
-          <li><AppLink to="course_category">📚 Cursos</AppLink></li>
-          <li><AppLink to="classroom">🏫 Aula Virtual</AppLink></li>
-          <li><AppLink to="inventory">📦 Inventario</AppLink></li>
-          <li><AppLink to="mirror">🖼️ Organizador de Fotos</AppLink></li>
-          <li><AppLink to="format">📝 Formatos DOCX</AppLink></li>
-        </ul>
-      </div>
-      <div class="welcome-footer-col">
         <h4 class="footer-col-title">Servicios</h4>
         <ul class="footer-col-links">
           <li><a href="https://aberumirai.com#technology">Tecnología & IA</a></li>
@@ -319,10 +308,10 @@
       <div class="welcome-footer-col">
         <h4 class="footer-col-title">Empresa</h4>
         <ul class="footer-col-links">
-          <li><a href="https://aberumirai.com">Sobre Nosotros</a></li>
-          <li><a href="https://aberumirai.com#contact">Contacto</a></li>
-          <li><a href="https://dev.aberumirai.com">Desarrollos</a></li>
-          <li><a href="https://miraiplus.aberumirai.com">Mirai Plus</a></li>
+          <li><a href="https://aberumirai.com/about">Sobre Nosotros</a></li>
+          <li><a href="https://aberumirai.com/mirai">Franquicia Mirai</a></li>
+          <li><a href="https://aberumirai.com/character_history">Personajes</a></li>
+          <li><a href="https://aberumirai.com/privacy">Política de Privacidad</a></li>
         </ul>
       </div>
     </div>
