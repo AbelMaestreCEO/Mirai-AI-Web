@@ -10,16 +10,17 @@ import { cleanupExpiredFormatFiles } from './routes/format';
 import { finalizePendingVideoAvatarJobs } from './routes/video';
 
 // --- APP ANDROID (TWA) ---
-// Huella SHA-256 de android/mirai-release.keystore. Si se publica en Play Store
-// con "Play App Signing", añadir también la huella de la llave de Google
-// (Play Console > Integridad de la app) a sha256_cert_fingerprints.
+// Huellas SHA-256 de android/mirai-release.keystore (APK instalado a mano) y de
+// la llave con que Google Play re-firma la app (Play Console > Integridad de la app).
 const ANDROID_ASSET_LINKS = [{
   relation: ['delegate_permission/common.handle_all_urls'],
   target: {
     namespace: 'android_app',
     package_name: 'com.aberumirai.ai',
     sha256_cert_fingerprints: [
-      '16:F1:31:A6:E9:6B:E9:F1:62:26:39:D7:79:50:5D:30:3F:68:B6:57:CA:93:91:22:75:20:CD:25:8B:68:50:37'
+      '16:F1:31:A6:E9:6B:E9:F1:62:26:39:D7:79:50:5D:30:3F:68:B6:57:CA:93:91:22:75:20:CD:25:8B:68:50:37',
+      // Llave de firma de Google Play (Play App Signing)
+      'D3:AA:54:B7:C7:66:25:80:BA:6F:B2:50:B4:AE:3A:F1:84:F8:D1:7B:8F:E3:ED:8C:93:56:9D:63:25:2B:29:6F'
     ]
   }
 }];
