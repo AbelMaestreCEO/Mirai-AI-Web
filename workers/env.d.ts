@@ -16,6 +16,7 @@ declare var _migratedMessagesImages: boolean | undefined;
 interface MiraiPersonaje {
   identidad: string;
   conducta: string;
+  conocimiento?: string;
 }
 
 interface Env {

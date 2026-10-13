@@ -11,9 +11,11 @@
 // worker/mirai.ts o con sus secretos MIRAI_IDENTIDAD / MIRAI_CONDUCTA— llega
 // aquí sola, sin volver a desplegar este Worker.
 //
-// env.MIRAI.personaje() devuelve { identidad, conducta }:
-//   identidad  quién es: nombre, edad, cómo habla, qué le gusta (en castellano)
-//   conducta   cómo se porta hable con quien hable (en inglés)
+// env.MIRAI.personaje() devuelve { identidad, conducta, conocimiento }:
+//   identidad     quién es: nombre, edad, cómo habla, qué le gusta (en castellano)
+//   conducta      cómo se porta hable con quien hable (en inglés)
+//   conocimiento  lo que sabe de los productos (aberumirai.com/conocimiento/);
+//                 la copia de respaldo no lo trae
 // Nunca trae las reglas del chat interno: las de este sitio son
 // PUBLIC_CHAT_RULES, aquí abajo, y van detrás. Contrato completo en
 // Mirai Assistant: shared/asistente/personaje.ts.
@@ -91,7 +93,7 @@ let miraiPersonaCache: { persona: MiraiPersonaje; expiresAt: number } | null = n
 
  // { persona, expiresAt }
 
-async function getMiraiPersona(env: Env) {
+async function getMiraiPersona(env: Env): Promise<MiraiPersonaje> {
   const now = Date.now();
   if (miraiPersonaCache && miraiPersonaCache.expiresAt > now) return miraiPersonaCache.persona;
 
@@ -103,7 +105,8 @@ async function getMiraiPersona(env: Env) {
     if (!p || typeof p.identidad !== 'string' || typeof p.conducta !== 'string' || !p.identidad.trim() || !p.conducta.trim()) {
       throw new Error('respuesta de PersonajeRPC sin identidad o conducta');
     }
-    const persona = { identidad: p.identidad, conducta: p.conducta };
+    const conocimiento = typeof p.conocimiento === 'string' ? p.conocimiento.trim() : '';
+    const persona = { identidad: p.identidad, conducta: p.conducta, conocimiento };
     miraiPersonaCache = { persona, expiresAt: now + MIRAI_PERSONA_TTL_MS };
     return persona;
   } catch (err: any) {
@@ -113,9 +116,12 @@ async function getMiraiPersona(env: Env) {
   }
 }
 
-// El prompt por defecto del chat: quién es, cómo se porta y las reglas de
-// este sitio, en ese orden.
+// El prompt por defecto del chat: quién es, cómo se porta, lo que sabe de
+// los productos de la empresa (si llegó) y las reglas de este sitio, en ese orden.
 export async function buildMiraiSystemPrompt(env: Env) {
-  const { identidad, conducta } = await getMiraiPersona(env);
-  return [identidad, conducta, PUBLIC_CHAT_RULES].join('\n\n');
+  const { identidad, conducta, conocimiento } = await getMiraiPersona(env);
+  const productos = conocimiento
+    ? `Official information about the company and its products. Use it when someone asks about them, and never make up what is not there:\n<conocimiento>\n${conocimiento}\n</conocimiento>`
+    : '';
+  return [identidad, conducta, productos, PUBLIC_CHAT_RULES].filter(Boolean).join('\n\n');
 }
