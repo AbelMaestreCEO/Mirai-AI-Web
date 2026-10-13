@@ -127,6 +127,8 @@ export function applyAppearance(theme: Theme = resolveTheme()): void {
   if (s.fontFamily) root.style.setProperty('--font-family', String(s.fontFamily));
   if (s.fontSize) root.style.fontSize = `${s.fontSize}px`;
   root.classList.toggle('reduce-motion', !!s.reducedMotion);
+  document.querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg-primary').trim());
 }
 
 /**

@@ -679,7 +679,7 @@ function setThemeMode(mode: ThemeMode) {
   const effective = mode === 'auto' ? (darkQuery?.matches ? 'dark' : 'light') : mode;
   store(THEME_KEY, effective);
   store(THEME_MODE_KEY, mode);
-  document.documentElement.setAttribute('data-theme', effective);
+  applyAppearance(effective);
   applyAccent(accent.value);
 }
 
