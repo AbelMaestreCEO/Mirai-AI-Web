@@ -1,0 +1,444 @@
+/* ============================================
+   CHAT REDESIGN - Global Styles
+   Mejoras visuales para la interfaz del chat
+   ============================================ */
+
+/* --- HEADER MEJORADO --- */
+:where(body[data-page="chat"]) .header {
+  padding: 18px 28px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+:where(body[data-page="chat"]) .header-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+  color: var(--text-primary) !important;
+}
+
+/* Título adaptable: primera palabra en acento, resto en color del sistema */
+:where(body[data-page="chat"]) .header-title .title-accent {
+  color: var(--accent-color);
+}
+
+:where(body[data-page="chat"]) .header-title .title-normal {
+  color: var(--text-primary);
+}
+
+/* Menú toggle con mejor posición */
+:where(body[data-page="chat"]) .header .menu-toggle {
+  margin-right: 8px;
+}
+
+/* --- MENSAJES REDISEÑADOS --- */
+:where(body[data-page="chat"]) .message {
+  gap: 14px;
+}
+
+/* Usuario — más redondeado, mejor contraste */
+:where(body[data-page="chat"]) .message.user .message-content {
+  background: var(--accent-color) !important;
+  color: #ffffff !important;
+  border-radius: 24px 24px 6px 24px !important;
+  box-shadow: 0 2px 12px rgba(103, 80, 164, 0.25) !important;
+  border: none !important;
+  padding: 18px 22px !important;
+}
+
+/* IA — diseño mejorado */
+:where(body[data-page="chat"]) .message.ai .message-content {
+  background: var(--glass-bg) !important;
+  color: var(--text-primary) !important;
+  border-radius: 24px 24px 24px 6px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid var(--glass-border) !important;
+  padding: 18px 22px !important;
+}
+
+/* Modo oscuro — ajustes de contraste */
+html[data-theme="dark"] :where(body[data-page="chat"]) .message.ai .message-content {
+  background: rgba(30, 27, 36, 0.95) !important;
+  color: #f0f0f0 !important;
+  border-color: rgba(207, 188, 255, 0.15) !important;
+}
+
+html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .message-content {
+  background: var(--accent-color) !important;
+  color: #ffffff !important;
+}
+
+/* Avatar mejorado */
+:where(body[data-page="chat"]) .message-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  box-shadow: 0 3px 12px rgba(103, 80, 164, 0.3);
+}
+
+/* --- INPUT AREA REDISEÑADA --- */
+:where(body[data-page="chat"]) .input-area {
+  padding: 0 16px 16px;
+}
+
+:where(body[data-page="chat"]) .input-wrapper {
+  border-radius: 28px !important;
+  padding: 10px 12px 10px 22px !important;
+  border: 2px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+:where(body[data-page="chat"]) .input-wrapper:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+
+:where(body[data-page="chat"]) .message-input {
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+/* Botones del input */
+:where(body[data-page="chat"]) .attach-btn,
+:where(body[data-page="chat"]) .web-search-btn,
+:where(body[data-page="chat"]) .send-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.05, 0.7, 0.1, 1);
+  flex-shrink: 0;
+}
+
+:where(body[data-page="chat"]) .attach-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="chat"]) .attach-btn:hover {
+  background: var(--accent-glow);
+  color: var(--accent-color);
+  transform: scale(1.08);
+}
+
+:where(body[data-page="chat"]) .web-search-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="chat"]) .web-search-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  transform: scale(1.05);
+}
+
+:where(body[data-page="chat"]) .web-search-btn.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #ffffff;
+}
+
+:where(body[data-page="chat"]) .send-button {
+  background: var(--accent-gradient);
+  border: none;
+  color: #ffffff;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+:where(body[data-page="chat"]) .send-button:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
+:where(body[data-page="chat"]) .send-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+:where(body[data-page="chat"]) .send-button.recording {
+  background: #ef4444;
+  animation: recordPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes recordPulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6); }
+}
+
+/* --- LEYENDA DEBAJO DEL INPUT --- */
+:where(body[data-page="chat"]) .input-footer {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  line-height: 1.4;
+}
+
+:where(body[data-page="chat"]) .input-footer a {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+:where(body[data-page="chat"]) .input-footer a:hover {
+  text-decoration: underline;
+}
+
+/* --- SUGERENCIAS RÁPIDAS MEJORADAS --- */
+:where(body[data-page="chat"]) .suggestions-bar {
+  padding: 0 16px 16px;
+  gap: 10px;
+  min-height: auto;
+}
+
+:where(body[data-page="chat"]) .suggestion-chip {
+  padding: 14px 20px;
+  border-radius: 20px !important;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  min-width: 160px;
+  max-width: 280px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+:where(body[data-page="chat"]) .suggestion-chip:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: var(--accent-color);
+  background: var(--accent-glow);
+  box-shadow: 0 6px 20px rgba(103, 80, 164, 0.2);
+}
+
+:where(body[data-page="chat"]) .suggestion-chip::before {
+  height: 2px;
+  border-radius: 20px 20px 0 0;
+}
+
+:where(body[data-page="chat"]) .suggestion-icon {
+  font-size: 1.3rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+:where(body[data-page="chat"]) .suggestion-text {
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+/* --- ATTACHMENTS MEJORADOS --- */
+:where(body[data-page="chat"]) .attachments-area {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+:where(body[data-page="chat"]) .attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--secondary-container);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  font-size: 0.82rem;
+  max-width: 200px;
+}
+
+:where(body[data-page="chat"]) .attachment-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+:where(body[data-page="chat"]) .attachment-icon {
+  font-size: 1.2rem;
+}
+
+:where(body[data-page="chat"]) .attachment-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+:where(body[data-page="chat"]) .attachment-remove {
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+:where(body[data-page="chat"]) .attachment-remove:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+/* --- TYPING INDICATOR MEJORADO --- */
+:where(body[data-page="chat"]) #typing-indicator {
+  margin-bottom: 20px;
+}
+
+:where(body[data-page="chat"]) .typing-indicator {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+:where(body[data-page="chat"]) .typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  animation: typingDotBounce 1.4s ease-in-out infinite;
+}
+
+:where(body[data-page="chat"]) .typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+:where(body[data-page="chat"]) .typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDotBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+/* --- AUDIO MODE TOGGLE MEJORADO --- */
+:where(body[data-page="chat"]) .audio-mode-toggle {
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.05, 0.7, 0.1, 1);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="chat"]) .audio-mode-toggle:hover {
+  border-color: var(--accent-color);
+  background: var(--accent-glow);
+  transform: scale(1.03);
+}
+
+:where(body[data-page="chat"]) .audio-mode-toggle.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #ffffff;
+}
+
+:where(body[data-page="chat"]) .audio-mode-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+  :where(body[data-page="chat"]) .header {
+    padding: 14px 18px;
+  }
+
+  :where(body[data-page="chat"]) .header-title {
+    font-size: 1.2rem;
+  }
+
+  :where(body[data-page="chat"]) .chat-messages {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  :where(body[data-page="chat"]) .message.user .message-content,
+  :where(body[data-page="chat"]) .message.ai .message-content {
+    max-width: 85% !important;
+    padding: 15px 18px !important;
+  }
+
+  :where(body[data-page="chat"]) .input-wrapper {
+    border-radius: 24px !important;
+    padding: 8px 10px 8px 18px !important;
+  }
+
+  :where(body[data-page="chat"]) .attach-btn,
+  :where(body[data-page="chat"]) .web-search-btn,
+  :where(body[data-page="chat"]) .send-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  :where(body[data-page="chat"]) .suggestions-bar {
+    padding: 0 12px 12px;
+    gap: 8px;
+  }
+
+  :where(body[data-page="chat"]) .suggestion-chip {
+    padding: 12px 16px;
+    font-size: 0.84rem;
+    min-width: 140px;
+    max-width: 240px;
+  }
+
+  :where(body[data-page="chat"]) .audio-mode-toggle {
+    padding: 6px 12px;
+    font-size: 0.82rem;
+  }
+
+  :where(body[data-page="chat"]) .audio-mode-label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  :where(body[data-page="chat"]) .message-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  :where(body[data-page="chat"]) .input-footer {
+    font-size: 0.7rem;
+    padding: 6px 12px 0;
+  }
+}
+
+/* --- DARK MODE REFINEMENTS --- */
+html[data-theme="dark"] :where(body[data-page="chat"]) .input-wrapper {
+  background: rgba(30, 27, 36, 0.96);
+  border-color: rgba(207, 188, 255, 0.15);
+}
+
+html[data-theme="dark"] :where(body[data-page="chat"]) .suggestion-chip {
+  background: rgba(30, 27, 36, 0.9);
+  border-color: rgba(207, 188, 255, 0.12);
+}
+
+html[data-theme="dark"] :where(body[data-page="chat"]) .suggestion-chip:hover {
+  background: rgba(208, 188, 255, 0.1);
+  box-shadow: 0 6px 20px rgba(208, 188, 255, 0.15);
+}

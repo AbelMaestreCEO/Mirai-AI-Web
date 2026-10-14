@@ -8,7 +8,11 @@
       </svg>
       <span class="audio-mode-label">{{ AUDIO_MODE_UI[audioMode].label }}</span>
     </button>
-    <div class="header-title">{{ headerTitle }}</div>
+    <div class="header-title">
+      <span v-if="titleParts.accent" class="title-accent">{{ titleParts.accent }}</span>
+      <span v-if="titleParts.normal" class="title-normal"> {{ titleParts.normal }}</span>
+      <template v-else>{{ headerTitle }}</template>
+    </div>
   </header>
 
   <!-- Contenedor Principal -->
@@ -138,6 +142,11 @@
       </button>
     </div>
   </footer>
+
+  <!-- Leyenda debajo del input -->
+  <div class="input-footer">
+    La IA puede cometer errores. Verifica la información importante.
+  </div>
 
   <!-- Modal Lightbox para Imágenes -->
   <div id="image-lightbox" class="image-lightbox" :class="{ hidden: !lightboxUrl }">
@@ -302,6 +311,17 @@ const showWelcome = ref(true);
 const conversationId = ref<string>('');
 const currentCourseId = ref<string | null>(null);
 const headerTitle = ref('Mirai Chat');
+const titleParts = computed(() => {
+  const title = headerTitle.value;
+  const words = title.split(' ');
+  if (words.length >= 2) {
+    return {
+      accent: words[0],
+      normal: words.slice(1).join(' ')
+    };
+  }
+  return { accent: '', normal: title };
+});
 const audioMode = ref<AudioMode>(readAudioMode());
 const typing = ref<TypingKind | null>(null);
 const sending = ref(false);
