@@ -4,24 +4,58 @@
    ============================================ */
 
 /* --- FIX SCROLL HORIZONTAL --- */
+:where(body[data-page="chat"]),
+:where(body[data-page="code"]) {
+  overflow-x: hidden !important;
+}
+
 :where(body[data-page="chat"]) .chat-container,
 :where(body[data-page="code"]) .chat-container {
   overflow-x: hidden !important;
   max-width: 100% !important;
+  width: 100% !important;
 }
 
 :where(body[data-page="chat"]) .chat-messages,
 :where(body[data-page="code"]) .chat-messages {
   overflow-x: hidden !important;
   overflow-y: auto !important;
+  width: 100% !important;
+}
+
+:where(body[data-page="chat"]) .message,
+:where(body[data-page="code"]) .message {
+  max-width: 100% !important;
 }
 
 :where(body[data-page="chat"]) .message-content,
 :where(body[data-page="code"]) .message-content {
-  max-width: 100% !important;
+  max-width: 75% !important;
   overflow-wrap: break-word !important;
   word-wrap: break-word !important;
   word-break: break-word !important;
+}
+
+:where(body[data-page="chat"]) .suggestions-bar,
+:where(body[data-page="code"]) .quick-actions-bar {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+:where(body[data-page="chat"]) .input-area,
+:where(body[data-page="code"]) .input-area {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+:where(body[data-page="chat"]) .input-wrapper,
+:where(body[data-page="code"]) .input-wrapper {
+  width: 100% !important;
+  max-width: 800px !important;
+  box-sizing: border-box !important;
 }
 
 /* --- MENSAJES REDISEÑADOS (Chat y Code) --- */
