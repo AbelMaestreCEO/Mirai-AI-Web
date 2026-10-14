@@ -6,7 +6,7 @@ const CACHE_NAME = 'mirai-ai-20261013-214616';
 
 // El index.html de la app: todas las rutas (/chat, /task...) lo reciben, así
 // que sin conexión se sirve esta copia para cualquiera de ellas.
-const APP_SHELL = '/';
+const APP_SHELL = '/'; 
 
 // ─── Iconos de módulo (Icons8) ──────────────────────────────────────────────
 // Se precachean sólo los 48 px: el 2x (96) lo pide el navegador únicamente en
