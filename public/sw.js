@@ -2,7 +2,7 @@
 // Lo registra frontend/src/boot/pwa.ts.
 //
 // CACHE_NAME se genera automáticamente en cada build (ver quasar.config.ts).
-const CACHE_NAME = 'mirai-ai-20261013-215919';
+const CACHE_NAME = 'mirai-ai-20261013-233230';
 
 // El index.html de la app: todas las rutas (/chat, /task...) lo reciben, así
 // que sin conexión se sirve esta copia para cualquiera de ellas.

@@ -39,44 +39,6 @@
         @modify="(action) => modifyResponse(i, action)"
       />
     </main>
-
-    <!-- Indicador de escritura -->
-    <div id="typing-indicator" ref="typingEl" class="message ai" :class="{ hidden: !typing }" style="margin-bottom: 20px;">
-      <div class="message-avatar">M</div>
-      <div class="message-content">
-        <div class="typing-indicator" :class="{ hidden: typing !== 'text' && typing !== 'image' }">
-          <div class="typing-dot" />
-          <div class="typing-dot" />
-          <div class="typing-dot" />
-        </div>
-        <div class="recording-indicator" :class="{ hidden: typing !== 'audio' }">
-          <div class="mic-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24">
-              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-            </svg>
-          </div>
-          <div class="sound-waves">
-            <span /><span /><span />
-          </div>
-          <span class="recording-text" />
-        </div>
-        <div class="music-indicator" :class="{ hidden: typing !== 'music' }">
-          <div class="music-note">🎵</div>
-          <div class="music-wave" />
-          <div class="music-wave" />
-          <div class="music-wave" />
-        </div>
-        <div class="video-indicator" :class="{ hidden: typing !== 'video' }">
-          <div class="video-loader">
-            <svg viewBox="0 0 24 24" width="24" height="24" class="video-icon">
-              <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z" fill="currentColor" />
-            </svg>
-            <div class="video-spinner" />
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div id="suggestions-bar" class="suggestions-bar" :style="suggestions === null ? undefined : { display: suggestions.length ? 'flex' : 'none' }">
@@ -277,14 +239,12 @@ import {
   readAudioMode,
   saveToLocalHistory,
   selectedModel,
-  typingKindFor,
   type AudioMode,
   type ChatMessage,
   type ChatResponse,
   type Conversation,
   type EnrolledCourse,
   type HistoryMessage,
-  type TypingKind,
 } from '@/lib/chat';
 
 const route = useRoute();
@@ -323,7 +283,6 @@ const titleParts = computed(() => {
   return { accent: '', normal: title };
 });
 const audioMode = ref<AudioMode>(readAudioMode());
-const typing = ref<TypingKind | null>(null);
 const sending = ref(false);
 const input = ref('');
 const webSearch = ref(false);
@@ -332,7 +291,6 @@ const suggestionsRound = ref(0);
 const pressedChip = ref<number | null>(null);
 
 const messagesEl = ref<HTMLElement | null>(null);
-const typingEl = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLTextAreaElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -393,11 +351,6 @@ async function focusInput() {
   await nextTick();
   autoResize();
   inputEl.value?.focus();
-}
-
-function showTyping(kind: TypingKind) {
-  typing.value = kind;
-  setTimeout(() => typingEl.value?.scrollIntoView({ behavior: 'smooth' }), 300);
 }
 
 // ── Modo de audio ─────────────────────────────────────────────────────────
@@ -532,7 +485,6 @@ function startStreamingMessage() {
 
   return {
     pushReasoning(delta: string) {
-      typing.value = null;
       thought += delta;
       msg.reasoning = thought;
       msg.reasoningLabel = 'Pensando…';
@@ -540,7 +492,6 @@ function startStreamingMessage() {
       if (isNearBottom()) void nextTick(scrollToBottom);
     },
     pushContent(delta: string) {
-      typing.value = null;
       sawContent = true;
       text += delta;
       if (queued || finished) return;
@@ -606,7 +557,6 @@ async function send() {
 
   pushMessage({ role: 'user', kind: 'text', content: fullMessage, images: imageAtts.map((att) => att.url!).filter(Boolean) });
   sending.value = true;
-  showTyping(typingKindFor(userInput));
 
   let stream: ReturnType<typeof startStreamingMessage> | null = null;
   try {
@@ -654,7 +604,6 @@ async function send() {
     }
     systemMessage(`⚠️ Error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
-    typing.value = null;
     sending.value = false;
     void focusInput();
   }
@@ -885,7 +834,6 @@ function stopRecording() {
 }
 
 async function processAudio(blob: Blob) {
-  showTyping('text');
   try {
     const uploadForm = new FormData();
     uploadForm.append('audio', blob, `voice-${Date.now()}.webm`);
@@ -914,8 +862,6 @@ async function processAudio(blob: Blob) {
   } catch (error) {
     console.error('Error procesando audio:', error);
     systemMessage(`⚠️ Error de audio: ${error instanceof Error ? error.message : String(error)}`);
-  } finally {
-    typing.value = null;
   }
 }
 

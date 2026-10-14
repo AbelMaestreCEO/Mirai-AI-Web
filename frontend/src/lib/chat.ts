@@ -11,8 +11,6 @@ const LOCAL_HISTORY_KEY = 'mirai-ai-local-history';
 export type AudioMode = 'auto' | 'always' | 'never';
 export const AUDIO_MODES: AudioMode[] = ['auto', 'always', 'never'];
 
-export type TypingKind = 'text' | 'image' | 'music' | 'audio' | 'video';
-
 export interface YouTubeVideo {
   videoId: string;
   title: string;
@@ -185,32 +183,6 @@ export async function consumeChatStream(response: Response, on: StreamHandlers):
   if (streamError) throw streamError;
   if (!result) throw new Error('La respuesta se interrumpió antes de completarse');
   return result;
-}
-
-// ── Detectores (solo eligen el indicador de espera) ────────────────────────
-
-const MUSIC_KEYWORDS = [
-  'canción', 'cancion', 'música', 'musica', 'melodía', 'melodia', 'canto', 'cantar', 'componer',
-  'componer música', 'hacer música', 'crear música', 'generar música', 'tocar música', 'instrumental',
-  'balada', 'rumba', 'ritmo', 'beat', 'tema', 'pieza musical', 'sonido', 'audio', 'canción de', 'música de',
-  'song', 'music', 'melody', 'compose', 'create music', 'make music', 'generate music', 'play music',
-  'ballad', 'track', 'tune', 'piece', 'soundtrack', 'song about', 'music about', 'create a song', 'write a song',
-];
-
-const VIDEO_KEYWORDS = [
-  'video', 'vídeo', 'clip', 'película', 'corto', 'animación', 'animar', 'movimiento', 'cámara', 'cine',
-  'film', 'movie', 'generar video', 'crear video', 'hacer video', 'producir video',
-];
-
-const IMAGE_PATTERN =
-  /\b(imagen|foto|dibuja|dibujo|ilustra|ilustración|crea una imagen|genera una imagen|pinta|pintura|render|artwork|picture|draw|generate image|make an image|diseña|diseño)\b/;
-
-export function typingKindFor(text: string): TypingKind {
-  const lower = text.toLowerCase();
-  if (VIDEO_KEYWORDS.some((k) => lower.includes(k))) return 'video';
-  if (MUSIC_KEYWORDS.some((k) => lower.includes(k))) return 'music';
-  if (IMAGE_PATTERN.test(lower)) return 'image';
-  return 'text';
 }
 
 // ── Fechas y descargas ────────────────────────────────────────────────────
