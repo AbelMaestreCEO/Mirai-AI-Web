@@ -3,17 +3,20 @@
    Estilos compartidos para ChatPage y CodePage
    ============================================ */
 
-/* --- FIX SCROLL HORIZONTAL --- */
-:where(body[data-page="chat"]),
-:where(body[data-page="code"]) {
-  overflow-x: hidden !important;
-}
-
+/* --- ANCHO Y CENTRADO ---
+   En la columna flex de #q-app el contenedor se encogería al ancho de los
+   mensajes: width: 100% + el max-width: 1000px de base lo dejan centrado. */
 :where(body[data-page="chat"]) .chat-container,
 :where(body[data-page="code"]) .chat-container {
-  overflow-x: hidden !important;
-  max-width: 100% !important;
-  width: 100% !important;
+  width: 100%;
+}
+
+/* Sugerencias del chat: mismo ancho que la caja de texto y centradas mientras
+   quepan; si no caben, scroll horizontal desde el primer chip. */
+:where(body[data-page="chat"]) .suggestions-bar {
+  max-width: 800px;
+  margin: 0 auto;
+  justify-content: safe center;
 }
 
 /* --- FIX SCROLL VERTICAL ---
@@ -34,46 +37,13 @@
   flex: 1 0 auto;
 }
 
-:where(body[data-page="chat"]) .chat-messages,
-:where(body[data-page="code"]) .chat-messages {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  width: 100% !important;
-}
-
-:where(body[data-page="chat"]) .message,
-:where(body[data-page="code"]) .message {
-  max-width: 100% !important;
-}
-
+/* Los globos son flex items: sin min-width: 0 un bloque de código
+   (white-space: pre) los ensancha más allá del 75% y la página desborda en
+   horizontal. Con él, es el propio .code-block el que hace scroll. */
 :where(body[data-page="chat"]) .message-content,
 :where(body[data-page="code"]) .message-content {
-  max-width: 75% !important;
-  overflow-wrap: break-word !important;
-  word-wrap: break-word !important;
-  word-break: break-word !important;
-}
-
-:where(body[data-page="chat"]) .suggestions-bar,
-:where(body[data-page="code"]) .quick-actions-bar {
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-:where(body[data-page="chat"]) .input-area,
-:where(body[data-page="code"]) .input-area {
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-}
-
-:where(body[data-page="chat"]) .input-wrapper,
-:where(body[data-page="code"]) .input-wrapper {
-  width: 100% !important;
-  max-width: 800px !important;
-  box-sizing: border-box !important;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* --- MENSAJES REDISEÑADOS (Chat y Code) --- */
