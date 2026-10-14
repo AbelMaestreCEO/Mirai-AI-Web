@@ -1,6 +1,6 @@
 /* ============================================
-   CHAT REDESIGN - Global Styles
-   Mejoras visuales para la interfaz del chat
+   CHAT REDESIGN - Chat-Specific Styles
+   Estilos exclusivos para ChatPage (no compartidos con CodePage)
    ============================================ */
 
 /* --- HEADER MEJORADO --- */
@@ -35,135 +35,9 @@
   margin-right: 8px;
 }
 
-/* --- MENSAJES REDISEÑADOS --- */
-:where(body[data-page="chat"]) .message {
-  gap: 14px;
-}
-
-/* Usuario — más redondeado, mejor contraste */
-:where(body[data-page="chat"]) .message.user .message-content {
-  background: var(--accent-color) !important;
-  color: #ffffff !important;
-  border-radius: 24px 24px 6px 24px !important;
-  box-shadow: 0 2px 12px rgba(103, 80, 164, 0.25) !important;
-  border: none !important;
-  padding: 18px 22px !important;
-}
-
-/* IA — diseño mejorado con bordes redondeados */
-:where(body[data-page="chat"]) .message.ai .message-content {
-  background: #ffffff !important;
-  color: var(--text-primary) !important;
-  border-radius: 24px 24px 24px 6px !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  padding: 18px 22px !important;
-}
-
-/* Cuerpo del mensaje AI sin bordes cuadrados */
-:where(body[data-page="chat"]) .message.ai .message-body {
-  border-radius: 0 !important;
-  border: none !important;
-}
-
-/* Modo oscuro — ajustes de contraste */
-html[data-theme="dark"] :where(body[data-page="chat"]) .message.ai .message-content {
-  background: rgba(30, 27, 36, 0.95) !important;
-  color: #f0f0f0 !important;
-  border-color: rgba(207, 188, 255, 0.15) !important;
-}
-
-html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .message-content {
-  background: var(--accent-color) !important;
-  color: #ffffff !important;
-}
-
-/* Avatar mejorado */
-:where(body[data-page="chat"]) .message-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  box-shadow: 0 3px 12px rgba(103, 80, 164, 0.3);
-}
-
-/* --- ICONOS DE ACCIÓN VISIBLES --- */
-/* Mensajes del usuario: iconos blancos sobre fondo morado */
-:where(body[data-page="chat"]) .message.user .msg-action {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
-:where(body[data-page="chat"]) .message.user:hover .msg-action {
-  opacity: 1 !important;
-}
-
-:where(body[data-page="chat"]) .message.user .msg-action:hover {
-  color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.15);
-}
-
-:where(body[data-page="chat"]) .message.user .msg-action svg {
-  fill: currentColor !important;
-}
-
-/* Mensajes de la IA: iconos en color de acento */
-:where(body[data-page="chat"]) .message.ai .msg-action {
-  color: var(--text-tertiary) !important;
-}
-
-:where(body[data-page="chat"]) .message.ai .msg-action:hover {
-  color: var(--accent-color) !important;
-}
-
-/* Estados de éxito y error mantienen sus colores */
-:where(body[data-page="chat"]) .msg-action.success {
-  color: #386A20 !important;
-}
-
-html[data-theme="dark"] :where(body[data-page="chat"]) .msg-action.success {
-  color: #A8D88C !important;
-}
-
-:where(body[data-page="chat"]) .msg-action.error {
-  color: #D00000 !important;
-}
-
-/* Modo oscuro - mantener visibilidad en mensajes de usuario */
-html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action {
-  color: rgba(255, 255, 255, 0.75) !important;
-}
-
-html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action:hover {
-  color: #ffffff !important;
-}
-
-/* --- INPUT AREA REDISEÑADA --- */
-:where(body[data-page="chat"]) .input-area {
-  padding: 0 16px 16px;
-}
-
-:where(body[data-page="chat"]) .input-wrapper {
-  border-radius: 28px !important;
-  padding: 10px 12px 10px 22px !important;
-  border: 2px solid var(--glass-border);
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-:where(body[data-page="chat"]) .input-wrapper:focus-within {
-  border-color: var(--accent-color);
-  box-shadow: 0 4px 20px var(--accent-glow);
-}
-
-:where(body[data-page="chat"]) .message-input {
-  font-size: 0.98rem;
-  line-height: 1.5;
-}
-
-/* Botones del input */
+/* --- BOTONES ESPECÍFICOS DEL CHAT --- */
 :where(body[data-page="chat"]) .attach-btn,
-:where(body[data-page="chat"]) .web-search-btn,
-:where(body[data-page="chat"]) .send-button {
+:where(body[data-page="chat"]) .web-search-btn {
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -203,22 +77,6 @@ html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action
   background: var(--accent-color);
   border-color: var(--accent-color);
   color: #ffffff;
-}
-
-:where(body[data-page="chat"]) .send-button {
-  background: var(--accent-gradient);
-  border: none;
-  color: #ffffff;
-  box-shadow: 0 2px 8px var(--accent-glow);
-}
-
-:where(body[data-page="chat"]) .send-button:hover:not(:disabled) {
-  transform: scale(1.08);
-  box-shadow: 0 4px 16px var(--accent-glow);
-}
-
-:where(body[data-page="chat"]) .send-button:active:not(:disabled) {
-  transform: scale(0.95);
 }
 
 :where(body[data-page="chat"]) .send-button.recording {
@@ -426,25 +284,8 @@ html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action
     font-size: 1.2rem;
   }
 
-  :where(body[data-page="chat"]) .chat-messages {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-  }
-
-  :where(body[data-page="chat"]) .message.user .message-content,
-  :where(body[data-page="chat"]) .message.ai .message-content {
-    max-width: 85% !important;
-    padding: 15px 18px !important;
-  }
-
-  :where(body[data-page="chat"]) .input-wrapper {
-    border-radius: 24px !important;
-    padding: 8px 10px 8px 18px !important;
-  }
-
   :where(body[data-page="chat"]) .attach-btn,
-  :where(body[data-page="chat"]) .web-search-btn,
-  :where(body[data-page="chat"]) .send-button {
+  :where(body[data-page="chat"]) .web-search-btn {
     width: 38px;
     height: 38px;
   }
@@ -472,11 +313,6 @@ html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action
 }
 
 @media (max-width: 480px) {
-  :where(body[data-page="chat"]) .message-avatar {
-    width: 36px;
-    height: 36px;
-  }
-
   :where(body[data-page="chat"]) .input-footer {
     font-size: 0.7rem;
     padding: 6px 12px 0;
@@ -484,11 +320,6 @@ html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action
 }
 
 /* --- DARK MODE REFINEMENTS --- */
-html[data-theme="dark"] :where(body[data-page="chat"]) .input-wrapper {
-  background: rgba(30, 27, 36, 0.96);
-  border-color: rgba(207, 188, 255, 0.15);
-}
-
 html[data-theme="dark"] :where(body[data-page="chat"]) .suggestion-chip {
   background: rgba(30, 27, 36, 0.9);
   border-color: rgba(207, 188, 255, 0.12);
