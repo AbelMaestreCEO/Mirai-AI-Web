@@ -50,14 +50,20 @@
   padding: 18px 22px !important;
 }
 
-/* IA — diseño mejorado */
+/* IA — diseño mejorado con bordes redondeados */
 :where(body[data-page="chat"]) .message.ai .message-content {
-  background: var(--glass-bg) !important;
+  background: #ffffff !important;
   color: var(--text-primary) !important;
   border-radius: 24px 24px 24px 6px !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid var(--glass-border) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
   padding: 18px 22px !important;
+}
+
+/* Cuerpo del mensaje AI sin bordes cuadrados */
+:where(body[data-page="chat"]) .message.ai .message-body {
+  border-radius: 0 !important;
+  border: none !important;
 }
 
 /* Modo oscuro — ajustes de contraste */
@@ -78,6 +84,56 @@ html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .message-co
   height: 40px;
   border-radius: 50%;
   box-shadow: 0 3px 12px rgba(103, 80, 164, 0.3);
+}
+
+/* --- ICONOS DE ACCIÓN VISIBLES --- */
+/* Mensajes del usuario: iconos blancos sobre fondo morado */
+:where(body[data-page="chat"]) .message.user .msg-action {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+:where(body[data-page="chat"]) .message.user:hover .msg-action {
+  opacity: 1 !important;
+}
+
+:where(body[data-page="chat"]) .message.user .msg-action:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+:where(body[data-page="chat"]) .message.user .msg-action svg {
+  fill: currentColor !important;
+}
+
+/* Mensajes de la IA: iconos en color de acento */
+:where(body[data-page="chat"]) .message.ai .msg-action {
+  color: var(--text-tertiary) !important;
+}
+
+:where(body[data-page="chat"]) .message.ai .msg-action:hover {
+  color: var(--accent-color) !important;
+}
+
+/* Estados de éxito y error mantienen sus colores */
+:where(body[data-page="chat"]) .msg-action.success {
+  color: #386A20 !important;
+}
+
+html[data-theme="dark"] :where(body[data-page="chat"]) .msg-action.success {
+  color: #A8D88C !important;
+}
+
+:where(body[data-page="chat"]) .msg-action.error {
+  color: #D00000 !important;
+}
+
+/* Modo oscuro - mantener visibilidad en mensajes de usuario */
+html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+html[data-theme="dark"] :where(body[data-page="chat"]) .message.user .msg-action:hover {
+  color: #ffffff !important;
 }
 
 /* --- INPUT AREA REDISEÑADA --- */
