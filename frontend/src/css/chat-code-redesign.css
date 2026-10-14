@@ -3,6 +3,27 @@
    Estilos compartidos para ChatPage y CodePage
    ============================================ */
 
+/* --- FIX SCROLL HORIZONTAL --- */
+:where(body[data-page="chat"]) .chat-container,
+:where(body[data-page="code"]) .chat-container {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+}
+
+:where(body[data-page="chat"]) .chat-messages,
+:where(body[data-page="code"]) .chat-messages {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+:where(body[data-page="chat"]) .message-content,
+:where(body[data-page="code"]) .message-content {
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+}
+
 /* --- MENSAJES REDISEÑADOS (Chat y Code) --- */
 :where(body[data-page="chat"]) .message,
 :where(body[data-page="code"]) .message {
