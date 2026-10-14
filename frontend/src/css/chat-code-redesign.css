@@ -16,6 +16,24 @@
   width: 100% !important;
 }
 
+/* --- FIX SCROLL VERTICAL ---
+   header, .chat-container, sugerencias y footer son hermanos: con el
+   min-height: 100dvh del contenedor la página siempre desbordaba. La raíz pasa
+   a columna de 100dvh y el contenedor sólo rellena el hueco que queda. */
+:where(body[data-page="chat"]) #q-app,
+:where(body[data-page="code"]) #q-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+:where(body[data-page="chat"]) #q-app > .chat-container,
+:where(body[data-page="code"]) #q-app > .chat-container {
+  min-height: 0;
+  flex: 1 0 auto;
+}
+
 :where(body[data-page="chat"]) .chat-messages,
 :where(body[data-page="code"]) .chat-messages {
   overflow-x: hidden !important;
