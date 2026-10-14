@@ -13,7 +13,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { slug: '', label: 'Hogar', tooltip: 'Hogar', icon: 'home', alt: 'Hogar' },
-  { slug: 'chat', label: 'Chat', tooltip: 'Chat', icon: 'chat', alt: 'Chat' },
+  { slug: 'chat?new=1', label: 'Chat', tooltip: 'Chat', icon: 'chat', alt: 'Chat' },
   { slug: 'projects', label: 'Proyectos', tooltip: 'Proyectos', icon: 'projects', alt: 'Proyectos' },
   { slug: 'generation', label: 'Generación con IA', tooltip: 'Generación con IA', icon: 'generation', alt: 'Generación con IA' },
   { slug: 'course_category', label: 'Cursos', tooltip: 'Cursos', icon: 'courses', alt: 'Cursos' },

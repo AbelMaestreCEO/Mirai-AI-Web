@@ -30,7 +30,7 @@
     <!-- 2. ACCESOS DIRECTOS (4 visibles + desplegable vertical) -->
     <div class="shortcuts" :class="{ 'is-open': shortcutsOpen }">
      <div class="shortcuts-grid">
-      <AppLink to="chat" class="shortcut-card">
+      <AppLink to="chat" query="new=1" class="shortcut-card">
         <img class="shortcut-icon" src="/icons/ui/chat-48.png" srcset="/icons/ui/chat-48.png 1x, /icons/ui/chat-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
         <span class="shortcut-label">Chat IA</span>
       </AppLink>

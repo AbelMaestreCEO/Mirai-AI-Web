@@ -8,8 +8,19 @@
 // archivo (ver workers/worker.ts).
 
 import { defineConfig } from '#q-app';
+import { readFileSync, writeFileSync } from 'fs';
+import { resolve } from 'path';
 
 export default defineConfig(() => {
+  // Genera CACHE_NAME dinámico en cada build: YYYYMMDD-HHmmss
+  const now = new Date();
+  const cacheName = `mirai-ai-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+
+  // Reemplaza __CACHE_NAME__ en public/sw.js
+  const swPath = resolve(__dirname, '../public/sw.js');
+  const swContent = readFileSync(swPath, 'utf-8').replace('__CACHE_NAME__', cacheName);
+  writeFileSync(swPath, swContent, 'utf-8');
+
   return {
     // appearance: tema/acento y la hoja de estilos antes de montar nada;
     // pwa: registra el service worker (public/sw.js).

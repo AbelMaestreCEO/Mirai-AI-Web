@@ -1086,7 +1086,8 @@ async function loadOrCreateConversation() {
     return;
   }
 
-  const savedId = localStorage.getItem(CONVERSATION_KEY);
+  const forceNew = queryParam('new') || queryParam('initial_message');
+  const savedId = forceNew ? null : localStorage.getItem(CONVERSATION_KEY);
   if (savedId) {
     setConversation(savedId);
     await loadHistory(savedId);
