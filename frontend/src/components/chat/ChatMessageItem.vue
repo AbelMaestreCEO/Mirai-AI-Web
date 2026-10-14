@@ -5,7 +5,8 @@
     <small>{{ msg.content }}</small>
   </div>
 
-  <div v-else class="message fade-in" :class="msg.role" :style="msg.pending ? { opacity: '0.7' } : undefined">
+  <!-- `ai` además de `assistant`: los estilos del globo de IA (chat-code-redesign.css) van sobre .message.ai -->
+  <div v-else class="message fade-in" :class="[msg.role, { ai: msg.role === 'assistant' }]" :style="msg.pending ? { opacity: '0.7' } : undefined">
     <div v-if="msg.role !== 'system'" class="message-avatar" :style="msg.role === 'user' ? 'padding:0;overflow:hidden;' : ''">
       <template v-if="msg.role === 'user'">
         <img v-if="avatar.url && !avatarFailed" :src="avatar.url" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" @error="avatarFailed = true">
