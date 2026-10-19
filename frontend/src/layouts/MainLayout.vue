@@ -85,7 +85,11 @@
   </nav>
   <div class="mobile-overlay" :class="{ active: shell.open }" @click="closeMenu" />
 
-  <router-view />
+  <router-view v-slot="{ Component }">
+    <keep-alive :include="['LocationPage']">
+      <component :is="Component" />
+    </keep-alive>
+  </router-view>
 </template>
 
 <script setup lang="ts">

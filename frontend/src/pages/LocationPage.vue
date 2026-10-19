@@ -134,13 +134,17 @@
 //
 // Arreglado al migrar: los marcadores nuevos de otro dispositivo no llegaban
 // al mapa (el aviso en vivo llamaba a funciones que no existían).
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { apiFetch } from '@/lib/api';
 import { accentColor, loadGoogleMaps, mapColorScheme, pinSvg, trackMapsUsage } from '@/lib/google-maps';
 import { goToPage, pageHref } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
+
+// Necesario para que <KeepAlive :include="['LocationPage']"> (MainLayout) la
+// conserve y no se cree un mapa nuevo al volver a la página.
+defineOptions({ name: 'LocationPage' });
 
 interface LocMarker {
   id: string;
@@ -199,6 +203,40 @@ async function apiTasks(): Promise<TaskRow[]> {
     return Array.isArray(data) ? (data as TaskRow[]) : [];
   } catch {
     return [];
+  }
+}
+
+// Geocodificación inversa cacheada una semana en el navegador: es una llamada
+// de pago a Google y el mismo punto suele repetirse (p. ej. al volver a editar
+// un marcador). Se redondea a ~11 m para que clics cercanos compartan entrada.
+const GEOCODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const GEOCODE_KEY_PREFIX = 'mirai-geocode:';
+
+function geocodeKey(latlng: google.maps.LatLngLiteral): string {
+  return `${GEOCODE_KEY_PREFIX}${latlng.lat.toFixed(4)},${latlng.lng.toFixed(4)}`;
+}
+
+function readGeocodeCache(latlng: google.maps.LatLngLiteral): string | null {
+  try {
+    const raw = localStorage.getItem(geocodeKey(latlng));
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as { address?: unknown; ts?: unknown };
+    if (typeof entry.address !== 'string' || typeof entry.ts !== 'number') return null;
+    if (Date.now() - entry.ts > GEOCODE_TTL_MS) {
+      localStorage.removeItem(geocodeKey(latlng));
+      return null;
+    }
+    return entry.address;
+  } catch {
+    return null;
+  }
+}
+
+function writeGeocodeCache(latlng: google.maps.LatLngLiteral, address: string): void {
+  try {
+    localStorage.setItem(geocodeKey(latlng), JSON.stringify({ address, ts: Date.now() }));
+  } catch {
+    // Almacenamiento lleno o bloqueado: no es imprescindible.
   }
 }
 
@@ -459,16 +497,21 @@ function removePendingPin() {
 function placePending(latlng: google.maps.LatLngLiteral) {
   pending.value = latlng;
   dropPendingPin(latlng);
-  if (geocoder && !form.desc) {
-    void geocoder.geocode({ location: latlng }).then(
-      ({ results }) => {
-        const first = results[0];
-        if (!first) return;
-        trackMapsUsage('geocode');
-        if (!form.desc) form.desc = first.formatted_address;
-      },
-      () => {},
-    );
+  if (!form.desc) {
+    const cached = readGeocodeCache(latlng);
+    if (cached) form.desc = cached;
+    else if (geocoder) {
+      void geocoder.geocode({ location: latlng }).then(
+        ({ results }) => {
+          const first = results[0];
+          if (!first) return;
+          trackMapsUsage('geocode');
+          writeGeocodeCache(latlng, first.formatted_address);
+          if (!form.desc) form.desc = first.formatted_address;
+        },
+        () => {},
+      );
+    }
   }
   window.setTimeout(() => {
     if (!minimapEl.value || !pending.value) return;
@@ -613,6 +656,21 @@ useRealtime('location', () => {
 onMounted(() => {
   document.addEventListener('keydown', onKeydown);
   void nextTick(init);
+});
+
+// La página queda viva con <KeepAlive>: al volver hay que reacomodar el mapa
+// (su contenedor estuvo fuera del DOM) y actualizar los marcadores.
+onActivated(() => {
+  document.addEventListener('keydown', onKeydown);
+  if (!map) return;
+  google.maps.event.trigger(map, 'resize');
+  void refreshMarkers()
+    .then(() => markers.value.forEach(addLocMarker))
+    .catch(() => {});
+});
+
+onDeactivated(() => {
+  document.removeEventListener('keydown', onKeydown);
 });
 
 onBeforeUnmount(() => {
