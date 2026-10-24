@@ -402,10 +402,10 @@
     "semantic_hash": "147ccae00abdaa8d59d8acb7a66df4f3"
   },
   "frontend/src/pages/ChatPage.vue": {
-    "mtime": 1791948754.715614,
-    "seen": 1792123934.517528,
-    "ast_hash": "cb18b0bf4bd5fabc241e50ca615e2b4a",
-    "semantic_hash": "cb18b0bf4bd5fabc241e50ca615e2b4a"
+    "mtime": 1792809578.6299553,
+    "seen": 1792809626.683216,
+    "ast_hash": "5f4f86f0b1fb6f9e3263edf2c5af41e5",
+    "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
     "mtime": 1791493523.2366884,

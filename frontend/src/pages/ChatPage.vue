@@ -148,7 +148,7 @@
       <template v-if="enrolledCourses.length">
         <li class="conv-section-title"><span>📚 Cursos Iniciados</span></li>
         <li
-          v-for="course in enrolledCourses"
+          v-for="course in visibleCourses"
           :key="`course-${course.course_id || course.metadata_course_id}`"
           class="conv-item conv-course-item"
           :class="{ active: !!currentCourseId && (course.course_id || course.metadata_course_id) === currentCourseId }"
@@ -165,12 +165,15 @@
             </button>
           </div>
         </li>
+        <li v-if="enrolledCourses.length > visibleCoursesCount" class="conv-more">
+          <button type="button" class="conv-more-btn" @click="showMoreCourses">Mostrar más</button>
+        </li>
         <li class="conv-separator"><hr></li>
       </template>
 
       <template v-if="conversations.length">
         <li class="conv-section-title"><span>💬 Conversaciones</span></li>
-        <li v-for="conv in conversations" :key="conv.id" class="conv-item" :class="{ active: !currentCourseId && conv.id === conversationId }" @click="switchConversation(conv.id)">
+        <li v-for="conv in visibleConversations" :key="conv.id" class="conv-item" :class="{ active: !currentCourseId && conv.id === conversationId }" @click="switchConversation(conv.id)">
           <span class="conv-item-icon">💬</span>
           <div class="conv-item-info">
             <input
@@ -198,6 +201,9 @@
               <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" /></svg>
             </button>
           </div>
+        </li>
+        <li v-if="conversations.length > visibleConversationsCount" class="conv-more">
+          <button type="button" class="conv-more-btn" @click="showMoreConversations">Mostrar más</button>
         </li>
       </template>
       <li v-else-if="conversationsLoaded && !enrolledCourses.length" class="conv-empty">No hay conversaciones aún</li>
@@ -869,6 +875,20 @@ async function processAudio(blob: Blob) {
 const conversations = ref<Conversation[]>([]);
 const enrolledCourses = ref<EnrolledCourse[]>([]);
 const conversationsLoaded = ref(false);
+
+const PAGE_SIZE = 10;
+const visibleCoursesCount = ref(PAGE_SIZE);
+const visibleConversationsCount = ref(PAGE_SIZE);
+const visibleCourses = computed(() => enrolledCourses.value.slice(0, visibleCoursesCount.value));
+const visibleConversations = computed(() => conversations.value.slice(0, visibleConversationsCount.value));
+
+function showMoreCourses() {
+  visibleCoursesCount.value += PAGE_SIZE;
+}
+
+function showMoreConversations() {
+  visibleConversationsCount.value += PAGE_SIZE;
+}
 
 function setConversation(id: string) {
   conversationId.value = id;

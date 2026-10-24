@@ -2411,6 +2411,30 @@ footer.footer {
   fill: currentColor;
 }
 
+/* Botón "Mostrar más" de cada bloque del panel lateral */
+.conv-more {
+  padding: 4px 12px 8px;
+}
+
+.conv-more-btn {
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--accent-color);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.conv-more-btn:hover {
+  background: var(--message-user-bg);
+  border-color: var(--accent-color);
+}
+
 /* Input para renombrar */
 .conv-rename-input {
   width: 100%;
