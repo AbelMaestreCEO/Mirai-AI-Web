@@ -18,6 +18,13 @@ const PLAN_LIMITS: Record<string, Record<TokenType, number>> = {
   max:         { imagen: -1, musica: -1, video: -1 },
 };
 
+// Solo estos planes pueden usar Mirai Pro (DeepSeek V4-Pro).
+const PRO_PLANS = new Set(['development', 'max']);
+
+export function planAllowsPro(plan: string | null | undefined): boolean {
+  return PRO_PLANS.has(String(plan || 'basic').toLowerCase());
+}
+
 export async function ensurePlanColumn(env: Env) {
   try {
     await env.MIRAI_AI_DB.prepare(
@@ -26,12 +33,20 @@ export async function ensurePlanColumn(env: Env) {
   } catch (_) { }
 }
 
-async function getUserPlanLimits(userDni: string, env: Env) {
+export async function getUserPlan(userDni: string, env: Env): Promise<string> {
   await ensurePlanColumn(env);
   const row = await env.MIRAI_AI_DB.prepare(
     `SELECT plan FROM users WHERE dni = ?`
   ).bind(userDni.toUpperCase()).first<any>();
-  const plan = (row && row.plan) || 'basic';
+  return (row && row.plan) || 'basic';
+}
+
+export async function canUseProModel(userDni: string, env: Env): Promise<boolean> {
+  return planAllowsPro(await getUserPlan(userDni, env));
+}
+
+async function getUserPlanLimits(userDni: string, env: Env) {
+  const plan = await getUserPlan(userDni, env);
   return { plan, limits: PLAN_LIMITS[plan] || PLAN_LIMITS.basic };
 }
 

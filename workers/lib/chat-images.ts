@@ -83,16 +83,4 @@ export function hasImages(messages: any[]): boolean {
   return messages.some((m) => Array.isArray(m.content) && m.content.some((p: any) => p?.type === 'image_url'));
 }
 
-/**
- * Los mensajes sin sus imágenes, para un modelo que no ve (el respaldo): cada
- * imagen se cambia por una nota y el contenido vuelve a ser texto.
- */
-export function withoutImages(messages: any[]): any[] {
-  return messages.map((m) => {
-    if (!Array.isArray(m.content)) return m;
-    const text = m.content
-      .map((p: any) => (p?.type === 'text' ? p.text : '[Aquí el usuario adjuntó una imagen que ahora mismo no puedes ver.]'))
-      .join('\n\n');
-    return { ...m, content: text };
-  });
-}
+

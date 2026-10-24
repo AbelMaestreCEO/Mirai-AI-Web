@@ -1,15 +1,9 @@
 /* ============================================
    MIRAI AI - Llamadas al modelo de texto
-   DeepSeek directo con fallback a Workers AI, lectura de streams SSE y
+   DeepSeek directo (sin respaldo vía Cloudflare), lectura de streams SSE y
    reintento cuando el modelo se queda sin espacio razonando.
    ============================================ */
-import { withoutImages } from './chat-images';
 import { calcCost, logApiUsage } from './usage';
-
-// --- CONFIGURACIÓN ---
-function getAIGatewayURL(env: Env) {
-  return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/default/compat/chat/completions`;
-}
 
 // Lee un stream SSE estilo OpenAI separando la cadena de pensamiento
 // (reasoning_content) del texto final (content). Devuelve ambos por separado:
@@ -85,16 +79,21 @@ function splitAIResult({ content, reasoning, finishReason }: { content: string; 
 
 // options.onDelta(tipo, texto) — se invoca por cada trozo recibido del modelo.
 // options.metaOut — objeto donde se dejan {reasoning, finishReason} de la llamada.
+// options.thinking — false por defecto: DeepSeek razona solo si se pide.
+// options.reasoningEffort — none/low/high/max (con thinking activado).
+export type ReasoningEffort = 'none' | 'low' | 'high' | 'max';
+
 export interface CallAIOptions {
   temperature?: number;
   max_tokens?: number;
+  thinking?: boolean;
+  reasoningEffort?: ReasoningEffort;
   onDelta?: AIDeltaHandler | null;
   metaOut?: AIResultMeta;
 }
 
 export async function callAI(model: string, messages: any[], options: CallAIOptions = {}, env: Env) {
   const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
-  const FALLBACK_MODEL = '@cf/zai-org/glm-5.2';
 
   console.log(`🚀 Llamando DeepSeek directo: ${model}`);
 
@@ -103,100 +102,56 @@ export async function callAI(model: string, messages: any[], options: CallAIOpti
   metaOut.reasoning = '';
   metaOut.finishReason = null;
 
-  let deepseekResult: string | null = null;
-  let deepseekUsage: any = null;
+  const response = await fetch(DEEPSEEK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      // DeepSeek razona por defecto (effort high). Aquí se apaga salvo que la
+      // ruta lo pida expresamente.
+      thinking: { type: options.thinking === true ? 'enabled' : 'disabled' },
+      ...(options.thinking === true && options.reasoningEffort
+        ? { reasoning_effort: options.reasoningEffort }
+        : {}),
+      temperature: options.temperature ?? 0.7,
+      // Sin tope propio: si la ruta no fija max_tokens, se usa el de DeepSeek
+      // (8K sin pensar, 64K pensando) en vez de cortar la respuesta.
+      ...(options.max_tokens != null ? { max_tokens: options.max_tokens } : {}),
+      stream: true,
+      stream_options: { include_usage: true }
+    })
+  });
 
-  try {
-    const response = await fetch(DEEPSEEK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.max_tokens ?? 2000,
-        stream: true,
-        stream_options: { include_usage: true }
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`DeepSeek error ${response.status}: ${err}`);
-    }
-
-    const usageOut: { usage?: any } = {};
-    const raw = await readSSEStream(response, usageOut, onDelta);
-    const result = splitAIResult(raw);
-
-    // El registro de consumo va FUERA del try que dispara el fallback: si D1
-    // fallaba al anotar el gasto, el catch descartaba una respuesta ya generada
-    // y volvía a generarla entera con GLM — el doble de coste y de latencia por
-    // un fallo de contabilidad. logApiUsage ya es best-effort por dentro.
-    deepseekResult = result.text;
-    metaOut.reasoning = result.reasoning;
-    metaOut.finishReason = result.finishReason;
-    deepseekUsage = usageOut.usage;
-
-  } catch (err: any) {
-    console.warn(`⚠️ DeepSeek falló: ${err.message}. Usando fallback GLM...`);
-
-    // El fallback regenera la respuesta desde cero: si ya se habían enviado
-    // trozos al cliente hay que decirle que descarte lo pintado hasta ahora.
-    if (onDelta) await onDelta('reset', '');
-
-    const gwUrl = getAIGatewayURL(env);
-    const fallbackResponse = await fetch(gwUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'cf-aig-authorization': `Bearer ${env.AI_GATEWAY_KEY}`
-      },
-      body: JSON.stringify({
-        model: FALLBACK_MODEL,
-        // GLM no ve imágenes: van como una nota (ver lib/chat-images.ts).
-        messages: withoutImages(messages),
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.max_tokens ?? 2000,
-        stream: true
-      })
-    });
-
-    if (!fallbackResponse.ok) {
-      const fallbackErr = await fallbackResponse.text();
-      throw new Error(`Fallback GLM error ${fallbackResponse.status}: ${fallbackErr}`);
-    }
-
-    const fallbackResult = splitAIResult(await readSSEStream(fallbackResponse, null, onDelta));
-    metaOut.reasoning = fallbackResult.reasoning;
-    metaOut.finishReason = fallbackResult.finishReason;
-    await logApiUsage(env, {
-      provider: 'deepseek_fallback_gateway',
-      unit_type: 'call',
-      sub_type: FALLBACK_MODEL,
-      via_gateway: true,
-      cost_usd: 0
-    });
-    return fallbackResult.text;
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`DeepSeek error ${response.status}: ${err}`);
   }
+
+  const usageOut: { usage?: any } = {};
+  const raw = await readSSEStream(response, usageOut, onDelta);
+  const result = splitAIResult(raw);
+
+  metaOut.reasoning = result.reasoning;
+  metaOut.finishReason = result.finishReason;
 
   await logApiUsage(env, {
     provider: 'deepseek',
     unit_type: 'tokens',
     sub_type: model,
-    tokens_in: deepseekUsage?.prompt_tokens ?? null,
-    tokens_out: deepseekUsage?.completion_tokens ?? null,
+    tokens_in: usageOut.usage?.prompt_tokens ?? null,
+    tokens_out: usageOut.usage?.completion_tokens ?? null,
     cost_usd: calcCost('deepseek', model, {
-      tokensIn: deepseekUsage?.prompt_tokens ?? 0,
-      tokensOut: deepseekUsage?.completion_tokens ?? 0,
-      cacheHitTokens: deepseekUsage?.prompt_cache_hit_tokens ?? 0
+      tokensIn: usageOut.usage?.prompt_tokens ?? 0,
+      tokensOut: usageOut.usage?.completion_tokens ?? 0,
+      cacheHitTokens: usageOut.usage?.prompt_cache_hit_tokens ?? 0
     })
   });
 
-  return deepseekResult;
+  return result.text;
 }
 
 // ── GARANTÍA DE RESPUESTA ─────────────────────────────────────
@@ -254,7 +209,12 @@ export async function callAIEnsuringAnswer({ aiModel, aiMessages, aiOptions, env
   if (!text.trim() && reasoning.trim()) {
     console.warn(`⚠️ Respuesta vacía (finish_reason=${meta.finishReason}); pidiendo la conclusión al modelo.`);
     const retryMeta: AIResultMeta = {};
-    const retryOptions = { ...aiOptions, max_tokens: Math.max(aiOptions.max_tokens ?? 2000, 3000) };
+    const retryOptions = { ...aiOptions };
+    // Solo se sube el techo si la ruta ya lo había fijado; sin techo, se deja
+    // el valor por defecto de DeepSeek.
+    if (retryOptions.max_tokens != null) {
+      retryOptions.max_tokens = Math.max(retryOptions.max_tokens, 3000);
+    }
     text = await callAI(
       aiModel,
       buildAnswerRetryMessages(aiMessages, reasoning),

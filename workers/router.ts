@@ -64,7 +64,7 @@ import {
   mirrorPlanSession,
   mirrorUploadImage,
 } from './routes/mirror';
-import { ensurePlanColumn, handleGetTokens, handleGetTokensMonthly } from './routes/plans';
+import { ensurePlanColumn, getUserPlan, handleGetTokens, handleGetTokensMonthly } from './routes/plans';
 import {
   handleAnalyzePreferences,
   handleDeleteAvatar,
@@ -431,7 +431,8 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         "SELECT dni, first_name, last_name, role FROM users WHERE dni = ?"
       ).bind(userDni).first<any>();
       if (!user) return jsonResponse({ error: 'Usuario no encontrado' }, 404, corsHeaders);
-      return jsonResponse({ dni: user.dni, name: `${user.first_name || ''} ${user.last_name || ''}`.trim(), role: user.role }, 200, { ...corsHeaders, 'Cache-Control': 'no-store' });
+      const plan = await getUserPlan(userDni, env);
+      return jsonResponse({ dni: user.dni, name: `${user.first_name || ''} ${user.last_name || ''}`.trim(), role: user.role, plan }, 200, { ...corsHeaders, 'Cache-Control': 'no-store' });
     }
 
     if (path === '/api/logout' && request.method === 'POST') {

@@ -106,6 +106,14 @@
     <div id="suggestions-bar" class="quick-actions-bar">
       <button v-for="a in QUICK_ACTIONS" :key="a.label" class="quick-action-btn" :data-prompt="a.prompt" @click="quickAction(a.prompt)">{{ a.label }}</button>
     </div>
+    <label
+      v-if="isMaxPlan"
+      style="display:flex;align-items:center;gap:8px;margin:0 0 8px 4px;font-size:0.78rem;color:var(--text-secondary);cursor:pointer;user-select:none;"
+      title="Solo disponible en el plan Max"
+    >
+      <input v-model="deepReasoning" type="checkbox" style="accent-color:var(--accent-color);width:15px;height:15px;cursor:pointer;">
+      Razonamiento profundo (más lento y con más tokens)
+    </label>
     <div class="input-wrapper">
       <textarea
         id="code-input"
@@ -179,6 +187,7 @@ import AppLink from '@/components/AppLink.vue';
 import { api, errorMessage } from '@/lib/api';
 import { formatMessageContent } from '@/lib/markdown';
 import { handleMarkdownClick } from '@/lib/markdown-actions';
+import { currentUser, ensureSession } from '@/lib/session';
 
 interface Project {
   name: string;
@@ -285,6 +294,11 @@ function applyTitle() {
 const contextState = ref<'loading' | '' | 'error'>('loading');
 const contextText = ref('Cargando');
 const contextTitle = ref('Estado del contexto');
+
+// Razonamiento de los proyectos: "low" fijo, salvo el plan Max, que puede
+// activar "max" con el interruptor de razonamiento profundo.
+const isMaxPlan = computed(() => String(currentUser.value?.plan || 'basic').toLowerCase() === 'max');
+const deepReasoning = ref(false);
 
 async function loadProjectContext() {
   try {
@@ -489,6 +503,7 @@ async function sendMessage() {
       conversation_id: chatId,
       project_id: projectId,
       model: 'deepseek-reasoner',
+      deep_reasoning: isMaxPlan.value && deepReasoning.value,
     });
     typingLang.value = null;
     if (!ok) throw new Error(errorMessage(data, `HTTP ${status}`));
@@ -517,6 +532,7 @@ function quickAction(prompt: string) {
 
 // ── Arranque ──────────────────────────────────────────────────────────────
 onMounted(async () => {
+  await ensureSession();
   if (!projectId) {
     fatal.value = { message: 'No se especificó ningún proyecto.', action: 'projects' };
     return;

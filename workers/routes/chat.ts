@@ -3,12 +3,13 @@
    Clasificación de intención, chat de texto (con y sin streaming) y búsqueda
    en YouTube.
    ============================================ */
-import { type AIDeltaKind, type CallAIOptions, REASONING_STYLE_NOTE, callAI, callAIEnsuringAnswer } from '../lib/ai';
+import { type AIDeltaKind, type CallAIOptions, type ReasoningEffort, REASONING_STYLE_NOTE, callAI, callAIEnsuringAnswer } from '../lib/ai';
 import { AI_MODEL_NORMAL, AI_MODEL_PRO, AI_MODEL_VISION } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
 import { IMAGES_TO_MODEL, hasImages, imageParts, validateImageKeys } from '../lib/chat-images';
 import { jsonResponse } from '../lib/http';
 import { buildMiraiSystemPrompt } from '../lib/persona';
+import { TOKEN_SAVING_NOTE, trimMessagesToBudget } from '../lib/token-budget';
 import { calcCost, logApiUsage } from '../lib/usage';
 import { generateAndStoreTTS } from './audio';
 import {
@@ -29,13 +30,8 @@ import {
 } from './conversations';
 import { handleRoutedImageGeneration } from './image';
 import { handleMusicGeneration } from './music';
-import { type TokenType, checkAndConsumeToken } from './plans';
+import { type TokenType, canUseProModel, checkAndConsumeToken } from './plans';
 import { handleVideoGeneration } from './video';
-
-// Techo de salida del chat de texto. Tiene que dar para el razonamiento Y la
-// respuesta: con 2000 el modelo se quedaba sin espacio deliberando y terminaba
-// sin escribir nada. Sólo se factura lo que realmente genera, no el techo.
-const CHAT_MAX_TOKENS = 4000;
 
 // --- CONFIGURACIÓN DE CLASIFICACIÓN ---
 const INTENT_TYPES = {
@@ -157,6 +153,10 @@ export async function handleChat(request: Request, env: Env, corsHeaders: Record
     // ✨ LEER body UNA SOLA VEZ
     const body = await request.json<any>();
     const { conversation_id, audio_mode, force_type, course_id, lesson_id, model, skip_history, web_search, stream, time_zone, image_options, video_options } = body;
+
+    if (model === 'deepseek-reasoner' && !(await canUseProModel(userDni, env))) {
+      return jsonResponse({ error: 'Mirai Pro solo está disponible en los planes Development y Max' }, 403, corsHeaders);
+    }
 
     // Las imágenes del mensaje: claves en R2 subidas con /api/upload, solo
     // del propio usuario (lib/chat-images.ts).
@@ -392,7 +392,7 @@ function parseClassification(content: any): IntentClassification {
   return { intent: INTENT_TYPES.TEXT_DEFAULT, prompt: '' };
 }
 
-export async function handleTextChatInternal(message: string, conversation_id: string, audio_mode: string | boolean, course_id: string | null, lesson_id: string | null, model: any, env: Env, corsHeaders: Record<string, string>, userDni: string, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null, images: string[] = []) {
+export async function handleTextChatInternal(message: string, conversation_id: string, audio_mode: string | boolean, course_id: string | null, lesson_id: string | null, model: any, env: Env, corsHeaders: Record<string, string>, userDni: string, webSearch = false, stream = false, ctx: ExecutionContext | null = null, timeZone: string | null = null, images: string[] = [], reasoningEffort: ReasoningEffort | null = null) {
   try {
     console.log('🔍 handleTextChatInternal llamado');
     console.log('🔍 Parámetros:', { conversation_id, course_id, lesson_id, audio_mode, model, userDni });
@@ -448,6 +448,7 @@ export async function handleTextChatInternal(message: string, conversation_id: s
     // prompt sigue siendo idéntico entre mensajes y la caché aguanta.
     systemPrompt += TEMPORAL_PROMPT_NOTE;
     systemPrompt += REASONING_STYLE_NOTE;
+    systemPrompt += TOKEN_SAVING_NOTE;
 
     console.log('System prompt activo:', systemPrompt.substring(0, 80) + '...');
 
@@ -523,9 +524,8 @@ export async function handleTextChatInternal(message: string, conversation_id: s
     let aiOptions;
 
     if (hasImages([...historyTurns, { role: 'user', content: userContent }])) {
-      // Con imágenes solo vale el modelo que ve, sea cual sea el elegido. Piensa
-      // por defecto, como deepseek-v4-flash (que hoy es ese mismo modelo), así
-      // que la respuesta sigue llegando con su razonamiento.
+      // Con imágenes solo vale el modelo que ve. DeepSeek V4.1 Flash es también
+      // el modelo normal.
       console.log('👁️ Usando DeepSeek Flash (imágenes)');
       aiModel = AI_MODEL_VISION;
       aiMessages = [
@@ -533,29 +533,31 @@ export async function handleTextChatInternal(message: string, conversation_id: s
         ...historyTurns,
         { role: 'user', content: userContent }
       ];
-      aiOptions = { temperature: 0.7, max_tokens: model === 'deepseek-reasoner' ? 8000 : CHAT_MAX_TOKENS };
+      aiOptions = { temperature: 0.7 };
 
     } else if (model === 'llama') {
-      console.log('🦙 Usando DeepLlama (Gateway)');
+      // Alias heredado de cuando Mirai Pro apuntaba a otro motor. Ahora es el
+      // modelo normal (V4.1 Flash); Mirai Pro es 'deepseek-reasoner'.
+      console.log('🚀 Usando Mirai (alias heredado llama)');
       aiModel = AI_MODEL_NORMAL;
       aiMessages = [
         { role: 'system', content: systemPrompt },
         ...historyTurns,
         { role: 'user', content: stampedMessage }
       ];
-      aiOptions = { temperature: 0.7, max_tokens: CHAT_MAX_TOKENS };
+      aiOptions = { temperature: 0.7 };
 
     } else if (model === 'deepseek-reasoner') {
       console.log('🧠 Usando modelo DeepSeek Reasoner (Pro)');
       aiModel = AI_MODEL_PRO;
+      // El prompt de sistema va siempre: así Mirai conserva su personaje en
+      // todos los turnos, no solo en el primero.
       aiMessages = [
+        { role: 'system', content: systemPrompt },
         ...historyTurns,
         { role: "user", content: stampedMessage }
       ];
-      if (aiMessages.length === 1) {
-        aiMessages[0].content = `[Contexto del sistema]\n${systemPrompt}\n\n[Pregunta del usuario]\n${stampedMessage}`;
-      }
-      aiOptions = { temperature: 0.6, max_tokens: 8000 };
+      aiOptions = { temperature: 0.6, thinking: true, reasoningEffort: reasoningEffort ?? 'low' };
 
     } else {
       console.log('🚀 Usando modelo DeepSeek');
@@ -565,8 +567,12 @@ export async function handleTextChatInternal(message: string, conversation_id: s
         ...historyTurns,
         { role: "user", content: stampedMessage }
       ];
-      aiOptions = { temperature: 0.7, max_tokens: CHAT_MAX_TOKENS };
+      aiOptions = { temperature: 0.7 };
     }
+
+    // Red de seguridad de coste: recorta los turnos más viejos si el prompt se
+    // pasa del presupuesto. El prompt de sistema y el mensaje actual no se tocan.
+    aiMessages = trimMessagesToBudget(aiMessages);
 
     // 5.b Modo streaming (SSE): el cliente pinta pensamiento y respuesta trozo a
     // trozo. Con audio_mode 'always' se responde en JSON como siempre, porque el
@@ -625,8 +631,8 @@ function streamTextChat({ aiModel, aiMessages, aiOptions, message, images, conve
   const encoder = new TextEncoder();
 
   // Si el usuario cierra la pestaña, escribir en el stream falla. Ese fallo NO
-  // debe propagarse a callAI: allí un error se interpreta como caída de DeepSeek
-  // y dispararía una segunda generación completa con el modelo de respaldo.
+  // debe propagarse a callAI: allí se interpretaría como una caída de DeepSeek
+  // y se abortaría la generación en curso.
   let clientGone = false;
   const send = async (payload: unknown) => {
     if (clientGone) return;

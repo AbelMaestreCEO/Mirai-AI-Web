@@ -4,7 +4,7 @@
    ============================================ */
 
 // 💵 Precios de referencia en USD para el panel de consumo de APIs externas (/api/admin/api-usage).
-// Verificado 2026-07-16. Fuentes: DeepSeek https://api-docs.deepseek.com/quick_start/pricing/ (oficial),
+// Verificado 2026-10-23. Fuentes: DeepSeek https://api-docs.deepseek.com/quick_start/pricing/ (oficial),
 // Exa https://exa.ai/pricing, Firecrawl https://firecrawl.dev/pricing (plan Hobby),
 // Pruna https://docs.pruna.ai — cada familia de modelos se cobra distinto, así
 // que los precios están agrupados por forma de cobro en vez de por un único
@@ -33,11 +33,14 @@ const API_PRICING: {
   google_maps: Record<string, number>;
 } = {
   deepseek: {
-    'deepseek-v4-flash': { input_cache_miss_per_1m: 0.14, input_cache_hit_per_1m: 0.0028, output_per_1m: 0.28 },
-    'deepseek-v4-pro': { input_cache_miss_per_1m: 0.435, input_cache_hit_per_1m: 0.003625, output_per_1m: 0.87 },
-    // El que ve imágenes (lib/vision.ts). Tarifa fuera de hora punta, verificada 2026-10-09;
-    // en hora punta (01–04 y 06–10 UTC, lunes a viernes) es el doble.
+    // Tarifas fuera de hora punta. En hora punta (01–04 y 06–10 UTC, lunes a
+    // viernes) se duplican; ver isDeepSeekPeak().
     'deepseek-flash': { input_cache_miss_per_1m: 0.15, input_cache_hit_per_1m: 0.003, output_per_1m: 0.6 },
+    'deepseek-v4-pro': { input_cache_miss_per_1m: 0.66, input_cache_hit_per_1m: 0.022, output_per_1m: 1.98 },
+    // Alias heredados: DeepSeek los sirve con DeepSeek-V4.1-Flash y los cobra
+    // a precio Flash.
+    'deepseek-v4-flash': { input_cache_miss_per_1m: 0.15, input_cache_hit_per_1m: 0.003, output_per_1m: 0.6 },
+    'deepseek-v4-flash-vision-exp': { input_cache_miss_per_1m: 0.15, input_cache_hit_per_1m: 0.003, output_per_1m: 0.6 },
   },
   pruna: {
     // Precio fijo por unidad. p-judger cobra por imagen *de entrada* evaluada.
@@ -106,6 +109,16 @@ function upscalePriceForMegapixels(targetMp: number | null) {
   return tier ? tier.price : API_PRICING.pruna.upscale_by_megapixels[API_PRICING.pruna.upscale_by_megapixels.length - 1].price;
 }
 
+// Hora punta de DeepSeek: 01–04 y 06–10 UTC de lunes a viernes, con tarifa
+// doble. No se descuentan los festivos chinos: sin calendario oficial, como
+// mucho se sobreestima el coste en esos días.
+function isDeepSeekPeak(now = new Date()): boolean {
+  const day = now.getUTCDay();
+  if (day === 0 || day === 6) return false;
+  const hour = now.getUTCHours();
+  return (hour >= 1 && hour < 4) || (hour >= 6 && hour < 10);
+}
+
 export function calcCost(provider: string, subType: string | null, {
   units = 1, tokensIn = 0, tokensOut = 0, cacheHitTokens = 0,
   durationSeconds = null, resolution = '720p', draft = false,
@@ -131,9 +144,12 @@ export function calcCost(provider: string, subType: string | null, {
         const p = API_PRICING.deepseek[key];
         if (!p) return 0;
         const cacheMissTokens = Math.max(0, tokensIn - cacheHitTokens);
-        return (cacheMissTokens / 1e6) * p.input_cache_miss_per_1m
+        const peakMultiplier = isDeepSeekPeak() ? 2 : 1;
+        return peakMultiplier * (
+          (cacheMissTokens / 1e6) * p.input_cache_miss_per_1m
           + (cacheHitTokens / 1e6) * p.input_cache_hit_per_1m
-          + (tokensOut / 1e6) * p.output_per_1m;
+          + (tokensOut / 1e6) * p.output_per_1m
+        );
       }
       case 'pruna': {
         const perSecond = API_PRICING.pruna.video_per_second[key];

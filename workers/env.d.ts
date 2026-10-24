@@ -21,8 +21,6 @@ interface MiraiPersonaje {
 
 interface Env {
   DEEPSEEK_API_KEY: string;
-  AI_GATEWAY_KEY: string;
-  CF_ACCOUNT_ID: string;
   PRUNA_API_KEY: string;
   EXA_API_KEY: string;
   FIRECRAWL_API_KEY: string;

@@ -5,6 +5,7 @@
 import { requireAuth } from '../lib/auth';
 import { jsonResponse, safeJsonParse } from '../lib/http';
 import { handleTextChatInternal } from './chat';
+import { getUserPlan } from './plans';
 
 /* ════════════════════════════════════════════════════════════
    BLOQUE 2 — HANDLERS
@@ -163,7 +164,7 @@ export async function handleCodeChatMessage(request: Request, env: Env, corsHead
     return jsonResponse({ error: 'JSON inválido' }, 400, corsHeaders);
   }
 
-  const { message, conversation_id, project_id, model = 'deepseek' } = body;
+  const { message, conversation_id, project_id, model = 'deepseek', deep_reasoning } = body;
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return jsonResponse({ error: 'El campo "message" es requerido' }, 400, corsHeaders);
@@ -186,8 +187,13 @@ export async function handleCodeChatMessage(request: Request, env: Env, corsHead
     return jsonResponse({ error: 'El chat no pertenece a ese proyecto' }, 403, corsHeaders);
   }
 
+  // Los proyectos razonan en "low"; solo el plan Max puede pedir "max" con el
+  // interruptor de razonamiento profundo.
+  const plan = await getUserPlan(userDni, env);
+  const reasoningEffort = plan === 'max' && deep_reasoning === true ? 'max' : 'low';
+
   // Delegar en handleTextChatInternal (reutiliza toda la lógica existente:
-  // historial, system_prompt desde DB, llamada a DeepSeek/Llama, TTS, etc.)
+  // historial, system_prompt desde DB, llamada a DeepSeek, TTS, etc.)
   return await handleTextChatInternal(
     message.trim(),
     conversation_id,
@@ -197,7 +203,13 @@ export async function handleCodeChatMessage(request: Request, env: Env, corsHead
     model,
     env,
     corsHeaders,
-    userDni
+    userDni,
+    false,      // webSearch
+    false,      // stream
+    null,       // ctx
+    null,       // timeZone
+    [],         // images
+    reasoningEffort
   );
 }
 

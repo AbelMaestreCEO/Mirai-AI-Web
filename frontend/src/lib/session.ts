@@ -9,6 +9,7 @@ export interface SessionUser {
   dni: string;
   name: string;
   role: string;
+  plan?: string;
   [field: string]: unknown;
 }
 

@@ -118,7 +118,7 @@
       </div>
       <div class="settings-section-body">
         <div class="model-grid">
-          <label v-for="m in MODELS" :key="m.value" class="model-option">
+          <label v-for="m in visibleModels" :key="m.value" class="model-option">
             <input v-model="aiModel" type="radio" name="ai-model" :value="m.value">
             <div class="model-card">
               <div class="model-check"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" /></svg></div>
@@ -306,6 +306,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage, type ApiErrorBody } from '@/lib/api';
 import { notificationPermission, requestNotifications } from '@/lib/push';
+import { currentUser, ensureSession } from '@/lib/session';
 import { SETTINGS_KEY, THEME_KEY, THEME_MODE_KEY, applyAppearance, readSettings, type AppearanceSettings } from '@/lib/settings';
 
 // Caché local que usa el chat (no es la fuente de verdad: la cuenta sí).
@@ -334,11 +335,18 @@ function saveLocalSettings(d: AppearanceSettings) {
 }
 
 // ── Datos de las opciones ─────────────────────────────────────────────────
+const PRO_MODEL = 'deepseek-reasoner';
 const MODELS = [
-  { value: 'deepseek', emoji: '🌸', name: 'Mirai', desc: 'Modelo por defecto. Excelente para conversación general, análisis y creatividad.', badge: 'Recomendado', alt: false },
-  { value: 'llama', emoji: '⚡', name: 'Mirai Pro', desc: 'Motor avanzado con razonamiento profundo. Ideal para código, lógica compleja y análisis técnico.', badge: 'Pro', alt: true },
+  { value: 'deepseek', emoji: '🌸', name: 'Mirai', desc: 'DeepSeek V4.1 Flash. Modelo por defecto para conversación general, análisis y creatividad.', badge: 'Recomendado', alt: false },
+  { value: PRO_MODEL, emoji: '⚡', name: 'Mirai Pro', desc: 'DeepSeek V4-Pro con razonamiento profundo. Ideal para código, lógica compleja y análisis técnico.', badge: 'Dev · Max', alt: true },
 ];
-const MODEL_LABELS: Record<string, string> = { deepseek: '🌸 Mirai', llama: '⚡ Mirai Pro' };
+const MODEL_LABELS: Record<string, string> = { deepseek: '🌸 Mirai', [PRO_MODEL]: '⚡ Mirai Pro', llama: '🌸 Mirai' };
+
+// Mirai Pro solo lo ven (y lo pueden guardar) los planes Development y Max.
+const planAllowsPro = computed(() =>
+  ['development', 'max'].includes(String(currentUser.value?.plan || 'basic').toLowerCase())
+);
+const visibleModels = computed(() => MODELS.filter((m) => m.value !== PRO_MODEL || planAllowsPro.value));
 
 const COLOR_OPTIONS = [
   { name: 'purple', label: 'Violeta', swatch: 'linear-gradient(135deg,#6750A4,#9A82DB)' },
@@ -585,6 +593,12 @@ async function loadPreferences() {
 const aiModel = ref(stored(MODEL_KEY) || 'deepseek');
 
 function saveModel() {
+  if (aiModel.value === PRO_MODEL && !planAllowsPro.value) {
+    aiModel.value = 'deepseek';
+    store(MODEL_KEY, 'deepseek');
+    showToast('Mirai Pro solo está disponible en los planes Development y Max', '🔒');
+    return;
+  }
   store(MODEL_KEY, aiModel.value);
   showToast(`Modelo cambiado a ${MODEL_LABELS[aiModel.value] ?? aiModel.value}`, '✅');
 }
@@ -750,6 +764,13 @@ function resetSettings() {
 
 // ── Carga inicial ─────────────────────────────────────────────────────────
 onMounted(async () => {
+  // El plan decide qué modelos se muestran, así que la sesión va primero.
+  await ensureSession();
+  if (aiModel.value === PRO_MODEL && !planAllowsPro.value) {
+    aiModel.value = 'deepseek';
+    store(MODEL_KEY, 'deepseek');
+  }
+
   // Fuentes de la página (Inter y Roboto Mono, como en el <head> de
   // settings.html) y de la vista previa de tipografía.
   const fontSheets: [string, string][] = [
@@ -789,8 +810,9 @@ onMounted(async () => {
     if (db.fontSize) fontSize.value = Number(db.fontSize);
     if (db.themeMode) setThemeMode(db.themeMode);
     if (db.aiModel) {
-      store(MODEL_KEY, db.aiModel);
-      aiModel.value = db.aiModel;
+      const next = db.aiModel === PRO_MODEL && !planAllowsPro.value ? 'deepseek' : db.aiModel;
+      store(MODEL_KEY, next);
+      aiModel.value = next;
     }
     if (db.twoFactor !== undefined) twoFactor.value = db.twoFactor;
     applyNotifPagePrefs(db);

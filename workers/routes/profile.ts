@@ -6,6 +6,7 @@ import { callAI } from '../lib/ai';
 import { AI_MODEL_NORMAL } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
 import { jsonResponse } from '../lib/http';
+import { canUseProModel } from './plans';
 
 // ── BLOQUE 2: handleGetProfile ────────────────────────────────
 export async function handleGetProfile(request: Request, env: Env, corsHeaders: Record<string, string>) {
@@ -73,6 +74,10 @@ export async function handleSaveUserSettings(request: Request, env: Env, corsHea
     const clean: Record<string, unknown> = {};
     for (const key of allowed) {
       if (body[key] !== undefined) clean[key] = body[key];
+    }
+
+    if (clean.aiModel === 'deepseek-reasoner' && !(await canUseProModel(userDni, env))) {
+      return jsonResponse({ error: 'Mirai Pro solo está disponible en los planes Development y Max' }, 403, corsHeaders);
     }
 
     await env.MIRAI_AI_DB.prepare(

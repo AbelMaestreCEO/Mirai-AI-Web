@@ -345,7 +345,7 @@ export const DOC_TOPICS: Record<string, { title: string; body: string }> = {
   },
   "chat-modelos": {
     "title": "🧠 Modelos de IA",
-    "body": "<p>Puedes cambiar el modelo de IA desde el selector en la parte superior del chat:</p><ul><li><strong>DeepSeek</strong> — Modelo principal, rápido y preciso</li><li><strong>DeepSeek Reasoner</strong> — Para problemas complejos que requieren razonamiento profundo</li><li><strong>Llama</strong> — Alternativa ligera</li></ul>"
+    "body": "<p>Puedes cambiar el modelo de IA desde Configuración:</p><ul><li><strong>Mirai</strong> — DeepSeek V4.1 Flash, el modelo por defecto, rápido y preciso</li><li><strong>Mirai Pro</strong> — DeepSeek V4-Pro con razonamiento profundo; solo en los planes Development y Max</li></ul>"
   },
   "chat-archivos": {
     "title": "📎 Adjuntar archivos",
@@ -505,11 +505,11 @@ export const DOC_TOPICS: Record<string, { title: string; body: string }> = {
   },
   "purchase-planes": {
     "title": "💎 Planes disponibles",
-    "body": "<p>Mirai AI ofrece 5 planes de suscripción mensual:</p><ul><li><strong>Basic</strong> — 10 imágenes, 2 músicas, 1 video por día. Ideal para explorar la plataforma. (Gratis)</li><li><strong>Students</strong> — 25 imágenes, 5 músicas, 3 videos por día. Pensado para estudiantes con necesidades académicas y creativas. ($4.99/mes)</li><li><strong>Development</strong> — 50 imágenes, 12 músicas, 8 videos por día. Para desarrolladores y profesionales. Incluye acceso a DeepSeek V4-Pro y edición avanzada. ($9.99/mes)</li><li><strong>Designer</strong> — 120 imágenes, 25 músicas, 15 videos por día. Para creativos con alta demanda. Incluye LoRA, Try-On y Video Avatar. ($19.99/mes)</li><li><strong>Max</strong> — Generación ilimitada, todos los modelos, soporte prioritario. ($49.99/mes)</li></ul><p>El chat con IA (texto) es ilimitado en todos los planes.</p>"
+    "body": "<p>Mirai AI ofrece 5 planes de suscripción mensual:</p><ul><li><strong>Basic</strong> — 10 imágenes, 2 músicas, 1 video por día. Ideal para explorar la plataforma. (Gratis)</li><li><strong>Students</strong> — 25 imágenes, 5 músicas, 3 videos por día. Pensado para estudiantes con necesidades académicas y creativas. ($4.99/mes)</li><li><strong>Development</strong> — 50 imágenes, 12 músicas, 8 videos por día. Para desarrolladores y profesionales. Incluye acceso a Mirai Pro (DeepSeek V4-Pro) y edición avanzada. ($9.99/mes)</li><li><strong>Designer</strong> — 120 imágenes, 25 músicas, 15 videos por día. Para creativos con alta demanda. Incluye LoRA, Try-On y Video Avatar. ($19.99/mes)</li><li><strong>Max</strong> — Generación ilimitada, todos los modelos, soporte prioritario. ($49.99/mes)</li></ul><p>El chat con IA (texto) es ilimitado en todos los planes.</p>"
   },
   "purchase-api": {
     "title": "📊 Costos de API",
-    "body": "<p>Los tokens de cada plan se calculan en base al costo real de las APIs:</p><h3>Pruna AI (Generación visual)</h3><ul><li>Imagen: $0.005/imagen</li><li>Edición de imagen: $0.010/imagen</li><li>Video: $0.02/segundo (~$0.10 por video de 5s)</li><li>Upscale: $0.10/imagen 8MP</li><li>Try-On: $0.015/primera prenda</li><li>Entrenamiento LoRA: $1.80/1000 pasos</li></ul><h3>DeepSeek (Chat IA)</h3><ul><li>V4-Flash Input: $0.14/1M tokens (cache miss)</li><li>V4-Flash Output: $0.28/1M tokens</li><li>V4-Pro Input: $0.435/1M tokens</li><li>V4-Pro Output: $0.87/1M tokens</li></ul><div class=\"doc-tip\">El costo de texto por mensaje es mínimo (~$0.0006), por eso el chat es ilimitado en todos los planes.</div>"
+    "body": "<p>Los tokens de cada plan se calculan en base al costo real de las APIs:</p><h3>Pruna AI (Generación visual)</h3><ul><li>Imagen: $0.005/imagen</li><li>Edición de imagen: $0.010/imagen</li><li>Video: $0.02/segundo (~$0.10 por video de 5s)</li><li>Upscale: $0.10/imagen 8MP</li><li>Try-On: $0.015/primera prenda</li><li>Entrenamiento LoRA: $1.80/1000 pasos</li></ul><h3>DeepSeek (Chat IA)</h3><ul><li>V4.1-Flash Input: $0.15/1M tokens (cache miss)</li><li>V4.1-Flash Output: $0.60/1M tokens</li><li>V4-Pro Input: $0.66/1M tokens</li><li>V4-Pro Output: $1.98/1M tokens</li></ul><div class=\"doc-tip\">Precios de hora valle; en hora punta (01–04 y 06–10 UTC, lunes a viernes) DeepSeek cobra el doble.</div>"
   },
   "panel-planes": {
     "title": "⭐ Planes",
