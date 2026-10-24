@@ -7,7 +7,10 @@
   -->
   <nav class="mobile-sidebar" :class="{ active: shell.open, collapsed: shell.collapsed }">
     <div class="sidebar-header">
-      <h3>Mirai AI</h3>
+      <div class="sidebar-brand">
+        <h3>Mirai Suite</h3>
+        <span class="sidebar-subtitle">{{ subtitle }}</span>
+      </div>
       <div style="display: flex; gap: 8px; align-items: center">
         <button class="sidebar-collapse-btn" title="Colapsar barra" @click="toggleCollapsed">
           <svg viewBox="0 0 24 24" width="18" height="18" :style="{ transform: shell.collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }">
@@ -95,6 +98,7 @@
 <script setup lang="ts">
 // Barra lateral de la app (la .mobile-sidebar de las páginas antiguas, que
 // manejaban app.js y mirai-boot.js).
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import AppLink from '@/components/AppLink.vue';
 import { NAV_ITEMS } from '@/lib/nav';
@@ -104,6 +108,21 @@ import { closeMenu, shell, toggleCollapsed } from '@/lib/shell';
 
 const route = useRoute();
 const year = new Date().getFullYear();
+
+/** Título de la página actual sin la marca, para el subtítulo del panel. */
+const subtitle = computed(() => {
+  const custom = route.meta.subtitle as string | undefined;
+  if (custom) return custom;
+  const raw = (route.meta.title as string | undefined) ?? '';
+  return (
+    raw
+      .replace(/mirai\s+(ai|ecosystem)/gi, '')
+      .replace(/mirai/gi, '')
+      .replace(/[-–—|]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Inicio'
+  );
+});
 
 /** Página actual: el primer segmento de la ruta es el slug antiguo. */
 function isActive(slug: string): boolean {

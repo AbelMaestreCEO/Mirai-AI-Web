@@ -215,6 +215,11 @@ body::before {
   gap: 10px;
 }
 
+/* El título de la página se muestra como subtítulo en la barra lateral. */
+.header > .header-title {
+  display: none;
+}
+
 /* Indicador de estado */
 .status-dot {
   width: 8px;
@@ -894,6 +899,26 @@ footer.footer {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
+}
+
+.sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-subtitle {
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-sidebar.collapsed .sidebar-brand {
+  display: none;
 }
 
 /* Contenido del Sidebar */

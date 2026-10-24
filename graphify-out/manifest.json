@@ -228,9 +228,9 @@
     "semantic_hash": "61832bb97bfc3651664ea8ba4c220a32"
   },
   "frontend/src/layouts/MainLayout.vue": {
-    "mtime": 1792406088.0741506,
-    "seen": 1792406145.070918,
-    "ast_hash": "adf785c63bf24d0d91897df9354c6dc5",
+    "mtime": 1792807512.4625337,
+    "seen": 1792807545.4234464,
+    "ast_hash": "332317b44bc96eeaca9837810c70caa1",
     "semantic_hash": ""
   },
   "frontend/src/lib/apa-docx.ts": {
@@ -588,10 +588,10 @@
     "semantic_hash": "59b49f1b0e15b1d99b0181a3395bf962"
   },
   "frontend/src/router/routes.ts": {
-    "mtime": 1791493523.262249,
-    "seen": 1791840274.7836084,
-    "ast_hash": "3c1b740ee39c3665a95f2c12453f65a8",
-    "semantic_hash": "3c1b740ee39c3665a95f2c12453f65a8"
+    "mtime": 1792807505.0200224,
+    "seen": 1792807545.4280128,
+    "ast_hash": "fec714b9998f736d592e6e3e3b15a168",
+    "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
     "mtime": 1791214717.0985725,
