@@ -6,7 +6,7 @@
 
   <div id="main-content" class="report-student-container">
     <div class="reports-hero">
-      <h1>Mis Reportes</h1>
+      <img class="module-hero-icon" src="/icons/ui/reports-48.png" srcset="/icons/ui/reports-48.png 1x, /icons/ui/reports-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Completa los reportes asignados y, si eres profesor o administrador, créalos y adminístralos.</p>
     </div>
 

@@ -6,7 +6,7 @@
   </header>
   <div class="doc-container">
     <div class="doc-hero">
-      <h1>Documentación</h1>
+      <img class="module-hero-icon" src="/icons/ui/docs-48.png" srcset="/icons/ui/docs-48.png 1x, /icons/ui/docs-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Aprende a utilizar cada módulo del sistema Mirai AI.</p>
     </div>
     <div class="doc-search courses-search" style="margin:0 auto 1.5rem;max-width:480px;">
@@ -14,7 +14,7 @@
       <input v-model="search" type="text" placeholder="Buscar módulo..." autocomplete="off">
     </div>
     <div class="doc-grid">
-      <div v-for="m in filtered" :key="m.href" class="doc-card" :class="{ open: openCards.has(m.href) }">
+      <div v-for="m in filtered" :key="m.href" class="doc-row" :class="{ open: openCards.has(m.href) }">
         <div class="doc-card-header" @click="onCard(m)">
           <ModuleIcon :icon="m.icon" class-name="doc-card-icon" />
           <div class="doc-card-info">
@@ -125,21 +125,20 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 :where(body[data-page="documentation"]) .doc-hero h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 700; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 :where(body[data-page="documentation"]) .doc-hero p { color: var(--text-secondary); font-size: 0.92rem; margin-top: .3rem; }
 :where(body[data-page="documentation"]) .doc-search { max-width: 480px; margin: 1rem auto 1.5rem; }
-:where(body[data-page="documentation"]) .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-:where(body[data-page="documentation"]) .doc-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; transition: transform .2s, box-shadow .2s; }
-:where(body[data-page="documentation"]) .doc-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
-:where(body[data-page="documentation"]) .doc-card-header { display: flex; align-items: center; gap: .6rem; padding: 1rem 1.1rem; cursor: pointer; }
+:where(body[data-page="documentation"]) .doc-grid { max-width: 820px; margin: 0 auto; border-top: 1px solid var(--glass-border); }
+:where(body[data-page="documentation"]) .doc-row { border-bottom: 1px solid var(--glass-border); }
+:where(body[data-page="documentation"]) .doc-card-header { display: flex; align-items: center; gap: .7rem; padding: .9rem .25rem; cursor: pointer; }
 :where(body[data-page="documentation"]) .doc-card-icon { font-size: 1.6rem; flex-shrink: 0; }
 :where(body[data-page="documentation"]) img.doc-card-icon, :where(body[data-page="documentation"]) img.doc-modal-icon { width: 28px; height: 28px; object-fit: contain; display: block; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.18)); }
 :where(body[data-page="documentation"]) .doc-card-info { flex: 1; min-width: 0; }
 :where(body[data-page="documentation"]) .doc-card-title { font-size: .95rem; font-weight: 700; color: var(--text-primary); }
 :where(body[data-page="documentation"]) .doc-card-desc { font-size: .75rem; color: var(--text-secondary); margin-top: 2px; }
 :where(body[data-page="documentation"]) .doc-card-arrow { font-size: .85rem; color: var(--text-secondary); transition: transform .2s; flex-shrink: 0; }
-:where(body[data-page="documentation"]) .doc-card.open .doc-card-arrow { transform: rotate(90deg); }
+:where(body[data-page="documentation"]) .doc-row.open .doc-card-arrow { transform: rotate(90deg); }
 :where(body[data-page="documentation"]) .doc-card-subs { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-:where(body[data-page="documentation"]) .doc-card.open .doc-card-subs { max-height: 600px; }
-:where(body[data-page="documentation"]) .doc-sub-list { padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 4px; }
-:where(body[data-page="documentation"]) .doc-sub-item { display: flex; align-items: center; gap: .5rem; padding: .45rem .7rem; border-radius: 8px; font-size: .82rem; font-weight: 500; color: var(--text-primary); cursor: pointer; transition: background .15s; }
+:where(body[data-page="documentation"]) .doc-row.open .doc-card-subs { max-height: 600px; }
+:where(body[data-page="documentation"]) .doc-sub-list { padding: 0 .25rem .9rem 2.4rem; display: flex; flex-direction: column; gap: 2px; }
+:where(body[data-page="documentation"]) .doc-sub-item { display: flex; align-items: center; gap: .5rem; padding: .45rem .6rem; border-radius: 8px; font-size: .82rem; font-weight: 500; color: var(--text-primary); cursor: pointer; transition: background .15s; }
 :where(body[data-page="documentation"]) .doc-sub-item:hover { background: var(--secondary-container); }
 :where(body[data-page="documentation"]) .doc-sub-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-color); flex-shrink: 0; }
 
@@ -159,7 +158,6 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
 :where(body[data-page="documentation"]) .doc-modal-body .doc-tip { background: var(--secondary-container); border-radius: 10px; padding: .6rem .8rem; font-size: .8rem; margin-top: .75rem; }
 
 @media (max-width: 600px) {
-  :where(body[data-page="documentation"]) .doc-grid { grid-template-columns: 1fr; }
   :where(body[data-page="documentation"]) .doc-container { padding: 1rem .75rem 3rem; }
 }
 </style>

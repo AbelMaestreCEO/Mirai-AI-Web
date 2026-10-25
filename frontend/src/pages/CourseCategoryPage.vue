@@ -6,7 +6,7 @@
 
   <div class="categories-container">
     <div class="categories-hero">
-      <h1>Explora por Categorías</h1>
+      <img class="module-hero-icon" src="/icons/ui/courses-48.png" srcset="/icons/ui/courses-48.png 1x, /icons/ui/courses-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Encuentra el camino perfecto para tu aprendizaje. Desde programación hasta herramientas de oficina.</p>
     </div>
 

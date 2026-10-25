@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev --port 8787",
+    "dev:remote": "wrangler dev --port 8787 --remote --env-file .dev.vars.remote",
     "dev:frontend": "npm --prefix frontend run dev",
     "typecheck": "tsc -p . && npm --prefix frontend run typecheck",
     "deploy": "npm run typecheck && wrangler deploy",

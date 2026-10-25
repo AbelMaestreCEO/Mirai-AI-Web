@@ -7,7 +7,7 @@
   <div class="courses-container">
     <!-- Hero -->
     <div class="courses-hero">
-      <h1>🥗 Dieta & Nutrición</h1>
+      <img class="module-hero-icon" src="/icons/ui/diet-48.png" srcset="/icons/ui/diet-48.png 1x, /icons/ui/diet-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Planifica tu alimentación, descubre recetas con IA y alcanza tus metas nutricionales.</p>
     </div>
 

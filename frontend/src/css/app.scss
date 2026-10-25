@@ -163,3 +163,64 @@ optgroup {
     animation: none !important;
   }
 }
+
+// Instalar en Linux, cuando se llega desde el boton de Mirai Store.
+
+.instalar-linux {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: 3100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: min(92vw, 620px);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--border-radius-md, 16px);
+  font-size: 0.85rem;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.instalar-linux__texto {
+  flex: 1;
+}
+
+.instalar-linux__texto strong {
+  color: var(--text-primary);
+}
+
+.instalar-linux__accion {
+  flex: none;
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--border-radius-pill, 999px);
+  background: var(--accent-gradient);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.instalar-linux__espera {
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.instalar-linux__cerrar {
+  flex: none;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}

@@ -6,29 +6,15 @@
 
   <div class="courses-container">
     <div class="courses-hero">
-      <h1>Formatos DOCX</h1>
+      <img class="module-hero-icon" src="/icons/ui/format-48.png" srcset="/icons/ui/format-48.png 1x, /icons/ui/format-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Aplica negrita, cursiva y subrayado automáticamente a palabras clave en tus documentos DOCX.</p>
     </div>
 
-    <!-- Barra de progreso (oculta mientras no se procesa) -->
-    <div id="fmt-progress-row" class="fmt-progress-row" :style="progress > 0 ? { display: 'flex' } : undefined">
-      <div class="fmt-progress-track">
-        <div id="fmt-progress-fill" class="fmt-progress-fill" :style="{ width: `${progress}%` }"></div>
-      </div>
-      <span id="fmt-progress-label" class="fmt-progress-label">{{ progress }}%</span>
-    </div>
-
-    <div id="fmt-status-row" class="courses-count fmt-status-row">
-      <span id="fmt-status-icon">{{ STATUS_ICONS[status.type] }}</span>
-      <span id="fmt-status-msg">{{ status.message }}</span>
-    </div>
-
-    <div class="fmt-grid">
-      <!-- ── COLUMNA IZQUIERDA: Documentos ── -->
-      <div class="course-card" style="cursor:default; animation-delay:0.05s;">
-        <div class="course-icon">📁</div>
-        <h3 class="course-title">Documentos</h3>
-        <p class="course-description">Archivos DOCX a procesar</p>
+    <div class="fmt-flow">
+      <!-- ── 1. Documentos ── -->
+      <section class="fmt-section">
+        <h2 class="fmt-section-title">1. Documentos</h2>
+        <p class="fmt-section-desc">Sube los archivos DOCX a los que quieres aplicar el formato.</p>
         <div
           id="fmt-upload-zone"
           class="fmt-upload-zone"
@@ -38,7 +24,7 @@
           @dragleave="dragOver = false"
           @drop.prevent="onDrop"
         >
-          <span style="font-size:2.5rem; display:block; margin-bottom:10px;">📂</span>
+          <span style="font-size:2rem; display:block; margin-bottom:8px;">📂</span>
           <p class="upload-text" style="margin:0 0 4px;">Arrastra archivos <strong>DOCX</strong> aquí</p>
           <p class="upload-hint" style="margin:0;">o haz clic para seleccionar</p>
           <input id="fmt-file-input" ref="fileInput" type="file" accept=".docx" multiple hidden @change="onFilesChosen">
@@ -55,29 +41,16 @@
             <button class="btn-fmt-remove" title="Eliminar" @click="files.splice(i, 1)">✕</button>
           </li>
         </ul>
-        <div class="fmt-col-stats">
-          <div class="stat-card" style="padding:12px 16px; gap:10px; flex:1;">
-            <div class="stat-icon" style="width:36px;height:36px;font-size:1.2rem;">📄</div>
-            <div class="stat-content">
-              <span class="stat-label">Archivos</span>
-              <span id="fmt-file-count" class="stat-value" style="font-size:1.2rem;">{{ files.length }}</span>
-            </div>
-          </div>
-          <div class="stat-card" style="padding:12px 16px; gap:10px; flex:1;">
-            <div class="stat-icon" style="width:36px;height:36px;font-size:1.2rem;">💾</div>
-            <div class="stat-content">
-              <span class="stat-label">Total</span>
-              <span id="fmt-total-size" class="stat-value" style="font-size:1.2rem;">{{ files.length ? formatSize(totalSize) : '0 KB' }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+        <p class="fmt-inline-stats">
+          <strong id="fmt-file-count">{{ files.length }}</strong> archivo(s) ·
+          <strong id="fmt-total-size">{{ files.length ? formatSize(totalSize) : '0 KB' }}</strong> en total
+        </p>
+      </section>
 
-      <!-- ── COLUMNA DERECHA: Reglas ── -->
-      <div class="course-card" style="cursor:default; animation-delay:0.1s;">
-        <div class="course-icon">🎯</div>
-        <h3 class="course-title">Reglas de Formato</h3>
-        <p class="course-description">Palabras clave y estilos</p>
+      <!-- ── 2. Reglas ── -->
+      <section class="fmt-section">
+        <h2 class="fmt-section-title">2. Reglas de formato</h2>
+        <p class="fmt-section-desc">Define las palabras clave y los estilos que se aplicarán.</p>
         <div class="form-group">
           <label for="fmt-keyword">Palabra clave</label>
           <input id="fmt-keyword" ref="keywordInput" v-model="keyword" type="text" placeholder="Ej: contrato, cláusula..." autocomplete="off" @keydown.enter.prevent="addRule">
@@ -99,10 +72,10 @@
             </label>
           </div>
         </div>
-        <button id="fmt-add-rule-btn" class="btn-secondary" style="width:100%; margin-bottom:16px;" @click="addRule">
+        <button id="fmt-add-rule-btn" class="btn-secondary" style="margin-bottom:16px;" @click="addRule">
           ➕ Añadir Regla
         </button>
-        <div style="overflow-x:auto; border:1px solid var(--glass-border); border-radius:var(--border-radius-sm); margin-bottom:8px;">
+        <div class="fmt-table-wrap">
           <table class="fmt-rules-table">
             <thead>
               <tr>
@@ -131,19 +104,37 @@
             </tbody>
           </table>
         </div>
-        <div class="fmt-col-stats" style="margin-bottom:12px;">
-          <div class="stat-card" style="padding:12px 16px; gap:10px; flex:1;">
-            <div class="stat-icon" style="width:36px;height:36px;font-size:1.2rem;">📋</div>
-            <div class="stat-content">
-              <span class="stat-label">Reglas</span>
-              <span id="fmt-rule-count" class="stat-value" style="font-size:1.2rem;">{{ rules.length }}</span>
-            </div>
+        <p class="fmt-inline-stats"><strong id="fmt-rule-count">{{ rules.length }}</strong> regla(s) definida(s)</p>
+      </section>
+
+      <!-- ── 3. Proceso ── -->
+      <section class="fmt-section">
+        <h2 class="fmt-section-title">3. Procesar</h2>
+        <p class="fmt-section-desc">Revisa el resumen y descarga los documentos formateados.</p>
+
+        <div id="fmt-progress-row" class="fmt-progress-row" :style="progress > 0 ? { display: 'flex' } : undefined">
+          <div class="fmt-progress-track">
+            <div id="fmt-progress-fill" class="fmt-progress-fill" :style="{ width: `${progress}%` }"></div>
           </div>
+          <span id="fmt-progress-label" class="fmt-progress-label">{{ progress }}%</span>
         </div>
-        <button id="fmt-process-btn" class="course-start-btn" :disabled="!files.length || processing" style="font-size:1rem; padding:14px;" @click="processFiles">
+
+        <div id="fmt-status-row" class="fmt-status-row">
+          <span id="fmt-status-icon">{{ STATUS_ICONS[status.type] }}</span>
+          <span id="fmt-status-msg">{{ status.message }}</span>
+        </div>
+
+        <p class="fmt-inline-stats">
+          Archivos: <strong>{{ files.length }}</strong> ·
+          Reglas: <strong>{{ rules.length }}</strong> ·
+          Tamaño: <strong>{{ files.length ? formatSize(totalSize) : '0 KB' }}</strong>
+        </p>
+
+        <button id="fmt-process-btn" class="course-start-btn" :disabled="!files.length || !rules.length || processing" style="font-size:1rem; padding:14px 28px;" @click="processFiles">
           ⚡ Procesar y Descargar
         </button>
-      </div>
+        <p class="fmt-hint">Sube al menos un archivo y define una regla para habilitar el proceso.</p>
+      </section>
     </div>
   </div>
 </template>

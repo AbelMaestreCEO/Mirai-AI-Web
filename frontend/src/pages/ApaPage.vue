@@ -6,158 +6,157 @@
 
   <div class="courses-container">
     <div class="courses-hero">
+      <img class="module-hero-icon" src="/icons/ui/apa-48.png" srcset="/icons/ui/apa-48.png 1x, /icons/ui/apa-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <div style="margin-bottom: 12px;">
         <span class="apa-version-badge">✨ APA 7ª Edición</span>
       </div>
-      <h1>Formato APA</h1>
       <p>Sube tu documento .DOCX y Mirai AI lo formateará automáticamente según las normas APA 7 en segundos.</p>
     </div>
 
     <input id="apa-file-input" ref="fileInput" type="file" accept=".docx" aria-hidden="true" @change="onFileChosen">
 
-    <!-- ===== SECCIÓN 1: SUBIDA ===== -->
-    <div class="apa-page-wrapper">
-      <div class="apa-main-grid">
-        <!-- Panel izquierdo: Dropzone + Metadatos -->
-        <div>
-          <div
-            id="apa-dropzone"
-            class="apa-dropzone"
-            :class="{ 'drag-over': dragOver }"
-            role="button"
-            tabindex="0"
-            aria-label="Zona de carga de archivo DOCX"
-            @click="fileInput?.click()"
-            @keydown.enter="fileInput?.click()"
-            @keydown.space.prevent="fileInput?.click()"
-            @dragover.prevent="dragOver = true"
-            @dragleave="onDragLeave"
-            @drop.prevent="onDrop"
-          >
-            <span class="apa-dropzone-icon">📄</span>
-            <div class="apa-dropzone-title">Arrastra tu archivo aquí</div>
-            <div class="apa-dropzone-hint">o haz clic para seleccionar un .DOCX · Máx. 25 MB</div>
-            <button class="btn-primary" style="margin-top: 8px;" @click.stop="fileInput?.click()">
-              Seleccionar archivo
-            </button>
-            <div v-if="file" id="apa-filename" style="margin-top: 14px; font-size: 0.85rem; color: var(--text-tertiary);">
-              📎 {{ file.name }} ({{ formatSize(file.size) }})
-            </div>
+    <div class="apa-flow">
+      <!-- ===== 1. SUBIDA ===== -->
+      <section class="apa-section">
+        <h2 class="apa-section-title">1. Sube tu documento</h2>
+        <p class="apa-section-desc">Arrastra el archivo o selecciónalo desde tu equipo.</p>
+        <div
+          id="apa-dropzone"
+          class="apa-dropzone"
+          :class="{ 'drag-over': dragOver }"
+          role="button"
+          tabindex="0"
+          aria-label="Zona de carga de archivo DOCX"
+          @click="fileInput?.click()"
+          @keydown.enter="fileInput?.click()"
+          @keydown.space.prevent="fileInput?.click()"
+          @dragover.prevent="dragOver = true"
+          @dragleave="onDragLeave"
+          @drop.prevent="onDrop"
+        >
+          <span class="apa-dropzone-icon">📄</span>
+          <div class="apa-dropzone-title">Arrastra tu archivo aquí</div>
+          <div class="apa-dropzone-hint">o haz clic para seleccionar un .DOCX · Máx. 25 MB</div>
+          <button class="btn-primary" style="margin-top: 8px;" @click.stop="fileInput?.click()">
+            Seleccionar archivo
+          </button>
+          <div v-if="file" id="apa-filename" style="margin-top: 14px; font-size: 0.85rem; color: var(--text-tertiary);">
+            📎 {{ file.name }} ({{ formatSize(file.size) }})
           </div>
+        </div>
+      </section>
 
-          <div class="apa-card-panel" style="margin-top: 20px;">
-            <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 16px;">
-              Datos del documento (opcionales)
-            </div>
-            <div class="apa-metadata-grid">
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="apa-title">Título</label>
-                <input id="apa-title" v-model="meta.title" type="text" placeholder="Título del trabajo">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="apa-author">Autor</label>
-                <input id="apa-author" v-model="meta.author" type="text" placeholder="Nombre completo">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="apa-affiliation">Afiliación</label>
-                <input id="apa-affiliation" v-model="meta.affiliation" type="text" placeholder="Universidad / Institución">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="apa-course">Curso</label>
-                <input id="apa-course" v-model="meta.course" type="text" placeholder="Nombre del curso">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="apa-instructor">Instructor</label>
-                <input id="apa-instructor" v-model="meta.instructor" type="text" placeholder="Nombre del profesor">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label for="apa-date">Fecha</label>
-                <input id="apa-date" v-model="meta.date" type="date">
-              </div>
-            </div>
-            <button id="apa-format-btn" class="btn-primary" style="width: 100%; margin-top: 4px;" :disabled="!file || phase !== 'idle'" @click="format">
-              Formatear documento
-            </button>
+      <!-- ===== 2. METADATOS ===== -->
+      <section class="apa-section">
+        <h2 class="apa-section-title">2. Datos del documento <span class="apa-optional">(opcionales)</span></h2>
+        <p class="apa-section-desc">Estos datos se usan en la portada APA. Si los dejas vacíos se aplican valores por defecto.</p>
+        <div class="apa-metadata-grid">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="apa-title">Título</label>
+            <input id="apa-title" v-model="meta.title" type="text" placeholder="Título del trabajo">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="apa-author">Autor</label>
+            <input id="apa-author" v-model="meta.author" type="text" placeholder="Nombre completo">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="apa-affiliation">Afiliación</label>
+            <input id="apa-affiliation" v-model="meta.affiliation" type="text" placeholder="Universidad / Institución">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="apa-course">Curso</label>
+            <input id="apa-course" v-model="meta.course" type="text" placeholder="Nombre del curso">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="apa-instructor">Instructor</label>
+            <input id="apa-instructor" v-model="meta.instructor" type="text" placeholder="Nombre del profesor">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="apa-date">Fecha</label>
+            <input id="apa-date" v-model="meta.date" type="date">
+          </div>
+        </div>
+        <button id="apa-format-btn" class="btn-primary" style="margin-top: 16px;" :disabled="!file || phase !== 'idle'" @click="format">
+          Formatear documento
+        </button>
+      </section>
+
+      <!-- ===== 3. RESULTADO ===== -->
+      <section class="apa-section">
+        <h2 class="apa-section-title">3. Resultado</h2>
+
+        <div v-if="phase === 'idle'" id="apa-idle-state" class="apa-idle-state">
+          Sube un archivo .DOCX y pulsa «Formatear documento» para comenzar.
+        </div>
+
+        <div id="apa-processing" class="apa-processing" :class="{ visible: phase === 'processing' }">
+          <div class="apa-processing-title">Procesando…</div>
+          <div v-for="step in STEPS" :id="step.id" :key="step.id" class="apa-step" :class="stepState[step.id]">
+            <span class="apa-step-icon">{{ step.icon }}</span>
+            <span class="apa-step-text">{{ step.text }}</span>
+            <span class="apa-step-status">{{ STEP_STATUS[stepState[step.id] ?? 'pending'] }}</span>
           </div>
         </div>
 
-        <!-- Panel derecho: Procesamiento + Resultado + Historial -->
-        <div>
-          <div id="apa-processing" class="apa-processing" :class="{ visible: phase === 'processing' }">
-            <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 12px;">
-              Procesando…
-            </div>
-            <div v-for="step in STEPS" :id="step.id" :key="step.id" class="apa-step" :class="stepState[step.id]">
-              <span class="apa-step-icon">{{ step.icon }}</span>
-              <span class="apa-step-text">{{ step.text }}</span>
-              <span class="apa-step-status">{{ STEP_STATUS[stepState[step.id] ?? 'pending'] }}</span>
-            </div>
-          </div>
-
-          <div id="apa-result" class="apa-result-area" :class="{ visible: phase === 'done' }">
-            <div class="apa-result-card">
-              <div class="apa-result-header">
-                <span class="apa-result-icon">✅</span>
-                <div>
-                  <div class="apa-result-title">¡Documento formateado!</div>
-                  <div id="apa-result-filename" class="apa-result-filename">{{ outputName || 'documento_formateado_APA7.docx' }}</div>
-                </div>
-              </div>
-              <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 0;">
-                Tu documento ha sido procesado y cumple con todas las normas APA 7ª edición.
-              </p>
-              <div class="apa-result-actions">
-                <button id="apa-download-btn" class="btn-primary" @click="download">
-                  ⬇️ Descargar .DOCX
-                </button>
-                <button id="apa-reset-btn" class="btn-secondary" @click="reset">
-                  🔄 Formatear otro
-                </button>
+        <div id="apa-result" class="apa-result-area" :class="{ visible: phase === 'done' }">
+          <div class="apa-result-card">
+            <div class="apa-result-header">
+              <span class="apa-result-icon">✅</span>
+              <div>
+                <div class="apa-result-title">¡Documento formateado!</div>
+                <div id="apa-result-filename" class="apa-result-filename">{{ outputName || 'documento_formateado_APA7.docx' }}</div>
               </div>
             </div>
-          </div>
-
-          <div v-if="phase === 'idle'" id="apa-idle-state" class="apa-card-panel" style="text-align: center;">
-            <span style="font-size: 3rem; display: block; margin-bottom: 12px;">📝</span>
-            <div style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">Listo para formatear</div>
-            <div style="font-size: 0.85rem; color: var(--text-tertiary);">Sube un archivo .DOCX para comenzar el proceso de formateo APA 7</div>
-          </div>
-
-          <div class="apa-card-panel" style="margin-top: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary);">
-                Historial reciente
-              </div>
-              <button id="apa-clear-history" class="btn-secondary" style="padding: 4px 12px; font-size: 0.75rem;" title="Limpiar historial" @click="clearHistory">Limpiar</button>
-            </div>
-            <div id="apa-history-list" class="apa-history-list">
-              <div v-if="!history.length" class="apa-history-empty">
-                <span class="apa-history-empty-icon">🕐</span>
-                Ningún documento formateado aún
-              </div>
-              <div v-for="(item, i) in history" :key="i" class="apa-history-item">
-                <span class="apa-history-icon">📄</span>
-                <div class="apa-history-info">
-                  <div class="apa-history-name" :title="item.formatted">{{ item.formatted }}</div>
-                  <div class="apa-history-date">Desde: {{ item.original }} · {{ item.date }}</div>
-                </div>
-              </div>
+            <p class="apa-result-text">
+              Tu documento ha sido procesado y cumple con todas las normas APA 7ª edición.
+            </p>
+            <div class="apa-result-actions">
+              <button id="apa-download-btn" class="btn-primary" @click="download">
+                ⬇️ Descargar .DOCX
+              </button>
+              <button id="apa-reset-btn" class="btn-secondary" @click="reset">
+                🔄 Formatear otro
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <!-- ===== SECCIÓN 2: REGLAS APA 7 ===== -->
-    <div class="apa-rules-wrapper">
-      <div class="courses-count" style="padding: 0 0 12px;">Reglas aplicadas automáticamente</div>
-      <div class="apa-rules-grid">
-        <div v-for="rule in RULES" :key="rule.title" class="apa-rule-card" :style="{ '--card-accent': rule.accent }">
-          <span class="apa-rule-icon">{{ rule.icon }}</span>
-          <div class="apa-rule-title">{{ rule.title }}</div>
-          <div class="apa-rule-desc">{{ rule.desc }}</div>
+      <!-- ===== 4. HISTORIAL ===== -->
+      <section class="apa-section">
+        <div class="apa-section-head">
+          <h2 class="apa-section-title">Historial reciente</h2>
+          <button id="apa-clear-history" class="btn-secondary" style="padding: 4px 12px; font-size: 0.75rem;" title="Limpiar historial" @click="clearHistory">Limpiar</button>
         </div>
-      </div>
+        <div id="apa-history-list" class="apa-history-list">
+          <div v-if="!history.length" class="apa-history-empty">
+            <span class="apa-history-empty-icon">🕐</span>
+            Ningún documento formateado aún
+          </div>
+          <div v-for="(item, i) in history" :key="i" class="apa-history-item">
+            <span class="apa-history-icon">📄</span>
+            <div class="apa-history-info">
+              <div class="apa-history-name" :title="item.formatted">{{ item.formatted }}</div>
+              <div class="apa-history-date">Desde: {{ item.original }} · {{ item.date }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 5. REGLAS APA 7 ===== -->
+      <section class="apa-section">
+        <h2 class="apa-section-title">Reglas aplicadas automáticamente</h2>
+        <p class="apa-section-desc">Mirai AI ajusta estos elementos del documento al formato APA 7.</p>
+        <ul class="apa-rules-list">
+          <li v-for="rule in RULES" :key="rule.title" class="apa-rule-item">
+            <span class="apa-rule-icon">{{ rule.icon }}</span>
+            <div>
+              <div class="apa-rule-title">{{ rule.title }}</div>
+              <div class="apa-rule-desc">{{ rule.desc }}</div>
+            </div>
+          </li>
+        </ul>
+      </section>
     </div>
   </div>
 

@@ -7,7 +7,6 @@
   <div class="gen-page-content">
     <div class="gen-hero-zone">
       <span class="gen-hero-icon">✨</span>
-      <h1 class="gen-hero-title">Generación con IA</h1>
       <p class="gen-hero-subtitle">Describe lo que necesitas y la IA lo creará por ti: texto, imágenes, vídeo o música.</p>
       <div class="gen-input-wrapper">
         <textarea

@@ -6,7 +6,7 @@
 
   <div class="classroom-container">
     <div class="classroom-hero">
-      <h1>Aula Virtual</h1>
+      <img class="module-hero-icon" src="/icons/ui/classroom-48.png" srcset="/icons/ui/classroom-48.png 1x, /icons/ui/classroom-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Revisa y entrega tus tareas asignadas. Mantén tu progreso al día.</p>
     </div>
 

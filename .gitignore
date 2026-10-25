@@ -1,5 +1,6 @@
 # Archivos con secretos
 .dev.vars
+.dev.vars.remote
 .env
 .env.local
 wrangler-account.json

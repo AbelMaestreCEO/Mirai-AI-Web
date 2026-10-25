@@ -8,7 +8,6 @@
     <div class="settings-hero">
       <div class="settings-hero-icon">⚙️</div>
       <div>
-        <h1>Configuración</h1>
         <p>Personaliza la apariencia y el comportamiento de Mirai AI a tu gusto.</p>
       </div>
     </div>

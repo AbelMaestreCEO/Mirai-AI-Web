@@ -7,7 +7,7 @@
   <div class="courses-container">
     <!-- Hero -->
     <div class="courses-hero">
-      <h1>Mis Proyectos</h1>
+      <img class="module-hero-icon" src="/icons/ui/projects-48.png" srcset="/icons/ui/projects-48.png 1x, /icons/ui/projects-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Crea proyectos, sube tus archivos y chatea con la IA usando tu código como contexto.</p>
     </div>
 
@@ -716,24 +716,35 @@ onMounted(loadProjects);
   line-height: 1.5;
 }
 
-/* ── Tarjeta de Proyecto ── */
+/* ── Tarjeta de Proyecto ──
+   Mismo lenguaje visual que los globos del chat: cristal, retícula técnica
+   sutil y borde degradado con halo de acento. */
 :where(body[data-page="projects"]) .project-card {
-  background: var(--glass-bg, rgba(255, 255, 255, 0.94));
-  border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
+  background:
+    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box,
+    linear-gradient(135deg, rgba(103, 80, 164, 0.42), rgba(154, 130, 219, 0.12) 48%, rgba(103, 80, 164, 0.06)) border-box;
+  border: 1px solid transparent;
   border-radius: 20px;
-  padding: 1.4rem 1.4rem 1.2rem;
+  padding: 1.35rem 1.35rem 1.15rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   position: relative;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 8px 24px rgba(24, 16, 48, 0.06);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1);
   cursor: pointer;
 }
 
 :where(body[data-page="projects"]) .project-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 28px var(--accent-glow, rgba(103, 80, 164, 0.18));
+  transform: translateY(-5px);
+  box-shadow:
+    0 18px 44px rgba(103, 80, 164, 0.18),
+    0 0 0 1px rgba(103, 80, 164, 0.16);
 }
 
 :where(body[data-page="projects"]) .project-card-accent {
@@ -741,9 +752,10 @@ onMounted(loadProjects);
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 3px;
   border-radius: 20px 20px 0 0;
-  background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
+  background: linear-gradient(90deg, #6750a4 0%, #9a82db 55%, rgba(154, 130, 219, 0.12) 100%);
+  box-shadow: 0 0 18px rgba(103, 80, 164, 0.45);
 }
 
 :where(body[data-page="projects"]) .project-card-header {
@@ -755,9 +767,18 @@ onMounted(loadProjects);
 }
 
 :where(body[data-page="projects"]) .project-icon {
-  font-size: 2rem;
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.55rem;
   line-height: 1;
   flex-shrink: 0;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(103, 80, 164, 0.14), rgba(154, 130, 219, 0.06));
+  border: 1px solid rgba(103, 80, 164, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 :where(body[data-page="projects"]) .project-card-actions {
@@ -772,33 +793,36 @@ onMounted(loadProjects);
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.12));
-  background: transparent;
+  border-radius: 10px;
+  border: 1px solid rgba(103, 80, 164, 0.14);
+  background: rgba(255, 255, 255, 0.55);
   color: var(--text-secondary, #777);
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s;
   flex-shrink: 0;
 }
 
 :where(body[data-page="projects"]) .project-action-btn:hover {
-  background: var(--secondary-container, #E8DEF8);
-  color: var(--accent-color, #6750A4);
-  border-color: var(--accent-color, #6750A4);
+  background: var(--secondary-container, #e8def8);
+  color: var(--accent-color, #6750a4);
+  border-color: var(--accent-color, #6750a4);
+  box-shadow: 0 4px 14px rgba(103, 80, 164, 0.2);
 }
 
 :where(body[data-page="projects"]) .project-action-btn.delete:hover {
-  background: #FFEBEE;
-  color: #B71C1C;
-  border-color: #B71C1C;
+  background: #ffebee;
+  color: #b71c1c;
+  border-color: #b71c1c;
+  box-shadow: 0 4px 14px rgba(183, 28, 28, 0.18);
 }
 
 :where(body[data-page="projects"]) .project-title {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   font-weight: 700;
   color: var(--text-primary, #1a1a1a);
   margin: 0;
   line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 :where(body[data-page="projects"]) .project-description {
@@ -819,13 +843,15 @@ onMounted(loadProjects);
 }
 
 :where(body[data-page="projects"]) .project-tech-tag {
-  font-size: 0.72rem;
+  font-family: 'Roboto Mono', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 0.66rem;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 20px;
-  background: var(--secondary-container, #E8DEF8);
-  color: var(--accent-color, #6750A4);
-  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, rgba(103, 80, 164, 0.1), rgba(154, 130, 219, 0.06));
+  border: 1px solid rgba(103, 80, 164, 0.16);
+  color: var(--accent-color, #6750a4);
+  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
@@ -833,9 +859,12 @@ onMounted(loadProjects);
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-size: 0.8rem;
+  font-family: 'Roboto Mono', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-secondary, #888);
-  border-top: 1px solid var(--glass-border, rgba(103, 80, 164, 0.10));
+  border-top: 1px dashed rgba(103, 80, 164, 0.18);
   padding-top: 0.75rem;
   margin-top: auto;
 }
@@ -849,21 +878,71 @@ onMounted(loadProjects);
 :where(body[data-page="projects"]) .project-open-btn {
   margin-top: 0.5rem;
   width: 100%;
-  padding: 0.55rem 1rem;
-  border-radius: 12px;
-  border: none;
-  background: var(--accent-gradient, linear-gradient(135deg, #6750A4, #9A82DB));
+  padding: 0.6rem 1rem;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 48%),
+    linear-gradient(135deg, #6750a4 0%, #7c5fc9 52%, #9878e8 100%);
   color: #fff;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.18s, transform 0.18s;
+  box-shadow: 0 8px 20px rgba(103, 80, 164, 0.24);
+  transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
   letter-spacing: 0.02em;
 }
 
 :where(body[data-page="projects"]) .project-open-btn:hover {
-  opacity: 0.9;
-  transform: scale(1.01);
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 28px rgba(103, 80, 164, 0.32);
+}
+
+:where(body[data-page="projects"]) .project-open-btn:active {
+  transform: translateY(0);
+}
+
+/* Modo oscuro */
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-card {
+  background:
+    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box,
+    linear-gradient(135deg, rgba(208, 188, 255, 0.46), rgba(208, 188, 255, 0.12) 48%, rgba(208, 188, 255, 0.04)) border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+}
+
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-card:hover {
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(208, 188, 255, 0.16);
+}
+
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-card-accent {
+  background: linear-gradient(90deg, #d0bcff 0%, #b69df8 55%, rgba(182, 157, 248, 0.1) 100%);
+  box-shadow: 0 0 18px rgba(208, 188, 255, 0.4);
+}
+
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-icon {
+  background: linear-gradient(145deg, rgba(208, 188, 255, 0.16), rgba(208, 188, 255, 0.05));
+  border-color: rgba(208, 188, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-action-btn {
+  background: rgba(208, 188, 255, 0.06);
+  border-color: rgba(208, 188, 255, 0.14);
+  color: var(--text-secondary, #b9b3c4);
+}
+
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-tech-tag {
+  background: linear-gradient(135deg, rgba(208, 188, 255, 0.12), rgba(208, 188, 255, 0.04));
+  border-color: rgba(208, 188, 255, 0.18);
+}
+
+html[data-theme="dark"] :where(body[data-page="projects"]) .project-meta {
+  border-top-color: rgba(208, 188, 255, 0.16);
 }
 
 /* ── Modal Base (reutiliza glass de styles.css) ── */

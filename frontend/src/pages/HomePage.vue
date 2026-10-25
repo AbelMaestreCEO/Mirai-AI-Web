@@ -570,8 +570,8 @@ onMounted(() => {
 :where(body[data-page="index"]) .home-logo {
   display: block;
   margin: 0 auto 8px;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
 }
 
@@ -1096,8 +1096,8 @@ onMounted(() => {
 /* ===== MÓVIL ===== */
 @media (max-width: 768px) {
   :where(body[data-page="index"]) .home-logo {
-    width: 44px;
-    height: 44px;
+    width: 64px;
+    height: 64px;
   }
 
   :where(body[data-page="index"]) .home-input-section {

@@ -12,7 +12,7 @@
 
   <div class="sales-container">
     <div class="courses-hero">
-      <h1>Ventas</h1>
+      <img class="module-hero-icon" src="/icons/ui/sales-48.png" srcset="/icons/ui/sales-48.png 1x, /icons/ui/sales-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Gestiona los artículos que pusiste a la venta desde el inventario, tus compradores y el estado de los pagos. Uso interno — solo tú puedes ver estos datos.</p>
     </div>
 

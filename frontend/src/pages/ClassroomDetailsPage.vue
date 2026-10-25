@@ -15,7 +15,7 @@
 
     <template v-else>
       <div class="courses-hero" style="animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) both;">
-        <h1 id="detail-hero-title">Detalle de Tarea</h1>
+        <img class="module-hero-icon" src="/icons/ui/classroom-48.png" srcset="/icons/ui/classroom-48.png 1x, /icons/ui/classroom-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
         <p id="detail-hero-subtitle">Revisa la información, descripción y entrega de tu tarea.</p>
       </div>
 

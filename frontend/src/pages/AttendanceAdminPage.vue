@@ -6,7 +6,7 @@
 
   <div class="courses-container">
     <div class="courses-hero">
-      <h1>Admin — Control de Asistencia</h1>
+      <img class="module-hero-icon" src="/icons/ui/attendance-48.png" srcset="/icons/ui/attendance-48.png 1x, /icons/ui/attendance-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Gestiona clases, genera QRs por clase, administra el personal y exporta los registros.</p>
     </div>
 

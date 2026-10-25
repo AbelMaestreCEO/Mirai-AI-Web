@@ -8,7 +8,6 @@
     <!-- Hero + barra de búsqueda -->
     <div class="inv-hero-zone">
       <span class="inv-hero-icon">🔭</span>
-      <h1 class="inv-hero-title">Investigador Web con IA</h1>
       <p class="inv-hero-subtitle">Escribe tu pregunta y la IA buscará en la web, noticias y fuentes académicas para redactar un resumen para ti</p>
       <div class="inv-search-wrapper">
         <textarea

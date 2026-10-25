@@ -8,6 +8,7 @@ import { jsonResponse } from './lib/http';
 import { handleApiRequest } from './router';
 import { cleanupExpiredFormatFiles } from './routes/format';
 import { finalizePendingVideoAvatarJobs } from './routes/video';
+import { getSeo, injectSeo, renderRobotsTxt, renderSitemapXml } from './lib/seo';
 
 // --- APP ANDROID (TWA) ---
 // Huellas SHA-256 de android/mirai-release.keystore (APK instalado a mano) y de
@@ -49,6 +50,19 @@ export default {
         return new Response('Not Found', { status: 404 });
       }
 
+      // Indexación: robots.txt y sitemap.xml se generan desde la misma tabla
+      // de módulos que los metadatos, para que no se desincronicen.
+      if (path === '/robots.txt' || path === '/sitemap.xml') {
+        const isRobots = path === '/robots.txt';
+        const headers = new Headers({
+          'Content-Type': isRobots ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        const body = isRobots ? renderRobotsTxt() : renderSitemapXml();
+        return new Response(request.method === 'HEAD' ? null : body, { status: 200, headers });
+      }
+
       // App Quasar (frontend/, compilada a public/app/). Workers Assets ya ha
       // servido cualquier archivo que exista, así que una petición que llega
       // aquí sin ser de la API es una ruta de la app (/chat, /login...) o algo
@@ -64,8 +78,22 @@ export default {
         // app, también las de /app/... de antes: la propia app les quita el
         // prefijo (ver frontend/src/router/index.ts). Sin redirección, porque
         // el service worker antiguo no sabe seguirlas en una navegación.
+        // El HTML se sirve con los metadatos de la ruta (título, descripción,
+        // canonical, OG y JSON-LD) y las rutas desconocidas con estado 404.
         if (!/\.[a-z0-9]+$/i.test(path)) {
-          return env.ASSETS.fetch(new Request(new URL('/app/', url), request));
+          const assetResponse = await env.ASSETS.fetch(new Request(new URL('/app/', url), request));
+          const seo = getSeo(path);
+          const status = seo.known ? assetResponse.status : 404;
+
+          if (request.method === 'HEAD') {
+            return new Response(null, { status, headers: seoHtmlHeaders(assetResponse.headers, seo) });
+          }
+
+          const html = await assetResponse.text();
+          return new Response(injectSeo(html, path), {
+            status,
+            headers: seoHtmlHeaders(assetResponse.headers, seo),
+          });
         }
       }
 
@@ -132,6 +160,20 @@ export default {
 };
 
 // --- SER ARCHIVOS ESTÁTICOS ---
+/**
+ * Cabeceras del HTML de la app: SEO (canonical y X-Robots-Tag) más el resto de
+ * cabeceras de Workers Assets (tipo de contenido, compresión, etc.).
+ */
+function seoHtmlHeaders(source: Headers, seo: ReturnType<typeof getSeo>): Headers {
+  const headers = new Headers(source);
+  headers.set('Content-Type', 'text/html; charset=utf-8');
+  headers.set('Cache-Control', 'public, max-age=0, s-maxage=3600');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Link', `<${seo.canonical}>; rel="canonical"`);
+  headers.set('X-Robots-Tag', seo.robots);
+  return headers;
+}
+
 /**
  * Fallback para rutas que no son /api/ y que Workers Assets no resolvió.
  *

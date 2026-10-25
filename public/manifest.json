@@ -2,14 +2,14 @@
   "id": "/",
   "name": "Mirai AI",
   "short_name": "Mirai",
-  "description": "Mirai AI - Tu asistente inteligente",
+  "description": "Mirai AI: asistente de IA para aprender, crear y organizar.",
   "lang": "es",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icons/icon-192.png",

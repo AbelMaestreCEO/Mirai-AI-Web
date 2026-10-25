@@ -8,6 +8,7 @@ import {
 
 import routes from './routes';
 import { ensureSession } from '@/lib/session';
+import { applySeo } from '@/lib/seo';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -61,6 +62,7 @@ export default defineRouter(() => {
     const title = [...to.matched].reverse().find((r) => r.meta.title)?.meta.title;
     if (title) document.title = title;
     document.body.dataset.page = to.meta.page ?? String(to.name ?? '');
+    applySeo(to.path);
   });
 
   return router;

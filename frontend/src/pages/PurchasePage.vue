@@ -6,7 +6,7 @@
   </header>
   <div class="purchase-container">
     <div class="purchase-hero">
-      <h1>Planes de Mirai AI</h1>
+      <img class="module-hero-icon" src="/icons/ui/plans-48.png" srcset="/icons/ui/plans-48.png 1x, /icons/ui/plans-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Elige el plan que mejor se adapte a tus necesidades de generación con IA.</p>
     </div>
     <div class="current-plan-banner">

@@ -1,7 +1,7 @@
 {
   "name": "mirai-ai-frontend",
   "version": "0.0.1",
-  "description": "Frontend de Mirai AI en Quasar (Vue 3 + TypeScript)",
+  "description": "Mirai AI: asistente de inteligencia artificial para aprender, crear y organizar.",
   "productName": "Mirai AI",
   "type": "module",
   "private": true,

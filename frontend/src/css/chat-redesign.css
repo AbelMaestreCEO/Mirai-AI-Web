@@ -5,29 +5,24 @@
 
 /* --- HEADER MEJORADO --- */
 :where(body[data-page="chat"]) .header {
-  padding: 18px 28px;
+  padding: 0 28px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
 
 :where(body[data-page="chat"]) .header-title {
-  font-size: 1.4rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  background: none !important;
-  -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: unset !important;
-  background-clip: unset !important;
-  color: var(--text-primary) !important;
+  font-size: 1.2rem;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Título adaptable: primera palabra en acento, resto en color del sistema */
-:where(body[data-page="chat"]) .header-title .title-accent {
-  color: var(--accent-color);
-}
-
+:where(body[data-page="chat"]) .header-title .title-accent,
 :where(body[data-page="chat"]) .header-title .title-normal {
-  color: var(--text-primary);
+  color: inherit;
 }
 
 /* Menú toggle con mejor posición */
@@ -277,7 +272,7 @@
 /* --- RESPONSIVE --- */
 @media (max-width: 768px) {
   :where(body[data-page="chat"]) .header {
-    padding: 14px 18px;
+    padding: 0 18px;
   }
 
   :where(body[data-page="chat"]) .header-title {

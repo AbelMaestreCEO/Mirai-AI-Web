@@ -15,7 +15,7 @@
     <!-- Contenido del panel (oculto hasta verificar rol) -->
     <div id="panel-content" :style="{ display: access === 'admin' ? 'block' : 'none' }">
       <div class="panel-hero">
-        <h1>Panel de Administración</h1>
+        <img class="module-hero-icon" src="/icons/ui/panel-48.png" srcset="/icons/ui/panel-48.png 1x, /icons/ui/panel-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
         <p>Busca usuarios y gestiona sus roles en la plataforma.</p>
         <p style="margin-top:0.6rem;">
           <AppLink to="api_usage_admin" style="color:var(--accent-color);font-weight:600;text-decoration:none;">📊 Consumo de APIs externas →</AppLink>

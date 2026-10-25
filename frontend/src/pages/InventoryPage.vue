@@ -13,7 +13,7 @@
   <div class="courses-container">
     <!-- Hero -->
     <div class="courses-hero">
-      <h1>Inventario Inteligente</h1>
+      <img class="module-hero-icon" src="/icons/ui/inventory-48.png" srcset="/icons/ui/inventory-48.png 1x, /icons/ui/inventory-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
       <p>Gestión predictiva y automatizada de productos con IA. Sube fotos y deja que Mirai AI haga el resto.</p>
     </div>
 

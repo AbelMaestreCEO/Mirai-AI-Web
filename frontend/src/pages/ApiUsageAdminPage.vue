@@ -13,7 +13,7 @@
 
     <div id="panel-content" :style="{ display: access === 'admin' ? 'block' : 'none' }">
       <div class="panel-hero">
-        <h1>📊 Consumo de APIs externas</h1>
+        <img class="module-hero-icon" src="/icons/ui/panel-48.png" srcset="/icons/ui/panel-48.png 1x, /icons/ui/panel-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
         <p>Unidades usadas y costo estimado por proveedor, mes a mes.</p>
       </div>
       <div class="panel-toolbar">
