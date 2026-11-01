@@ -82,7 +82,9 @@
               </template>
             </div>
             <div class="dice-area">
-              <div class="dice" :class="{ rolling: canRoll }" aria-live="polite">{{ state.dice ?? '·' }}</div>
+              <div class="dice" :class="{ rolling: canRoll, spinning: diceRolling }" aria-live="polite">
+                {{ diceRolling ? diceFace : (state.dice ?? '·') }}
+              </div>
               <button v-if="canRoll" class="btn-primary" type="button" @click="roll">Tirar dado</button>
               <span v-else-if="isMyTurn && state.dice !== null" class="muted small">Elige una ficha</span>
               <span v-else-if="state.status === 'question'" class="muted small">Responde tu pregunta</span>
@@ -95,64 +97,60 @@
             especiales: dan pregunta difícil ({{ 20 }}% a favor o en contra).
           </p>
 
-          <div class="board" role="group" aria-label="Tablero">
+          <div class="ludo-players" role="list" aria-label="Jugadores">
             <div
               v-for="p in playablePlayers"
-              :key="p.id"
-              class="lane"
-              :class="[`color-${p.color}`, { active: p.id === currentPlayer?.id, asking: p.id === currentPlayer?.id && state.status === 'question' }]"
+              :key="`info-${p.id}`"
+              class="player-chip"
+              :class="[`chip-${p.color ?? 'none'}`, { active: p.id === currentPlayer?.id }]"
+              role="listitem"
             >
-              <div class="lane-head">
-                <span class="color-dot" :class="p.color ? `color-${p.color}` : 'color-none'" />
-                <span class="nowrap">{{ p.nickname }}</span>
+              <span class="color-dot" :class="p.color ? `color-${p.color}` : 'color-none'" />
+              <span class="chip-name">
+                {{ p.nickname }}
                 <span v-if="p.id === you" class="you-badge">Tú</span>
-                <span v-if="!p.connected" class="muted small">desconectado</span>
-                <span v-if="p.hitSpecial" class="special-chip" title="Cayó en casilla especial">★</span>
-                <span class="lane-score">
-                  <strong>{{ p.points }}%</strong>
-                  <span class="muted small"> · tiradas {{ Math.min(p.rolls, 2) }}/2</span>
-                </span>
+              </span>
+              <span v-if="!p.connected" class="muted small">desconectado</span>
+              <span v-if="p.hitSpecial" class="special-chip" title="Cayó en casilla especial">★</span>
+              <span class="chip-score">
+                <strong>{{ p.points }}%</strong>
+                <span class="muted small"> · tiradas {{ Math.min(p.rolls, 2) }}/2</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="ludo-stage">
+            <div class="ludo-board" role="group" aria-label="Tablero de ludo">
+              <div v-for="cell in boardCells" :key="cell.key" class="cell" :class="cell.className" />
+              <span
+                v-for="marker in specialMarkers"
+                :key="marker.key"
+                class="special-marker"
+                :class="`marker-${marker.color}`"
+                :style="marker.style"
+                aria-hidden="true"
+              />
+              <div class="center-star" aria-hidden="true">
+                <span class="tri tri-top" />
+                <span class="tri tri-right" />
+                <span class="tri tri-bottom" />
+                <span class="tri tri-left" />
               </div>
-              <div class="lane-body">
-                <div class="base" :aria-label="`Base de ${p.nickname}`">
-                  <button
-                    v-for="token in tokensInBase(p)"
-                    :key="`b${token}`"
-                    class="token base-token"
-                    type="button"
-                    :class="{ actionable: tokenClickable(p, token) }"
-                    :disabled="!tokenClickable(p, token)"
-                    :aria-label="`Mover ficha ${token + 1} de ${p.nickname} desde la base`"
-                    @click="sendMove(p, token)"
-                  >
-                    {{ token + 1 }}
-                  </button>
-                </div>
-                <div class="rail">
-                  <div class="rail-track" />
-                  <span
-                    v-for="cell in state.specialCells"
-                    :key="`s${cell}`"
-                    class="special-cell"
-                    :style="{ left: `${tokenPercent(cell)}%` }"
-                    aria-hidden="true"
-                  />
-                  <button
-                    v-for="item in tokensOnTrack(p)"
-                    :key="`t${item.index}`"
-                    class="token"
-                    type="button"
-                    :class="{ actionable: tokenClickable(p, item.index), home: item.pos >= LUDO_PATH_LEN }"
-                    :style="{ left: `${tokenPercent(item.pos)}%` }"
-                    :disabled="!tokenClickable(p, item.index)"
-                    :aria-label="`Ficha ${item.index + 1} de ${p.nickname}, casilla ${item.pos}`"
-                    @click="sendMove(p, item.index)"
-                  >
-                    {{ item.index + 1 }}
-                  </button>
-                  <span class="goal" aria-hidden="true">Meta</span>
-                </div>
-              </div>
+              <template v-for="p in playablePlayers" :key="p.id">
+                <button
+                  v-for="(pos, idx) in p.tokens"
+                  :key="`piece-${p.id}-${idx}`"
+                  class="piece"
+                  :class="[`piece-${p.color ?? 'none'}`, { actionable: tokenClickable(p, idx), 'at-home': pos >= LUDO_PATH_LEN }]"
+                  :style="pieceStyle(p, idx, pos)"
+                  :disabled="!tokenClickable(p, idx)"
+                  :aria-label="pieceLabel(p, idx, pos)"
+                  type="button"
+                  @click="sendMove(p, idx)"
+                >
+                  {{ idx + 1 }}
+                </button>
+              </template>
             </div>
           </div>
         </section>
@@ -215,13 +213,111 @@ import { api } from '@/lib/api';
 import {
   GameSocket,
   LUDO_PATH_LEN,
-  tokenPercent,
+  type GameColor,
   type GameMessage,
   type GamePlayer,
   type GameState,
   type PlayerQuestion,
   type SocketStatus,
 } from '@/lib/game';
+
+interface BoardCell {
+  r: number;
+  c: number;
+}
+
+const BOARD_SIZE = 15;
+
+// Circuito común de 52 casillas, en orden (sentido horario).
+const RING: BoardCell[] = [
+  { r: 6, c: 0 }, { r: 6, c: 1 }, { r: 6, c: 2 }, { r: 6, c: 3 }, { r: 6, c: 4 }, { r: 6, c: 5 },
+  { r: 5, c: 6 }, { r: 4, c: 6 }, { r: 3, c: 6 }, { r: 2, c: 6 }, { r: 1, c: 6 }, { r: 0, c: 6 },
+  { r: 0, c: 7 }, { r: 0, c: 8 },
+  { r: 1, c: 8 }, { r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 },
+  { r: 6, c: 9 }, { r: 6, c: 10 }, { r: 6, c: 11 }, { r: 6, c: 12 }, { r: 6, c: 13 }, { r: 6, c: 14 },
+  { r: 7, c: 14 }, { r: 8, c: 14 },
+  { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }, { r: 8, c: 9 },
+  { r: 9, c: 8 }, { r: 10, c: 8 }, { r: 11, c: 8 }, { r: 12, c: 8 }, { r: 13, c: 8 }, { r: 14, c: 8 },
+  { r: 14, c: 7 }, { r: 14, c: 6 },
+  { r: 13, c: 6 }, { r: 12, c: 6 }, { r: 11, c: 6 }, { r: 10, c: 6 }, { r: 9, c: 6 },
+  { r: 8, c: 5 }, { r: 8, c: 4 }, { r: 8, c: 3 }, { r: 8, c: 2 }, { r: 8, c: 1 }, { r: 8, c: 0 },
+  { r: 7, c: 0 },
+];
+
+// Índice del circuito donde arranca cada color (una casilla cada ~13).
+const START_INDEX: Record<GameColor, number> = {
+  green: 2,
+  yellow: 15,
+  blue: 28,
+  red: 41,
+};
+
+// Pasillo de meta (5 casillas), de la entrada hacia el centro.
+const HOME_CELLS: Record<GameColor, BoardCell[]> = {
+  green: [{ r: 7, c: 1 }, { r: 7, c: 2 }, { r: 7, c: 3 }, { r: 7, c: 4 }, { r: 7, c: 5 }],
+  yellow: [{ r: 1, c: 7 }, { r: 2, c: 7 }, { r: 3, c: 7 }, { r: 4, c: 7 }, { r: 5, c: 7 }],
+  blue: [{ r: 7, c: 13 }, { r: 7, c: 12 }, { r: 7, c: 11 }, { r: 7, c: 10 }, { r: 7, c: 9 }],
+  red: [{ r: 13, c: 7 }, { r: 12, c: 7 }, { r: 11, c: 7 }, { r: 10, c: 7 }, { r: 9, c: 7 }],
+};
+
+// Casillas del patio interior (2×2) donde esperan las fichas.
+const BASE_PATIO: Record<GameColor, BoardCell[]> = {
+  green: [{ r: 2, c: 2 }, { r: 2, c: 3 }, { r: 3, c: 2 }, { r: 3, c: 3 }],
+  yellow: [{ r: 2, c: 11 }, { r: 2, c: 12 }, { r: 3, c: 11 }, { r: 3, c: 12 }],
+  red: [{ r: 11, c: 2 }, { r: 11, c: 3 }, { r: 12, c: 2 }, { r: 12, c: 3 }],
+  blue: [{ r: 11, c: 11 }, { r: 11, c: 12 }, { r: 12, c: 11 }, { r: 12, c: 12 }],
+};
+
+function cellForColor(color: GameColor, pos: number): BoardCell | null {
+  if (pos < 0) return null;
+  if (pos <= 51) return RING[(START_INDEX[color] + pos) % 52] ?? null;
+  return HOME_CELLS[color][Math.min(4, pos - 52)] ?? null;
+}
+
+function baseInfo(r: number, c: number, r0: number, c0: number, color: GameColor) {
+  const rr = r - r0;
+  const cc = c - c0;
+  if (rr >= 1 && rr <= 4 && cc >= 1 && cc <= 4) {
+    if (rr >= 2 && rr <= 3 && cc >= 2 && cc <= 3) return { type: 'patio', color };
+    return { type: 'base', color };
+  }
+  return { type: 'void', color };
+}
+
+function cellInfo(r: number, c: number): { type: string; color?: GameColor } {
+  if (r <= 5 && c <= 5) return baseInfo(r, c, 0, 0, 'green');
+  if (r <= 5 && c >= 9) return baseInfo(r, c, 0, 9, 'yellow');
+  if (r >= 9 && c <= 5) return baseInfo(r, c, 9, 0, 'red');
+  if (r >= 9 && c >= 9) return baseInfo(r, c, 9, 9, 'blue');
+  if (r >= 6 && r <= 8 && c >= 6 && c <= 8) return { type: 'center' };
+  if (r === 7 && c >= 1 && c <= 5) return { type: 'home', color: 'green' };
+  if (c === 7 && r >= 1 && r <= 5) return { type: 'home', color: 'yellow' };
+  if (r === 7 && c >= 9 && c <= 13) return { type: 'home', color: 'blue' };
+  if (c === 7 && r >= 9 && r <= 13) return { type: 'home', color: 'red' };
+  if ((r >= 6 && r <= 8) || (c >= 6 && c <= 8)) return { type: 'track' };
+  return { type: 'void' };
+}
+
+function buildBoard(): { key: string; className: string }[] {
+  const cells: { key: string; className: string }[] = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const info = cellInfo(r, c);
+      cells.push({
+        key: `c-${r}-${c}`,
+        className: `cell cell-${info.type}${info.color ? ` color-${info.color}` : ''}`,
+      });
+    }
+  }
+  return cells;
+}
+
+function cellCenterStyle(cell: BoardCell): Record<string, string> {
+  return {
+    left: `${((cell.c + 0.5) / BOARD_SIZE) * 100}%`,
+    top: `${((cell.r + 0.5) / BOARD_SIZE) * 100}%`,
+  };
+}
 
 interface QuestionResult {
   correct: boolean;
@@ -250,11 +346,36 @@ const activeQuestion = ref<PlayerQuestion | null>(null);
 const questionResult = ref<QuestionResult | null>(null);
 const answering = ref(false);
 const now = ref(Date.now());
+const diceRolling = ref(false);
+const diceFace = ref(1);
+
+const boardCells = buildBoard();
 
 let socket: GameSocket | null = null;
 let ticker: number | null = null;
 
 const playablePlayers = computed(() => state.value?.players.filter((p) => p.role === 'player') ?? []);
+
+const specialMarkers = computed(() => {
+  const s = state.value;
+  if (!s) return [] as { key: string; color: GameColor; style: Record<string, string> }[];
+  const colors = [
+    ...new Set(
+      playablePlayers.value
+        .map((p) => p.color)
+        .filter((c): c is GameColor => c !== null),
+    ),
+  ];
+  const markers: { key: string; color: GameColor; style: Record<string, string> }[] = [];
+  for (const pos of s.specialCells) {
+    if (pos < 0) continue;
+    for (const color of colors) {
+      const cell = cellForColor(color, pos);
+      if (cell) markers.push({ key: `m-${color}-${pos}`, color, style: cellCenterStyle(cell) });
+    }
+  }
+  return markers;
+});
 const rankedPlayers = computed(() => [...playablePlayers.value].sort((a, b) => b.points - a.points));
 const currentPlayer = computed<GamePlayer | null>(
   () => state.value?.players[state.value.turnIndex] ?? null,
@@ -367,6 +488,7 @@ function handleMessage(message: GameMessage): void {
     case 'dice_result':
       if (state.value) state.value = { ...state.value, dice: message.dice ?? null };
       legal.value = message.legal ?? [];
+      triggerDiceRoll(message.dice ?? 1);
       break;
     case 'turn_started':
       if (state.value) {
@@ -472,12 +594,29 @@ function errorText(code?: string): string {
   }
 }
 
-function tokensInBase(player: GamePlayer): number[] {
-  return player.tokens.flatMap((pos, index) => (pos < 0 ? [index] : []));
+function pieceStyle(player: GamePlayer, index: number, pos: number): Record<string, string> {
+  const color = player.color;
+  if (!color) return { display: 'none' };
+  const cell = pos < 0 ? BASE_PATIO[color][index % 4] : cellForColor(color, pos);
+  if (!cell) return { display: 'none' };
+  return {
+    left: `${((cell.c + 0.5) / BOARD_SIZE) * 100}%`,
+    top: `${((cell.r + 0.5) / BOARD_SIZE) * 100}%`,
+  };
 }
 
-function tokensOnTrack(player: GamePlayer): { index: number; pos: number }[] {
-  return player.tokens.flatMap((pos, index) => (pos >= 0 ? [{ index, pos }] : []));
+function pieceLabel(player: GamePlayer, index: number, pos: number): string {
+  if (pos < 0) return `Ficha ${index + 1} de ${player.nickname} en la base`;
+  if (pos >= LUDO_PATH_LEN) return `Ficha ${index + 1} de ${player.nickname} en la meta`;
+  return `Ficha ${index + 1} de ${player.nickname}, casilla ${pos}`;
+}
+
+function triggerDiceRoll(face: number): void {
+  diceFace.value = face;
+  diceRolling.value = true;
+  window.setTimeout(() => {
+    diceRolling.value = false;
+  }, 700);
 }
 
 function tokenClickable(player: GamePlayer, token: number): boolean {
@@ -747,11 +886,191 @@ async function leaveRoom(): Promise<void> {
   box-shadow: 0 0 0 4px rgba(103, 80, 164, 0.18);
 }
 
+.dice.spinning {
+  animation: dice-spin 0.7s cubic-bezier(0.35, 0.1, 0.25, 1);
+}
+
+@keyframes dice-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.12) translateY(-2px); }
+  50% { transform: rotate(180deg) scale(1.05); }
+  75% { transform: rotate(270deg) scale(1.12) translateY(-2px); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
 .board {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+
+/* ── Tablero de Ludo ── */
+.ludo-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--secondary-container);
+  border: 2px solid transparent;
+}
+
+.player-chip.active {
+  border-color: var(--accent-color);
+}
+
+.chip-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-score {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.ludo-stage {
+  display: flex;
+  justify-content: center;
+}
+
+.ludo-board {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  gap: 1px;
+  background: #0b0b0b;
+  border: 3px solid #0b0b0b;
+  border-radius: 8px;
+  padding: 1px;
+  box-sizing: content-box;
+  overflow: hidden;
+}
+
+.cell {
+  box-sizing: border-box;
+}
+
+.cell-track {
+  background: #fbfbfb;
+}
+
+/* Colores de las casillas (base, patio, pasillo). */
+.cell.color-green { background: #43a047; }
+.cell.color-yellow { background: #fdd835; }
+.cell.color-red { background: #e53935; }
+.cell.color-blue { background: #1e88e5; }
+
+.cell.cell-void {
+  background: transparent;
+}
+
+.cell.cell-center {
+  background: transparent;
+}
+
+.cell.cell-patio {
+  background: #f7f7f7;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+/* Fichas (jugadores). */
+.piece {
+  position: absolute;
+  width: calc(100% / 15 * 0.82);
+  height: calc(100% / 15 * 0.82);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.4);
+  background: #fff;
+  color: #1c1b1f;
+  font: inherit;
+  font-size: clamp(0.5rem, 1.4vw, 0.72rem);
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: default;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition:
+    left 0.42s cubic-bezier(0.34, 1.15, 0.64, 1),
+    top 0.42s cubic-bezier(0.34, 1.15, 0.64, 1),
+    box-shadow 0.2s ease;
+  z-index: 3;
+}
+
+.piece.piece-green { background: #43a047; color: #fff; }
+.piece.piece-yellow { background: #fdd835; color: #3a2d00; }
+.piece.piece-red { background: #e53935; color: #fff; }
+.piece.piece-blue { background: #1e88e5; color: #fff; }
+.piece.piece-none { background: #9e9e9e; color: #fff; }
+
+.piece.at-home {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.piece.actionable {
+  cursor: pointer;
+  z-index: 5;
+  animation: piece-pulse 1.1s ease-in-out infinite;
+}
+
+.piece.actionable:hover {
+  box-shadow: 0 0 0 4px rgba(103, 80, 164, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes piece-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.25); }
+}
+
+/* Casillas especiales: pequeño rombo del color del jugador. */
+.special-marker {
+  position: absolute;
+  width: calc(100% / 15 * 0.42);
+  height: calc(100% / 15 * 0.42);
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 1px;
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.marker-green { background: #2e7d32; }
+.marker-yellow { background: #c9a600; }
+.marker-red { background: #c62828; }
+.marker-blue { background: #1565c0; }
+
+/* Meta central: 4 triángulos. */
+.center-star {
+  position: absolute;
+  left: 40%;
+  top: 40%;
+  width: 20%;
+  height: 20%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tri {
+  position: absolute;
+  inset: 0;
+}
+
+.tri-top { background: #fdd835; clip-path: polygon(0 0, 100% 0, 50% 50%); }
+.tri-right { background: #1e88e5; clip-path: polygon(100% 0, 100% 100%, 50% 50%); }
+.tri-bottom { background: #e53935; clip-path: polygon(0 100%, 100% 100%, 50% 50%); }
+.tri-left { background: #43a047; clip-path: polygon(0 0, 0 100%, 50% 50%); }
 
 .lane {
   border-radius: 12px;

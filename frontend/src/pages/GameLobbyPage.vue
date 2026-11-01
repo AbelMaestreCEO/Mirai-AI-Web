@@ -61,9 +61,25 @@
             </select>
           </label>
         </div>
-        <button class="btn-primary" type="button" :disabled="!(assignmentId || selectedSection) || creating" @click="createRoom">
-          {{ creating ? 'Creando…' : 'Crear sala' }}
-        </button>
+        <div class="create-actions">
+          <button class="btn-primary" type="button" :disabled="!(assignmentId || selectedSection) || creating" @click="createRoom">
+            {{ creating ? 'Creando…' : 'Crear sala' }}
+          </button>
+          <button
+            class="btn-icon"
+            type="button"
+            :disabled="loadingRooms"
+            aria-label="Actualizar salas"
+            title="Actualizar salas"
+            @click="loadRooms"
+          >
+            <svg class="refresh-icon" :class="{ spinning: loadingRooms }" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 8 8h-2a6 6 0 1 1-1.76-4.24L13 11h7V4l-2.35 2.35Z"
+              />
+            </svg>
+          </button>
+        </div>
         <p v-if="createdCode" class="created-code" role="status">
           Sala creada: <strong>{{ createdCode }}</strong>
           <button class="link-btn" type="button" @click="copy(createdCode)">Copiar código</button>
@@ -446,6 +462,52 @@ async function copy(code: string): Promise<void> {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.create-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid var(--glass-border);
+  background: var(--secondary-container);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, filter 0.15s ease;
+}
+
+.btn-icon:hover:not(:disabled) {
+  border-color: var(--accent-color);
+}
+
+.btn-icon:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.refresh-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.refresh-icon.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .create-grid .field {
