@@ -498,10 +498,34 @@ async function cancelRoom(request: Request, env: Env, code: string, corsHeaders:
     return jsonResponse({ error: 'Solo el creador de la sala o el docente puede cancelarla' }, 403, corsHeaders);
   }
 
+  // La sala solo se cierra cuando queda un jugador (o ninguno).
+  const countRow = await env.MIRAI_AI_DB.prepare(
+    "SELECT COUNT(*) AS n FROM game_players WHERE room_id = ? AND role = 'player'"
+  )
+    .bind(room.id)
+    .first<{ n: number }>();
+  if (Number(countRow?.n ?? 0) > 1) {
+    return jsonResponse(
+      { error: 'Solo puedes cerrar la sala cuando quede un jugador' },
+      409,
+      corsHeaders
+    );
+  }
+
+  const outcome = await callRoomAction(env, room.code, 'cancel', dni, 'teacher');
+  // "Sin conexiones" (sala vacía) no impide cerrarla.
+  const noConnections = outcome.status === 409 && /conexiones/i.test(outcome.error ?? '');
+  if (!outcome.ok && !noConnections) {
+    return jsonResponse(
+      { error: outcome.error || 'No se pudo cerrar la sala' },
+      outcome.status,
+      corsHeaders
+    );
+  }
+
   await env.MIRAI_AI_DB.prepare("UPDATE game_rooms SET status = 'cancelled' WHERE id = ?")
     .bind(room.id)
     .run();
-  await callRoomAction(env, room.code, 'cancel', dni, 'teacher');
 
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }

@@ -142,7 +142,13 @@
                 >
                   Iniciar
                 </button>
-                <button class="link-btn danger" type="button" :disabled="busyCode === room.code" @click="cancelRoom(room.code)">
+                <button
+                  class="link-btn danger"
+                  type="button"
+                  :disabled="busyCode === room.code || room.player_count > 1"
+                  :title="room.player_count > 1 ? 'Solo puedes cerrar la sala cuando quede un jugador' : 'Cerrar la sala'"
+                  @click="cancelRoom(room.code)"
+                >
                   Cancelar
                 </button>
               </template>

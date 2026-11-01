@@ -36,7 +36,7 @@
         <ul class="player-list">
           <li v-for="p in state.players" :key="p.id" class="player-item">
             <span class="roster-avatar" :class="p.color ? `team-border-${p.color}` : ''">
-              <img v-if="p.color" :src="characterUrl(p.color, 0) ?? ''" alt="" />
+              <img v-if="p.color" :src="leaderUrl(p.color) ?? ''" alt="" />
               <span v-else class="color-dot color-none" />
             </span>
             <span class="player-name">
@@ -66,7 +66,7 @@
               @click="pickColor(team.color)"
             >
               <span class="team-avatar">
-                <img :src="characterUrl(team.color, 0) ?? ''" alt="" />
+                <img :src="leaderUrl(team.color) ?? ''" alt="" />
               </span>
               <span class="team-name">{{ team.name }}</span>
               <span v-if="isColorTaken(team.color)" class="team-taken">Ocupado</span>
@@ -111,7 +111,7 @@
             </div>
             <div class="dice-area">
               <div class="dice" :class="{ rolling: canRoll, spinning: diceRolling }" aria-live="polite">
-                {{ diceRolling ? diceFace : (state.dice ?? '·') }}
+                {{ diceFace ?? '·' }}
               </div>
               <button v-if="canRoll" class="btn-primary" type="button" @click="roll">Tirar dado</button>
               <span v-else-if="isMyTurn && state.dice !== null" class="muted small">Elige una ficha</span>
@@ -121,8 +121,9 @@
           </div>
 
           <p class="muted small">
-            Cada jugador tira una vez y mueve una ficha; después, todos responden su pregunta. Las
-            casillas marcadas son especiales: dan pregunta difícil ({{ 20 }}% a favor o en contra).
+            Cada jugador tira el dado 3 veces y mueve una ficha en cada tirada; después, todos
+            responden su pregunta. Las casillas marcadas son especiales: dan pregunta difícil
+            ({{ 20 }}% a favor o en contra).
           </p>
 
           <div class="ludo-players" role="list" aria-label="Jugadores">
@@ -142,7 +143,7 @@
               <span v-if="p.hitSpecial" class="special-chip" title="Cayó en casilla especial">★</span>
               <span class="chip-score">
                 <strong>{{ p.points }}%</strong>
-                <span class="muted small"> · tiradas {{ Math.min(p.rolls, 1) }}/1</span>
+                <span class="muted small"> · tiradas {{ Math.min(p.rolls, 3) }}/3</span>
               </span>
             </div>
           </div>
@@ -172,7 +173,7 @@
                   <img
                     v-if="p.color"
                     class="piece-art"
-                    :src="characterUrl(p.color, idx) ?? ''"
+                    :src="leaderUrl(p.color) ?? ''"
                     alt=""
                     draggable="false"
                   />
@@ -249,7 +250,7 @@ import {
   type PlayerQuestion,
   type SocketStatus,
 } from '@/lib/game';
-import { TEAMS, characterUrl, teamFor } from '@/lib/teams';
+import { TEAMS, leaderUrl, teamFor } from '@/lib/teams';
 
 interface BoardCell {
   r: number;
@@ -339,7 +340,17 @@ const questionResult = ref<QuestionResult | null>(null);
 const answering = ref(false);
 const now = ref(Date.now());
 const diceRolling = ref(false);
-const diceFace = ref(1);
+const diceFace = ref<number | null>(null);
+
+// Presentación del dado: 1 s de animación, luego el número y 2 s de pausa
+// antes de reproducir la tirada siguiente (para que el jugador vea su dado).
+const ROLL_ANIM_MS = 1000;
+const DICE_HOLD_MS = 2000;
+const DICE_TICK_MS = 90;
+const diceQueue: { value: number; legal: number[] }[] = [];
+let diceBusy = false;
+let diceTickTimer: number | null = null;
+let diceHoldTimer: number | null = null;
 
 let socket: GameSocket | null = null;
 let ticker: number | null = null;
@@ -432,6 +443,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   socket?.close();
   if (ticker !== null) window.clearInterval(ticker);
+  if (diceTickTimer !== null) window.clearInterval(diceTickTimer);
+  if (diceHoldTimer !== null) window.clearTimeout(diceHoldTimer);
 });
 
 function handleStatus(status: SocketStatus, tries: number): void {
@@ -457,6 +470,7 @@ function handleMessage(message: GameMessage): void {
       youManage.value = message.youManage === true;
       legal.value = message.legal ?? [];
       if (message.state) state.value = message.state;
+      if (!diceBusy && state.value?.dice != null) diceFace.value = state.value.dice;
       const snapshotQuestion = message.question;
       if (snapshotQuestion && typeof snapshotQuestion === 'object') {
         activeQuestion.value = snapshotQuestion as PlayerQuestion;
@@ -477,8 +491,7 @@ function handleMessage(message: GameMessage): void {
       break;
     case 'dice_result':
       if (state.value) state.value = { ...state.value, dice: message.dice ?? null };
-      legal.value = message.legal ?? [];
-      triggerDiceRoll(message.dice ?? 1);
+      queueDice(message.dice ?? 1, message.legal ?? []);
       break;
     case 'turn_started':
       if (state.value) {
@@ -607,12 +620,41 @@ function pieceLabel(player: GamePlayer, index: number, pos: number): string {
   return `Ficha ${index + 1} de ${player.nickname}, casilla ${pos}`;
 }
 
-function triggerDiceRoll(face: number): void {
-  diceFace.value = face;
+function queueDice(value: number, legalMoves: number[]): void {
+  diceQueue.push({ value, legal: legalMoves });
+  if (!diceBusy) presentNextDice();
+}
+
+function presentNextDice(): void {
+  const item = diceQueue.shift();
+  if (!item) {
+    diceBusy = false;
+    return;
+  }
+  diceBusy = true;
   diceRolling.value = true;
-  window.setTimeout(() => {
+
+  if (diceTickTimer !== null) window.clearInterval(diceTickTimer);
+  diceTickTimer = window.setInterval(() => {
+    diceFace.value = 1 + Math.floor(Math.random() * 6);
+  }, DICE_TICK_MS);
+
+  if (diceHoldTimer !== null) window.clearTimeout(diceHoldTimer);
+  diceHoldTimer = window.setTimeout(() => {
+    if (diceTickTimer !== null) {
+      window.clearInterval(diceTickTimer);
+      diceTickTimer = null;
+    }
     diceRolling.value = false;
-  }, 700);
+    diceFace.value = item.value;
+    legal.value = item.legal;
+    // Mantiene el resultado 2 s antes de pasar a la siguiente tirada.
+    diceHoldTimer = window.setTimeout(() => {
+      diceBusy = false;
+      if (diceQueue.length === 0) diceFace.value = null;
+      presentNextDice();
+    }, DICE_HOLD_MS);
+  }, ROLL_ANIM_MS);
 }
 
 function tokenClickable(player: GamePlayer, token: number): boolean {
@@ -1008,7 +1050,7 @@ async function leaveRoom(): Promise<void> {
 }
 
 .dice.spinning {
-  animation: dice-spin 0.7s cubic-bezier(0.35, 0.1, 0.25, 1);
+  animation: dice-spin 1s cubic-bezier(0.35, 0.1, 0.25, 1);
 }
 
 @keyframes dice-spin {

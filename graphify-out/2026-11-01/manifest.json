@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793574104.5490546,
-    "seen": 1793574157.5291667,
-    "ast_hash": "ae651d27908e82a22d968f1fa40c3141",
+    "mtime": 1793574690.7635183,
+    "seen": 1793574717.1823816,
+    "ast_hash": "124af1cbf669530452ca9596653c7315",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {
@@ -1434,9 +1434,9 @@
     "semantic_hash": ""
   },
   "ludo.md": {
-    "mtime": 1793571268.0491147,
-    "seen": 1793571708.3499055,
-    "ast_hash": "707ca2229f851581b5322a11b92fc448",
+    "mtime": 1793574519.3953643,
+    "seen": 1793574717.1893156,
+    "ast_hash": "79777ec8dcf1e5d2469ba1a22bccdb46",
     "semantic_hash": ""
   },
   "ludo.jpg": {
@@ -1497,6 +1497,24 @@
     "mtime": 1793573768.0179467,
     "seen": 1793574157.5472164,
     "ast_hash": "b4187d377f07e3439dcae662e93c51b5",
+    "semantic_hash": ""
+  },
+  "ludo 2.jpg": {
+    "mtime": 1793574395.0572324,
+    "seen": 1793574717.1913316,
+    "ast_hash": "027e2f2c618d3072d5ea4e92839b23c0",
+    "semantic_hash": ""
+  },
+  "ludo 2.webp": {
+    "mtime": 1793574573.407325,
+    "seen": 1793574717.1913335,
+    "ast_hash": "6172264c13b19fc9766a93d5e6435047",
+    "semantic_hash": ""
+  },
+  "public/boards/ludo-2.webp": {
+    "mtime": 1793574573.407325,
+    "seen": 1793574717.1914203,
+    "ast_hash": "6172264c13b19fc9766a93d5e6435047",
     "semantic_hash": ""
   }
 }

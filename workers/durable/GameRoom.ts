@@ -5,9 +5,9 @@
    dibuja lo que recibe.
 
    Ciclo de juego:
-     - Cada jugador tira el dado y mueve una ficha (una acción por ciclo).
-     - Al cerrarse el ciclo (todos tiraron y actuaron), a cada jugador le
-       llega SU pregunta (fácil).
+     - Cada jugador tira el dado 3 veces (moviendo una ficha en cada tirada).
+     - Al cerrarse el ciclo (todos tiraron 3 veces y actuaron), a cada jugador
+       le llega SU pregunta (fácil).
      - Se pausa hasta que todos respondan o venza el temporizador (30 s).
      - Puntos en % de la nota: fácil +10 / mal 0; difícil +20 / mal -20.
      - Las casillas especiales se regeneran al empezar cada ciclo; quien cae en
@@ -24,7 +24,7 @@ export const TOKENS_PER_PLAYER = 4;
 export const COLORS = ['red', 'green', 'yellow', 'blue'] as const;
 export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 
-const ROLLS_PER_CYCLE = 1;
+const ROLLS_PER_CYCLE = 3;
 const MAX_CYCLES = 15;
 const SPECIAL_CELL_COUNT = 8;
 const ANSWER_SECONDS = 30;
@@ -532,6 +532,11 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   private actionCancel(state: GameState): Response {
+    // Solo se cierra cuando queda un jugador (o ninguno) en la sala.
+    const remaining = state.players.filter((p) => p.role === 'player' && p.connected).length;
+    if (remaining > 1) {
+      return jsonMsg({ error: 'Solo puedes cerrar la sala cuando quede un jugador' }, 409);
+    }
     state.status = 'finished';
     state.turnDeadline = null;
     state.questionDeadline = null;

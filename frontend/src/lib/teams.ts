@@ -6,6 +6,8 @@ import type { GameColor } from './game';
 export interface Team {
   color: GameColor;
   name: string;
+  /** Personaje líder del equipo: el que se muestra en la selección y en las fichas. */
+  leader: string;
   folder: string;
   characters: string[];
 }
@@ -14,26 +16,30 @@ export const TEAMS: Team[] = [
   {
     color: 'green',
     name: 'Clan Aberu',
+    leader: 'mirai',
     folder: 'clan-aberu',
-    characters: ['kaori', 'lorena', 'mirai', 'oriana'],
+    characters: ['mirai', 'kaori', 'lorena', 'oriana'],
   },
   {
     color: 'blue',
     name: 'Armada del Norte',
+    leader: 'sydney',
     folder: 'armada-del-norte',
     characters: ['sydney'],
   },
   {
     color: 'yellow',
     name: 'Reino del Cielo',
+    leader: 'angelica',
     folder: 'reino-del-cielo',
     characters: ['angelica'],
   },
   {
     color: 'red',
     name: 'Reino del Infierno',
+    leader: 'lucy',
     folder: 'reino-del-infierno',
-    characters: ['katana', 'lucy'],
+    characters: ['lucy', 'katana'],
   },
 ];
 
@@ -56,4 +62,11 @@ export function characterUrl(color: GameColor | null | undefined, index = 0): st
   if (!team || team.characters.length === 0) return null;
   const name = team.characters[index % team.characters.length];
   return `/characters/${team.folder}/${name}.webp`;
+}
+
+/** URL del líder del equipo (se usa en la selección y en cada ficha). */
+export function leaderUrl(color: GameColor | null | undefined): string | null {
+  const team = teamFor(color);
+  if (!team) return null;
+  return `/characters/${team.folder}/${team.leader}.webp`;
 }
