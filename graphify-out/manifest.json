@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793576410.9574516,
-    "seen": 1793576423.366135,
+    "mtime": 1793576906.5670462,
+    "seen": 1793576919.3614733,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1416,15 +1416,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
-    "mtime": 1793575406.466407,
-    "seen": 1793575486.5576174,
-    "ast_hash": "92d36366d8d57f39512789c167a41cf7",
+    "mtime": 1793576592.8878284,
+    "seen": 1793576626.8545496,
+    "ast_hash": "135c7c2fa15afc014956c74aa2f3250b",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793576383.1513898,
-    "seen": 1793576423.3642168,
-    "ast_hash": "3b9dafea364e66431ac707c02aa9ff8b",
+    "mtime": 1793576890.3737965,
+    "seen": 1793576919.359489,
+    "ast_hash": "84c3751d0730ea437da4a0b83881dcf8",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {

@@ -97,7 +97,7 @@
 
       <template v-else>
         <section class="game-card">
-          <div class="turn-bar">
+          <div class="turn-bar" :class="{ 'my-turn': isMyTurn }">
             <div class="turn-info">
               <template v-if="state.status === 'question'">
                 <span class="muted small">Ronda de preguntas</span>
@@ -258,14 +258,22 @@
             <span>{{ option }}</span>
           </button>
         </div>
-        <p v-if="questionResult" class="result-line" :class="questionResult.correct ? 'ok' : 'ko'">
-          <template v-if="questionResult.correct">¡Correcto! +{{ questionResult.delta }}%</template>
-          <template v-else-if="questionResult.timeout">Se acabó el tiempo. {{ questionResult.delta }}%</template>
-          <template v-else>Incorrecto. {{ questionResult.delta }}%</template>
-          · Total: <strong>{{ questionResult.total }}%</strong>
+        <p class="muted small">
+          {{ questionResult ? 'Respuesta enviada. Esperando a los demás jugadores…' : 'Responde antes de que se acabe el tiempo; si no, cuenta como incorrecta.' }}
         </p>
-        <p v-else class="muted small">Responde antes de que se acabe el tiempo; si no, cuenta como incorrecta.</p>
       </div>
+    </div>
+
+    <!-- Aviso flotante de resultado: no bloquea la interfaz y se oculta solo. -->
+    <div
+      v-if="answerToast"
+      :key="answerToast.id"
+      class="answer-toast"
+      :class="answerToast.tone"
+      role="status"
+      aria-live="polite"
+    >
+      {{ answerToast.text }}
     </div>
   </div>
 </template>
@@ -406,16 +414,21 @@ const answering = ref(false);
 const now = ref(Date.now());
 const diceRolling = ref(false);
 const diceFace = ref<number | null>(null);
+const answerToast = ref<{ id: number; text: string; tone: 'ok' | 'ko' } | null>(null);
 
 // Presentación del dado: 1 s de animación, luego el número y 2 s de pausa
 // antes de reproducir la tirada siguiente (para que el jugador vea su dado).
 const ROLL_ANIM_MS = 1000;
 const DICE_HOLD_MS = 2000;
 const DICE_TICK_MS = 90;
+const TOAST_MS = 3000;
 const diceQueue: { value: number; legal: number[] }[] = [];
 let diceBusy = false;
 let diceTickTimer: number | null = null;
 let diceHoldTimer: number | null = null;
+let pendingQuestion: PlayerQuestion | null = null;
+let toastId = 0;
+let toastTimer: number | null = null;
 
 let socket: GameSocket | null = null;
 let ticker: number | null = null;
@@ -524,6 +537,8 @@ onBeforeUnmount(() => {
   if (ticker !== null) window.clearInterval(ticker);
   if (diceTickTimer !== null) window.clearInterval(diceTickTimer);
   if (diceHoldTimer !== null) window.clearTimeout(diceHoldTimer);
+  if (toastTimer !== null) window.clearTimeout(toastTimer);
+  pendingQuestion = null;
 });
 
 function handleStatus(status: SocketStatus, tries: number): void {
@@ -552,7 +567,9 @@ function handleMessage(message: GameMessage): void {
       if (!diceBusy && state.value?.dice != null) diceFace.value = state.value.dice;
       const snapshotQuestion = message.question;
       if (snapshotQuestion && typeof snapshotQuestion === 'object') {
-        activeQuestion.value = snapshotQuestion as PlayerQuestion;
+        queueQuestion(snapshotQuestion as PlayerQuestion);
+      } else {
+        clearPendingQuestion();
       }
       if (state.value?.status === 'question') {
         questionResult.value = activeQuestion.value?.answered ? questionResult.value : null;
@@ -583,6 +600,7 @@ function handleMessage(message: GameMessage): void {
         };
         legal.value = [];
       }
+      clearPendingQuestion();
       activeQuestion.value = null;
       questionResult.value = null;
       break;
@@ -596,45 +614,48 @@ function handleMessage(message: GameMessage): void {
       }
       break;
     case 'question':
-      activeQuestion.value = {
+      queueQuestion({
         id: String(message.id ?? ''),
         question: String(message.question ?? ''),
         options: message.options ?? [],
         difficulty: message.difficulty ?? 'easy',
         percent: Number(message.percent ?? 10),
         deadline: message.deadline ?? null,
-      };
-      questionResult.value = null;
-      answering.value = false;
-      if (state.value) state.value = { ...state.value, status: 'question' };
+      });
       break;
-    case 'question_result':
-      questionResult.value = {
+    case 'question_result': {
+      const result = {
         correct: message.correct === true,
         correctIndex: Number(message.correctIndex ?? 0),
         delta: Number(message.delta ?? 0),
         total: Number(message.total ?? 0),
         timeout: message.timeout === true,
       };
+      questionResult.value = result;
       answering.value = false;
+      showAnswerToast(result);
       if (state.value) {
         state.value = {
           ...state.value,
           players: state.value.players.map((p) =>
-            p.id === you.value ? { ...p, points: questionResult.value!.total } : p,
+            p.id === you.value ? { ...p, points: result.total } : p,
           ),
         };
       }
       break;
+    }
     case 'question_phase_started':
       if (state.value) state.value = { ...state.value, status: 'question', dice: null };
       break;
     case 'question_phase_end':
       notice.value = 'Ronda de preguntas terminada. Continúa el juego.';
       window.setTimeout(() => (notice.value = ''), 2500);
+      clearPendingQuestion();
       activeQuestion.value = null;
       break;
     case 'game_over':
+      clearPendingQuestion();
+      activeQuestion.value = null;
       if (state.value) {
         state.value = { ...state.value, status: 'finished', winnerId: message.winner ?? null };
       }
@@ -709,6 +730,7 @@ function presentNextDice(): void {
   const item = diceQueue.shift();
   if (!item) {
     diceBusy = false;
+    revealQuestionWhenReady();
     return;
   }
   diceBusy = true;
@@ -735,6 +757,41 @@ function presentNextDice(): void {
       presentNextDice();
     }, DICE_HOLD_MS);
   }, ROLL_ANIM_MS);
+}
+
+// Las preguntas esperan a que terminé la animación del dado y su pausa de 2 s
+// (diceBusy) para no cortar la experiencia del jugador.
+function queueQuestion(question: PlayerQuestion): void {
+  pendingQuestion = question;
+  if (state.value) state.value = { ...state.value, status: 'question' };
+  revealQuestionWhenReady();
+}
+
+function revealQuestionWhenReady(): void {
+  if (!pendingQuestion || diceBusy) return;
+  const question = pendingQuestion;
+  pendingQuestion = null;
+  activeQuestion.value = question;
+  questionResult.value = null;
+  answering.value = false;
+}
+
+function clearPendingQuestion(): void {
+  pendingQuestion = null;
+}
+
+function showAnswerToast(result: QuestionResult): void {
+  const text = result.correct
+    ? `¡Correcto! +${result.delta}%`
+    : result.timeout
+      ? `Se agotó el tiempo (${result.delta}%)`
+      : `Incorrecto (${result.delta}%)`;
+  if (toastTimer !== null) window.clearTimeout(toastTimer);
+  answerToast.value = { id: ++toastId, text, tone: result.correct ? 'ok' : 'ko' };
+  toastTimer = window.setTimeout(() => {
+    answerToast.value = null;
+    toastTimer = null;
+  }, TOAST_MS);
 }
 
 function tokenClickable(player: GamePlayer, token: number): boolean {
@@ -813,9 +870,6 @@ async function leaveRoom(): Promise<void> {
 
 <style scoped>
 .room-page {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 16px 16px 64px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -887,6 +941,12 @@ async function leaveRoom(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  animation: room-card-in 0.4s ease-out both;
+}
+
+@keyframes room-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .muted {
@@ -1093,6 +1153,22 @@ async function leaveRoom(): Promise<void> {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--secondary-container);
+  border: 2px solid transparent;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.turn-bar.my-turn {
+  border-color: var(--accent-color);
+  background: var(--glass-bg);
+  animation: turn-glow 2.2s ease-in-out infinite;
+}
+
+@keyframes turn-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(103, 80, 164, 0.16); }
+  50% { box-shadow: 0 0 0 7px rgba(103, 80, 164, 0.06); }
 }
 
 .turn-info {
@@ -1181,6 +1257,12 @@ async function leaveRoom(): Promise<void> {
 .ludo-stage {
   display: flex;
   justify-content: center;
+  animation: stage-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+@keyframes stage-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .ludo-board {
@@ -1347,6 +1429,10 @@ async function leaveRoom(): Promise<void> {
 @media (prefers-reduced-motion: reduce) {
   .board-fx { display: none; }
   .piece-arrow { animation: none; }
+  .game-card,
+  .ludo-stage,
+  .turn-bar.my-turn,
+  .answer-toast { animation: none; }
 }
 
 /* Fichas (jugadores). */
@@ -1746,10 +1832,67 @@ async function leaveRoom(): Promise<void> {
   color: var(--bad, #b3261e);
 }
 
+/* Aviso flotante inferior derecho: pequeño, de alto fijo y sin bloquear. */
+.answer-toast {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  max-width: min(240px, calc(100vw - 32px));
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #fff;
+  background: rgba(28, 27, 31, 0.92);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation:
+    toast-in 0.22s ease-out both,
+    toast-out 0.25s ease-in 2.75s both;
+}
+
+.answer-toast.ok {
+  background: #006a4a;
+}
+
+.answer-toast.ko {
+  background: #b3261e;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(6px); }
+}
+
 @media (max-width: 560px) {
   .lane-body {
     flex-direction: column;
     align-items: stretch;
   }
+}
+</style>
+
+<style>
+/* El hueco del sidebar y el centrado los resuelve la regla compartida del final
+   de styles.css (familia A). Aquí solo se declaran ancho y relleno. */
+:where(body[data-page="game_room"]) .room-page {
+  --page-max: 980px;
+  --page-pad: 16px;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 16px 16px 64px;
 }
 </style>

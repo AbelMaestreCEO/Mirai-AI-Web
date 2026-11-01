@@ -7798,7 +7798,9 @@ body::before {
   .mobile-sidebar~.report-student-container,
   .mobile-sidebar~.settings-container,
   .mobile-sidebar~.sales-container,
-  .mobile-sidebar~.tasks-container {
+  .mobile-sidebar~.tasks-container,
+  .mobile-sidebar~.game-page,
+  .mobile-sidebar~.room-page {
     box-sizing: border-box;
     --sidebar-gap: var(--sidebar-w);
     max-width: calc(var(--page-max, 1200px) + var(--sidebar-gap) + var(--page-pad, 20px) * 2);
@@ -7820,7 +7822,9 @@ body::before {
   .mobile-sidebar.collapsed~.report-student-container,
   .mobile-sidebar.collapsed~.settings-container,
   .mobile-sidebar.collapsed~.sales-container,
-  .mobile-sidebar.collapsed~.tasks-container {
+  .mobile-sidebar.collapsed~.tasks-container,
+  .mobile-sidebar.collapsed~.game-page,
+  .mobile-sidebar.collapsed~.room-page {
     --sidebar-gap: var(--sidebar-w-collapsed);
   }
 
@@ -7862,7 +7866,9 @@ body::before {
   .report-student-container,
   .settings-container,
   .sales-container,
-  .tasks-container {
+  .tasks-container,
+  .game-page,
+  .room-page {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }

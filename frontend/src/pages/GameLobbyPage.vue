@@ -387,9 +387,6 @@ async function copy(code: string): Promise<void> {
 
 <style scoped>
 .game-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 16px 16px 64px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -401,15 +398,106 @@ async function copy(code: string): Promise<void> {
   --bad: #ffb4ab;
 }
 
+.game-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  padding: 22px 20px;
+  border: 1px solid var(--glass-border);
+  background:
+    radial-gradient(120% 160% at 100% 0%, var(--accent-glow, rgba(103, 80, 164, 0.22)), transparent 55%),
+    linear-gradient(135deg, rgba(103, 80, 164, 0.08), transparent 60%);
+  animation: hero-in 0.45s ease-out both;
+}
+
+.game-hero::after {
+  content: '';
+  position: absolute;
+  top: -55%;
+  right: -10%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-glow, rgba(103, 80, 164, 0.35)), transparent 70%);
+  animation: hero-float 9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
 .game-hero h1 {
+  position: relative;
   font-size: 1.6rem;
   font-weight: 700;
   margin-bottom: 4px;
+  background: linear-gradient(100deg, var(--accent-color), var(--text-primary) 55%, var(--accent-color));
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: hero-shine 6s linear infinite;
 }
 
 .game-hero p {
+  position: relative;
   color: var(--text-secondary);
   max-width: 60ch;
+}
+
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hero-shine {
+  from { background-position: 0% 50%; }
+  to { background-position: 220% 50%; }
+}
+
+@keyframes hero-float {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-18px, 14px, 0) scale(1.12); }
+}
+
+.game-card {
+  animation: card-rise 0.4s ease-out backwards;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.game-card:nth-of-type(1) { animation-delay: 0.04s; }
+.game-card:nth-of-type(2) { animation-delay: 0.09s; }
+.game-card:nth-of-type(3) { animation-delay: 0.14s; }
+.game-card:nth-of-type(4) { animation-delay: 0.19s; }
+
+.game-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-color);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.room-item {
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.room-item:hover {
+  transform: translateX(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-hero,
+  .game-hero::after,
+  .game-hero h1,
+  .game-card {
+    animation: none;
+  }
+
+  .game-card:hover,
+  .room-item:hover {
+    transform: none;
+  }
 }
 
 .game-card {
@@ -650,5 +738,17 @@ async function copy(code: string): Promise<void> {
   .room-actions > * {
     flex: 1;
   }
+}
+</style>
+
+<style>
+/* El hueco del sidebar y el centrado los resuelve la regla compartida del final
+   de styles.css (familia A). Aquí solo se declaran ancho y relleno. */
+:where(body[data-page="game"]) .game-page {
+  --page-max: 900px;
+  --page-pad: 16px;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 16px 16px 64px;
 }
 </style>
