@@ -7,11 +7,12 @@
    Ciclo de juego:
      - Cada jugador tira el dado 3 veces (moviendo una ficha en cada tirada).
      - Al cerrarse el ciclo (todos tiraron 3 veces y actuaron), a cada jugador
-       le llega SU pregunta (fácil).
+       le llega SU pregunta: fácil, salvo que alguien haya caído en una casilla
+       especial durante el ciclo, en cuyo caso todos reciben pregunta difícil.
      - Se pausa hasta que todos respondan o venza el temporizador (30 s).
      - Puntos en % de la nota: fácil +10 / mal 0; difícil +20 / mal -20.
-     - Las casillas especiales se regeneran al empezar cada ciclo; quien cae en
-       una recibe pregunta difícil.
+     - Hay hasta 15 casillas especiales únicas, elegidas al azar. Se regeneran
+       al empezar cada ciclo (tras 3 jugadas de cada jugador).
      - Gana quien lleva una ficha a la meta (posición 56).
 
    Seguridad: el cliente nunca recibe la respuesta correcta antes de resolver,
@@ -26,7 +27,7 @@ export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 
 const ROLLS_PER_CYCLE = 3;
 const MAX_CYCLES = 15;
-const SPECIAL_CELL_COUNT = 8;
+const SPECIAL_CELL_COUNT = 15;
 const ANSWER_SECONDS = 30;
 const EASY_PERCENT = 10;
 const HARD_PERCENT = 20;
@@ -841,9 +842,12 @@ export class GameRoom extends DurableObject<Env> {
     state.pendingQuestions = {};
     state.answers = {};
 
+    // Si CUALQUIER jugador cayó en una casilla especial durante el ciclo,
+    // todos responden pregunta difícil (no solo quien cayó).
+    const anySpecial = activePlayers(state).some((p) => p.hitSpecial);
     for (const player of activePlayers(state)) {
       player.answered = false;
-      const question = this.takeQuestion(player.hitSpecial ? 'hard' : 'easy');
+      const question = this.takeQuestion(anySpecial ? 'hard' : 'easy');
       if (question) state.pendingQuestions[player.dni] = question;
     }
 

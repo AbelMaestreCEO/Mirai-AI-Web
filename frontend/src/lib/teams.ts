@@ -56,12 +56,29 @@ export function teamFor(color: GameColor | null | undefined): Team | null {
   return TEAM_BY_COLOR[color] ?? null;
 }
 
-/** URL del retrato que corresponde a la ficha `index` del color dado. */
+/**
+ * Retrato exclusivo de la ficha `index`: cada ficha usa un personaje distinto
+ * del equipo. Devuelve null si el equipo ya no tiene más personajes.
+ */
 export function characterUrl(color: GameColor | null | undefined, index = 0): string | null {
   const team = teamFor(color);
-  if (!team || team.characters.length === 0) return null;
-  const name = team.characters[index % team.characters.length];
+  if (!team) return null;
+  const name = team.characters[index];
+  if (!name) return null;
   return `/characters/${team.folder}/${name}.webp`;
+}
+
+/**
+ * Número correlativo (por equipo) para las fichas sin retrato propio, p. ej.
+ * un equipo con 1 personaje numera sus otras 3 fichas como 1, 2 y 3.
+ */
+export function characterFallbackNumber(
+  color: GameColor | null | undefined,
+  index = 0,
+): number | null {
+  const team = teamFor(color);
+  if (!team || index < team.characters.length) return null;
+  return index - team.characters.length + 1;
 }
 
 /** URL del líder del equipo (se usa en la selección y en cada ficha). */

@@ -122,8 +122,9 @@
 
           <p class="muted small">
             Cada jugador tira el dado 3 veces y mueve una ficha en cada tirada; después, todos
-            responden su pregunta. Las casillas marcadas son especiales: dan pregunta difícil
-            ({{ 20 }}% a favor o en contra).
+            responden su pregunta. Las casillas marcadas son especiales (hasta 15, cambian cada
+            3 jugadas): si alguien cae en una, todos responden pregunta difícil ({{ 20 }}% a
+            favor o en contra).
           </p>
 
           <div class="ludo-players" role="list" aria-label="Jugadores">
@@ -150,12 +151,44 @@
 
           <div class="ludo-stage">
             <div class="ludo-board" role="group" aria-label="Tablero de ludo">
+              <div class="board-fx" aria-hidden="true">
+                <span
+                  v-for="(leaf, i) in fxLeaves"
+                  :key="`leaf-${i}`"
+                  class="fx-leaf"
+                  :style="{ left: leaf.left, animationDelay: leaf.delay, animationDuration: leaf.duration }"
+                />
+                <span
+                  v-for="(cloud, i) in fxClouds"
+                  :key="`cloud-${i}`"
+                  class="fx-cloud"
+                  :style="{ top: cloud.top, animationDelay: cloud.delay, animationDuration: cloud.duration, '--cloud-scale': cloud.scale }"
+                />
+                <div class="fx-waves">
+                  <span class="fx-wave fx-wave-a" />
+                  <span class="fx-wave fx-wave-b" />
+                </div>
+                <span
+                  v-for="(lava, i) in fxLava"
+                  :key="`lava-${i}`"
+                  class="fx-lava"
+                  :style="{ left: lava.left, animationDelay: lava.delay, animationDuration: lava.duration, '--lava-scale': lava.size }"
+                />
+              </div>
               <span
                 v-for="marker in specialMarkers"
                 :key="marker.key"
                 class="special-marker"
                 :class="`marker-${marker.color}`"
                 :style="marker.style"
+                aria-hidden="true"
+              />
+              <span
+                v-for="arrow in actionableTokens"
+                :key="arrow.key"
+                class="piece-arrow"
+                :class="`arrow-${arrow.color}`"
+                :style="arrow.style"
                 aria-hidden="true"
               />
               <template v-for="p in playablePlayers" :key="p.id">
@@ -171,13 +204,15 @@
                   @click="sendMove(p, idx)"
                 >
                   <img
-                    v-if="p.color"
+                    v-if="p.color && characterUrl(p.color, idx)"
                     class="piece-art"
-                    :src="leaderUrl(p.color) ?? ''"
+                    :src="characterUrl(p.color, idx) ?? ''"
                     alt=""
                     draggable="false"
                   />
-                  <span v-else class="piece-num">{{ idx + 1 }}</span>
+                  <span v-else class="piece-num">
+                    {{ characterFallbackNumber(p.color, idx) ?? idx + 1 }}
+                  </span>
                 </button>
               </template>
             </div>
@@ -250,7 +285,13 @@ import {
   type PlayerQuestion,
   type SocketStatus,
 } from '@/lib/game';
-import { TEAMS, leaderUrl, teamFor } from '@/lib/teams';
+import {
+  TEAMS,
+  characterFallbackNumber,
+  characterUrl,
+  leaderUrl,
+  teamFor,
+} from '@/lib/teams';
 
 interface BoardCell {
   r: number;
@@ -258,6 +299,30 @@ interface BoardCell {
 }
 
 const BOARD_SIZE = 15;
+
+// Efectos ambientales decorativos (solo CSS: transform/opacity).
+// Coordenadas en % del tablero; los delays negativos hacen que la animación
+// ya esté en curso al abrir la sala.
+const fxLeaves = [
+  { left: '5%', delay: '-1.2s', duration: '6.5s' },
+  { left: '14%', delay: '-4.4s', duration: '8s' },
+  { left: '23%', delay: '-2.6s', duration: '7.2s' },
+  { left: '31%', delay: '-6.1s', duration: '9s' },
+  { left: '10%', delay: '-3.4s', duration: '7.8s' },
+  { left: '27%', delay: '-7.3s', duration: '6.8s' },
+];
+
+const fxClouds = [
+  { top: '4%', delay: '-6s', duration: '26s', scale: 1 },
+  { top: '13%', delay: '-16s', duration: '32s', scale: 0.8 },
+  { top: '23%', delay: '-24s', duration: '29s', scale: 1.15 },
+];
+
+const fxLava = [
+  { left: '9%', delay: '-0.8s', duration: '5s', size: 1 },
+  { left: '21%', delay: '-2.4s', duration: '6.2s', size: 0.8 },
+  { left: '30%', delay: '-4s', duration: '5.6s', size: 1.2 },
+];
 
 // Circuito común de 52 casillas, en orden (sentido horario).
 const RING: BoardCell[] = [
@@ -376,6 +441,20 @@ const specialMarkers = computed(() => {
     }
   }
   return markers;
+});
+
+// Flecha animada sobre cada ficha que el jugador puede mover en este turno.
+const actionableTokens = computed(() => {
+  const arrows: { key: string; color: GameColor; style: Record<string, string> }[] = [];
+  for (const p of playablePlayers.value) {
+    if (!p.color) continue;
+    for (let idx = 0; idx < p.tokens.length; idx++) {
+      if (!tokenClickable(p, idx)) continue;
+      const pos = p.tokens[idx] ?? -1;
+      arrows.push({ key: `arrow-${p.id}-${idx}`, color: p.color, style: pieceStyle(p, idx, pos) });
+    }
+  }
+  return arrows;
 });
 const rankedPlayers = computed(() => [...playablePlayers.value].sort((a, b) => b.points - a.points));
 const currentPlayer = computed<GamePlayer | null>(
@@ -615,9 +694,10 @@ function pieceStyle(player: GamePlayer, index: number, pos: number): Record<stri
 }
 
 function pieceLabel(player: GamePlayer, index: number, pos: number): string {
-  if (pos < 0) return `Ficha ${index + 1} de ${player.nickname} en la base`;
-  if (pos >= LUDO_PATH_LEN) return `Ficha ${index + 1} de ${player.nickname} en la meta`;
-  return `Ficha ${index + 1} de ${player.nickname}, casilla ${pos}`;
+  const number = characterFallbackNumber(player.color, index) ?? index + 1;
+  if (pos < 0) return `Ficha ${number} de ${player.nickname} en la base`;
+  if (pos >= LUDO_PATH_LEN) return `Ficha ${number} de ${player.nickname} en la meta`;
+  return `Ficha ${number} de ${player.nickname}, casilla ${pos}`;
 }
 
 function queueDice(value: number, legalMoves: number[]): void {
@@ -1113,6 +1193,160 @@ async function leaveRoom(): Promise<void> {
   box-shadow: 0 0 0 3px #0b0b0b;
   image-rendering: pixelated;
   overflow: hidden;
+}
+
+/* ── Efectos ambientales del tablero (solo transform/opacity) ── */
+.board-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fx-leaf {
+  position: absolute;
+  top: -6%;
+  width: 2.6%;
+  aspect-ratio: 1 / 1.4;
+  border-radius: 60% 0 60% 0;
+  background: linear-gradient(160deg, #9ccc65, #2e7d32);
+  opacity: 0.75;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation-name: leaf-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes leaf-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { transform: translate3d(14%, 900%, 0) rotate(160deg); }
+  90% { opacity: 0.75; }
+  100% { transform: translate3d(-8%, 1700%, 0) rotate(300deg); opacity: 0; }
+}
+
+.fx-cloud {
+  position: absolute;
+  left: 100%;
+  width: 17%;
+  height: 6%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 60%, #fff 0 40%, transparent 41%),
+    radial-gradient(circle at 62% 45%, #fff 0 45%, transparent 46%),
+    radial-gradient(circle at 85% 65%, #fff 0 32%, transparent 33%);
+  opacity: 0.5;
+  will-change: transform;
+  animation-name: cloud-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes cloud-drift {
+  0% { transform: translate3d(0, 0, 0) scale(var(--cloud-scale, 1)); }
+  100% { transform: translate3d(-460%, 0, 0) scale(var(--cloud-scale, 1)); }
+}
+
+.fx-waves {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+  height: 34%;
+  overflow: hidden;
+  opacity: 0.55;
+}
+
+.fx-wave {
+  position: absolute;
+  left: -10%;
+  width: 220%;
+  height: 42%;
+  will-change: transform;
+  background-repeat: repeat-x;
+  background-size: 18% 100%;
+  animation-name: wave-slide;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.fx-wave-a {
+  bottom: 0;
+  background-image: radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.75) 0 28%, transparent 29% 100%);
+  animation-duration: 7s;
+}
+
+.fx-wave-b {
+  bottom: 22%;
+  background-image: radial-gradient(circle at 50% 100%, rgba(129, 212, 250, 0.9) 0 22%, transparent 23% 100%);
+  animation-duration: 11s;
+  animation-direction: reverse;
+  opacity: 0.7;
+}
+
+@keyframes wave-slide {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-18%, 0, 0); }
+}
+
+.fx-lava {
+  position: absolute;
+  bottom: 2%;
+  width: 7%;
+  height: 7%;
+  border-radius: 45% 55% 50% 50%;
+  background: radial-gradient(circle at 40% 35%, #ffd54f 0 18%, #ff8f00 40%, #d84315 70%, #7f1d1d 100%);
+  opacity: 0.75;
+  box-shadow: 0 0 12px rgba(255, 87, 34, 0.6);
+  will-change: transform, opacity;
+  animation-name: lava-bubble;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+@keyframes lava-bubble {
+  0% { transform: translate3d(0, 10%, 0) scale(0.7); opacity: 0.45; }
+  100% { transform: translate3d(6%, -110%, 0) scale(var(--lava-scale, 1)); opacity: 0.9; }
+}
+
+/* Flecha que señala la ficha que se puede mover en este turno. */
+.piece-arrow {
+  position: absolute;
+  width: calc(100% / 15 * 0.36);
+  height: calc(100% / 15 * 0.36);
+  transform: translate(-50%, -175%);
+  pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  will-change: transform;
+  animation: arrow-bounce 1.1s ease-in-out infinite;
+}
+
+.piece-arrow::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: currentColor;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
+}
+
+.arrow-green { color: #a5d6a7; }
+.arrow-yellow { color: #fff176; }
+.arrow-red { color: #ef9a9a; }
+.arrow-blue { color: #90caf9; }
+
+@keyframes arrow-bounce {
+  0%, 100% { transform: translate(-50%, -180%); }
+  50% { transform: translate(-50%, -125%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-fx { display: none; }
+  .piece-arrow { animation: none; }
 }
 
 /* Fichas (jugadores). */
