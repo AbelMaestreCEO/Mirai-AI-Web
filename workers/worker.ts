@@ -159,6 +159,10 @@ export default {
   }
 };
 
+// El Worker principal debe exportar la clase del Durable Object o
+// `wrangler deploy` falla ("class not found"). Binding GAME_ROOM en wrangler.toml.
+export { GameRoom } from './durable/GameRoom';
+
 // --- SER ARCHIVOS ESTÁTICOS ---
 /**
  * Cabeceras del HTML de la app: SEO (canonical y X-Robots-Tag) más el resto de

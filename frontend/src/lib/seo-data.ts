@@ -190,6 +190,14 @@ export const SEO_MODULES: SeoModule[] = [
     robots: ROBOTS_NOINDEX_NOFOLLOW,
   },
   {
+    path: '/game',
+    title: 'Juegos multijugador | Mirai AI',
+    description:
+      'Salas de juego por turnos para el aula virtual: Ludo educativo con resultados e historial.',
+    indexable: false,
+    robots: ROBOTS_NOINDEX_NOFOLLOW,
+  },
+  {
     path: '/attendance',
     title: 'Control de Asistencia con QR | Mirai AI',
     description:
@@ -401,6 +409,14 @@ export function getSeo(input: string): SeoInfo {
       known: true,
       canonical: `${SITE.origin}${path === '/' ? '/' : path}`,
     };
+  }
+
+  // Sala de juego: /game/<código> comparte los metadatos de /game.
+  if (path.startsWith('/game/')) {
+    const base = MODULE_BY_PATH.get('/game');
+    if (base) {
+      return { ...base, path, known: true, canonical: `${SITE.origin}${path}` };
+    }
   }
 
   return {

@@ -130,6 +130,16 @@
           <p id="task-description" class="task-desc-text">{{ assignment.description || 'Sin descripción' }}</p>
         </div>
 
+        <!-- Ludo multijugador: no bloquea la forma de entrega; los puntos de la
+             partida se registrarán como nota de la tarea. -->
+        <div class="ludo-invite-card" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.28s both;">
+          <h2 class="section-title">🎲 Ludo multijugador</h2>
+          <p class="section-subtitle">
+            Juega con tu clase las veces que quieras. Cada respuesta correcta suma a tu nota de la tarea.
+          </p>
+          <button class="course-start-btn" @click="openLudo">Ver salas y jugar</button>
+        </div>
+
         <!-- Cómo hacer la tarea: se elige una sola vez -->
         <div v-if="!methodLocked" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
           <h2 class="section-title">¿Cómo quieres hacer tu tarea?</h2>
@@ -569,6 +579,10 @@ function chooseMethod(next: TaskMethod) {
 function openActivity(next: TaskMethod | null = method.value) {
   if (!isActivityMethod(next)) return;
   goToPage(router, 'activity', `id=${encodeURIComponent(assignmentId.value)}&type=${encodeURIComponent(next)}`);
+}
+
+function openLudo(): void {
+  goToPage(router, 'game', `assignment_id=${encodeURIComponent(assignmentId.value)}`);
 }
 
 function startLearning(mode: 'theory' | 'quiz' | 'practice') {

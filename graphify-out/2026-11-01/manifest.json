@@ -324,10 +324,10 @@
     "semantic_hash": "3f23478416aaccdd8e6b9562bddcb464"
   },
   "frontend/src/lib/nav.ts": {
-    "mtime": 1791942135.5207748,
-    "seen": 1792123934.5175164,
-    "ast_hash": "7511e4ef51f03e94f06a87fcbbc0c16b",
-    "semantic_hash": "7511e4ef51f03e94f06a87fcbbc0c16b"
+    "mtime": 1793562207.2492166,
+    "seen": 1793562475.8647552,
+    "ast_hash": "ffdb3975bd8e624ef4bec261af91660a",
+    "semantic_hash": ""
   },
   "frontend/src/lib/pages.ts": {
     "mtime": 1791493523.2278917,
@@ -414,15 +414,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1793555327.316949,
-    "seen": 1793555469.2243977,
-    "ast_hash": "b633e9e9948902d2908c9befb219ca6f",
+    "mtime": 1793564556.0506382,
+    "seen": 1793564668.6278615,
+    "ast_hash": "58123501caa31555132bc5c1a5de626a",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
-    "mtime": 1793556243.0999079,
-    "seen": 1793556288.623338,
-    "ast_hash": "c2b7aed0cdf2ca09cd2cc2a270e8181e",
+    "mtime": 1793556414.9770913,
+    "seen": 1793558662.2469704,
+    "ast_hash": "c6bf29a02d7d25fa0842ee9f7dc917cf",
     "semantic_hash": ""
   },
   "frontend/src/pages/CodePage.vue": {
@@ -588,9 +588,9 @@
     "semantic_hash": ""
   },
   "frontend/src/router/routes.ts": {
-    "mtime": 1792807505.0200224,
-    "seen": 1792807545.4280128,
-    "ast_hash": "fec714b9998f736d592e6e3e3b15a168",
+    "mtime": 1793562201.1400025,
+    "seen": 1793562475.881239,
+    "ast_hash": "190940c6d111c70e9ed0fc750bccfbab",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793556252.279142,
-    "seen": 1793556288.6309752,
+    "mtime": 1793564652.4165695,
+    "seen": 1793564668.6322014,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -630,9 +630,9 @@
     "semantic_hash": "25f643efdbb0ad0191e1ae3ddb57bab2"
   },
   "workers/env.d.ts": {
-    "mtime": 1793549150.4174888,
-    "seen": 1793549242.996841,
-    "ast_hash": "2567aa5a3215e0ffaaaa0e67e6360a47",
+    "mtime": 1793560528.2395833,
+    "seen": 1793560575.30199,
+    "ast_hash": "5eac78dd1d9b0c6b1fced0bde9d3cc4f",
     "semantic_hash": ""
   },
   "workers/lib/ai-models.ts": {
@@ -732,9 +732,9 @@
     "semantic_hash": "44b266028c3131d82537340eb355ed56"
   },
   "workers/router.ts": {
-    "mtime": 1793549124.3034658,
-    "seen": 1793549242.9981735,
-    "ast_hash": "2cc3c45ba3dfc8e59c62768c2117f6e8",
+    "mtime": 1793561829.1018586,
+    "seen": 1793561904.183861,
+    "ast_hash": "90e39d694e16a91da9e28fdd59221e62",
     "semantic_hash": ""
   },
   "workers/routes/account.ts": {
@@ -900,9 +900,9 @@
     "semantic_hash": "7b3dc21a900dfc4372c9da83a6ad60ac"
   },
   "workers/worker.ts": {
-    "mtime": 1792846764.371827,
-    "seen": 1792846886.6115167,
-    "ast_hash": "0613dbac445689436016407876ecc64f",
+    "mtime": 1793560524.6606007,
+    "seen": 1793560575.3057764,
+    "ast_hash": "52593817bcedc29d62338502f44802ea",
     "semantic_hash": ""
   },
   "android/manifest-checksum.txt": {
@@ -1344,9 +1344,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/seo-data.ts": {
-    "mtime": 1792846803.6607876,
-    "seen": 1792846886.6049764,
-    "ast_hash": "7d64bbc3135363ed3f92b98233676fc8",
+    "mtime": 1793562194.8742964,
+    "seen": 1793562475.8657134,
+    "ast_hash": "2f21fdb228ae4f61d317947dcbefc1b8",
     "semantic_hash": ""
   },
   "frontend/src/lib/seo.ts": {
@@ -1377,6 +1377,54 @@
     "mtime": 1793548983.4613678,
     "seen": 1793549243.0007086,
     "ast_hash": "463c1087770368ddce312a84c86f84bb",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/ActivityPage.vue": {
+    "mtime": 1793558558.2784286,
+    "seen": 1793558662.2464788,
+    "ast_hash": "ff0bdc16361f35e9ebbcc2a421b09d2d",
+    "semantic_hash": ""
+  },
+  "workers/routes/activities.ts": {
+    "mtime": 1793558624.3425493,
+    "seen": 1793558662.2523444,
+    "ast_hash": "eec54a49238934f5e7d6f22477f6cd89",
+    "semantic_hash": ""
+  },
+  "workers/durable/GameRoom.ts": {
+    "mtime": 1793564518.633929,
+    "seen": 1793564668.6326685,
+    "ast_hash": "2c190c1d0e15e5810924906b394c680a",
+    "semantic_hash": ""
+  },
+  "multijugador.md": {
+    "mtime": 1793559985.1180842,
+    "seen": 1793560575.306096,
+    "ast_hash": "fc987d83a299d4f90d956316a8cfc99f",
+    "semantic_hash": ""
+  },
+  "workers/routes/game.ts": {
+    "mtime": 1793564632.629033,
+    "seen": 1793564668.6385615,
+    "ast_hash": "d10c426373735b3189fd4394d835fef4",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/game.ts": {
+    "mtime": 1793562309.5267642,
+    "seen": 1793562475.863182,
+    "ast_hash": "f13bc091f327956bce2269aaffcab39b",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/GameLobbyPage.vue": {
+    "mtime": 1793564539.689368,
+    "seen": 1793564668.6287537,
+    "ast_hash": "ce2dc8472a8f793a5e520d24b7dbda37",
+    "semantic_hash": ""
+  },
+  "frontend/src/pages/GameRoomPage.vue": {
+    "mtime": 1793564564.8103683,
+    "seen": 1793564668.6287556,
+    "ast_hash": "fe9596bf4a4229eaaf41b8b8c3e8c452",
     "semantic_hash": ""
   }
 }

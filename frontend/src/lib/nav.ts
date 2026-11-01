@@ -18,6 +18,7 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: 'generation', label: 'Generación con IA', tooltip: 'Generación con IA', icon: 'generation', alt: 'Generación con IA' },
   { slug: 'course_category', label: 'Cursos', tooltip: 'Cursos', icon: 'courses', alt: 'Cursos' },
   { slug: 'classroom', label: 'Aula', tooltip: 'Aula', icon: 'classroom', alt: 'Aula' },
+  { slug: 'game', label: 'Juegos', tooltip: 'Juegos multijugador', icon: 'classroom', alt: 'Juegos' },
   { slug: 'inventory', label: 'Inventario', tooltip: 'Inventario', icon: 'inventory', alt: 'Inventario' },
   { slug: 'sales', label: 'Ventas', tooltip: 'Ventas', icon: 'sales', alt: 'Ventas' },
   { slug: 'mirror', label: 'Fotos', tooltip: 'Organizador', icon: 'photos', alt: 'Fotos' },

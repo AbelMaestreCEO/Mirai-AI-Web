@@ -30,4 +30,8 @@ interface Env {
   VAPID_SUBJECT?: string;
 
   MIRAI: Fetcher & { personaje(): Promise<MiraiPersonaje> };
+
+  // Añadido a mano: `wrangler types` lo genera en worker-configuration.d.ts,
+  // pero ese archivo se regenera. Ver wrangler.toml (GAME_ROOM / GameRoom).
+  GAME_ROOM: DurableObjectNamespace;
 }

@@ -18,6 +18,7 @@ import { handleApaDelete, handleApaDownload, handleApaHistory, handleApaUpload }
 import { handleServeAudio, handleTranscribeAudio, handleUploadUserAudio } from './routes/audio';
 import { handleChat } from './routes/chat';
 import { handleClassroomApi } from './routes/classroom';
+import { handleGameApi } from './routes/game';
 import {
   handleCodeChatCreate,
   handleCodeChatDelete,
@@ -249,6 +250,10 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
     if (url.pathname === '/api/get-or-create-learning-chat' && request.method === 'GET') {
       return handleGetOrCreateLearningChat(request, env, corsHeaders);
     }
+
+    // ── MULTIJUGADOR: lobby REST y WebSocket de la sala (GameRoom) ──
+    const gameResponse = await handleGameApi(request, env, url, path, corsHeaders);
+    if (gameResponse) return gameResponse;
 
     // ── AULA, CURSOS Y ASISTENCIA (workers/classroom.ts) ────────────
     const classroomResponse = await handleClassroomApi(request, env, url, path, corsHeaders);
