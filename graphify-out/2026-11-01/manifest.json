@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793568422.8235526,
-    "seen": 1793568437.3247945,
+    "mtime": 1793568549.5620224,
+    "seen": 1793569037.911702,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1392,9 +1392,9 @@
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1793565031.639201,
-    "seen": 1793565046.1717901,
-    "ast_hash": "80ed0cad117c105c540dc1694ee7479b",
+    "mtime": 1793569017.9629638,
+    "seen": 1793569037.9118493,
+    "ast_hash": "f3eecab757114a70e65892973a7fc408",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1404,15 +1404,15 @@
     "semantic_hash": ""
   },
   "workers/routes/game.ts": {
-    "mtime": 1793564904.075226,
-    "seen": 1793565046.1760137,
-    "ast_hash": "43aa1ec2444670bf8a8fc63da63d3b9f",
+    "mtime": 1793569013.29179,
+    "seen": 1793569037.9142826,
+    "ast_hash": "6c14cd0a12a189079f75f95a08ef5bda",
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1793564952.9153028,
-    "seen": 1793565046.166804,
-    "ast_hash": "063642eb0bda834c19c419a9a9f54ba1",
+    "mtime": 1793568653.6960187,
+    "seen": 1793569037.9059808,
+    "ast_hash": "0e77c9c313ec029916faaf1b755c3031",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {

@@ -615,14 +615,15 @@ async function handleWebSocket(
     return jsonResponse({ error: 'La sala está llena' }, 409, corsHeaders);
   }
 
-  // Se copia la petición original (conserva el upgrade a WebSocket) y solo se
-  // añaden las cabeceras de identidad. Construir un Request desde URL + headers
-  // puede perder o rechazar el handshake.
+  // Copia la petición original (conserva el upgrade a WebSocket) y solo añade
+  // las cabeceras de identidad.
+  const manager = await canManageRoom(room, dni, env);
   const forward = new Request(request);
   forward.headers.set('X-Game-User', dni.toUpperCase());
   forward.headers.set('X-Game-Role', roleForDo(role));
   forward.headers.set('X-Game-Code', room.code);
   forward.headers.set('X-Game-Nickname', encodeURIComponent(nickname));
+  forward.headers.set('X-Game-CanManage', manager ? '1' : '0');
   if (room.section_id) forward.headers.set('X-Game-Section', room.section_id);
 
   const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(room.code));

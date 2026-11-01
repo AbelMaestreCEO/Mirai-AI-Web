@@ -324,9 +324,9 @@
     "semantic_hash": "3f23478416aaccdd8e6b9562bddcb464"
   },
   "frontend/src/lib/nav.ts": {
-    "mtime": 1793562207.2492166,
-    "seen": 1793562475.8647552,
-    "ast_hash": "ffdb3975bd8e624ef4bec261af91660a",
+    "mtime": 1793569607.9446323,
+    "seen": 1793569701.3248465,
+    "ast_hash": "7511e4ef51f03e94f06a87fcbbc0c16b",
     "semantic_hash": ""
   },
   "frontend/src/lib/pages.ts": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793568549.5620224,
-    "seen": 1793569037.911702,
+    "mtime": 1793569690.5639682,
+    "seen": 1793569701.3296208,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1392,9 +1392,9 @@
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1793569017.9629638,
-    "seen": 1793569037.9118493,
-    "ast_hash": "f3eecab757114a70e65892973a7fc408",
+    "mtime": 1793569640.001188,
+    "seen": 1793569701.329814,
+    "ast_hash": "d9da4cbd5c09d669970db62cb4634afd",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1404,15 +1404,15 @@
     "semantic_hash": ""
   },
   "workers/routes/game.ts": {
-    "mtime": 1793569013.29179,
-    "seen": 1793569037.9142826,
-    "ast_hash": "6c14cd0a12a189079f75f95a08ef5bda",
+    "mtime": 1793569614.3255413,
+    "seen": 1793569701.3321438,
+    "ast_hash": "ad710af0b5a60a5871925de49540c4d3",
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1793568653.6960187,
-    "seen": 1793569037.9059808,
-    "ast_hash": "0e77c9c313ec029916faaf1b755c3031",
+    "mtime": 1793569645.8581536,
+    "seen": 1793569701.3242688,
+    "ast_hash": "d0b782827caba1372f6d19905dc05cde",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793568404.7269187,
-    "seen": 1793568437.3224206,
-    "ast_hash": "b231e28e124bbe35cb2861b5febe42ac",
+    "mtime": 1793569667.0462248,
+    "seen": 1793569701.3278983,
+    "ast_hash": "b5928d99a2575a67a167b94cc72ddb83",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {

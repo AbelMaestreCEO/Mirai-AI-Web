@@ -222,6 +222,7 @@ export function publicState(state: GameState) {
 interface WsAttachment {
   dni: string;
   nickname: string;
+  canManage: boolean;
 }
 
 /** Cabeceras HTTP solo admiten bytes; el Worker manda el apodo codificado. */
@@ -331,6 +332,7 @@ export class GameRoom extends DurableObject<Env> {
     const nickname = safeDecode(request.headers.get('X-Game-Nickname') || '').slice(0, 24);
     const code = request.headers.get('X-Game-Code') || '';
     const sectionId = request.headers.get('X-Game-Section') || null;
+    const canManage = request.headers.get('X-Game-CanManage') === '1';
 
     if (!dni) return new Response('No autorizado', { status: 401 });
 
@@ -358,10 +360,14 @@ export class GameRoom extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server, [`user:${dni}`]);
-    server.serializeAttachment({ dni, nickname: player?.nickname ?? nickname } satisfies WsAttachment);
+    server.serializeAttachment({
+      dni,
+      nickname: player?.nickname ?? nickname,
+      canManage,
+    } satisfies WsAttachment);
 
     this.saveState(state);
-    server.send(JSON.stringify(this.snapshotFor(state, dni)));
+    server.send(JSON.stringify(this.snapshotFor(state, dni, canManage)));
     this.broadcastRoomState(state);
     if (state.status !== 'lobby' && state.status !== 'finished') this.ensureAlarm(state);
 
@@ -652,8 +658,12 @@ export class GameRoom extends DurableObject<Env> {
         this.send(ws, { type: 'pong', seq: state.seq });
         return;
       case 'join':
-        ws.serializeAttachment({ dni: attachment.dni, nickname: String(msg.nickname || attachment.nickname).slice(0, 24) });
-        this.send(ws, this.snapshotFor(state, attachment.dni));
+        ws.serializeAttachment({
+          dni: attachment.dni,
+          nickname: String(msg.nickname || attachment.nickname).slice(0, 24),
+          canManage: attachment.canManage,
+        } satisfies WsAttachment);
+        this.send(ws, this.snapshotFor(state, attachment.dni, attachment.canManage));
         return;
       case 'ready':
         this.handleReady(state, attachment.dni);
@@ -1062,7 +1072,7 @@ export class GameRoom extends DurableObject<Env> {
   }
 
   /** Snapshot completo para UN jugador: incluye su id, su rol y su pregunta. */
-  private snapshotFor(state: GameState, dni: string): ServerMessage {
+  private snapshotFor(state: GameState, dni: string, canManage: boolean): ServerMessage {
     const player = state.players.find((p) => p.dni === dni);
     const question = state.pendingQuestions[dni];
     return {
@@ -1070,6 +1080,7 @@ export class GameRoom extends DurableObject<Env> {
       seq: state.seq,
       you: this.publicId(state, dni),
       youRole: player?.role ?? 'spectator',
+      youManage: canManage,
       legal: legalMoves(state, dni),
       question: question
         ? {

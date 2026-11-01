@@ -50,8 +50,20 @@
         <button v-if="youRole === 'player'" class="btn-primary" type="button" @click="toggleReady">
           {{ myPlayer?.ready ? 'Quitar listo' : 'Estoy listo' }}
         </button>
+        <button
+          v-if="youManage"
+          class="btn-primary"
+          type="button"
+          :disabled="playablePlayers.length < 2 || starting"
+          @click="startGame"
+        >
+          {{ starting ? 'Preparando preguntas…' : 'Iniciar partida' }}
+        </button>
+        <p v-if="youManage && playablePlayers.length < 2" class="muted small">
+          Faltan jugadores: {{ playablePlayers.length }}/2 conectados en esta sala.
+        </p>
         <p class="muted small">
-          Se necesitan al menos 2 jugadores conectados. Cualquiera de ellos puede iniciar la partida.
+          Se necesitan al menos 2 jugadores conectados. Quien creó la sala puede iniciarla desde aquí.
         </p>
       </section>
 
@@ -226,6 +238,8 @@ const code = String(route.params.code ?? '').toUpperCase();
 const state = ref<GameState | null>(null);
 const you = ref('');
 const youRole = ref<'player' | 'spectator'>('player');
+const youManage = ref(false);
+const starting = ref(false);
 const socketStatus = ref<SocketStatus>('connecting');
 const attempt = ref(0);
 const lastError = ref('');
@@ -329,6 +343,7 @@ function handleMessage(message: GameMessage): void {
     case 'state_snapshot': {
       you.value = message.you ?? '';
       youRole.value = message.youRole ?? 'player';
+      youManage.value = message.youManage === true;
       legal.value = message.legal ?? [];
       if (message.state) state.value = message.state;
       const snapshotQuestion = message.question;
@@ -484,6 +499,20 @@ function toggleReady(): void {
 
 function roll(): void {
   socket?.send({ type: 'roll' });
+}
+
+async function startGame(): Promise<void> {
+  if (starting.value) return;
+  starting.value = true;
+  lastError.value = '';
+  try {
+    const res = await api.post<{ error?: string }>(`/api/game/rooms/${code}/start`, {});
+    if (!res.ok) lastError.value = res.data.error ?? 'No se pudo iniciar la partida.';
+  } catch {
+    lastError.value = 'No se pudo iniciar la partida.';
+  } finally {
+    starting.value = false;
+  }
 }
 
 function sendMove(player: GamePlayer, token: number): void {

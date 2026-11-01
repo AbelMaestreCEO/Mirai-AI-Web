@@ -63,6 +63,7 @@ export interface GameMessage {
   state?: GameState;
   you?: string;
   youRole?: 'player' | 'spectator';
+  youManage?: boolean;
   dni?: string;
   dice?: number;
   legal?: number[];

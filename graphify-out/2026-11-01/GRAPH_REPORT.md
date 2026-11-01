@@ -1,7 +1,7 @@
 # Graph Report - Mirai-AI-Web  (2026-11-01)
 
 ## Corpus Check
-- 173 files · ~398,672 words
+- 173 files · ~398,902 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 37 file(s) not represented in the graph (top: .css 14, .xml 7, (none) 3)
 
