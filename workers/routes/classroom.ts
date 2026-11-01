@@ -5,11 +5,101 @@
    handleClassroomApi y sigue con sus propias rutas si devuelve null.
    ============================================ */
 import { callAI } from '../lib/ai';
-import { AI_MODEL_PRO } from '../lib/ai-models';
+import { AI_MODEL_NORMAL, AI_MODEL_PRO } from '../lib/ai-models';
 import { isAdminUser, normalizeDni, requireAuth } from '../lib/auth';
 import { extractTextFromDocx, extractTextFromPDF } from '../lib/documents';
 import { jsonResponse } from '../lib/http';
 import { callVision } from '../lib/vision';
+import { getAssignmentForStudent } from './chat-context';
+
+// ── QUIZ DE UNA TAREA ─────────────────────────────────────────
+// Diez preguntas fijas por evaluación, ordenadas de fácil a difícil:
+// 4 fáciles (20% del puntaje), 3 intermedias (30%) y 3 difíciles (50%).
+// El puntaje total es el max_score que puso el profesor en la tarea.
+const QUIZ_LEVELS = [
+  { level: 'facil', count: 4, share: 0.2 },
+  { level: 'intermedio', count: 3, share: 0.3 },
+  { level: 'dificil', count: 3, share: 0.5 },
+];
+
+function buildQuizPoints(maxScore: number): number[] {
+  const points: number[] = [];
+  let assigned = 0;
+  QUIZ_LEVELS.forEach((plan, planIndex) => {
+    const levelTotal = planIndex === QUIZ_LEVELS.length - 1
+      ? maxScore - assigned
+      : Math.round(maxScore * plan.share);
+    const base = Math.floor(levelTotal / plan.count);
+    let remainder = levelTotal - base * plan.count;
+    for (let i = 0; i < plan.count; i++) {
+      points.push(base + (remainder > 0 ? 1 : 0));
+      if (remainder > 0) remainder--;
+    }
+    assigned += levelTotal;
+  });
+  return points;
+}
+
+// Columnas de apoyo para registrar qué método eligió el alumno y si ya usó
+// su único reinicio. Se crean al vuelo para no depender de una migración.
+let quizSubmissionColumnsReady = false;
+
+async function ensureQuizSubmissionColumns(env: Env) {
+  if (quizSubmissionColumnsReady) return;
+  for (const sql of [
+    'ALTER TABLE submissions ADD COLUMN attempt_type TEXT',
+    'ALTER TABLE submissions ADD COLUMN retry_used INTEGER DEFAULT 0',
+  ]) {
+    try {
+      await env.MIRAI_AI_DB.prepare(sql).run();
+    } catch {
+      // La columna ya existe.
+    }
+  }
+  quizSubmissionColumnsReady = true;
+}
+
+function quizLevelAt(index: number): string {
+  let cursor = 0;
+  for (const plan of QUIZ_LEVELS) {
+    cursor += plan.count;
+    if (index < cursor) return plan.level;
+  }
+  return 'dificil';
+}
+
+function normalizeQuizText(text: string): string {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function quizAnswerMatches(answer: string, expected: string): boolean {
+  const a = normalizeQuizText(answer);
+  const e = normalizeQuizText(expected);
+  if (!a || !e) return false;
+  if (a.includes(e) || e.includes(a)) return true;
+  const expectedWords = e.split(' ').filter((w) => w.length > 3);
+  if (!expectedWords.length) return false;
+  const hits = expectedWords.filter((w) => a.includes(w)).length;
+  return hits / expectedWords.length >= 0.6;
+}
+
+function parseQuizJson(raw: string): any {
+  const cleaned = raw
+    .replace(/^\uFEFF/, '')
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('La IA no devolvió un JSON válido');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
 
 /**
  * Rutas del aula, los cursos y la asistencia.
@@ -683,11 +773,297 @@ ORDER BY u.last_name, u.first_name
             SELECT * FROM submissions WHERE user_dni = ?
         `).bind(userDni.toUpperCase()).all<any>();
 
-      return jsonResponse({ assignments, submissions }, 200, corsHeaders);
+      // Clases (secciones) a las que está unido, aunque todavía no tengan tareas.
+      const { results: classes } = await env.MIRAI_AI_DB.prepare(`
+            SELECT s.id AS section_id, s.name AS section_name,
+                   s.course_id, c.title AS course_title
+              FROM sections s
+              JOIN section_students ss ON ss.section_id = s.id
+              LEFT JOIN user_courses c ON c.id = s.course_id
+             WHERE UPPER(ss.user_dni) = UPPER(?)
+             ORDER BY c.title, s.name
+        `).bind(userDni.toUpperCase()).all<any>();
+
+      return jsonResponse({ assignments, submissions, classes }, 200, corsHeaders);
 
     } catch (error) {
       console.error('Error en my-submissions:', error);
       return jsonResponse({ error: 'Error interno' }, 500, corsHeaders);
+    }
+  }
+
+  // Ruta: POST /api/assignment-quiz/start
+  // Genera las 10 preguntas del quiz de una tarea (modo «quiz4» o «quiz_free»).
+  if (path === '/api/assignment-quiz/start' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    try {
+      const body = await request.json<any>().catch(() => ({}));
+      const assignmentId = body?.assignment_id != null ? String(body.assignment_id) : '';
+      const mode = body?.mode === 'quiz4' ? 'quiz4' : body?.mode === 'quiz_free' ? 'quiz_free' : '';
+      if (!assignmentId || !mode) {
+        return jsonResponse({ error: 'Faltan assignment_id o un modo válido (quiz4, quiz_free)' }, 400, corsHeaders);
+      }
+
+      const assignment = await getAssignmentForStudent(assignmentId, userDni, env);
+      if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+      const maxScore = Math.max(1, Math.round(Number(assignment.max_score) || 100));
+      const points = buildQuizPoints(maxScore);
+      const descripcion = String(assignment.description || '').trim().slice(0, 2500);
+
+      const schema = mode === 'quiz4'
+        ? '{"questions":[{"question":"...","options":["...","...","...","..."],"correct_index":0,"expected_answer":"..."}]}'
+        : '{"questions":[{"question":"...","expected_answer":"..."}]}';
+
+      const systemPrompt = `Eres la tutora académica de Mirai. Creas evaluaciones cortas y claras sobre la tarea de un estudiante.
+Reglas:
+- Genera EXACTAMENTE 10 preguntas sobre el tema y el enunciado de la tarea.
+- Ordénalas de fácil a difícil: las 4 primeras fáciles, las 3 siguientes de dificultad intermedia y las 3 últimas difíciles.
+- Las preguntas deben ser breves (máximo 25 palabras) y sin ambigüedad.
+${mode === 'quiz4'
+  ? '- Cada pregunta tiene 4 opciones cortas (máximo 8 palabras) y una sola respuesta correcta.\n- "correct_index" es el índice 0-3 de la opción correcta.'
+  : '- No incluyas opciones: el estudiante escribirá su respuesta.\n- "expected_answer" es una respuesta modelo breve (máximo 20 palabras).'}
+- Devuelve SOLO el JSON, sin texto adicional ni bloques de código.`;
+
+      const userPrompt = `Tarea: ${assignment.title}\n${descripcion ? `Enunciado:\n${descripcion}\n` : ''}
+Formato exacto de respuesta:\n${schema}`;
+
+      const raw = await callAI(
+        AI_MODEL_NORMAL,
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        { temperature: 0.7, max_tokens: 4500 },
+        env,
+      );
+
+      const parsed = parseQuizJson(raw);
+      const rawQuestions = Array.isArray(parsed?.questions) ? parsed.questions.slice(0, 10) : [];
+      if (rawQuestions.length < 10) {
+        return jsonResponse({ error: 'La IA no generó las 10 preguntas. Inténtalo de nuevo.' }, 502, corsHeaders);
+      }
+
+      const questions = rawQuestions.map((q: any, index: number) => {
+        const question = String(q?.question || '').trim();
+        if (!question) throw new Error('Pregunta vacía');
+        const base: any = {
+          index,
+          level: quizLevelAt(index),
+          points: points[index],
+          question,
+          expected_answer: String(q?.expected_answer || '').trim(),
+        };
+        if (mode === 'quiz4') {
+          const options = Array.isArray(q?.options)
+            ? q.options.map((o: any) => String(o || '').trim()).filter(Boolean).slice(0, 4)
+            : [];
+          if (options.length !== 4) throw new Error('Opciones incompletas');
+          const correctIndex = Math.min(3, Math.max(0, Number(q?.correct_index) || 0));
+          base.options = options;
+          base.correct_index = correctIndex;
+        }
+        return base;
+      });
+
+      return jsonResponse({
+        assignment_id: assignmentId,
+        mode,
+        max_score: maxScore,
+        total_points: maxScore,
+        questions,
+      }, 200, corsHeaders);
+    } catch (error: any) {
+      console.error('Error generando quiz:', error);
+      return jsonResponse({ error: 'No se pudo generar el quiz en este momento. Inténtalo de nuevo.' }, 502, corsHeaders);
+    }
+  }
+
+  // Ruta: POST /api/assignment-quiz/grade
+  // Califica las respuestas abiertas del Quiz libre con la IA.
+  if (path === '/api/assignment-quiz/grade' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    try {
+      const body = await request.json<any>().catch(() => ({}));
+      const assignmentId = body?.assignment_id != null ? String(body.assignment_id) : '';
+      const answers = Array.isArray(body?.answers) ? body.answers.slice(0, 10) : [];
+      if (!assignmentId || !answers.length) {
+        return jsonResponse({ error: 'Faltan assignment_id o respuestas' }, 400, corsHeaders);
+      }
+
+      const assignment = await getAssignmentForStudent(assignmentId, userDni, env);
+      if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+      type QuizGradeItem = {
+        index: number;
+        question: string;
+        expected_answer: string;
+        answer: string;
+        points: number;
+      };
+      const items: QuizGradeItem[] = answers.map((a: any, index: number) => ({
+        index,
+        question: String(a?.question || '').slice(0, 500),
+        expected_answer: String(a?.expected_answer || '').slice(0, 500),
+        answer: String(a?.answer || '').slice(0, 800),
+        points: Math.max(0, Number(a?.points) || 0),
+      }));
+
+      const systemPrompt = `Eres un profesor que califica respuestas abiertas de un quiz.
+Para cada respuesta decide si el estudiante acertó ("correct": true) o no ("correct": false).
+Sé flexible con la redacción: vale una respuesta equivalente con otras palabras.
+Devuelve SOLO un JSON con este formato:
+{"results":[{"index":0,"correct":true,"feedback":"frase breve"}]}
+Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
+
+      const userPrompt = items.map((item) =>
+        `#${item.index}\nPregunta: ${item.question}\nRespuesta esperada: ${item.expected_answer}\nRespuesta del estudiante: ${item.answer}`,
+      ).join('\n\n');
+
+      let results: { index: number; correct: boolean; feedback: string }[];
+      try {
+        const raw = await callAI(
+          AI_MODEL_NORMAL,
+          [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          { temperature: 0.2, max_tokens: 2000 },
+          env,
+        );
+        const parsed = parseQuizJson(raw);
+        const aiResults = Array.isArray(parsed?.results) ? parsed.results : [];
+        results = items.map((item) => {
+          const found = aiResults.find((r: any) => Number(r?.index) === item.index);
+          return {
+            index: item.index,
+            correct: found ? found.correct === true : quizAnswerMatches(item.answer, item.expected_answer),
+            feedback: String(found?.feedback || '').trim(),
+          };
+        });
+      } catch (aiError) {
+        console.warn('⚠️ Calificación con IA falló, usando comparación simple:', aiError);
+        results = items.map((item) => ({
+          index: item.index,
+          correct: quizAnswerMatches(item.answer, item.expected_answer),
+          feedback: '',
+        }));
+      }
+
+      const score = items.reduce((sum, item, index) =>
+        sum + (results[index]?.correct ? item.points : 0), 0);
+
+      return jsonResponse({ results, score }, 200, corsHeaders);
+    } catch (error: any) {
+      console.error('Error calificando quiz:', error);
+      return jsonResponse({ error: 'No se pudo calificar el quiz. Inténtalo de nuevo.' }, 502, corsHeaders);
+    }
+  }
+
+  // Ruta: POST /api/assignment-quiz/submit
+  // Guarda la nota del quiz en la base de datos (una sola entrega por tarea).
+  if (path === '/api/assignment-quiz/submit' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    try {
+      const body = await request.json<any>().catch(() => ({}));
+      const assignmentId = body?.assignment_id != null ? String(body.assignment_id) : '';
+      const mode = body?.mode === 'quiz4' ? 'quiz4' : body?.mode === 'quiz_free' ? 'quiz_free' : '';
+      if (!assignmentId || !mode) {
+        return jsonResponse({ error: 'Faltan assignment_id o modo' }, 400, corsHeaders);
+      }
+
+      const assignment = await getAssignmentForStudent(assignmentId, userDni, env);
+      if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+      const maxScore = Math.max(1, Math.round(Number(assignment.max_score) || 100));
+      const score = Math.max(0, Math.min(maxScore, Math.round(Number(body?.score) || 0)));
+      const correct = Math.max(0, Math.min(10, Math.round(Number(body?.correct) || 0)));
+      const modeLabel = mode === 'quiz4' ? 'Quiz 4' : 'Quiz libre';
+      const feedback = JSON.stringify({
+        general: `${modeLabel} completado: ${correct} de 10 respuestas correctas. Nota registrada automáticamente.`,
+      });
+
+      await ensureQuizSubmissionColumns(env);
+      const ownerDni = userDni.toUpperCase();
+      const existing = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
+      ).bind(assignmentId, ownerDni).first<any>();
+
+      let submissionId = existing?.id;
+      if (existing) {
+        await env.MIRAI_AI_DB.prepare(`
+          UPDATE submissions
+             SET file_url = ?, status = 'evaluated', score = ?, feedback = ?,
+                 graded_at = datetime('now'), attempt_type = ?, submitted_at = datetime('now')
+           WHERE id = ?
+        `).bind(`quiz://${mode}`, score, feedback, mode, submissionId).run();
+      } else {
+        submissionId = crypto.randomUUID();
+        await env.MIRAI_AI_DB.prepare(`
+          INSERT INTO submissions
+            (id, assignment_id, user_dni, file_url, status, score, feedback, graded_at,
+             submitted_at, attempt_type, retry_used)
+          VALUES (?, ?, ?, ?, 'evaluated', ?, ?, datetime('now'), datetime('now'), ?, 0)
+        `).bind(submissionId, assignmentId, ownerDni, `quiz://${mode}`, score, feedback, mode).run();
+      }
+
+      const saved = await env.MIRAI_AI_DB.prepare(
+        'SELECT retry_used FROM submissions WHERE id = ?'
+      ).bind(submissionId).first<any>();
+
+      return jsonResponse({
+        success: true,
+        submission_id: submissionId,
+        score,
+        max_score: maxScore,
+        retry_used: Number(saved?.retry_used) === 1,
+      }, 200, corsHeaders);
+    } catch (error: any) {
+      console.error('Error guardando quiz:', error);
+      return jsonResponse({ error: 'No se pudo guardar la nota del quiz' }, 500, corsHeaders);
+    }
+  }
+
+  // Ruta: POST /api/assignment-quiz/reset
+  // Único reinicio disponible: deja la tarea pendiente para volver a hacerla.
+  if (path === '/api/assignment-quiz/reset' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    try {
+      const body = await request.json<any>().catch(() => ({}));
+      const assignmentId = body?.assignment_id != null ? String(body.assignment_id) : '';
+      if (!assignmentId) return jsonResponse({ error: 'Falta assignment_id' }, 400, corsHeaders);
+
+      const assignment = await getAssignmentForStudent(assignmentId, userDni, env);
+      if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+      await ensureQuizSubmissionColumns(env);
+      const row = await env.MIRAI_AI_DB.prepare(
+        'SELECT id, retry_used FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
+      ).bind(assignmentId, userDni.toUpperCase()).first<any>();
+
+      if (!row) return jsonResponse({ error: 'No hay una tarea finalizada para reiniciar' }, 404, corsHeaders);
+      if (Number(row.retry_used) === 1) {
+        return jsonResponse({ error: 'Ya usaste tu único reinicio para esta tarea' }, 409, corsHeaders);
+      }
+
+      await env.MIRAI_AI_DB.prepare(`
+        UPDATE submissions
+           SET status = 'reset', score = NULL, graded_at = NULL, feedback = NULL, retry_used = 1
+         WHERE id = ?
+      `).bind(row.id).run();
+
+      return jsonResponse({ success: true, retry_used: true }, 200, corsHeaders);
+    } catch (error: any) {
+      console.error('Error reiniciando tarea:', error);
+      return jsonResponse({ error: 'No se pudo reiniciar la tarea' }, 500, corsHeaders);
     }
   }
 
@@ -1120,11 +1496,12 @@ NO agregues texto adicional fuera del JSON.`;
         }
 
         // Una entrega por alumno y tarea: antes se acumulaban duplicados sin límite.
+        // Si la tarea fue reiniciada (status = 'reset'), se permite reemplazarla.
         const alreadySubmitted = await env.MIRAI_AI_DB.prepare(
-          'SELECT id FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
+          'SELECT id, status FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
         ).bind(assignmentId, userDni).first<any>();
 
-        if (alreadySubmitted) {
+        if (alreadySubmitted && alreadySubmitted.status !== 'reset') {
           return jsonResponse({ error: 'Ya entregaste esta tarea' }, 409, corsHeaders);
         }
 
@@ -1165,11 +1542,24 @@ NO agregues texto adicional fuera del JSON.`;
         });
 
         // 2. Guardar en D1
-        const submissionId = crypto.randomUUID();
-        await env.MIRAI_AI_DB.prepare(`
-          INSERT INTO submissions (id, assignment_id, user_dni, file_url, status, submitted_at)
-          VALUES (?, ?, ?, ?, 'pending', datetime('now'))
-      `).bind(submissionId, assignmentId, ownerDni, `/api/file/${r2Key}`).run();
+        await ensureQuizSubmissionColumns(env);
+        let submissionId = alreadySubmitted?.id;
+        if (alreadySubmitted) {
+          await env.MIRAI_AI_DB.prepare(`
+            UPDATE submissions
+               SET file_url = ?, status = 'pending', score = NULL, feedback = NULL,
+                   graded_at = NULL, extracted_text = NULL, attempt_type = 'document',
+                   submitted_at = datetime('now')
+             WHERE id = ?
+          `).bind(`/api/file/${r2Key}`, submissionId).run();
+        } else {
+          submissionId = crypto.randomUUID();
+          await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO submissions
+              (id, assignment_id, user_dni, file_url, status, submitted_at, attempt_type, retry_used)
+            VALUES (?, ?, ?, ?, 'pending', datetime('now'), 'document', 0)
+        `).bind(submissionId, assignmentId, ownerDni, `/api/file/${r2Key}`).run();
+        }
 
         return jsonResponse({ success: true, submission_id: submissionId }, 200, corsHeaders);
 

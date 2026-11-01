@@ -13,6 +13,7 @@ import {
   handleResetPassword,
   handleVerify,
 } from './routes/account';
+import { handleActivityApi } from './routes/activities';
 import { handleApaDelete, handleApaDownload, handleApaHistory, handleApaUpload } from './routes/apa';
 import { handleServeAudio, handleTranscribeAudio, handleUploadUserAudio } from './routes/audio';
 import { handleChat } from './routes/chat';
@@ -252,6 +253,10 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
     // ── AULA, CURSOS Y ASISTENCIA (workers/classroom.ts) ────────────
     const classroomResponse = await handleClassroomApi(request, env, url, path, corsHeaders);
     if (classroomResponse) return classroomResponse;
+
+    // ── ACTIVIDADES DEL AULA (workers/activities.ts) ────────────────
+    const activityResponse = await handleActivityApi(request, env, url, path, corsHeaders);
+    if (activityResponse) return activityResponse;
 
     // ── PROYECTOS ────────────────────────────────────────────────
 

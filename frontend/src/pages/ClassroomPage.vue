@@ -17,72 +17,101 @@
       </button>
     </div>
 
-    <div id="tasks-count" class="tasks-count">{{ countLabel }}</div>
+    <div v-if="state === 'loading'" class="loading-state">
+      <div class="loading-spinner"></div>
+      Cargando clases...
+    </div>
+    <div v-else-if="state === 'expired'" class="empty-state">
+      <span class="empty-state-icon">⚠️</span>
+      <h3>Sesión expirada</h3>
+      <p>Por favor, <AppLink to="login">inicia sesión de nuevo</AppLink>.</p>
+    </div>
+    <div v-else-if="state === 'error'" class="empty-state">
+      <span class="empty-state-icon">❌</span>
+      <h3>Error cargando tus clases</h3>
+      <p>{{ error }}</p>
+    </div>
 
-    <div id="tasks-container" ref="containerEl" class="task-list">
-      <div v-if="state === 'loading'" class="loading-state">
-        <div class="loading-spinner"></div>
-        Cargando tareas...
-      </div>
-      <div v-else-if="state === 'expired'" class="empty-state">
-        <span class="empty-state-icon">⚠️</span>
-        <h3>Sesión expirada</h3>
-        <p>Por favor, <AppLink to="login">inicia sesión de nuevo</AppLink>.</p>
-      </div>
-      <div v-else-if="state === 'error'" class="empty-state">
-        <span class="empty-state-icon">❌</span>
-        <h3>Error cargando tareas</h3>
-        <p>{{ error }}</p>
-      </div>
-      <div v-else-if="!assignments.length" class="empty-state">
-        <span class="empty-state-icon">📭</span>
-        <h3>No tienes tareas asignadas</h3>
-        <p>Por ahora no hay ninguna tarea pendiente para ti.</p>
-      </div>
-      <template v-else>
-        <div
-          v-for="card in cards"
-          :key="card.assignment.id"
-          class="task-card"
-          :class="{ completed: card.done }"
-          :data-assignment-id="card.assignment.id"
-          :style="{ '--card-accent': card.accent }"
-        >
-          <span class="status-badge" :class="card.statusClass">{{ card.statusText }}</span>
-          <div class="task-icon">{{ card.icon }}</div>
-          <h3 class="task-title">{{ card.assignment.title }}</h3>
-          <p class="task-course-name">
-            📚 {{ card.assignment.course_title || 'Sin curso' }}
-            <span v-if="card.assignment.section_name" style="margin-left:8px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🗂️ {{ card.assignment.section_name }}</span>
-            <span v-if="card.assignment.submission_type === 'image'" style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🖼️ Imagen</span>
-            <span v-else-if="card.assignment.submission_type === 'any'" style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">📎 Cualquier formato</span>
-          </p>
-          <div class="task-meta">
-            <span class="task-meta-item"><span>📅</span> {{ card.dueDate }}</span>
-            <span v-if="card.score !== null" class="task-meta-item"><span>⭐</span> {{ card.score }} pts</span>
-          </div>
-          <div class="task-actions">
-            <button class="btn-secondary btn-learn" :data-id="card.assignment.id" :data-title="card.assignment.title" @click="learn(card.assignment)">
-              🧠 Aprender
-            </button>
-            <AppLink to="classroom_details" :query="`id=${card.assignment.id}`" class="btn-primary">{{ card.action }}</AppLink>
+    <template v-else>
+      <!-- Primero: las clases a las que pertenece el estudiante -->
+      <template v-if="selectedClass === null">
+        <div id="tasks-count" class="tasks-count">{{ classLabel }}</div>
+
+        <div v-if="!classGroups.length" class="empty-state">
+          <span class="empty-state-icon">📭</span>
+          <h3>No estás unido a ninguna clase</h3>
+          <p>Cuando tu profesor te agregue a una clase, aparecerá aquí.</p>
+        </div>
+
+        <div v-else class="class-grid">
+          <div v-for="cls in classGroups" :key="cls.key" class="class-card">
+            <div class="class-icon">📚</div>
+            <h3 class="class-title">{{ cls.course_title }}</h3>
+            <p class="class-section">🗂️ Sección: {{ cls.section_name }}</p>
+            <div class="class-stats">
+              <span>⏳ {{ classStats(cls).pending }} pendientes</span>
+              <span>✅ {{ classStats(cls).completed }} completadas</span>
+              <span>📊 Promedio: {{ classStats(cls).avg }}</span>
+            </div>
+            <button class="btn-primary class-open-btn" @click="selectedClass = cls.key">Abrir clase</button>
           </div>
         </div>
       </template>
-    </div>
+
+      <!-- Dentro de una clase: sus tareas -->
+      <template v-else>
+        <button class="back-btn" @click="selectedClass = null">← Volver a clases</button>
+        <div class="class-heading">
+          <h2>{{ currentClass?.course_title }}</h2>
+          <span class="class-section">🗂️ Sección: {{ currentClass?.section_name }}</span>
+        </div>
+
+        <div id="tasks-count" class="tasks-count">{{ countLabel }}</div>
+
+        <div id="tasks-container" ref="containerEl" class="task-list">
+          <div v-if="!cards.length" class="empty-state">
+            <span class="empty-state-icon">📭</span>
+            <h3>No hay tareas en esta clase</h3>
+            <p>Por ahora no hay ninguna tarea pendiente para ti.</p>
+          </div>
+          <template v-else>
+          <div
+            v-for="card in cards"
+            :key="card.assignment.id"
+            class="task-card"
+            :class="{ completed: card.done }"
+            :data-assignment-id="card.assignment.id"
+            :style="{ '--card-accent': card.accent }"
+          >
+            <span class="status-badge" :class="card.statusClass">{{ card.statusText }}</span>
+            <div class="task-icon">{{ card.icon }}</div>
+            <h3 class="task-title">{{ card.assignment.title }}</h3>
+            <p class="task-course-name">
+              📚 {{ card.assignment.course_title || 'Sin curso' }}
+              <span v-if="card.assignment.section_name" style="margin-left:8px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🗂️ {{ card.assignment.section_name }}</span>
+              <span v-if="card.assignment.submission_type === 'image'" style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🖼️ Imagen</span>
+              <span v-else-if="card.assignment.submission_type === 'any'" style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">📎 Cualquier formato</span>
+            </p>
+            <div class="task-meta">
+              <span class="task-meta-item"><span>📅</span> {{ card.dueDate }}</span>
+              <span v-if="card.score !== null" class="task-meta-item"><span>⭐</span> {{ card.score }} pts</span>
+            </div>
+            <div class="task-actions">
+              <button class="btn-primary btn-learn" :data-id="card.assignment.id" :data-title="card.assignment.title" @click="openTask(card.assignment)">
+                🧠 Aprender y Hacer
+              </button>
+            </div>
+          </div>
+          </template>
+        </div>
+      </template>
+    </template>
   </div>
 
   <!-- Clases y resumen, en el panel de la barra lateral -->
   <Teleport to="#sidebar-page-section" defer>
     <h4>Aula</h4>
     <div class="sidebar-panel-section">
-      <p class="sidebar-panel-label">Clases</p>
-      <div id="course-tabs" class="sidebar-course-tabs" :style="{ display: courseTabs.length > 1 ? 'flex' : 'none' }">
-        <button class="filter-pill" :class="{ active: activeCourse === 'all' }" @click="activeCourse = 'all'">📚 Todos</button>
-        <button v-for="tab in courseTabs" :key="tab.id" class="filter-pill" :class="{ active: activeCourse === tab.id }" :data-course="tab.id" @click="activeCourse = tab.id">
-          {{ tab.title }}
-        </button>
-      </div>
       <p class="sidebar-panel-label">Resumen</p>
       <div class="sidebar-stats">
         <div class="stat-card">
@@ -100,10 +129,10 @@
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">📊</div>
+          <div class="stat-icon">📚</div>
           <div class="stat-content">
-            <span class="stat-label">Promedio</span>
-            <span id="avg-score" class="stat-value stat-number avg">{{ stats.avg }}</span>
+            <span class="stat-label">Clases</span>
+            <span id="classes-count" class="stat-value stat-number">{{ classGroups.length }}</span>
           </div>
         </div>
       </div>
@@ -114,7 +143,7 @@
 <script setup lang="ts">
 // Migración de public/classroom.html y public/classroom.js: tareas del alumno
 // con su estado de entrega, filtro por clase y resumen en la barra lateral.
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
@@ -129,6 +158,7 @@ interface Assignment {
   title: string;
   course_id?: string | null;
   course_title?: string | null;
+  section_id?: string | null;
   section_name?: string | null;
   submission_type?: string | null;
   due_date?: string | null;
@@ -137,11 +167,27 @@ interface Assignment {
 interface Submission {
   assignment_id: number | string;
   score: number | null;
+  status?: string | null;
+}
+
+interface StudentClass {
+  section_id?: string | null;
+  section_name?: string | null;
+  course_id?: string | null;
+  course_title?: string | null;
+}
+
+interface ClassGroup {
+  key: string;
+  course_title: string;
+  section_name: string;
+  assignments: Assignment[];
 }
 
 const router = useRouter();
 const assignments = ref<Assignment[]>([]);
 const submissions = ref<Submission[]>([]);
+const classes = ref<StudentClass[]>([]);
 const state = ref<'loading' | 'ready' | 'expired' | 'error'>('loading');
 const error = ref('');
 const containerEl = ref<HTMLElement | null>(null);
@@ -151,9 +197,11 @@ async function loadTasks() {
   const dni = currentUser.value?.dni;
   if (!dni) return;
   try {
-    const { ok, status, data } = await api.get<{ assignments?: Assignment[]; submissions?: Submission[] }>(
-      `/api/my-submissions?user_dni=${encodeURIComponent(dni)}`,
-    );
+    const { ok, status, data } = await api.get<{
+      assignments?: Assignment[];
+      submissions?: Submission[];
+      classes?: StudentClass[];
+    }>(`/api/my-submissions?user_dni=${encodeURIComponent(dni)}`);
     if (status === 401) {
       state.value = 'expired';
       return;
@@ -161,6 +209,7 @@ async function loadTasks() {
     if (!ok) throw new Error(`Error HTTP: ${status}`);
     assignments.value = data.assignments || [];
     submissions.value = data.submissions || [];
+    classes.value = data.classes || [];
     state.value = 'ready';
   } catch (err) {
     console.error('Error cargando tareas:', err);
@@ -169,25 +218,74 @@ async function loadTasks() {
   }
 }
 
-// ── Filtro por clase ──────────────────────────────────────────────────────
-const activeCourse = ref('all');
+// ── Clases y filtro ───────────────────────────────────────────────────────
+const selectedClass = ref<string | null>(null);
 
-const courseTabs = computed(() => {
-  const seen = new Map<string, string>();
-  for (const a of assignments.value) {
-    const id = a.course_id || '__none__';
-    if (!seen.has(id)) seen.set(id, a.course_title || 'Sin curso');
+const classGroups = computed<ClassGroup[]>(() => {
+  const groups = new Map<string, ClassGroup>();
+  const ensure = (courseId?: string | null, courseTitle?: string | null, sectionId?: string | null, sectionName?: string | null) => {
+    const key = `${courseId || 'none'}::${sectionId || 'none'}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        key,
+        course_title: courseTitle || 'Clase sin nombre',
+        section_name: sectionName || 'Sin sección',
+        assignments: [],
+      };
+      groups.set(key, group);
+    }
+    return group;
+  };
+
+  for (const c of classes.value) {
+    ensure(c.course_id, c.course_title, c.section_id, c.section_name);
   }
-  return [...seen].map(([id, title]) => ({ id, title }));
+  for (const a of assignments.value) {
+    ensure(a.course_id, a.course_title, a.section_id, a.section_name).assignments.push(a);
+  }
+  return [...groups.values()];
+});
+
+const currentClass = computed(() => classGroups.value.find((g) => g.key === selectedClass.value) ?? null);
+
+// Si la clase seleccionada desaparece al recargar, se vuelve al listado.
+watch(classGroups, (groups) => {
+  if (selectedClass.value && !groups.some((g) => g.key === selectedClass.value)) {
+    selectedClass.value = null;
+  }
 });
 
 const filtered = computed(() =>
-  activeCourse.value === 'all' ? assignments.value : assignments.value.filter((a) => (a.course_id || '__none__') === activeCourse.value),
+  selectedClass.value === null ? assignments.value : currentClass.value?.assignments ?? [],
 );
+
+const classLabel = computed(() => {
+  const n = classGroups.value.length;
+  return n > 0 ? `Tus clases (${n})` : 'Tus clases';
+});
+
+function classStats(group: ClassGroup) {
+  const byAssignment = new Map(
+    submissions.value
+      .filter((s) => s.status !== 'reset')
+      .map((s) => [String(s.assignment_id), s]),
+  );
+  const completed = group.assignments.filter((a) => byAssignment.has(String(a.id))).length;
+  const scores = group.assignments
+    .map((a) => byAssignment.get(String(a.id))?.score)
+    .filter((score): score is number => score !== null && score !== undefined);
+  const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-';
+  return { pending: group.assignments.length - completed, completed, avg };
+}
 
 // ── Tarjetas ──────────────────────────────────────────────────────────────
 const cards = computed(() => {
-  const byAssignment = new Map(submissions.value.map((s) => [String(s.assignment_id), s]));
+  const byAssignment = new Map(
+    submissions.value
+      .filter((s) => s.status !== 'reset')
+      .map((s) => [String(s.assignment_id), s]),
+  );
   return filtered.value.map((assignment) => {
     const submission = byAssignment.get(String(assignment.id));
     const late = !!assignment.due_date && new Date(assignment.due_date) < new Date();
@@ -214,14 +312,12 @@ const cards = computed(() => {
 
 const stats = computed(() => {
   if (state.value !== 'ready' || !assignments.value.length) {
-    return { pending: 0, completed: 0, avg: '-' };
+    return { pending: 0, completed: 0 };
   }
   const shown = cards.value;
-  const scores = shown.map((c) => c.score).filter((s): s is number => s !== null);
   return {
     pending: shown.filter((c) => !c.done).length,
     completed: shown.filter((c) => c.done).length,
-    avg: scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '-',
   };
 });
 
@@ -232,8 +328,8 @@ const countLabel = computed(() => {
 });
 
 // ── Acciones ──────────────────────────────────────────────────────────────
-function learn(a: Assignment) {
-  goToPage(router, 'learning_hub', `task_id=${a.id}&task_title=${encodeURIComponent(a.title)}`);
+function openTask(a: Assignment) {
+  goToPage(router, 'classroom_details', `id=${encodeURIComponent(String(a.id))}`);
 }
 
 async function openProfessorPanel() {
@@ -284,3 +380,81 @@ onMounted(() => {
   void loadTasks();
 });
 </script>
+
+<style>
+/* Vista de clases del aula. */
+:where(body[data-page="classroom"]) .class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  padding-bottom: 40px;
+}
+
+:where(body[data-page="classroom"]) .class-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 24px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--glass-shadow);
+  transition: transform .25s, box-shadow .25s, border-color .25s;
+  animation: cardFadeIn .4s cubic-bezier(0.05, 0.7, 0.1, 1) both;
+}
+
+:where(body[data-page="classroom"]) .class-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--accent-color);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .1), 0 4px 20px var(--accent-glow);
+}
+
+:where(body[data-page="classroom"]) .class-icon {
+  font-size: 2rem;
+}
+
+:where(body[data-page="classroom"]) .class-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+:where(body[data-page="classroom"]) .class-section {
+  font-size: .8rem;
+  background: var(--secondary-container);
+  color: var(--accent-color);
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+:where(body[data-page="classroom"]) .class-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 8px;
+  font-size: .78rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom"]) .class-open-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: auto;
+}
+
+:where(body[data-page="classroom"]) .class-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0 4px;
+  padding: 0 4px;
+}
+
+:where(body[data-page="classroom"]) .class-heading h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+</style>

@@ -1,7 +1,7 @@
 <template>
   <header class="header">
     <MenuToggle />
-    <div class="header-title">Detalle de Tarea</div>
+    <div class="header-title">Aprender y Hacer</div>
   </header>
 
   <main id="detail-container" class="courses-container">
@@ -16,7 +16,12 @@
     <template v-else>
       <div class="courses-hero" style="animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) both;">
         <img class="module-hero-icon" src="/icons/ui/classroom-48.png" srcset="/icons/ui/classroom-48.png 1x, /icons/ui/classroom-96.png 2x" alt="" width="64" height="64" loading="lazy" decoding="async">
-        <p id="detail-hero-subtitle">Revisa la información, descripción y entrega de tu tarea.</p>
+        <p id="detail-hero-subtitle">Aprende los conceptos y después entrega tu tarea como prefieras.</p>
+      </div>
+
+      <div class="learn-task-tabs" style="animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.05s both;">
+        <button class="learn-task-tab" :class="{ active: activeTab === 'learn' }" @click="activeTab = 'learn'">🧠 Aprender</button>
+        <button class="learn-task-tab" :class="{ active: activeTab === 'do' }" @click="activeTab = 'do'">✍️ Hacer Tarea</button>
       </div>
 
       <div style="padding: 0 20px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.05s both;">
@@ -28,6 +33,48 @@
         </button>
       </div>
 
+      <!-- ── MÓDULO APRENDER ── -->
+      <section v-if="activeTab === 'learn'" class="learning-modes-section">
+        <div class="courses-count">3 modos disponibles</div>
+        <div class="courses-grid hub-modes-grid">
+          <div class="course-card" style="--card-accent: linear-gradient(135deg, #6750A4, #9A82DB);">
+            <span class="course-level principiante">Conceptual</span>
+            <div class="course-icon">📖</div>
+            <h3 class="course-title">Concepto</h3>
+            <p class="course-description">Mirai te explicará los conceptos clave, definiciones y fundamentos necesarios para esta tarea. Aprende el «por qué» antes de ponerte a trabajar.</p>
+            <div class="course-meta">
+              <span class="course-meta-item"><span>🧠</span> Conceptos clave</span>
+              <span class="course-meta-item"><span>📝</span> Explicaciones claras</span>
+            </div>
+            <button class="course-start-btn" @click="startLearning('theory')">Comenzar con Concepto</button>
+          </div>
+          <div class="course-card" style="--card-accent: linear-gradient(135deg, #009688, #4caf50);">
+            <span class="course-level avanzado">Práctico</span>
+            <div class="course-icon">💡</div>
+            <h3 class="course-title">Ejemplos</h3>
+            <p class="course-description">Ejemplos guiados y casos de estudio relacionados con la tarea. Mirai te guiará paso a paso sin darte la solución directa.</p>
+            <div class="course-meta">
+              <span class="course-meta-item"><span>🔧</span> Ejemplos reales</span>
+              <span class="course-meta-item"><span>📌</span> Paso a paso</span>
+            </div>
+            <button class="course-start-btn" @click="startLearning('practice')">Comenzar con Ejemplos</button>
+          </div>
+          <div class="course-card" style="--card-accent: linear-gradient(135deg, #FF9F0A, #f5a623);">
+            <span class="course-level intermedio">Interactivo</span>
+            <div class="course-icon">❓</div>
+            <h3 class="course-title">Prácticas</h3>
+            <p class="course-description">Preguntas y respuestas para validar tu comprensión. Mirai lleva el puntaje y te da feedback en cada respuesta. ¡Aprende jugando!</p>
+            <div class="course-meta">
+              <span class="course-meta-item"><span>🎯</span> Preguntas guiadas</span>
+              <span class="course-meta-item"><span>⭐</span> Feedback al instante</span>
+            </div>
+            <button class="course-start-btn" @click="startLearning('quiz')">Comenzar Prácticas</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── MÓDULO HACER TAREA ── -->
+      <template v-else>
       <div v-if="state === 'loading'" id="loading-state" class="loading-state" style="display: block;">
         <div class="loading-spinner"></div>
         <p>Cargando detalles de la tarea...</p>
@@ -83,6 +130,60 @@
           <p id="task-description" class="task-desc-text">{{ assignment.description || 'Sin descripción' }}</p>
         </div>
 
+        <!-- Cómo hacer la tarea: se elige una sola vez -->
+        <div v-if="!methodLocked" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
+          <h2 class="section-title">¿Cómo quieres hacer tu tarea?</h2>
+          <p class="section-subtitle">Elige una sola forma. No podrás cambiarla después.</p>
+          <div class="task-methods-grid">
+            <button class="method-card" @click="chooseMethod('document')">
+              <span class="method-icon">📄</span>
+              <span class="method-name">Documento o imagen</span>
+              <span class="method-desc">Sube tu trabajo en PDF, DOCX o imagen.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('quiz4')">
+              <span class="method-icon">🅰️</span>
+              <span class="method-name">Quiz 4</span>
+              <span class="method-desc">10 preguntas con 4 opciones (A, B, C y D).</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('quiz_free')">
+              <span class="method-icon">�o?��?</span>
+              <span class="method-name">Quiz libre</span>
+              <span class="method-desc">10 preguntas abiertas para escribir tu respuesta.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('flashcards')">
+              <span class="method-icon">🃏</span>
+              <span class="method-name">Flashcards</span>
+              <span class="method-desc">Memoriza con repetición espaciada y comprueba tus aciertos.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('find_error')">
+              <span class="method-icon">🔍</span>
+              <span class="method-name">Detecta el error</span>
+              <span class="method-desc">Encuentra las oraciones incorrectas y explica la corrección.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('recall')">
+              <span class="method-icon">✍️</span>
+              <span class="method-name">Recuerdo libre</span>
+              <span class="method-desc">Explica el tema de memoria y descubre qué te faltó.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('summary')">
+              <span class="method-icon">📝</span>
+              <span class="method-name">Resumen con límite</span>
+              <span class="method-desc">Sintetiza el texto fuente en un número exacto de palabras.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('concept_map')">
+              <span class="method-icon">🗺️</span>
+              <span class="method-name">Mapa conceptual</span>
+              <span class="method-desc">Conecta los conceptos clave con relaciones correctas.</span>
+            </button>
+          </div>
+        </div>
+        <div v-else class="method-locked-bar" style="margin: 0 20px 24px;">
+          🔒 Forma elegida: <strong>{{ method ? METHOD_LABELS[method] : '' }}</strong>
+          <span>No se puede cambiar</span>
+        </div>
+
+        <!-- ══ ENTREGA: DOCUMENTO O IMAGEN ══ -->
+        <template v-if="method === 'document'">
         <!-- Entrega (aún no entregada) -->
         <div v-if="phase === 'pending'" id="submit-section" class="card submit-section-card" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.35s both;">
           <h3 class="section-title">Entregar Tarea</h3>
@@ -148,7 +249,7 @@
           <div class="feedback-score">
             <span class="score-label">Tu Puntuación</span>
             <span class="score-value">{{ finalScore }}</span>
-            <span class="score-max">/ {{ assignment.max_score }}</span>
+            <span class="score-max">/ {{ assignment?.max_score }}</span>
           </div>
 
           <div v-if="feedback.items" class="feedback-content">
@@ -160,8 +261,158 @@
             <p v-if="feedback.general" style="margin-top:16px;"><strong>Resumen General:</strong> {{ feedback.general }}</p>
           </div>
           <template v-else>{{ feedback.text }}</template>
+
+          <div v-if="canDisagree" class="disagree-card">
+            <p>¿No estás de acuerdo con tu nota?</p>
+            <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+          </div>
+          <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
         </div>
+        </template>
+
+        <section v-else-if="method === 'quiz4' || method === 'quiz_free'" class="quiz-section quiz-card">
+          <div v-if="quizState === 'loading'" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Preparando tu quiz con 10 preguntas...</p>
+          </div>
+
+          <div v-else-if="quizState === 'error'" class="error-state">
+            <div class="error-icon">⚠️</div>
+            <h3>No se pudo preparar el quiz</h3>
+            <p>{{ quizError }}</p>
+            <button class="course-start-btn" style="max-width:220px;margin:0 auto;" @click="startQuiz(method)">Reintentar</button>
+          </div>
+
+          <template v-else-if="quizState === 'active' || quizState === 'grading'">
+            <div class="quiz-header">
+              <div>
+                <span class="quiz-mode-badge">{{ method === 'quiz4' ? 'Quiz 4' : 'Quiz libre' }}</span>
+                <span class="quiz-progress-label">{{ currentIndex + 1 }} / {{ questions.length }}</span>
+              </div>
+              <span class="quiz-total">{{ quizTotal }} pts</span>
+            </div>
+            <div class="quiz-progress"><div class="quiz-progress-fill" :style="{ width: `${((currentIndex + (currentAnswered ? 1 : 0)) / questions.length) * 100}%` }"></div></div>
+
+            <!-- Una sola pregunta a la vez, sin scroll. -->
+            <div class="quiz-current">
+              <div class="quiz-msg ai">
+                <div class="quiz-avatar">🤖</div>
+                <div>
+                  <div class="quiz-msg-bubble">{{ questions[currentIndex]?.question }}</div>
+                  <div class="quiz-msg-meta">{{ levelLabel(questions[currentIndex]?.level || '') }} · {{ questions[currentIndex]?.points }} pts</div>
+                </div>
+              </div>
+
+              <div v-if="currentAnswered" class="quiz-msg user">
+                <div class="quiz-msg-bubble">{{ displayAnswer(currentIndex) }}</div>
+              </div>
+
+              <div v-if="quizFeedback[currentIndex]" class="quiz-msg feedback">
+                <div class="quiz-msg-bubble" :class="quizFeedback[currentIndex]!.correct ? 'correct' : 'wrong'">{{ quizFeedback[currentIndex]!.text }}</div>
+              </div>
+            </div>
+
+            <div v-if="!currentAnswered" class="quiz-interaction">
+              <div v-if="method === 'quiz4'" class="quiz-options">
+                <button
+                  v-for="(opt, oi) in questions[currentIndex]?.options || []"
+                  :key="oi"
+                  class="quiz-option"
+                  @click="selectOption(oi)"
+                >
+                  <span class="quiz-option-letter">{{ optionLetter(oi) }}</span>
+                  <span>{{ opt }}</span>
+                </button>
+              </div>
+              <div v-else class="quiz-free-row">
+                <input v-model="freeAnswer" class="quiz-free-input" type="text" placeholder="Escribe tu respuesta..." @keyup.enter="submitFreeAnswer">
+                <button class="btn btn-primary" :disabled="!freeAnswer.trim()" @click="submitFreeAnswer">Responder</button>
+              </div>
+            </div>
+
+            <div v-else-if="currentIndex < questions.length - 1" class="quiz-nav">
+              <button class="course-start-btn" @click="nextQuestion">Siguiente pregunta →</button>
+            </div>
+            <div v-else class="quiz-nav">
+              <button class="course-start-btn" :disabled="quizState === 'grading'" @click="finishQuiz">
+                {{ quizState === 'grading' ? 'Calificando y guardando...' : 'Finalizar y guardar nota' }}
+              </button>
+            </div>
+          </template>
+
+          <template v-else-if="quizState === 'done'">
+            <div class="quiz-result">
+              <div class="quiz-result-icon">{{ quizCorrect >= 6 ? '🎉' : '📚' }}</div>
+              <div class="quiz-result-score">{{ quizScore }} <span>/ {{ quizTotal }} pts</span></div>
+              <p class="quiz-result-sub">{{ quizCorrect }} de {{ questions.length }} respuestas correctas</p>
+              <p class="quiz-result-sub">✅ Nota guardada automáticamente en la base de datos.</p>
+
+              <div class="quiz-result-list">
+                <div v-for="(q, i) in questions" :key="q.index" class="quiz-result-item">
+                  <div class="quiz-result-item-head">
+                    <span class="quiz-result-index">#{{ i + 1 }}</span>
+                    <span class="quiz-result-question">{{ q.question }}</span>
+                    <span class="quiz-result-points" :class="answersCorrect[i] ? 'ok' : 'bad'">
+                      {{ answersCorrect[i] ? `+${q.points}` : '0' }} pts
+                    </span>
+                  </div>
+                  <div class="quiz-result-detail">Tu respuesta: <strong>{{ displayAnswer(i) }}</strong></div>
+                  <div v-if="q.expected_answer && !answersCorrect[i]" class="quiz-result-detail">
+                    Respuesta esperada: <strong>{{ q.expected_answer }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="canDisagree" class="disagree-card">
+                <p>¿No estás de acuerdo con tu nota?</p>
+                <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+              </div>
+              <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+            </div>
+          </template>
+
+          <div v-else-if="quizSubmission && phase === 'evaluated'" class="quiz-result">
+            <div class="quiz-result-icon">✅</div>
+            <div class="quiz-result-score">{{ submission?.score }} <span>/ {{ assignment?.max_score }} pts</span></div>
+            <p class="quiz-result-sub">{{ quizSubmission.attempt_type === 'quiz4' ? 'Quiz 4' : 'Quiz libre' }} completado</p>
+            <div v-if="canDisagree" class="disagree-card">
+              <p>¿No estás de acuerdo con tu nota?</p>
+              <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+            </div>
+            <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+          </div>
+
+          <div v-else class="quiz-result">
+            <p class="quiz-result-sub">Tu forma de hacer la tarea está bloqueada.</p>
+            <button class="course-start-btn" @click="startQuiz(method)">Comenzar quiz</button>
+          </div>
+        </section>
+
+        <section v-else-if="isActivityMethod(method)" class="quiz-section quiz-card">
+          <div v-if="activitySubmission && phase === 'evaluated'" class="quiz-result">
+            <div class="quiz-result-icon">🧠</div>
+            <div class="quiz-result-score">{{ submission?.score }} <span>/ {{ assignment?.max_score }} pts</span></div>
+            <p class="quiz-result-sub">{{ METHOD_LABELS[method] }} completada</p>
+            <div v-if="feedback.items" class="feedback-content" style="text-align:left;margin-top:12px;">
+              <div v-for="item in feedback.items" :key="item.label" style="margin-bottom:8px;">
+                <strong style="color:var(--accent-primary);">{{ item.label }}:</strong>
+                <span style="color:var(--text-secondary);">{{ item.value }}</span>
+              </div>
+              <p v-if="feedback.general" style="margin-top:10px;"><strong>Resumen:</strong> {{ feedback.general }}</p>
+            </div>
+            <div v-if="canDisagree" class="disagree-card">
+              <p>¿No estás de acuerdo con tu nota?</p>
+              <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+            </div>
+            <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+          </div>
+          <div v-else class="quiz-result">
+            <p class="quiz-result-sub">Tu actividad está lista. Vuelve a abrirla para continuar.</p>
+            <button class="course-start-btn" @click="openActivity()">Abrir actividad</button>
+          </div>
+        </section>
       </div>
+      </template>
     </template>
   </main>
 </template>
@@ -185,6 +436,8 @@ interface Submission {
   professor_note?: number | null;
   file_url?: string | null;
   feedback?: string | Record<string, unknown> | null;
+  attempt_type?: string | null;
+  retry_used?: number | null;
 }
 
 interface AssignmentDetails {
@@ -257,6 +510,261 @@ const fatal = ref('');
 
 const isImageName = (name: string) => /\.(png|jpg|jpeg|webp)$/i.test(name);
 
+// ── Módulos Aprender / Hacer ──────────────────────────────────────────────
+type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map';
+
+const ACTIVITY_METHODS: TaskMethod[] = ['flashcards', 'find_error', 'recall', 'summary', 'concept_map'];
+
+function isActivityMethod(value: TaskMethod | null): value is 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' {
+  return !!value && ACTIVITY_METHODS.includes(value);
+}
+
+interface QuizQuestion {
+  index: number;
+  level: string;
+  points: number;
+  question: string;
+  expected_answer?: string;
+  options?: string[];
+  correct_index?: number;
+}
+
+const activeTab = ref<'learn' | 'do'>('learn');
+const method = ref<TaskMethod | null>(null);
+const methodLocked = ref(false);
+const retryUsed = ref(false);
+
+const METHOD_LABELS: Record<TaskMethod, string> = {
+  document: 'Documento o imagen',
+  quiz4: 'Quiz 4',
+  quiz_free: 'Quiz libre',
+  flashcards: 'Flashcards',
+  find_error: 'Detecta el error',
+  recall: 'Recuerdo libre',
+  summary: 'Resumen con límite',
+  concept_map: 'Mapa conceptual',
+};
+
+const METHOD_STORAGE_PREFIX = 'mirai-task-method:';
+
+function chooseMethod(next: TaskMethod) {
+  if (methodLocked.value) return;
+  if (!confirm(`Vas a hacer esta tarea con "${METHOD_LABELS[next]}". Esa será tu única forma de hacerla y no podrás cambiarla después. ¿Continuar?`)) {
+    return;
+  }
+  methodLocked.value = true;
+  method.value = next;
+  try {
+    localStorage.setItem(`${METHOD_STORAGE_PREFIX}${assignmentId.value}`, next);
+  } catch {
+    // Sin almacenamiento local: el bloqueo dura solo esta visita.
+  }
+  if (isActivityMethod(next)) {
+    openActivity(next);
+    return;
+  }
+  if (next !== 'document') void startQuiz(next);
+}
+
+function openActivity(next: TaskMethod | null = method.value) {
+  if (!isActivityMethod(next)) return;
+  goToPage(router, 'activity', `id=${encodeURIComponent(assignmentId.value)}&type=${encodeURIComponent(next)}`);
+}
+
+function startLearning(mode: 'theory' | 'quiz' | 'practice') {
+  // El prompt de la tutora lo arma el servidor (buildLearningTaskPrompt).
+  goToPage(router, 'chat', `context_task=${encodeURIComponent(assignmentId.value)}&context_mode=${encodeURIComponent(mode)}`);
+}
+
+// ── Quiz 4 / Quiz libre ───────────────────────────────────────────────────
+const LEVEL_LABELS: Record<string, string> = {
+  facil: 'Nivel fácil',
+  intermedio: 'Nivel intermedio',
+  dificil: 'Nivel difícil',
+};
+
+const optionLetter = (i: number) => 'ABCD'[i] ?? '?';
+const levelLabel = (level: string) => LEVEL_LABELS[level] || level;
+
+const quizState = ref<'idle' | 'loading' | 'active' | 'grading' | 'done' | 'error'>('idle');
+const quizError = ref('');
+const questions = ref<QuizQuestion[]>([]);
+const currentIndex = ref(0);
+const answers = ref<(number | string | null)[]>([]);
+const quizFeedback = ref<({ correct: boolean; text: string } | null)[]>([]);
+const answersCorrect = ref<boolean[]>([]);
+const freeAnswer = ref('');
+const quizScore = ref(0);
+const quizTotal = ref(0);
+const quizCorrect = ref(0);
+
+const currentAnswered = computed(() => answers.value[currentIndex.value] !== null);
+
+function resetQuizState() {
+  questions.value = [];
+  answers.value = [];
+  quizFeedback.value = [];
+  answersCorrect.value = [];
+  currentIndex.value = 0;
+  freeAnswer.value = '';
+  quizScore.value = 0;
+  quizTotal.value = 0;
+  quizCorrect.value = 0;
+}
+
+async function startQuiz(mode: TaskMethod | null) {
+  if (mode !== 'quiz4' && mode !== 'quiz_free') return;
+  method.value = mode;
+  resetQuizState();
+  quizState.value = 'loading';
+  quizError.value = '';
+  try {
+    const { ok, status, data } = await api.post<{
+      questions?: QuizQuestion[];
+      total_points?: number;
+      error?: string;
+    }>('/api/assignment-quiz/start', { assignment_id: assignmentId.value, mode });
+    if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
+    const list = data.questions || [];
+    if (list.length < 10) throw new Error('No se generaron las 10 preguntas. Inténtalo de nuevo.');
+    questions.value = list;
+    quizTotal.value = Number(data.total_points) || list.reduce((sum, q) => sum + (q.points || 0), 0);
+    answers.value = Array(list.length).fill(null);
+    quizFeedback.value = Array(list.length).fill(null);
+    answersCorrect.value = Array(list.length).fill(false);
+    quizState.value = 'active';
+  } catch (err) {
+    quizError.value = err instanceof Error ? err.message : String(err);
+    quizState.value = 'error';
+  }
+}
+
+function selectOption(optionIndex: number) {
+  if (currentAnswered.value) return;
+  const q = questions.value[currentIndex.value];
+  if (!q) return;
+  answers.value[currentIndex.value] = optionIndex;
+  const correct = optionIndex === q.correct_index;
+  answersCorrect.value[currentIndex.value] = correct;
+  quizFeedback.value[currentIndex.value] = {
+    correct,
+    text: correct
+      ? `✅ ¡Correcto! +${q.points} pts`
+      : `❌ Incorrecto. La respuesta correcta era ${optionLetter(q.correct_index ?? 0)}`,
+  };
+}
+
+function submitFreeAnswer() {
+  const text = freeAnswer.value.trim();
+  if (!text || currentAnswered.value) return;
+  answers.value[currentIndex.value] = text;
+  freeAnswer.value = '';
+}
+
+function nextQuestion() {
+  if (currentIndex.value < questions.value.length - 1) {
+    currentIndex.value++;
+    freeAnswer.value = '';
+  }
+}
+
+function displayAnswer(i: number): string {
+  const answer = answers.value[i];
+  if (answer === null || answer === '') return 'Sin respuesta';
+  if (method.value === 'quiz4' && typeof answer === 'number') {
+    return `${optionLetter(answer)}. ${questions.value[i]?.options?.[answer] ?? ''}`;
+  }
+  return String(answer);
+}
+
+function applyResults() {
+  quizScore.value = questions.value.reduce((sum, q, i) => sum + (answersCorrect.value[i] ? q.points : 0), 0);
+  quizCorrect.value = answersCorrect.value.filter(Boolean).length;
+}
+
+async function saveQuizResult() {
+  if (method.value !== 'quiz4' && method.value !== 'quiz_free') return;
+  try {
+    const { ok, status, data } = await api.post<{
+      score?: number;
+      retry_used?: boolean;
+      error?: string;
+    }>('/api/assignment-quiz/submit', {
+      assignment_id: assignmentId.value,
+      mode: method.value,
+      score: quizScore.value,
+      correct: quizCorrect.value,
+      max_score: quizTotal.value,
+    });
+    if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
+    retryUsed.value = data.retry_used === true;
+    quizState.value = 'done';
+    void load();
+  } catch (err) {
+    quizError.value = err instanceof Error ? err.message : String(err);
+    quizState.value = 'error';
+  }
+}
+
+async function finishQuiz() {
+  if (method.value === 'quiz4') {
+    applyResults();
+    quizState.value = 'grading';
+    await saveQuizResult();
+    return;
+  }
+  quizState.value = 'grading';
+  try {
+    const payload = questions.value.map((q, i) => ({
+      question: q.question,
+      expected_answer: q.expected_answer || '',
+      answer: String(answers.value[i] ?? ''),
+      points: q.points,
+    }));
+    const { ok, status, data } = await api.post<{
+      results?: { index: number; correct: boolean; feedback?: string }[];
+      error?: string;
+    }>('/api/assignment-quiz/grade', { assignment_id: assignmentId.value, answers: payload });
+    if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
+    for (const result of data.results || []) {
+      const i = Number(result.index);
+      if (i < 0 || i >= questions.value.length) continue;
+      answersCorrect.value[i] = result.correct === true;
+      quizFeedback.value[i] = {
+        correct: result.correct === true,
+        text: result.feedback || (result.correct ? '✅ Respuesta correcta' : '❌ Respuesta incorrecta'),
+      };
+    }
+    applyResults();
+    await saveQuizResult();
+  } catch (err) {
+    quizError.value = err instanceof Error ? err.message : String(err);
+    quizState.value = 'error';
+  }
+}
+
+async function disagreeWithGrade() {
+  if (!confirm('Puedes reiniciar esta tarea para volver a hacerla, pero solo tienes una oportunidad. ¿Continuar?')) {
+    return;
+  }
+  try {
+    const { ok, status, data } = await api.post<{ error?: string }>('/api/assignment-quiz/reset', {
+      assignment_id: assignmentId.value,
+    });
+    if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
+    retryUsed.value = true;
+    if (isActivityMethod(method.value)) {
+      openActivity(method.value);
+    } else if (method.value === 'quiz4' || method.value === 'quiz_free') {
+      await startQuiz(method.value);
+    } else {
+      await load();
+    }
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
+}
+
 // ── Carga ─────────────────────────────────────────────────────────────────
 async function load() {
   const id = assignmentId.value;
@@ -273,6 +781,7 @@ async function load() {
     }
     assignment.value = data;
     state.value = 'ready';
+    syncMethodFromSubmission();
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
     state.value = 'error';
@@ -286,6 +795,67 @@ const submission = computed(() => assignment.value?.submission ?? null);
 const submittedImage = computed(() => !!submission.value?.file_url && isImageName(submission.value.file_url));
 const finalScore = computed(() => submission.value?.score);
 
+const quizSubmission = computed(() => {
+  const s = submission.value;
+  if (!s) return null;
+  const type = s.attempt_type || (s.file_url?.startsWith('quiz://') ? s.file_url.slice('quiz://'.length) : '');
+  return type === 'quiz4' || type === 'quiz_free' ? s : null;
+});
+
+const activitySubmission = computed<TaskMethod | null>(() => {
+  const s = submission.value;
+  if (!s) return null;
+  const type = s.attempt_type || (s.file_url?.startsWith('activity://') ? s.file_url.slice('activity://'.length) : '');
+  return isActivityMethod(type as TaskMethod) ? (type as TaskMethod) : null;
+});
+
+const canDisagree = computed(() => {
+  if (retryUsed.value) return false;
+  if (quizState.value === 'done') return true;
+  const s = submission.value;
+  return !!s && s.status !== 'reset' && (s.status === 'evaluated' || s.status === 'completed');
+});
+
+function syncMethodFromSubmission() {
+  const s = submission.value;
+  if (!s) {
+    try {
+      const stored = localStorage.getItem(`${METHOD_STORAGE_PREFIX}${assignmentId.value}`);
+      const allowed: TaskMethod[] = ['document', 'quiz4', 'quiz_free', ...ACTIVITY_METHODS];
+      if (stored && allowed.includes(stored as TaskMethod)) {
+        method.value = stored as TaskMethod;
+        methodLocked.value = true;
+        activeTab.value = 'do';
+      }
+    } catch {
+      // Sin almacenamiento local.
+    }
+    return;
+  }
+  retryUsed.value = Number(s.retry_used) === 1;
+  const activity = activitySubmission.value;
+  if (activity) {
+    method.value = activity;
+    methodLocked.value = true;
+    activeTab.value = 'do';
+    return;
+  }
+  const quiz = quizSubmission.value;
+  const type = quiz ? (s.attempt_type || s.file_url?.slice('quiz://'.length)) : '';
+  if (type === 'quiz4' || type === 'quiz_free') {
+    method.value = type;
+    methodLocked.value = true;
+    activeTab.value = 'do';
+    if (s.status === 'reset') void startQuiz(type);
+    return;
+  }
+  if (s.file_url && !s.file_url.startsWith('quiz://') && !s.file_url.startsWith('activity://')) {
+    method.value = 'document';
+    methodLocked.value = true;
+    activeTab.value = 'do';
+  }
+}
+
 const dueDate = computed(() =>
   assignment.value?.due_date
     ? new Date(assignment.value.due_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -296,6 +866,7 @@ const dueDate = computed(() =>
 const phase = computed<'pending' | 'review' | 'evaluated' | 'none'>(() => {
   const s = submission.value;
   if (!s) return 'pending';
+  if (s.status === 'reset') return 'pending';
   if (s.status === 'evaluated' || s.status === 'completed') return 'evaluated';
   if (s.status === 'submitted' || s.status === 'pending') return 'review';
   return 'none';
@@ -450,3 +1021,444 @@ async function confirmEvaluation() {
   }
 }
 </script>
+
+<style>
+/* M�dulos �Aprender y Hacer� de una tarea del aula. */
+:where(body[data-page="classroom_details"]) .learn-task-tabs {
+  display: flex;
+  gap: .5rem;
+  max-width: 560px;
+  margin: 0 auto 24px;
+  padding: 4px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+}
+
+:where(body[data-page="classroom_details"]) .learn-task-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+:where(body[data-page="classroom_details"]) .learn-task-tab.active {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+:where(body[data-page="classroom_details"]) .learning-modes-section {
+  padding: 0 20px 40px;
+}
+
+:where(body[data-page="classroom_details"]) .task-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+:where(body[data-page="classroom_details"]) .method-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  text-align: left;
+  background: var(--glass-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: 14px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all .2s;
+}
+
+:where(body[data-page="classroom_details"]) .method-card:hover {
+  border-color: var(--accent-color);
+  transform: translateY(-2px);
+}
+
+:where(body[data-page="classroom_details"]) .method-card.active {
+  border-color: var(--accent-color);
+  background: var(--secondary-container);
+  box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+:where(body[data-page="classroom_details"]) .method-icon {
+  font-size: 1.6rem;
+}
+
+:where(body[data-page="classroom_details"]) .method-name {
+  font-weight: 800;
+  font-size: .95rem;
+}
+
+:where(body[data-page="classroom_details"]) .method-desc {
+  font-size: .78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+/* -- Quiz -- */
+:where(body[data-page="classroom_details"]) .quiz-card {
+  margin: 0 20px 60px;
+  padding: 20px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  box-shadow: var(--glass-shadow);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-mode-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-progress-label {
+  margin-left: 10px;
+  font-size: .82rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-total {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--accent-color);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--glass-border);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-progress-fill {
+  height: 100%;
+  background: var(--accent-gradient);
+  transition: width .35s ease;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg.user {
+  justify-content: flex-end;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-avatar {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--secondary-container);
+  font-size: .95rem;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg-bubble {
+  padding: 11px 14px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--secondary-container);
+  color: var(--text-primary);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg.user .quiz-msg-bubble {
+  background: var(--accent-gradient);
+  color: #fff;
+  border-radius: 14px 14px 4px 14px;
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg.feedback .quiz-msg-bubble {
+  border-radius: 12px;
+  font-size: .82rem;
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg.feedback .correct {
+  background: rgba(76, 175, 80, .15);
+  color: #2e7d32;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg.feedback .wrong {
+  background: rgba(229, 57, 53, .12);
+  color: #c62828;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-msg-meta {
+  margin-top: 4px;
+  padding-left: 2px;
+  font-size: .7rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-interaction {
+  margin-top: 16px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font-size: .88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all .18s;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-option:hover {
+  border-color: var(--accent-color);
+  background: var(--secondary-container);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-option-letter {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-free-row {
+  display: flex;
+  gap: 10px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-free-input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font-size: .9rem;
+  outline: none;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-free-input:focus {
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-nav {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-nav .course-start-btn {
+  max-width: 280px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result {
+  text-align: center;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-icon {
+  font-size: 2.4rem;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-score {
+  font-size: 2.2rem;
+  font-weight: 900;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-score span {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  -webkit-text-fill-color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-sub {
+  margin: 4px 0 18px;
+  color: var(--text-secondary);
+  font-size: .9rem;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  max-height: 48vh;
+  overflow-y: auto;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-item {
+  padding: 12px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-index {
+  font-weight: 800;
+  color: var(--accent-color);
+  font-size: .8rem;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-question {
+  flex: 1;
+  font-size: .86rem;
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-points {
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-points.ok { color: #2e7d32; }
+:where(body[data-page="classroom_details"]) .quiz-result-points.bad { color: #c62828; }
+
+:where(body[data-page="classroom_details"]) .quiz-result-detail {
+  margin-top: 5px;
+  font-size: .78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+@media (max-width: 640px) {
+  :where(body[data-page="classroom_details"]) .quiz-free-row { flex-direction: column; }
+  :where(body[data-page="classroom_details"]) .learn-task-tab { font-size: .85rem; padding: 10px 8px; }
+}
+</style>
+
+<style>
+/* Ajustes: m�todo bloqueado, una pregunta a la vez y reinicio �nico. */
+:where(body[data-page="classroom_details"]) .method-locked-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--secondary-container);
+  border: 1px solid var(--glass-border);
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_details"]) .method-locked-bar strong {
+  color: var(--accent-color);
+}
+
+:where(body[data-page="classroom_details"]) .method-locked-bar span {
+  margin-left: auto;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-current {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+:where(body[data-page="classroom_details"]) .quiz-current .quiz-msg.feedback {
+  margin-top: -4px;
+}
+
+:where(body[data-page="classroom_details"]) .disagree-card {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, .08);
+  border: 1px solid rgba(239, 68, 68, .25);
+  text-align: center;
+}
+
+:where(body[data-page="classroom_details"]) .disagree-card p {
+  margin-bottom: 10px;
+  font-size: .88rem;
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .disagree-card .course-start-btn {
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+:where(body[data-page="classroom_details"]) .disagree-used {
+  margin-top: 14px;
+  font-size: .8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+</style>

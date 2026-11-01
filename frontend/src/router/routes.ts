@@ -31,6 +31,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'course_details', name: 'course_details', component: () => import('@/pages/CourseDetailsPage.vue'), meta: { title: 'Mirai AI - Detalles del Curso', subtitle: 'Lecciones' } },
       { path: 'classroom', name: 'classroom', component: () => import('@/pages/ClassroomPage.vue'), meta: { title: 'Aula Virtual - Mirai AI', subtitle: 'Aula Virtual' } },
       { path: 'classroom_details', name: 'classroom_details', component: () => import('@/pages/ClassroomDetailsPage.vue'), meta: { title: 'Mirai AI - Detalle de Tarea', subtitle: 'Detalle de Tarea' } },
+      { path: 'activity', name: 'activity', component: () => import('@/pages/ActivityPage.vue'), meta: { title: 'Mirai AI - Actividad', subtitle: 'Actividad' } },
       { path: 'classroom_admin', name: 'classroom_admin', component: () => import('@/pages/ClassroomAdminPage.vue'), meta: { title: 'Panel Docente - Mirai AI', subtitle: 'Panel Docente' } },
       { path: 'attendance', name: 'attendance', component: () => import('@/pages/AttendancePage.vue'), meta: { title: 'Mirai AI - Asistencia', subtitle: 'Control de Asistencia' } },
       { path: 'attendance_admin', name: 'attendance_admin', component: () => import('@/pages/AttendanceAdminPage.vue'), meta: { title: 'Mirai AI - Admin Asistencia', subtitle: 'Admin - Control de Asistencia' } },
