@@ -5,8 +5,9 @@
    dibuja lo que recibe.
 
    Ciclo de juego:
-     - Cada jugador tira el dado 2 veces (2 rondas completas).
-     - Al cerrarse el ciclo, a cada jugador le llega SU pregunta (fácil).
+     - Cada jugador tira el dado y mueve una ficha (una acción por ciclo).
+     - Al cerrarse el ciclo (todos tiraron y actuaron), a cada jugador le
+       llega SU pregunta (fácil).
      - Se pausa hasta que todos respondan o venza el temporizador (30 s).
      - Puntos en % de la nota: fácil +10 / mal 0; difícil +20 / mal -20.
      - Las casillas especiales se regeneran al empezar cada ciclo; quien cae en
@@ -23,7 +24,7 @@ export const TOKENS_PER_PLAYER = 4;
 export const COLORS = ['red', 'green', 'yellow', 'blue'] as const;
 export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 
-const ROLLS_PER_CYCLE = 2;
+const ROLLS_PER_CYCLE = 1;
 const MAX_CYCLES = 15;
 const SPECIAL_CELL_COUNT = 8;
 const ANSWER_SECONDS = 30;
@@ -668,6 +669,9 @@ export class GameRoom extends DurableObject<Env> {
       case 'ready':
         this.handleReady(state, attachment.dni);
         return;
+      case 'pick_color':
+        this.handlePickColor(state, attachment.dni, String(msg.color ?? ''));
+        return;
       case 'roll':
         this.handleRoll(state, attachment.dni);
         return;
@@ -748,6 +752,21 @@ export class GameRoom extends DurableObject<Env> {
       cycle: state.cycle,
     });
     this.ensureAlarm(state);
+  }
+
+  private handlePickColor(state: GameState, dni: string, color: string) {
+    if (state.status !== 'lobby') return this.broadcastError(state, 'not_lobby');
+    const player = state.players.find((p) => p.dni === dni);
+    if (!player || player.role !== 'player') return;
+    if (!(COLORS as readonly string[]).includes(color)) return this.broadcastError(state, 'bad_color');
+    const taken = state.players.some(
+      (p) => p.role === 'player' && p.dni !== dni && p.color === color,
+    );
+    if (taken) return this.broadcastError(state, 'color_taken');
+    player.color = color as Color;
+    player.ready = false;
+    this.saveState(state);
+    this.broadcastRoomState(state);
   }
 
   private handleReady(state: GameState, dni: string) {

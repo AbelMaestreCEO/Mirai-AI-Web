@@ -35,11 +35,15 @@
         <h2>Jugadores</h2>
         <ul class="player-list">
           <li v-for="p in state.players" :key="p.id" class="player-item">
-            <span class="color-dot" :class="p.color ? `color-${p.color}` : 'color-none'" />
+            <span class="roster-avatar" :class="p.color ? `team-border-${p.color}` : ''">
+              <img v-if="p.color" :src="characterUrl(p.color, 0) ?? ''" alt="" />
+              <span v-else class="color-dot color-none" />
+            </span>
             <span class="player-name">
               {{ p.nickname }}
               <span v-if="p.id === you" class="you-badge">Tú</span>
               <span v-if="p.role === 'spectator'" class="muted small"> · espectador</span>
+              <span v-if="p.color" class="team-label muted small"> · {{ teamFor(p.color)?.name }}</span>
             </span>
             <span class="muted small">{{ p.connected ? 'conectado' : 'desconectado' }}</span>
             <span v-if="p.role === 'player'" class="ready-chip" :class="{ ready: p.ready }">
@@ -47,6 +51,30 @@
             </span>
           </li>
         </ul>
+
+        <div v-if="youRole === 'player' && myPlayer" class="team-picker">
+          <h3>Elige tu equipo</h3>
+          <div class="team-grid">
+            <button
+              v-for="team in TEAMS"
+              :key="team.color"
+              type="button"
+              class="team-option"
+              :class="[`team-${team.color}`, { selected: myPlayer.color === team.color }]"
+              :disabled="isColorTaken(team.color)"
+              :aria-pressed="myPlayer.color === team.color"
+              @click="pickColor(team.color)"
+            >
+              <span class="team-avatar">
+                <img :src="characterUrl(team.color, 0) ?? ''" alt="" />
+              </span>
+              <span class="team-name">{{ team.name }}</span>
+              <span v-if="isColorTaken(team.color)" class="team-taken">Ocupado</span>
+              <span v-else-if="myPlayer.color === team.color" class="team-taken mine">Tu equipo</span>
+            </button>
+          </div>
+        </div>
+
         <button v-if="youRole === 'player'" class="btn-primary" type="button" @click="toggleReady">
           {{ myPlayer?.ready ? 'Quitar listo' : 'Estoy listo' }}
         </button>
@@ -93,8 +121,8 @@
           </div>
 
           <p class="muted small">
-            Cada jugador tira 2 veces; después, todos responden su pregunta. Las casillas marcadas son
-            especiales: dan pregunta difícil ({{ 20 }}% a favor o en contra).
+            Cada jugador tira una vez y mueve una ficha; después, todos responden su pregunta. Las
+            casillas marcadas son especiales: dan pregunta difícil ({{ 20 }}% a favor o en contra).
           </p>
 
           <div class="ludo-players" role="list" aria-label="Jugadores">
@@ -114,14 +142,13 @@
               <span v-if="p.hitSpecial" class="special-chip" title="Cayó en casilla especial">★</span>
               <span class="chip-score">
                 <strong>{{ p.points }}%</strong>
-                <span class="muted small"> · tiradas {{ Math.min(p.rolls, 2) }}/2</span>
+                <span class="muted small"> · tiradas {{ Math.min(p.rolls, 1) }}/1</span>
               </span>
             </div>
           </div>
 
           <div class="ludo-stage">
             <div class="ludo-board" role="group" aria-label="Tablero de ludo">
-              <div v-for="cell in boardCells" :key="cell.key" class="cell" :class="cell.className" />
               <span
                 v-for="marker in specialMarkers"
                 :key="marker.key"
@@ -130,12 +157,6 @@
                 :style="marker.style"
                 aria-hidden="true"
               />
-              <div class="center-star" aria-hidden="true">
-                <span class="tri tri-top" />
-                <span class="tri tri-right" />
-                <span class="tri tri-bottom" />
-                <span class="tri tri-left" />
-              </div>
               <template v-for="p in playablePlayers" :key="p.id">
                 <button
                   v-for="(pos, idx) in p.tokens"
@@ -148,7 +169,14 @@
                   type="button"
                   @click="sendMove(p, idx)"
                 >
-                  {{ idx + 1 }}
+                  <img
+                    v-if="p.color"
+                    class="piece-art"
+                    :src="characterUrl(p.color, idx) ?? ''"
+                    alt=""
+                    draggable="false"
+                  />
+                  <span v-else class="piece-num">{{ idx + 1 }}</span>
                 </button>
               </template>
             </div>
@@ -172,7 +200,7 @@
 
     <!-- Pregunta personal: solo la ve el jugador al que le toca -->
     <div v-if="activeQuestion" class="question-overlay" role="dialog" aria-modal="true" aria-labelledby="q-title">
-      <div class="question-card">
+      <div :key="activeQuestion.id" class="question-card">
         <div class="question-head">
           <span class="q-badge" :class="activeQuestion.difficulty === 'hard' ? 'hard' : 'easy'">
             {{ activeQuestion.difficulty === 'hard' ? 'Difícil · 20%' : 'Fácil · 10%' }}
@@ -186,6 +214,7 @@
             :key="i"
             class="option-btn"
             type="button"
+            :style="{ animationDelay: `${90 + i * 70}ms` }"
             :disabled="answering || questionResult !== null"
             @click="answer(activeQuestion, i)"
           >
@@ -220,6 +249,7 @@ import {
   type PlayerQuestion,
   type SocketStatus,
 } from '@/lib/game';
+import { TEAMS, characterUrl, teamFor } from '@/lib/teams';
 
 interface BoardCell {
   r: number;
@@ -274,44 +304,6 @@ function cellForColor(color: GameColor, pos: number): BoardCell | null {
   return HOME_CELLS[color][Math.min(4, pos - 52)] ?? null;
 }
 
-function baseInfo(r: number, c: number, r0: number, c0: number, color: GameColor) {
-  const rr = r - r0;
-  const cc = c - c0;
-  if (rr >= 1 && rr <= 4 && cc >= 1 && cc <= 4) {
-    if (rr >= 2 && rr <= 3 && cc >= 2 && cc <= 3) return { type: 'patio', color };
-    return { type: 'base', color };
-  }
-  return { type: 'void', color };
-}
-
-function cellInfo(r: number, c: number): { type: string; color?: GameColor } {
-  if (r <= 5 && c <= 5) return baseInfo(r, c, 0, 0, 'green');
-  if (r <= 5 && c >= 9) return baseInfo(r, c, 0, 9, 'yellow');
-  if (r >= 9 && c <= 5) return baseInfo(r, c, 9, 0, 'red');
-  if (r >= 9 && c >= 9) return baseInfo(r, c, 9, 9, 'blue');
-  if (r >= 6 && r <= 8 && c >= 6 && c <= 8) return { type: 'center' };
-  if (r === 7 && c >= 1 && c <= 5) return { type: 'home', color: 'green' };
-  if (c === 7 && r >= 1 && r <= 5) return { type: 'home', color: 'yellow' };
-  if (r === 7 && c >= 9 && c <= 13) return { type: 'home', color: 'blue' };
-  if (c === 7 && r >= 9 && r <= 13) return { type: 'home', color: 'red' };
-  if ((r >= 6 && r <= 8) || (c >= 6 && c <= 8)) return { type: 'track' };
-  return { type: 'void' };
-}
-
-function buildBoard(): { key: string; className: string }[] {
-  const cells: { key: string; className: string }[] = [];
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const info = cellInfo(r, c);
-      cells.push({
-        key: `c-${r}-${c}`,
-        className: `cell cell-${info.type}${info.color ? ` color-${info.color}` : ''}`,
-      });
-    }
-  }
-  return cells;
-}
-
 function cellCenterStyle(cell: BoardCell): Record<string, string> {
   return {
     left: `${((cell.c + 0.5) / BOARD_SIZE) * 100}%`,
@@ -348,8 +340,6 @@ const answering = ref(false);
 const now = ref(Date.now());
 const diceRolling = ref(false);
 const diceFace = ref(1);
-
-const boardCells = buildBoard();
 
 let socket: GameSocket | null = null;
 let ticker: number | null = null;
@@ -571,6 +561,12 @@ function errorText(code?: string): string {
       return 'No es tu turno.';
     case 'already_rolled':
       return 'Ya tiraste el dado este turno.';
+    case 'color_taken':
+      return 'Ese equipo ya está ocupado. Elige otro color.';
+    case 'bad_color':
+      return 'Color de equipo no válido.';
+    case 'not_lobby':
+      return 'La partida ya comenzó.';
     case 'illegal_move':
       return 'Ese movimiento no es válido.';
     case 'not_playing':
@@ -630,6 +626,15 @@ function tokenClickable(player: GamePlayer, token: number): boolean {
 
 function optionLetter(i: number): string {
   return 'ABCD'[i] ?? '?';
+}
+
+function isColorTaken(color: GameColor): boolean {
+  return playablePlayers.value.some((p) => p.id !== you.value && p.color === color);
+}
+
+function pickColor(color: GameColor): void {
+  if (isColorTaken(color) || myPlayer.value?.color === color) return;
+  socket?.send({ type: 'pick_color', color });
 }
 
 function toggleReady(): void {
@@ -844,6 +849,122 @@ async function leaveRoom(): Promise<void> {
 .color-blue { background: #1e88e5; }
 .color-none { background: #9e9e9e; }
 
+/* Avatar circular del roster (borde del color del equipo). */
+.roster-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid #9e9e9e;
+  background: var(--glass-bg);
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.roster-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  display: block;
+}
+
+.team-border-green { border-color: #2e7d32; }
+.team-border-blue { border-color: #0d47a1; }
+.team-border-yellow { border-color: #c9a600; }
+.team-border-red { border-color: #b71c1c; }
+
+.team-label {
+  font-weight: 500;
+}
+
+/* Selector de equipo en el lobby. */
+.team-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-picker h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.team-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 16px;
+  border: 2px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.team-option:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.team-option.selected {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.team-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.team-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 4px solid #9e9e9e;
+  overflow: hidden;
+  background: #fff;
+}
+
+.team-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  display: block;
+}
+
+.team-green .team-avatar { border-color: #2e7d32; }
+.team-blue .team-avatar { border-color: #0d47a1; }
+.team-yellow .team-avatar { border-color: #c9a600; }
+.team-red .team-avatar { border-color: #b71c1c; }
+
+.team-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.team-taken {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--bad, #b3261e);
+}
+
+.team-taken.mine {
+  color: var(--ok, #006a4a);
+}
+
 .turn-bar {
   display: flex;
   gap: 16px;
@@ -945,43 +1066,11 @@ async function leaveRoom(): Promise<void> {
   width: 100%;
   max-width: 560px;
   aspect-ratio: 1 / 1;
-  display: grid;
-  grid-template-columns: repeat(15, 1fr);
-  grid-template-rows: repeat(15, 1fr);
-  gap: 1px;
-  background: #0b0b0b;
-  border: 3px solid #0b0b0b;
+  background: #0b0b0b url('/boards/ludo-2.webp') center / 100% 100% no-repeat;
   border-radius: 8px;
-  padding: 1px;
-  box-sizing: content-box;
+  box-shadow: 0 0 0 3px #0b0b0b;
+  image-rendering: pixelated;
   overflow: hidden;
-}
-
-.cell {
-  box-sizing: border-box;
-}
-
-.cell-track {
-  background: #fbfbfb;
-}
-
-/* Colores de las casillas (base, patio, pasillo). */
-.cell.color-green { background: #43a047; }
-.cell.color-yellow { background: #fdd835; }
-.cell.color-red { background: #e53935; }
-.cell.color-blue { background: #1e88e5; }
-
-.cell.cell-void {
-  background: transparent;
-}
-
-.cell.cell-center {
-  background: transparent;
-}
-
-.cell.cell-patio {
-  background: #f7f7f7;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
 /* Fichas (jugadores). */
@@ -1000,6 +1089,7 @@ async function leaveRoom(): Promise<void> {
   display: grid;
   place-items: center;
   padding: 0;
+  overflow: hidden;
   cursor: default;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   transition:
@@ -1009,10 +1099,24 @@ async function leaveRoom(): Promise<void> {
   z-index: 3;
 }
 
-.piece.piece-green { background: #43a047; color: #fff; }
-.piece.piece-yellow { background: #fdd835; color: #3a2d00; }
-.piece.piece-red { background: #e53935; color: #fff; }
-.piece.piece-blue { background: #1e88e5; color: #fff; }
+.piece-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  border-radius: 50%;
+  pointer-events: none;
+  display: block;
+}
+
+.piece-num {
+  color: #fff;
+}
+
+.piece.piece-green { background: #43a047; color: #fff; border-color: #2e7d32; }
+.piece.piece-yellow { background: #fdd835; color: #3a2d00; border-color: #c9a600; }
+.piece.piece-red { background: #e53935; color: #fff; border-color: #b71c1c; }
+.piece.piece-blue { background: #1e88e5; color: #fff; border-color: #0d47a1; }
 .piece.piece-none { background: #9e9e9e; color: #fff; }
 
 .piece.at-home {
@@ -1050,27 +1154,6 @@ async function leaveRoom(): Promise<void> {
 .marker-yellow { background: #c9a600; }
 .marker-red { background: #c62828; }
 .marker-blue { background: #1565c0; }
-
-/* Meta central: 4 triángulos. */
-.center-star {
-  position: absolute;
-  left: 40%;
-  top: 40%;
-  width: 20%;
-  height: 20%;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.tri {
-  position: absolute;
-  inset: 0;
-}
-
-.tri-top { background: #fdd835; clip-path: polygon(0 0, 100% 0, 50% 50%); }
-.tri-right { background: #1e88e5; clip-path: polygon(100% 0, 100% 100%, 50% 50%); }
-.tri-bottom { background: #e53935; clip-path: polygon(0 100%, 100% 100%, 50% 50%); }
-.tri-left { background: #43a047; clip-path: polygon(0 0, 0 100%, 50% 50%); }
 
 .lane {
   border-radius: 12px;
@@ -1265,17 +1348,31 @@ async function leaveRoom(): Promise<void> {
   place-items: center;
   padding: 16px;
   z-index: 50;
+  animation: overlay-fade 0.25s ease-out both;
+}
+
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .question-card {
   width: min(560px, 100%);
+  color: var(--text-primary);
   background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  animation: question-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes question-pop {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .question-head {
@@ -1310,6 +1407,7 @@ async function leaveRoom(): Promise<void> {
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.35;
+  color: var(--text-primary);
 }
 
 .options {
@@ -1328,8 +1426,15 @@ async function leaveRoom(): Promise<void> {
   border-radius: 12px;
   border: 2px solid var(--glass-border);
   background: var(--glass-bg);
+  color: var(--text-primary);
   cursor: pointer;
   min-height: 48px;
+  animation: option-in 0.32s ease-out both;
+}
+
+@keyframes option-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .option-btn:hover:not(:disabled) {
@@ -1349,6 +1454,7 @@ async function leaveRoom(): Promise<void> {
   place-items: center;
   border-radius: 50%;
   background: var(--secondary-container);
+  color: var(--text-primary);
   flex: 0 0 auto;
 }
 

@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793569930.1568406,
-    "seen": 1793569950.1693006,
+    "mtime": 1793571629.7222722,
+    "seen": 1793571708.3453221,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1392,9 +1392,9 @@
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1793569640.001188,
-    "seen": 1793569701.329814,
-    "ast_hash": "d9da4cbd5c09d669970db62cb4634afd",
+    "mtime": 1793573985.0000236,
+    "seen": 1793574157.533239,
+    "ast_hash": "87f29175b123d994cf2fa4fb449c3fa0",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1422,15 +1422,81 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793569667.0462248,
-    "seen": 1793569701.3278983,
-    "ast_hash": "b5928d99a2575a67a167b94cc72ddb83",
+    "mtime": 1793574104.5490546,
+    "seen": 1793574157.5291667,
+    "ast_hash": "ae651d27908e82a22d968f1fa40c3141",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {
     "mtime": 1793564872.4449427,
     "seen": 1793565046.1724713,
     "ast_hash": "2fe306332882432f4bd66ea8f01f241c",
+    "semantic_hash": ""
+  },
+  "ludo.md": {
+    "mtime": 1793571268.0491147,
+    "seen": 1793571708.3499055,
+    "ast_hash": "707ca2229f851581b5322a11b92fc448",
+    "semantic_hash": ""
+  },
+  "ludo.jpg": {
+    "mtime": 1793570049.579687,
+    "seen": 1793571708.3518844,
+    "ast_hash": "e8b9c962e83757c89f82607dede865d0",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/teams.ts": {
+    "mtime": 1793573968.1728916,
+    "seen": 1793574157.526155,
+    "ast_hash": "6b9534664ab2753b6aaa77de9c0aa929",
+    "semantic_hash": ""
+  },
+  "public/characters/armada-del-norte/sydney.webp": {
+    "mtime": 1793573768.144164,
+    "seen": 1793574157.5472028,
+    "ast_hash": "cf0f3c7b179fb86a7c4b73134d94e51f",
+    "semantic_hash": ""
+  },
+  "public/characters/clan-aberu/kaori.webp": {
+    "mtime": 1793573767.900269,
+    "seen": 1793574157.547206,
+    "ast_hash": "bbcf599ae369ff5856d262f1249247d8",
+    "semantic_hash": ""
+  },
+  "public/characters/clan-aberu/lorena.webp": {
+    "mtime": 1793573767.938821,
+    "seen": 1793574157.5472076,
+    "ast_hash": "fd7f5e9c8dbb56c3754b324926e887cb",
+    "semantic_hash": ""
+  },
+  "public/characters/clan-aberu/mirai.webp": {
+    "mtime": 1793573767.672522,
+    "seen": 1793574157.5472095,
+    "ast_hash": "56786281fe5a122de30494ba00b4f4d1",
+    "semantic_hash": ""
+  },
+  "public/characters/clan-aberu/oriana.webp": {
+    "mtime": 1793573768.0817692,
+    "seen": 1793574157.547211,
+    "ast_hash": "296c1a401e4c16af5ff0cbfdaab8be24",
+    "semantic_hash": ""
+  },
+  "public/characters/reino-del-cielo/angelica.webp": {
+    "mtime": 1793573767.7232642,
+    "seen": 1793574157.5472128,
+    "ast_hash": "51d25425c76d8c1ff3613fed8d030b01",
+    "semantic_hash": ""
+  },
+  "public/characters/reino-del-infierno/katana.webp": {
+    "mtime": 1793573767.8378227,
+    "seen": 1793574157.5472147,
+    "ast_hash": "53d33b064b53dce12d75d447439895b1",
+    "semantic_hash": ""
+  },
+  "public/characters/reino-del-infierno/lucy.webp": {
+    "mtime": 1793573768.0179467,
+    "seen": 1793574157.5472164,
+    "ast_hash": "b4187d377f07e3439dcae662e93c51b5",
     "semantic_hash": ""
   }
 }
