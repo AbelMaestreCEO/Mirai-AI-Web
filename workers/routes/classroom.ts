@@ -1064,13 +1064,13 @@ NO agregues texto adicional fuera del JSON.`;
         const finalScore = Math.min(Math.max(parsedScore, 0), assignment.max_score);
 
         // Actualizar nota y resolver disputa si existe.
-        // professor_note recibía finalScore por un copy-paste: es el comentario
-        // del profesor (lo que lee /api/professor-disputes), no la nota.
+        // professor_note es INTEGER (la nota manual del profesor); el comentario
+        // va en professor_feedback (TEXT). Ver db/classroom.sql.
         await env.MIRAI_AI_DB.prepare(`
           UPDATE submissions
           SET score = ?, professor_note = ?, professor_feedback = ?, dispute_status = 'resolved'
           WHERE id = ?
-      `).bind(finalScore, feedback || null, feedback || null, submission_id).run();
+      `).bind(finalScore, finalScore, feedback || null, submission_id).run();
 
         return jsonResponse({ success: true, new_score: finalScore }, 200, corsHeaders);
 

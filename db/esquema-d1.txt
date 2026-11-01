@@ -1,0 +1,186 @@
+PRAGMA defer_foreign_keys=TRUE;
+CREATE TABLE conversations (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT 'Nueva conversaciÃ³n',
+    model TEXT NOT NULL DEFAULT 'deepseek-chat',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+, course_id TEXT, lesson_id TEXT, user_dni TEXT, learning_context TEXT, system_prompt TEXT, project_id TEXT);
+CREATE TABLE messages (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('system', 'user', 'assistant')),
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')), audio_url TEXT, video_url TEXT, thumbnail_url TEXT, reasoning TEXT, images TEXT,
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+);
+CREATE TABLE attachments (     id TEXT PRIMARY KEY,     conversation_id TEXT NOT NULL,     r2_key TEXT NOT NULL,     original_name TEXT NOT NULL,     file_type TEXT,     created_at TEXT NOT NULL DEFAULT (datetime('now')),     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE );
+CREATE TABLE courses (   id TEXT PRIMARY KEY,   title TEXT NOT NULL,   description TEXT,   subcategory TEXT,   language TEXT,   level TEXT,     lessons INTEGER DEFAULT 0,   duration TEXT,     icon TEXT,   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP , category TEXT);
+CREATE TABLE lessons (   id TEXT PRIMARY KEY,   course_id TEXT REFERENCES courses(id),   title TEXT NOT NULL,   content TEXT,   order_index INTEGER,   created_at DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE categories (     id TEXT PRIMARY KEY,     title TEXT NOT NULL,     description TEXT,     icon TEXT DEFAULT 'ðŸ“š',     color TEXT DEFAULT 'linear-gradient(135deg, #667eea, #764ba2)',     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE users (   dni TEXT PRIMARY KEY,   email TEXT UNIQUE NOT NULL,   password_hash TEXT NOT NULL,   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,   last_login DATETIME , first_name TEXT, last_name TEXT, recovery_token TEXT, recovery_expires_at DATETIME, is_verified INTEGER DEFAULT 0, otp_code TEXT, otp_expires DATETIME, avatar_r2_key TEXT DEFAULT NULL, role TEXT NOT NULL DEFAULT 'student', settings_json TEXT DEFAULT NULL, ai_preferences_json TEXT DEFAULT '{}', plan TEXT DEFAULT 'basic', otp_token TEXT, otp_attempts INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE sessions (   token TEXT PRIMARY KEY,   user_dni TEXT NOT NULL,   expires_at DATETIME NOT NULL,   created_at DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE subcategories (     id TEXT PRIMARY KEY,     title TEXT NOT NULL,     icon TEXT DEFAULT 'ðŸ“š',     category TEXT NOT NULL,     sort_order INTEGER DEFAULT 0,     created_at DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE assignment_students (     assignment_id TEXT NOT NULL,     user_dni TEXT NOT NULL,     PRIMARY KEY (assignment_id, user_dni),     FOREIGN KEY (assignment_id) REFERENCES assignments(id) );
+CREATE TABLE user_courses (     id TEXT PRIMARY KEY,     user_dni TEXT NOT NULL,     title TEXT NOT NULL,     description TEXT,     created_at DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE IF NOT EXISTS "assignments" (     id TEXT PRIMARY KEY,     course_id TEXT NOT NULL,     title TEXT NOT NULL,     description TEXT,     file_url TEXT,     due_date DATETIME,     max_score INTEGER DEFAULT 100,     created_at DATETIME DEFAULT CURRENT_TIMESTAMP , section_id TEXT, submission_type TEXT DEFAULT 'document');
+CREATE TABLE professors (     dni TEXT PRIMARY KEY,     email TEXT UNIQUE,     full_name TEXT,     is_active INTEGER DEFAULT 1,     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE inventory_products (     id TEXT PRIMARY KEY,     name TEXT NOT NULL,     sku TEXT UNIQUE,     category TEXT,     quantity INTEGER DEFAULT 0,     unit_price REAL,          ai_description TEXT,     ai_tags TEXT,      ai_confidence REAL,     photo_r2_key TEXT,          demand_score REAL DEFAULT 0.0,      predicted_restock_date DATE,          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP , user_dni TEXT);
+CREATE TABLE inventory_logs (     id TEXT PRIMARY KEY,     product_id TEXT,     type TEXT,     quantity_change INTEGER,     notes TEXT,     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,     FOREIGN KEY(product_id) REFERENCES inventory_products(id) );
+CREATE TABLE user_notifications (     id TEXT PRIMARY KEY,     user_dni TEXT NOT NULL,     subscription_endpoint TEXT NOT NULL,     subscription_p256dh TEXT NOT NULL,     subscription_auth TEXT NOT NULL,     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,     UNIQUE(user_dni) );
+CREATE TABLE apa_files (     id TEXT PRIMARY KEY,     original_name TEXT NOT NULL,     file_type TEXT DEFAULT 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',     size INTEGER DEFAULT 0,     uploaded_at TEXT NOT NULL,     user_id TEXT,     metadata_json TEXT DEFAULT '{}' );
+CREATE TABLE att_staff (     id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),     name        TEXT NOT NULL,     dni         TEXT NOT NULL UNIQUE,     department  TEXT,     position    TEXT,     email       TEXT,     is_active   INTEGER NOT NULL DEFAULT 1,     created_at  TEXT NOT NULL DEFAULT (datetime('now')),     updated_at  TEXT NOT NULL DEFAULT (datetime('now')) );
+CREATE TABLE report_submissions (   id           TEXT PRIMARY KEY,   report_id    TEXT NOT NULL,   student_dni  TEXT NOT NULL,   answers_json TEXT NOT NULL DEFAULT '{}',   submitted_at TEXT NOT NULL DEFAULT (datetime('now')),   UNIQUE(report_id, student_dni),       FOREIGN KEY (report_id)   REFERENCES reports(id)   ON DELETE CASCADE,   FOREIGN KEY (student_dni) REFERENCES users(dni)    ON DELETE CASCADE );
+CREATE TABLE projects (         id          TEXT PRIMARY KEY,         user_dni    TEXT NOT NULL,         name        TEXT NOT NULL,         description TEXT DEFAULT '',         tech_stack  TEXT DEFAULT '[]',           category    TEXT DEFAULT 'otros',         file_count  INTEGER DEFAULT 0,         created_at  TEXT DEFAULT (datetime('now')),         updated_at  TEXT DEFAULT (datetime('now'))     );
+CREATE TABLE project_files (         id          TEXT PRIMARY KEY,         project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,         name        TEXT NOT NULL,         r2_key      TEXT NOT NULL,         size        INTEGER DEFAULT 0,         mime_type   TEXT DEFAULT '',         uploaded_at TEXT DEFAULT (datetime('now'))     );
+CREATE TABLE tasks (   id              TEXT    PRIMARY KEY,   user_dni        TEXT    NOT NULL,   title           TEXT    NOT NULL,   description     TEXT    DEFAULT '',   status          TEXT    DEFAULT 'pendiente'                           CHECK(status IN ('pendiente','progreso','revision','completado')),   priority        TEXT    DEFAULT 'media'                           CHECK(priority IN ('baja','media','alta','critica')),   assignee        TEXT    DEFAULT '',   tag             TEXT    DEFAULT '',   due_date        TEXT,   estimated_time  REAL    DEFAULT 0,   progress        INTEGER DEFAULT 0,   project         TEXT    DEFAULT '',   done            INTEGER DEFAULT 0,   created_at      TEXT    NOT NULL,   updated_at      TEXT    NOT NULL , lat            REAL    DEFAULT NULL, lng            REAL    DEFAULT NULL, location_label TEXT    DEFAULT NULL);
+CREATE TABLE sections (   id          TEXT PRIMARY KEY,   professor_dni TEXT NOT NULL,   course_id   TEXT NOT NULL,   name        TEXT NOT NULL,   description TEXT DEFAULT '',   created_at  TEXT DEFAULT (datetime('now')) );
+CREATE TABLE section_students (   section_id TEXT NOT NULL,   user_dni   TEXT NOT NULL,   PRIMARY KEY (section_id, user_dni) );
+CREATE TABLE diet_data (      user_dni  TEXT NOT NULL,      data_key  TEXT NOT NULL,      data_json TEXT NOT NULL DEFAULT '{}',      updated_at TEXT DEFAULT (datetime('now')),      PRIMARY KEY (user_dni, data_key)    );
+CREATE TABLE diet_history (      id          TEXT PRIMARY KEY,      user_dni    TEXT NOT NULL,      date        TEXT NOT NULL,      total_kcal  INTEGER DEFAULT 0,      total_prot  INTEGER DEFAULT 0,      total_carb  INTEGER DEFAULT 0,      total_fat   INTEGER DEFAULT 0,      entries_json TEXT DEFAULT '[]',      created_at  TEXT DEFAULT (datetime('now'))    );
+CREATE TABLE gen_history (     id          INTEGER PRIMARY KEY AUTOINCREMENT,     user_dni    TEXT    NOT NULL,     type        TEXT    NOT NULL,      badge       TEXT,     prompt      TEXT,     result      TEXT,        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE att_classes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_by TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        is_active INTEGER DEFAULT 1
+      );
+CREATE TABLE att_class_students (
+        id TEXT PRIMARY KEY,
+        class_id TEXT NOT NULL,
+        staff_id TEXT NOT NULL,
+        added_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(class_id, staff_id)
+      );
+CREATE TABLE att_qr_sessions (   id TEXT PRIMARY KEY,   token TEXT NOT NULL,   date TEXT NOT NULL,   expires_at TEXT NOT NULL,   scan_count INTEGER DEFAULT 0,   created_by TEXT,   created_at TEXT DEFAULT (datetime('now')),   class_id TEXT,   UNIQUE(date, class_id) );
+CREATE TABLE att_records (   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),   session_id TEXT NOT NULL REFERENCES att_qr_sessions(id) ON DELETE CASCADE,   staff_id TEXT NOT NULL REFERENCES att_staff(id) ON DELETE CASCADE,   type TEXT NOT NULL CHECK(type IN ('entrada','salida')),   date TEXT NOT NULL,   time TEXT NOT NULL,   created_at TEXT NOT NULL DEFAULT (datetime('now')) );
+CREATE TABLE location_markers (   id          TEXT PRIMARY KEY,   user_dni    TEXT NOT NULL,   title       TEXT NOT NULL,   description TEXT DEFAULT '',   lat         REAL NOT NULL,   lng         REAL NOT NULL,   created_at  TEXT NOT NULL DEFAULT (datetime('now')) , images TEXT DEFAULT '[]');
+CREATE TABLE IF NOT EXISTS "submissions" (     id TEXT PRIMARY KEY,     assignment_id TEXT NOT NULL,     user_dni TEXT NOT NULL,     file_url TEXT NOT NULL,     comment TEXT,     status TEXT DEFAULT 'pending',     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,     graded_at DATETIME,     score INTEGER,     feedback TEXT,     reviewed_at DATETIME DEFAULT NULL,     dispute_status TEXT DEFAULT NULL,     dispute_reason TEXT DEFAULT NULL,     professor_note INTEGER DEFAULT NULL,     professor_feedback TEXT DEFAULT NULL,     extracted_text TEXT,     FOREIGN KEY (assignment_id) REFERENCES assignments(id),     UNIQUE(assignment_id, user_dni) );
+CREATE TABLE IF NOT EXISTS "reports" (     id TEXT PRIMARY KEY,     teacher_dni TEXT NOT NULL,     title TEXT NOT NULL,     description TEXT DEFAULT '',     icon TEXT DEFAULT 'ðŸ“‹',     deadline TEXT,     active INTEGER NOT NULL DEFAULT 1,     questions_json TEXT NOT NULL DEFAULT '[]',     access_json TEXT NOT NULL DEFAULT '[]',     created_at TEXT NOT NULL DEFAULT (datetime('now')),     updated_at TEXT NOT NULL DEFAULT (datetime('now')) , section_id TEXT);
+CREATE TABLE photo_sessions (   session_id TEXT PRIMARY KEY,   image_count INTEGER DEFAULT 0,   created_at TEXT NOT NULL , user_dni TEXT);
+CREATE TABLE photos (   id INTEGER PRIMARY KEY AUTOINCREMENT,   session_id TEXT NOT NULL,   r2_key TEXT NOT NULL,   date_str TEXT,   original_name TEXT,   created_at TEXT DEFAULT (datetime('now')) , size_bytes INTEGER DEFAULT 0);
+CREATE TABLE inv_history (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_dni   TEXT    NOT NULL,
+        question   TEXT    NOT NULL,
+        summary    TEXT    NOT NULL,
+        sources    TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+CREATE TABLE daily_tokens (
+      user_dni   TEXT NOT NULL,
+      token_date TEXT NOT NULL,
+      imagen     INTEGER DEFAULT 0,
+      musica     INTEGER DEFAULT 0,
+      video      INTEGER DEFAULT 0,
+      PRIMARY KEY (user_dni, token_date)
+    );
+CREATE TABLE fcm_tokens (token TEXT PRIMARY KEY, platform TEXT NOT NULL DEFAULT 'android', updated_at TEXT NOT NULL);
+CREATE TABLE video_avatar_characters (     id          INTEGER PRIMARY KEY AUTOINCREMENT,     user_dni    TEXT    NOT NULL,     name        TEXT,     image_url   TEXT    NOT NULL,     r2_key      TEXT    NOT NULL,     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP );
+CREATE TABLE video_avatar_jobs (
+      id           TEXT PRIMARY KEY,
+      user_dni     TEXT NOT NULL,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      video_url    TEXT,
+      error        TEXT,
+      character_id INTEGER,
+      character_name TEXT,
+      character_image_url TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    , pruna_prediction_id TEXT, resolution TEXT, job_kind TEXT DEFAULT 'avatar', model_id TEXT, draft INTEGER DEFAULT 0);
+CREATE TABLE sale_listings (
+        id TEXT PRIMARY KEY,
+        user_dni TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        product_sku TEXT DEFAULT '',
+        photo_r2_key TEXT,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        unit_price REAL NOT NULL DEFAULT 0,
+        status TEXT DEFAULT 'active' CHECK (status IN ('active', 'agotado', 'retirado')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+CREATE TABLE sale_buyers (
+        id TEXT PRIMARY KEY,
+        user_dni TEXT NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        cedula TEXT NOT NULL,
+        phone TEXT DEFAULT '',
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (user_dni, cedula)
+    );
+CREATE TABLE sale_transactions (
+        id TEXT PRIMARY KEY,
+        user_dni TEXT NOT NULL,
+        buyer_id TEXT NOT NULL,
+        listing_id TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL,
+        total_amount REAL NOT NULL,
+        status TEXT DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'pagado', 'cancelado')),
+        notes TEXT DEFAULT '',
+        created_at TEXT NOT NULL,
+        paid_at TEXT
+    );
+CREATE TABLE sale_invoices (
+        id TEXT PRIMARY KEY,
+        user_dni TEXT NOT NULL,
+        transaction_id TEXT NOT NULL,
+        buyer_id TEXT NOT NULL,
+        invoice_number TEXT NOT NULL,
+        r2_key TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL,
+        subtotal REAL NOT NULL,
+        tax_amount REAL NOT NULL,
+        total_amount REAL NOT NULL,
+        created_at TEXT NOT NULL
+    );
+CREATE TABLE api_usage_log (     id            INTEGER PRIMARY KEY AUTOINCREMENT,     provider      TEXT    NOT NULL,      unit_type     TEXT    NOT NULL,      sub_type      TEXT,                  units         REAL    NOT NULL DEFAULT 1,     tokens_in     INTEGER,     tokens_out    INTEGER,     cost_usd      REAL    NOT NULL DEFAULT 0,     user_dni      TEXT,     via_gateway   INTEGER NOT NULL DEFAULT 0,      usage_date    TEXT    NOT NULL,      usage_month   TEXT    NOT NULL,      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP );
+DELETE FROM sqlite_sequence;
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_conversations_updated_at ON conversations(updated_at DESC);
+CREATE INDEX idx_attachments_conversation_id ON attachments(conversation_id);
+CREATE INDEX idx_conversations_course_id ON conversations(course_id);
+CREATE INDEX idx_conversations_user ON conversations(user_dni);
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_inventory_category ON inventory_products(category);
+CREATE INDEX idx_inventory_sku ON inventory_products(sku);
+CREATE INDEX idx_inventory_demand ON inventory_products(demand_score);
+CREATE INDEX idx_logs_product ON inventory_logs(product_id);
+CREATE INDEX idx_logs_type ON inventory_logs(type);
+CREATE INDEX idx_apa_files_user_id ON apa_files(user_id);
+CREATE INDEX idx_apa_files_uploaded_at ON apa_files(uploaded_at DESC);
+CREATE INDEX idx_users_dni ON users(dni);
+CREATE INDEX idx_att_staff_dni ON att_staff(dni);
+CREATE INDEX idx_submissions_report   ON report_submissions(report_id);
+CREATE INDEX idx_submissions_student   ON report_submissions(student_dni);
+CREATE INDEX idx_submissions_student_report   ON report_submissions(student_dni, report_id);
+CREATE INDEX idx_projects_user_dni ON projects(user_dni);
+CREATE INDEX idx_project_files_project ON project_files(project_id);
+CREATE INDEX idx_conversations_project      ON conversations(project_id, user_dni);
+CREATE INDEX idx_tasks_user_dni ON tasks(user_dni);
+CREATE INDEX idx_tasks_status   ON tasks(status);
+CREATE INDEX idx_loc_user ON location_markers(user_dni);
+CREATE INDEX idx_sale_listings_user_dni ON sale_listings (user_dni);
+CREATE INDEX idx_sale_listings_status ON sale_listings (status);
+CREATE INDEX idx_sale_listings_product_id ON sale_listings (product_id);
+CREATE INDEX idx_sale_buyers_user_dni ON sale_buyers (user_dni);
+CREATE INDEX idx_sale_transactions_user_dni ON sale_transactions (user_dni);
+CREATE INDEX idx_sale_transactions_status ON sale_transactions (status);
+CREATE INDEX idx_sale_transactions_buyer_id ON sale_transactions (buyer_id);
+CREATE INDEX idx_sale_invoices_user_dni ON sale_invoices (user_dni);
+CREATE INDEX idx_sale_invoices_transaction_id ON sale_invoices (transaction_id);
+CREATE INDEX idx_api_usage_month_provider ON api_usage_log (usage_month, provider);
+CREATE INDEX idx_api_usage_month_provider_sub ON api_usage_log (usage_month, provider, sub_type);
+CREATE INDEX idx_users_otp_token ON users (otp_token);s

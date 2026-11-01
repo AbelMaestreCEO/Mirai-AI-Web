@@ -1,0 +1,78 @@
+-- Aula Virtual: cursos del profesor, secciones, tareas, entregas y disputas.
+-- Esquema capturado de la D1 de producción (mirai-ai-db). Idempotente.
+--
+-- NOTA: `submissions.professor_note` es INTEGER (la nota manual del profesor),
+-- mientras que el comentario del profesor vive en `professor_feedback` (TEXT).
+
+CREATE TABLE IF NOT EXISTS user_courses (
+    id          TEXT PRIMARY KEY,
+    user_dni    TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    description TEXT,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS professors (
+    dni        TEXT PRIMARY KEY,
+    email      TEXT UNIQUE,
+    full_name  TEXT,
+    is_active  INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sections (
+    id            TEXT PRIMARY KEY,
+    professor_dni TEXT NOT NULL,
+    course_id     TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    description   TEXT DEFAULT '',
+    created_at    TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS section_students (
+    section_id TEXT NOT NULL,
+    user_dni   TEXT NOT NULL,
+    PRIMARY KEY (section_id, user_dni)
+);
+
+CREATE TABLE IF NOT EXISTS assignments (
+    id              TEXT PRIMARY KEY,
+    course_id       TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    description     TEXT,
+    file_url        TEXT,
+    due_date        DATETIME,
+    max_score       INTEGER DEFAULT 100,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    section_id      TEXT,
+    submission_type TEXT DEFAULT 'document'
+);
+
+CREATE TABLE IF NOT EXISTS assignment_students (
+    assignment_id TEXT NOT NULL,
+    user_dni      TEXT NOT NULL,
+    PRIMARY KEY (assignment_id, user_dni),
+    FOREIGN KEY (assignment_id) REFERENCES assignments (id)
+);
+
+CREATE TABLE IF NOT EXISTS submissions (
+    id                 TEXT PRIMARY KEY,
+    assignment_id      TEXT NOT NULL,
+    user_dni           TEXT NOT NULL,
+    file_url           TEXT NOT NULL,
+    comment            TEXT,
+    status             TEXT DEFAULT 'pending',
+    submitted_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    graded_at          DATETIME,
+    score              INTEGER,
+    feedback           TEXT,
+    reviewed_at        DATETIME DEFAULT NULL,
+    dispute_status     TEXT DEFAULT NULL,
+    dispute_reason     TEXT DEFAULT NULL,
+    professor_note     INTEGER DEFAULT NULL,
+    professor_feedback TEXT DEFAULT NULL,
+    extracted_text     TEXT,
+    FOREIGN KEY (assignment_id) REFERENCES assignments (id),
+    UNIQUE (assignment_id, user_dni)
+);

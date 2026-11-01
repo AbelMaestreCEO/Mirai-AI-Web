@@ -284,7 +284,7 @@ watch(assignmentId, () => void load(), { immediate: true });
 
 const submission = computed(() => assignment.value?.submission ?? null);
 const submittedImage = computed(() => !!submission.value?.file_url && isImageName(submission.value.file_url));
-const finalScore = computed(() => submission.value?.professor_note ?? submission.value?.score);
+const finalScore = computed(() => submission.value?.score);
 
 const dueDate = computed(() =>
   assignment.value?.due_date

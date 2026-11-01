@@ -189,6 +189,55 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
     globalThis._migratedMessagesImages = true;
   }
 
+  // Migración: tablas del Aula Virtual (user_courses, professors, sections,
+  // section_students, assignments, assignment_students, submissions). Antes solo
+  // existían en la D1 de producción; una base nueva rompía todo el módulo con
+  // "no such table". Esquema idempotente en db/classroom.sql.
+  if (!globalThis._migratedClassroomTables) {
+    const classroomDDL = [
+      `CREATE TABLE IF NOT EXISTS user_courses (
+        id TEXT PRIMARY KEY, user_dni TEXT NOT NULL, title TEXT NOT NULL,
+        description TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS professors (
+        dni TEXT PRIMARY KEY, email TEXT UNIQUE, full_name TEXT,
+        is_active INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+      `CREATE TABLE IF NOT EXISTS sections (
+        id TEXT PRIMARY KEY, professor_dni TEXT NOT NULL, course_id TEXT NOT NULL,
+        name TEXT NOT NULL, description TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')))`,
+      `CREATE TABLE IF NOT EXISTS section_students (
+        section_id TEXT NOT NULL, user_dni TEXT NOT NULL,
+        PRIMARY KEY (section_id, user_dni))`,
+      `CREATE TABLE IF NOT EXISTS assignments (
+        id TEXT PRIMARY KEY, course_id TEXT NOT NULL, title TEXT NOT NULL,
+        description TEXT, file_url TEXT, due_date DATETIME, max_score INTEGER DEFAULT 100,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP, section_id TEXT,
+        submission_type TEXT DEFAULT 'document')`,
+      `CREATE TABLE IF NOT EXISTS assignment_students (
+        assignment_id TEXT NOT NULL, user_dni TEXT NOT NULL,
+        PRIMARY KEY (assignment_id, user_dni),
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id))`,
+      `CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, user_dni TEXT NOT NULL,
+        file_url TEXT NOT NULL, comment TEXT, status TEXT DEFAULT 'pending',
+        submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP, graded_at DATETIME,
+        score INTEGER, feedback TEXT, reviewed_at DATETIME DEFAULT NULL,
+        dispute_status TEXT DEFAULT NULL, dispute_reason TEXT DEFAULT NULL,
+        professor_note INTEGER DEFAULT NULL, professor_feedback TEXT DEFAULT NULL,
+        extracted_text TEXT,
+        FOREIGN KEY (assignment_id) REFERENCES assignments(id),
+        UNIQUE (assignment_id, user_dni))`,
+    ];
+    for (const ddl of classroomDDL) {
+      try {
+        await env.MIRAI_AI_DB.prepare(ddl).run();
+      } catch (e) {
+        console.error('Migración aula (tabla ya existente o error):', (e as Error)?.message);
+      }
+    }
+    globalThis._migratedClassroomTables = true;
+  }
+
   try {
 
     // Ruta: POST /api/chat

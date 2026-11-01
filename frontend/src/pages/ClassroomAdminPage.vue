@@ -19,7 +19,7 @@
         </svg>
         <input id="dashboard-search" type="text" placeholder="Buscar tareas o estudiantes..." autocomplete="off">
       </div>
-      <button class="btn-primary" @click="switchTab('create')">➕ Nueva Tarea</button>
+      <button class="btn-primary" @click="newTask">➕ Nueva Tarea</button>
     </div>
 
     <div class="inventory-stats" style="padding: 0 20px;">
@@ -34,14 +34,14 @@
         <div class="stat-icon">📝</div>
         <div class="stat-content">
           <span class="stat-label">Tareas Activas</span>
-          <span id="stat-tasks" class="stat-value">0</span>
+          <span id="stat-tasks" class="stat-value">{{ tasks.items.length }}</span>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">👥</div>
         <div class="stat-content">
           <span class="stat-label">Estudiantes Totales</span>
-          <span id="stat-students" class="stat-value">0</span>
+          <span id="stat-students" class="stat-value">{{ totalStudents }}</span>
         </div>
       </div>
     </div>
@@ -150,6 +150,7 @@
               </select>
             </div>
           </div>
+          <p v-if="taskError" style="color: var(--error-color, #dc2626); font-size: 0.85rem; margin: 12px 0; text-align: center;">{{ taskError }}</p>
           <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px;">
             Crear Tarea
           </button>
@@ -569,6 +570,7 @@ async function createCourse() {
 
 // ── Tareas ────────────────────────────────────────────────────────────────
 const taskForm = reactive({ title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '' });
+const taskError = ref('');
 const tasks = reactive({ state: 'loading' as 'loading' | 'ready' | 'error', items: [] as Task[] });
 const studentCounts = reactive<Record<string, number>>({});
 
@@ -580,9 +582,28 @@ function onCourseSelect() {
   }
 }
 
+function resetTaskForm() {
+  Object.assign(taskForm, { title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '' });
+  taskError.value = '';
+}
+
+function newTask() {
+  switchTab('create');
+  resetTaskForm();
+  void nextTick(() => {
+    document.getElementById('create-task-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    (document.getElementById('task-title') as HTMLInputElement | null)?.focus();
+  });
+}
+
 async function createTask() {
+  taskError.value = '';
+  if (!taskForm.title.trim()) {
+    taskError.value = 'El título de la tarea es obligatorio.';
+    return;
+  }
   if (!taskForm.courseId) {
-    alert('Por favor selecciona un curso');
+    taskError.value = 'Por favor selecciona un curso.';
     return;
   }
   try {
@@ -597,13 +618,13 @@ async function createTask() {
     });
     if (ok) {
       alert('✅ Tarea creada');
-      Object.assign(taskForm, { title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '' });
+      resetTaskForm();
       switchTab('list');
     } else {
-      alert('❌ Error: ' + errorMessage(data, ''));
+      taskError.value = errorMessage(data, 'No se pudo crear la tarea.');
     }
   } catch {
-    alert('Error de conexión');
+    taskError.value = 'Error de conexión. Inténtalo de nuevo.';
   }
 }
 
@@ -690,6 +711,7 @@ async function reviewDispute(submissionId: Id, maxScore: number) {
 // ── Secciones ─────────────────────────────────────────────────────────────
 const sections = ref<Section[]>([]);
 const sectionsState = ref<'loading' | 'ready' | 'error'>('loading');
+const totalStudents = computed(() => sections.value.reduce((sum, s) => sum + (Number(s.student_count) || 0), 0));
 const sectionForm = reactive({ name: '', courseId: '', description: '' });
 const selectedSection = ref('');
 const sectionStudentDni = ref('');
