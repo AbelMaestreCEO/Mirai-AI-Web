@@ -1,7 +1,7 @@
 # Graph Report - Mirai-AI-Web  (2026-11-01)
 
 ## Corpus Check
-- 173 files · ~398,647 words
+- 173 files · ~398,902 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 37 file(s) not represented in the graph (top: .css 14, .xml 7, (none) 3)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `10db27f6`
+- Built from commit: `88fe0ecc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

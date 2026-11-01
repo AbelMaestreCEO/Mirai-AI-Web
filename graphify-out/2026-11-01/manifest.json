@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1793564556.0506382,
-    "seen": 1793564668.6278615,
-    "ast_hash": "58123501caa31555132bc5c1a5de626a",
+    "mtime": 1793568363.2445624,
+    "seen": 1793568437.3214395,
+    "ast_hash": "91be7d3436dc5f466a32116406d5c039",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793564652.4165695,
-    "seen": 1793564668.6322014,
+    "mtime": 1793568422.8235526,
+    "seen": 1793568437.3247945,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1392,9 +1392,9 @@
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1793564518.633929,
-    "seen": 1793564668.6326685,
-    "ast_hash": "2c190c1d0e15e5810924906b394c680a",
+    "mtime": 1793565031.639201,
+    "seen": 1793565046.1717901,
+    "ast_hash": "80ed0cad117c105c540dc1694ee7479b",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1404,27 +1404,33 @@
     "semantic_hash": ""
   },
   "workers/routes/game.ts": {
-    "mtime": 1793564632.629033,
-    "seen": 1793564668.6385615,
-    "ast_hash": "d10c426373735b3189fd4394d835fef4",
+    "mtime": 1793564904.075226,
+    "seen": 1793565046.1760137,
+    "ast_hash": "43aa1ec2444670bf8a8fc63da63d3b9f",
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1793562309.5267642,
-    "seen": 1793562475.863182,
-    "ast_hash": "f13bc091f327956bce2269aaffcab39b",
+    "mtime": 1793564952.9153028,
+    "seen": 1793565046.166804,
+    "ast_hash": "063642eb0bda834c19c419a9a9f54ba1",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
-    "mtime": 1793564539.689368,
-    "seen": 1793564668.6287537,
-    "ast_hash": "ce2dc8472a8f793a5e520d24b7dbda37",
+    "mtime": 1793568223.6482408,
+    "seen": 1793568437.3224175,
+    "ast_hash": "9ffeb43b861a975cd97339f05ea0dd3a",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793564564.8103683,
-    "seen": 1793564668.6287556,
-    "ast_hash": "fe9596bf4a4229eaaf41b8b8c3e8c452",
+    "mtime": 1793568404.7269187,
+    "seen": 1793568437.3224206,
+    "ast_hash": "b231e28e124bbe35cb2861b5febe42ac",
+    "semantic_hash": ""
+  },
+  "workers/lib/game-questions.ts": {
+    "mtime": 1793564872.4449427,
+    "seen": 1793565046.1724713,
+    "ast_hash": "2fe306332882432f4bd66ea8f01f241c",
     "semantic_hash": ""
   }
 }

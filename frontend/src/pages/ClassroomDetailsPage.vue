@@ -130,16 +130,6 @@
           <p id="task-description" class="task-desc-text">{{ assignment.description || 'Sin descripción' }}</p>
         </div>
 
-        <!-- Ludo multijugador: no bloquea la forma de entrega; los puntos de la
-             partida se registrarán como nota de la tarea. -->
-        <div class="ludo-invite-card" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.28s both;">
-          <h2 class="section-title">🎲 Ludo multijugador</h2>
-          <p class="section-subtitle">
-            Juega con tu clase las veces que quieras. Cada respuesta correcta suma a tu nota de la tarea.
-          </p>
-          <button class="course-start-btn" @click="openLudo">Ver salas y jugar</button>
-        </div>
-
         <!-- Cómo hacer la tarea: se elige una sola vez -->
         <div v-if="!methodLocked" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
           <h2 class="section-title">¿Cómo quieres hacer tu tarea?</h2>
@@ -185,11 +175,17 @@
               <span class="method-name">Mapa conceptual</span>
               <span class="method-desc">Conecta los conceptos clave con relaciones correctas.</span>
             </button>
+            <button class="method-card method-card-ludo" @click="openLudo">
+              <span class="method-icon">🎲</span>
+              <span class="method-name">Ludo multijugador</span>
+              <span class="method-desc">Juega con tu clase: las respuestas correctas suman a tu nota. No bloquea tu entrega.</span>
+            </button>
           </div>
         </div>
         <div v-else class="method-locked-bar" style="margin: 0 20px 24px;">
           🔒 Forma elegida: <strong>{{ method ? METHOD_LABELS[method] : '' }}</strong>
           <span>No se puede cambiar</span>
+          <button class="ludo-link" type="button" @click="openLudo">🎲 Jugar Ludo multijugador</button>
         </div>
 
         <!-- ══ ENTREGA: DOCUMENTO O IMAGEN ══ -->
@@ -1102,6 +1098,31 @@ async function confirmEvaluation() {
   border-color: var(--accent-color);
   background: var(--secondary-container);
   box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+:where(body[data-page="classroom_details"]) .method-card-ludo {
+  border-color: var(--accent-color);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+:where(body[data-page="classroom_details"]) .method-card-ludo:hover {
+  background: var(--secondary-container);
+}
+
+:where(body[data-page="classroom_details"]) .method-card-ludo .method-name {
+  color: var(--accent-color);
+}
+
+:where(body[data-page="classroom_details"]) .ludo-link {
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  text-decoration: underline;
+  color: var(--accent-color);
 }
 
 :where(body[data-page="classroom_details"]) .method-icon {

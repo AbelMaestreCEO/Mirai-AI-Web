@@ -210,7 +210,9 @@ async function createRoom(request: Request, env: Env, corsHeaders: Record<string
   const id = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + expiresMinutes * 60_000).toISOString();
   const nickname = await resolveNickname(dni, env);
-  const creatorRole = isStaff ? 'spectator' : 'player';
+  // Quien crea la sala juega: si un docente quiere espectar, entra a una sala
+  // ajena. Los demás docentes con acceso siguen entrando como espectadores.
+  const creatorRole = 'player';
 
   let code = '';
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -613,15 +615,23 @@ async function handleWebSocket(
     return jsonResponse({ error: 'La sala está llena' }, 409, corsHeaders);
   }
 
-  const headers = new Headers(request.headers);
-  headers.set('X-Game-User', dni.toUpperCase());
-  headers.set('X-Game-Role', roleForDo(role));
-  headers.set('X-Game-Code', room.code);
-  headers.set('X-Game-Nickname', encodeURIComponent(nickname));
-  if (room.section_id) headers.set('X-Game-Section', room.section_id);
+  // Se copia la petición original (conserva el upgrade a WebSocket) y solo se
+  // añaden las cabeceras de identidad. Construir un Request desde URL + headers
+  // puede perder o rechazar el handshake.
+  const forward = new Request(request);
+  forward.headers.set('X-Game-User', dni.toUpperCase());
+  forward.headers.set('X-Game-Role', roleForDo(role));
+  forward.headers.set('X-Game-Code', room.code);
+  forward.headers.set('X-Game-Nickname', encodeURIComponent(nickname));
+  if (room.section_id) forward.headers.set('X-Game-Section', room.section_id);
 
   const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(room.code));
-  return stub.fetch(new Request(request.url, { method: request.method, headers }));
+  try {
+    return await stub.fetch(forward);
+  } catch (error: any) {
+    console.error('GameRoom WS no disponible —', error?.message ?? error);
+    return jsonResponse({ error: 'La sala no está disponible' }, 502, corsHeaders);
+  }
 }
 
 /* ─────────────────────────── helpers ─────────────────────────── */
@@ -801,7 +811,10 @@ async function registerPlayerInRoom(
     .bind(room.id, upper)
     .first<any>();
 
-  if (!existing && playerRole === 'player') {
+  // Si ya figuraba como espectador (p. ej. sala creada antes del cambio) y
+  // ahora entra como jugador, se respeta el aforo antes de promoverlo.
+  const becomingPlayer = playerRole === 'player' && existing?.role !== 'player';
+  if (becomingPlayer) {
     const count = await env.MIRAI_AI_DB.prepare(
       "SELECT COUNT(*) AS n FROM game_players WHERE room_id = ? AND role = 'player'"
     )
@@ -813,7 +826,8 @@ async function registerPlayerInRoom(
   await env.MIRAI_AI_DB.prepare(
     `INSERT INTO game_players (room_id, user_dni, nickname, role, status)
      VALUES (?, ?, ?, ?, 'joined')
-     ON CONFLICT(room_id, user_dni) DO UPDATE SET nickname = excluded.nickname, status = 'joined'`
+     ON CONFLICT(room_id, user_dni) DO UPDATE SET
+       nickname = excluded.nickname, role = excluded.role, status = 'joined'`
   )
     .bind(room.id, upper, nickname, playerRole)
     .run();
@@ -830,28 +844,27 @@ async function canManageRoom(room: RoomRow, dni: string, env: Env): Promise<bool
 
 async function resolveRole(room: RoomRow, dni: string, env: Env): Promise<GameRole | null> {
   const upper = dni.toUpperCase();
+  // El creador siempre juega, aunque sea docente o admin.
+  if (room.created_by?.toUpperCase() === upper) return 'student';
+
+  // El docente dueño de la sección observa (si no fue quien creó la sala).
   if (room.professor_dni.toUpperCase() === upper) return 'teacher';
+
+  // Otros docentes observan; no se convierten en jugadores por tener acceso.
+  if (await isActiveProfessor(dni, env)) return 'spectator';
+  if (await isAdmin(dni, env)) return 'admin';
 
   if (room.assignment_id) {
     const assignment = await getAssignment(room.assignment_id, env);
-    if (assignment) {
-      if (await canAccessAssignment(assignment, dni, env)) return 'student';
-      if (await isActiveProfessor(dni, env)) return 'spectator';
-      if (await isAdmin(dni, env)) return 'admin';
-      return null;
-    }
+    if (assignment && (await canAccessAssignment(assignment, dni, env))) return 'student';
   }
 
   if (room.section_id) {
     if (await isSectionMember(room.section_id, dni, env)) return 'student';
-  } else {
-    if (await isActiveProfessor(dni, env)) return 'spectator';
-    if (await isAdmin(dni, env)) return 'admin';
+  } else if (!room.assignment_id) {
     return 'student';
   }
 
-  if (await isActiveProfessor(dni, env)) return 'spectator';
-  if (await isAdmin(dni, env)) return 'admin';
   return null;
 }
 

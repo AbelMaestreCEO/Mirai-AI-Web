@@ -142,6 +142,8 @@ export class GameSocket {
     socket.onclose = (event) => {
       this.ws = null;
       if (this.stopped) return;
+      // 1006 = el handshake no llegó a completarse (401/404/500 o DO caído).
+      console.warn(`GameSocket cerrado con código ${event.code}${event.reason ? `: ${event.reason}` : ''}`);
       if (TERMINAL_CLOSE_CODES.has(event.code)) {
         this.stopped = true;
         this.handlers.onStatus('closed', 0);

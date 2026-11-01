@@ -401,6 +401,19 @@ export class GameRoom extends DurableObject<Env> {
     if (existing) {
       existing.connected = true;
       if (nickname) existing.nickname = nickname;
+      // Salas creadas antes del cambio dejaron al docente como espectador. Si
+      // ahora entra como jugador y aún no ha empezado, se convierte en jugador.
+      if (!spectator && existing.role !== 'player' && state.status === 'lobby') {
+        const used = new Set(activePlayers(state).filter((p) => p.dni !== dni).map((p) => p.color));
+        existing.role = 'player';
+        existing.ready = false;
+        existing.tokens = emptyTokens();
+        existing.rolls = 0;
+        existing.hitSpecial = false;
+        existing.points = 0;
+        existing.answered = false;
+        existing.color = COLORS.find((c) => !used.has(c)) ?? null;
+      }
       return existing;
     }
 

@@ -371,6 +371,12 @@ async function copy(code: string): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: var(--text-primary);
+  --bad: #b3261e;
+}
+
+[data-theme="dark"] .game-page {
+  --bad: #ffb4ab;
 }
 
 .game-hero h1 {
@@ -380,13 +386,13 @@ async function copy(code: string): Promise<void> {
 }
 
 .game-hero p {
-  color: var(--on-surface-variant, #49454f);
+  color: var(--text-secondary);
   max-width: 60ch;
 }
 
 .game-card {
-  background: var(--surface, #fef7ff);
-  border: 1px solid var(--outline-variant, #cac4d0);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 16px;
   display: flex;
@@ -400,7 +406,7 @@ async function copy(code: string): Promise<void> {
 }
 
 .muted {
-  color: var(--on-surface-variant, #49454f);
+  color: var(--text-secondary);
 }
 
 .small {
@@ -419,16 +425,16 @@ async function copy(code: string): Promise<void> {
 .input {
   font: inherit;
   padding: 10px 12px;
-  border: 2px solid var(--outline-variant, #cac4d0);
+  border: 2px solid var(--glass-border);
   border-radius: 12px;
-  background: var(--surface, #fef7ff);
+  background: var(--glass-bg);
   color: inherit;
   min-height: 44px;
 }
 
 .select:focus-visible,
 .input:focus-visible {
-  outline: 3px solid var(--accent-color, #6750a4);
+  outline: 3px solid var(--accent-color);
   outline-offset: 1px;
 }
 
@@ -465,13 +471,13 @@ async function copy(code: string): Promise<void> {
 }
 
 .btn-primary {
-  background: var(--accent-color, #6750a4);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
 .btn-secondary {
-  background: var(--surface-variant, #e7e0ec);
-  color: var(--on-surface, #1d1b20);
+  background: var(--secondary-container);
+  color: var(--text-primary);
 }
 
 .btn-primary:hover,
@@ -491,13 +497,13 @@ async function copy(code: string): Promise<void> {
   background: none;
   border: none;
   padding: 6px;
-  color: var(--accent-color, #6750a4);
+  color: var(--accent-color);
   cursor: pointer;
   text-decoration: underline;
 }
 
 .link-btn.danger {
-  color: var(--error, #b3261e);
+  color: var(--bad, #b3261e);
 }
 
 .created-code {
@@ -524,7 +530,7 @@ async function copy(code: string): Promise<void> {
   align-items: center;
   padding: 12px;
   border-radius: 12px;
-  background: var(--surface-variant, #e7e0ec);
+  background: var(--secondary-container);
 }
 
 .room-main {
@@ -549,7 +555,7 @@ async function copy(code: string): Promise<void> {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--surface, #fef7ff);
+  background: var(--glass-bg);
 }
 
 .players-line {
@@ -563,8 +569,8 @@ async function copy(code: string): Promise<void> {
   font-size: 0.8rem;
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--surface, #fef7ff);
-  border: 1px solid var(--outline-variant, #cac4d0);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
 }
 
 @media (max-width: 560px) {

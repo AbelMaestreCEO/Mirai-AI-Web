@@ -524,6 +524,14 @@ async function leaveRoom(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: var(--text-primary);
+  --ok: #006a4a;
+  --bad: #b3261e;
+}
+
+[data-theme="dark"] .room-page {
+  --ok: #7ddba8;
+  --bad: #ffb4ab;
 }
 
 .room-top {
@@ -555,7 +563,7 @@ async function leaveRoom(): Promise<void> {
   padding: 10px 14px;
   border-radius: 12px;
   font-weight: 600;
-  background: var(--surface-variant, #e7e0ec);
+  background: var(--secondary-container);
 }
 
 .conn-reconnecting,
@@ -564,15 +572,21 @@ async function leaveRoom(): Promise<void> {
   color: #6b4e00;
 }
 
+[data-theme="dark"] .conn-reconnecting,
+[data-theme="dark"] .conn-connecting {
+  background: #4a3a00;
+  color: #ffe08a;
+}
+
 .conn-error,
 .conn-closed {
-  background: var(--error-container, #f9dedc);
-  color: var(--error, #b3261e);
+  background: var(--secondary-container);
+  color: var(--bad, #b3261e);
 }
 
 .game-card {
-  background: var(--surface, #fef7ff);
-  border: 1px solid var(--outline-variant, #cac4d0);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 16px;
   display: flex;
@@ -581,7 +595,7 @@ async function leaveRoom(): Promise<void> {
 }
 
 .muted {
-  color: var(--on-surface-variant, #49454f);
+  color: var(--text-secondary);
 }
 
 .small {
@@ -597,7 +611,7 @@ async function leaveRoom(): Promise<void> {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: var(--surface-variant, #e7e0ec);
+  background: var(--secondary-container);
 }
 
 .badge {
@@ -605,18 +619,23 @@ async function leaveRoom(): Promise<void> {
 }
 
 .you-badge {
-  background: var(--accent-color, #6750a4);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
 .ready-chip.ready {
-  background: var(--success-container, #d0fadf);
-  color: var(--success, #006a4a);
+  background: var(--secondary-container);
+  color: var(--ok, #006a4a);
 }
 
 .special-chip {
   background: #fff4d6;
   color: #6b4e00;
+}
+
+[data-theme="dark"] .special-chip {
+  background: #4a3a00;
+  color: #ffe08a;
 }
 
 .player-list {
@@ -634,7 +653,7 @@ async function leaveRoom(): Promise<void> {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: var(--surface-variant, #e7e0ec);
+  background: var(--secondary-container);
   flex-wrap: wrap;
 }
 
@@ -673,7 +692,7 @@ async function leaveRoom(): Promise<void> {
 
 .timer {
   font-weight: 700;
-  color: var(--accent-color, #6750a4);
+  color: var(--accent-color);
 }
 
 .dice-area {
@@ -686,8 +705,8 @@ async function leaveRoom(): Promise<void> {
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: #fff;
-  border: 2px solid var(--outline, #79747e);
+  background: var(--glass-bg);
+  border: 2px solid var(--text-tertiary);
   display: grid;
   place-items: center;
   font-size: 1.6rem;
@@ -695,7 +714,7 @@ async function leaveRoom(): Promise<void> {
 }
 
 .dice.rolling {
-  border-color: var(--accent-color, #6750a4);
+  border-color: var(--accent-color);
   box-shadow: 0 0 0 4px rgba(103, 80, 164, 0.18);
 }
 
@@ -708,12 +727,12 @@ async function leaveRoom(): Promise<void> {
 .lane {
   border-radius: 12px;
   padding: 10px;
-  background: var(--surface-variant, #e7e0ec);
+  background: var(--secondary-container);
   border: 2px solid transparent;
 }
 
 .lane.active {
-  border-color: var(--accent-color, #6750a4);
+  border-color: var(--accent-color);
 }
 
 .lane.active.asking {
@@ -792,7 +811,7 @@ async function leaveRoom(): Promise<void> {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--on-surface-variant, #49454f);
+  color: var(--text-secondary);
 }
 
 .token {
@@ -800,7 +819,8 @@ async function leaveRoom(): Promise<void> {
   height: 30px;
   border-radius: 50%;
   border: 2px solid rgba(0, 0, 0, 0.35);
-  background: #fff;
+  background: var(--glass-bg);
+  color: #1c1b1f;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
@@ -835,7 +855,7 @@ async function leaveRoom(): Promise<void> {
 }
 
 .token.home {
-  background: var(--success-container, #d0fadf);
+  background: var(--secondary-container);
 }
 
 .lane.color-red .token { background: #ffebee; border-color: #e53935; }
@@ -855,13 +875,13 @@ async function leaveRoom(): Promise<void> {
 }
 
 .btn-primary {
-  background: var(--accent-color, #6750a4);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
 .btn-secondary {
-  background: var(--surface-variant, #e7e0ec);
-  color: var(--on-surface, #1d1b20);
+  background: var(--secondary-container);
+  color: var(--text-primary);
 }
 
 .btn-primary:disabled,
@@ -878,11 +898,11 @@ async function leaveRoom(): Promise<void> {
   padding: 6px;
   cursor: pointer;
   text-decoration: underline;
-  color: var(--accent-color, #6750a4);
+  color: var(--accent-color);
 }
 
 .link-btn.danger {
-  color: var(--error, #b3261e);
+  color: var(--bad, #b3261e);
 }
 
 .game-over p {
@@ -901,7 +921,7 @@ async function leaveRoom(): Promise<void> {
 
 .question-card {
   width: min(560px, 100%);
-  background: var(--surface, #fef7ff);
+  background: var(--glass-bg);
   border-radius: 20px;
   padding: 20px;
   display: flex;
@@ -924,13 +944,18 @@ async function leaveRoom(): Promise<void> {
 }
 
 .q-badge.easy {
-  background: var(--success-container, #d0fadf);
-  color: var(--success, #006a4a);
+  background: var(--secondary-container);
+  color: var(--ok, #006a4a);
 }
 
 .q-badge.hard {
   background: #ffe0b2;
   color: #8a4b00;
+}
+
+[data-theme="dark"] .q-badge.hard {
+  background: #4a3a00;
+  color: #ffe08a;
 }
 
 .question-text {
@@ -953,14 +978,14 @@ async function leaveRoom(): Promise<void> {
   align-items: center;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 2px solid var(--outline-variant, #cac4d0);
-  background: var(--surface, #fef7ff);
+  border: 2px solid var(--glass-border);
+  background: var(--glass-bg);
   cursor: pointer;
   min-height: 48px;
 }
 
 .option-btn:hover:not(:disabled) {
-  border-color: var(--accent-color, #6750a4);
+  border-color: var(--accent-color);
 }
 
 .option-btn:disabled {
@@ -975,7 +1000,7 @@ async function leaveRoom(): Promise<void> {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--surface-variant, #e7e0ec);
+  background: var(--secondary-container);
   flex: 0 0 auto;
 }
 
@@ -984,11 +1009,11 @@ async function leaveRoom(): Promise<void> {
 }
 
 .result-line.ok {
-  color: var(--success, #006a4a);
+  color: var(--ok, #006a4a);
 }
 
 .result-line.ko {
-  color: var(--error, #b3261e);
+  color: var(--bad, #b3261e);
 }
 
 @media (max-width: 560px) {
