@@ -1882,6 +1882,121 @@ async function leaveRoom(): Promise<void> {
   to { opacity: 0; transform: translateY(6px); }
 }
 
+/* ── Móviles: tablero más grande y controles táctiles ── */
+@media (max-width: 640px) {
+  .room-page {
+    gap: 12px;
+  }
+
+  .room-top {
+    gap: 8px;
+  }
+
+  .room-title {
+    font-size: 1.3rem;
+  }
+
+  .top-actions {
+    width: 100%;
+  }
+
+  .top-actions > button {
+    flex: 1;
+  }
+
+  .game-card {
+    padding: 12px;
+    gap: 10px;
+    border-radius: 14px;
+  }
+
+  .turn-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .turn-info {
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .dice-area {
+    justify-content: space-between;
+  }
+
+  .dice {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    font-size: 1.4rem;
+  }
+
+  .ludo-players {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 6px;
+  }
+
+  .player-chip {
+    min-width: 0;
+    padding: 7px 10px;
+    border-radius: 12px;
+    flex-wrap: wrap;
+  }
+
+  .chip-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chip-score {
+    margin-left: auto;
+  }
+
+  .ludo-stage {
+    margin: 0 -12px;
+  }
+
+  .piece {
+    font-size: clamp(0.42rem, 2.6vw, 0.62rem);
+    border-width: 1px;
+  }
+
+  .piece.actionable {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+
+  .piece-arrow {
+    width: calc(100% / 15 * 0.46);
+    height: calc(100% / 15 * 0.46);
+  }
+
+  .piece.at-home {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 1px 4px rgba(0, 0, 0, 0.35);
+  }
+
+  .special-marker {
+    width: calc(100% / 15 * 0.5);
+    height: calc(100% / 15 * 0.5);
+  }
+
+  .floating-toasts {
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .floating-toast {
+    height: 42px;
+    max-width: 220px;
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 560px) {
   .lane-body {
     flex-direction: column;
@@ -1913,6 +2028,14 @@ async function leaveRoom(): Promise<void> {
   max-width: var(--page-max);
   margin: 0 auto;
   padding: 16px 16px 64px;
+}
+
+/* En el celular se recorta el margen para ganar ancho de tablero. */
+@media (max-width: 640px) {
+  :where(body[data-page="game_room"]) .room-page {
+    --page-pad: 10px;
+    padding: 10px 10px 48px;
+  }
 }
 
 /* El modal de preguntas también respeta el hueco del sidebar: el fondo cubre
