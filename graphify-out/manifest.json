@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793578834.7141407,
-    "seen": 1793578864.5342066,
-    "ast_hash": "954f36b5fb8d92e183fd07dcb972741f",
+    "mtime": 1793579404.235844,
+    "seen": 1793579416.8228765,
+    "ast_hash": "66ec0c72332d6111e3bc0e0d4fbaa1b4",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {

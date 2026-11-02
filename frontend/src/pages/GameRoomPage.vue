@@ -136,7 +136,18 @@
           </div>
 
           <div class="ludo-stage">
-            <div class="ludo-board" role="group" aria-label="Tablero de ludo">
+            <div ref="boardEl" class="ludo-board" :class="{ 'board-ready': piecesReady }" role="group" aria-label="Tablero de ludo">
+              <svg class="board-route" viewBox="0 0 15 15" aria-hidden="true">
+                <polygon class="route-ring" :points="ringPoints" />
+                <polyline
+                  v-for="lane in homeLanes"
+                  :key="`lane-${lane.color}`"
+                  class="route-lane"
+                  :class="`lane-${lane.color}`"
+                  :points="lane.points"
+                />
+              </svg>
+              <span class="route-spark" :style="sparkStyle" aria-hidden="true" />
               <div class="board-fx" aria-hidden="true">
                 <span
                   v-for="(leaf, i) in fxLeaves"
@@ -161,6 +172,14 @@
                   :style="{ left: lava.left, animationDelay: lava.delay, animationDuration: lava.duration, '--lava-scale': lava.size }"
                 />
               </div>
+              <span
+                v-for="effect in boardEffects"
+                :key="effect.id"
+                class="board-effect"
+                :class="`effect-${effect.kind}`"
+                :style="effect.style"
+                aria-hidden="true"
+              />
               <span
                 v-for="marker in specialMarkers"
                 :key="marker.key"
@@ -379,6 +398,21 @@ function cellCenterStyle(cell: BoardCell): Record<string, string> {
   };
 }
 
+function toSvgPoints(cells: BoardCell[]): string {
+  return cells.map((cell) => `${cell.c + 0.5},${cell.r + 0.5}`).join(' ');
+}
+
+const CENTER: BoardCell = { r: 7, c: 7 };
+
+// Ruta del anillo y pasillos de meta (una sola capa SVG, sin DOM por casilla).
+const ringPoints = toSvgPoints(RING);
+const homeLanes = (Object.keys(HOME_CELLS) as GameColor[]).map((color) => ({
+  color,
+  points: toSvgPoints([...HOME_CELLS[color], CENTER]),
+}));
+
+const ringPathD = `${RING.map((cell, i) => `${i === 0 ? 'M' : 'L'}${cell.c + 0.5} ${cell.r + 0.5}`).join(' ')} Z`;
+
 interface QuestionResult {
   correct: boolean;
   correctIndex: number;
@@ -414,6 +448,34 @@ const now = ref(Date.now());
 const diceRolling = ref(false);
 const diceFace = ref<number | null>(null);
 const toasts = ref<FloatingToast[]>([]);
+
+// Tamaño real del tablero para posicionar fichas con transform (compositing).
+const boardEl = ref<HTMLElement | null>(null);
+const boardPx = ref(0);
+let boardObserver: ResizeObserver | null = null;
+// Evita que las fichas "vuelen" desde la esquina en el primer render.
+const piecesReady = ref(false);
+
+// offset-path usa píxeles del contenedor, así que la ruta se escala al tablero.
+const sparkStyle = computed<Record<string, string>>(() => {
+  const px = boardPx.value;
+  if (px <= 0) return { display: 'none' };
+  const scale = px / BOARD_SIZE;
+  const scaled = ringPathD.replace(/(-?\d+(?:\.\d+)?)/g, (value) => {
+    return `${(Number(value) * scale).toFixed(2)}`;
+  });
+  return { offsetPath: `path('${scaled}')` };
+});
+
+type EffectKind = 'capture' | 'goal';
+interface BoardEffect {
+  id: number;
+  kind: EffectKind;
+  style: Record<string, string>;
+}
+const boardEffects = ref<BoardEffect[]>([]);
+let effectSeq = 0;
+const effectTimers = new Set<number>();
 
 // Presentación del dado: 1 s de animación, luego el número y 2 s de pausa
 // antes de reproducir la tirada siguiente (para que el jugador vea su dado).
@@ -463,7 +525,7 @@ const actionableTokens = computed(() => {
     for (let idx = 0; idx < p.tokens.length; idx++) {
       if (!tokenClickable(p, idx)) continue;
       const pos = p.tokens[idx] ?? -1;
-      arrows.push({ key: `arrow-${p.id}-${idx}`, color: p.color, style: pieceStyle(p, idx, pos) });
+      arrows.push({ key: `arrow-${p.id}-${idx}`, color: p.color, style: arrowStyle(p, idx, pos) });
     }
   }
   return arrows;
@@ -529,15 +591,30 @@ onMounted(() => {
   socket = new GameSocket(code, { onMessage: handleMessage, onStatus: handleStatus });
   socket.connect();
   ticker = window.setInterval(() => (now.value = Date.now()), 1000);
+  if (boardEl.value && typeof ResizeObserver !== 'undefined') {
+    boardObserver = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      boardPx.value = Math.round(width);
+      if (width > 0 && !piecesReady.value) {
+        requestAnimationFrame(() => (piecesReady.value = true));
+      }
+    });
+    boardObserver.observe(boardEl.value);
+  }
 });
 
 onBeforeUnmount(() => {
   socket?.close();
+  boardObserver?.disconnect();
+  boardObserver = null;
   if (ticker !== null) window.clearInterval(ticker);
   if (diceTickTimer !== null) window.clearInterval(diceTickTimer);
   if (diceHoldTimer !== null) window.clearTimeout(diceHoldTimer);
   for (const timer of toastTimers.values()) window.clearTimeout(timer);
   toastTimers.clear();
+  for (const timer of effectTimers) window.clearTimeout(timer);
+  effectTimers.clear();
+  boardEffects.value = [];
   pendingQuestion = null;
 });
 
@@ -581,6 +658,7 @@ function handleMessage(message: GameMessage): void {
       break;
     case 'move_applied':
       if (message.state) {
+        detectBoardEffects(state.value, message.state);
         state.value = message.state;
         legal.value = [];
       }
@@ -708,15 +786,71 @@ function errorText(code?: string): string {
   }
 }
 
-function pieceStyle(player: GamePlayer, index: number, pos: number): Record<string, string> {
+function pieceCell(player: GamePlayer, index: number, pos: number): BoardCell | null {
   const color = player.color;
-  if (!color) return { display: 'none' };
-  const cell = pos < 0 ? BASE_PATIO[color][index % 4] : cellForColor(color, pos);
+  if (!color) return null;
+  return pos < 0 ? (BASE_PATIO[color][index % 4] ?? null) : cellForColor(color, pos);
+}
+
+function pieceStyle(player: GamePlayer, index: number, pos: number): Record<string, string> {
+  const cell = pieceCell(player, index, pos);
   if (!cell) return { display: 'none' };
-  return {
-    left: `${((cell.c + 0.5) / BOARD_SIZE) * 100}%`,
-    top: `${((cell.r + 0.5) / BOARD_SIZE) * 100}%`,
-  };
+  const px = boardPx.value;
+  if (px > 0) {
+    const x = ((cell.c + 0.5) / BOARD_SIZE) * px;
+    const y = ((cell.r + 0.5) / BOARD_SIZE) * px;
+    return { left: '0', top: '0', transform: `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)` };
+  }
+  return cellCenterStyle(cell);
+}
+
+function arrowStyle(player: GamePlayer, index: number, pos: number): Record<string, string> {
+  const cell = pieceCell(player, index, pos);
+  return cell ? cellCenterStyle(cell) : { display: 'none' };
+}
+
+function sameCell(a: BoardCell | null, b: BoardCell | null): boolean {
+  return !!a && !!b && a.r === b.r && a.c === b.c;
+}
+
+// Ráfagas ligeras (1 nodo) para capturas y llegada a la meta.
+function spawnBoardEffect(kind: EffectKind, cell: BoardCell): void {
+  const id = ++effectSeq;
+  boardEffects.value = [...boardEffects.value, { id, kind, style: cellCenterStyle(cell) }];
+  const timer = window.setTimeout(() => {
+    boardEffects.value = boardEffects.value.filter((effect) => effect.id !== id);
+    effectTimers.delete(timer);
+  }, 800);
+  effectTimers.add(timer);
+}
+
+function detectBoardEffects(prev: GameState | null, next: GameState): void {
+  if (!prev || prev === next) return;
+  for (const player of next.players) {
+    const before = prev.players.find((p) => p.id === player.id);
+    if (!before || !player.color) continue;
+    for (let idx = 0; idx < player.tokens.length; idx++) {
+      const from = before.tokens[idx] ?? -1;
+      const to = player.tokens[idx] ?? -1;
+      if (to === from || to < 0) continue;
+      if (to >= LUDO_PATH_LEN) {
+        spawnBoardEffect('goal', CENTER);
+        continue;
+      }
+      if (to > 51) continue;
+      const cell = cellForColor(player.color, to);
+      if (!cell) continue;
+      const captured = next.players.some(
+        (other) =>
+          other.id !== player.id &&
+          other.color !== null &&
+          other.tokens.some(
+            (token) => token >= 0 && token <= 51 && sameCell(cellForColor(other.color!, token), cell),
+          ),
+      );
+      if (captured) spawnBoardEffect('capture', cell);
+    }
+  }
 }
 
 function pieceLabel(player: GamePlayer, index: number, pos: number): string {
@@ -1261,6 +1395,97 @@ async function leaveRoom(): Promise<void> {
   box-shadow: 0 0 0 3px #0b0b0b;
   image-rendering: pixelated;
   overflow: hidden;
+  contain: layout paint;
+}
+
+/* Recorrido y pasillos de meta en una sola capa SVG. */
+.board-route {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.route-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 0.12;
+  stroke-linejoin: round;
+}
+
+.route-lane {
+  fill: none;
+  stroke-width: 0.16;
+  stroke-linecap: round;
+  opacity: 0.4;
+}
+
+.lane-green { stroke: #8bc34a; }
+.lane-yellow { stroke: #ffeb3b; }
+.lane-red { stroke: #ff7043; }
+.lane-blue { stroke: #4fc3f7; }
+
+/* Chispa que recorre el anillo (offset-path, 1 nodo). */
+.route-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 38%, #ffe082 58%, transparent 74%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@supports (offset-path: path('M0 0 L1 1')) {
+  .route-spark {
+    opacity: 0.85;
+    offset-rotate: 0deg;
+    offset-anchor: center;
+    animation: route-run 18s linear infinite;
+  }
+}
+
+@keyframes route-run {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+/* Ráfagas de captura / meta: un nodo con dos anillos vía pseudo-elementos. */
+.board-effect {
+  position: absolute;
+  width: calc(100% / 15);
+  height: calc(100% / 15);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.board-effect::before,
+.board-effect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: effect-ripple 0.72s ease-out forwards;
+}
+
+.board-effect::after {
+  animation-delay: 0.12s;
+}
+
+.effect-capture { color: #ff7043; }
+.effect-goal { color: #ffd54f; }
+
+@keyframes effect-ripple {
+  0% { transform: scale(0.35); opacity: 0.95; }
+  100% { transform: scale(2.6); opacity: 0; }
 }
 
 /* ── Efectos ambientales del tablero (solo transform/opacity) ── */
@@ -1414,7 +1639,11 @@ async function leaveRoom(): Promise<void> {
 
 @media (prefers-reduced-motion: reduce) {
   .board-fx { display: none; }
+  .route-spark { display: none; }
   .piece-arrow { animation: none; }
+  .board-ready .piece { transition: none; }
+  .board-effect::before,
+  .board-effect::after { animation: none; }
   .game-card,
   .ludo-stage,
   .turn-bar.my-turn,
@@ -1440,11 +1669,14 @@ async function leaveRoom(): Promise<void> {
   overflow: hidden;
   cursor: default;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition:
-    left 0.42s cubic-bezier(0.34, 1.15, 0.64, 1),
-    top 0.42s cubic-bezier(0.34, 1.15, 0.64, 1),
-    box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease;
   z-index: 3;
+}
+
+.board-ready .piece {
+  transition:
+    transform 0.42s cubic-bezier(0.34, 1.15, 0.64, 1),
+    box-shadow 0.2s ease;
 }
 
 .piece-art {
