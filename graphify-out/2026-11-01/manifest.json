@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793577176.4233298,
-    "seen": 1793577188.3680332,
+    "mtime": 1793577380.0696337,
+    "seen": 1793577392.799556,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793577155.0628848,
-    "seen": 1793577188.3658857,
-    "ast_hash": "298966ba89c8bef82e2dd399a89c30d6",
+    "mtime": 1793577365.9316344,
+    "seen": 1793577392.7862391,
+    "ast_hash": "2830c86fdd2fe8fa54fed68afa00cfbe",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {

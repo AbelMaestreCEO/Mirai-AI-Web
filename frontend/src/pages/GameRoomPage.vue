@@ -113,13 +113,6 @@
             </div>
           </div>
 
-          <p class="muted small">
-            Cada jugador tira el dado 3 veces y mueve una ficha en cada tirada; después, todos
-            responden su pregunta. Las casillas marcadas son especiales (hasta 15, cambian cada
-            3 jugadas): si alguien cae en una, todos responden pregunta difícil ({{ 20 }}% a
-            favor o en contra).
-          </p>
-
           <div class="ludo-players" role="list" aria-label="Jugadores">
             <div
               v-for="p in playablePlayers"
