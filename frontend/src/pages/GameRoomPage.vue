@@ -21,13 +21,6 @@
       </div>
     </div>
 
-    <p v-if="connectionBanner" class="conn-banner" :class="`conn-${socketStatus}`" role="status">
-      {{ connectionBanner }}
-    </p>
-
-    <p v-if="lastError" class="app-message app-message--error" role="alert">{{ lastError }}</p>
-    <p v-if="notice" class="app-message app-message--success" role="status">{{ notice }}</p>
-
     <div v-if="!state" class="game-card muted" role="status">Conectando con la sala…</div>
 
     <template v-else>
@@ -264,16 +257,24 @@
       </div>
     </div>
 
-    <!-- Aviso flotante de resultado: no bloquea la interfaz y se oculta solo. -->
-    <div
-      v-if="answerToast"
-      :key="answerToast.id"
-      class="answer-toast"
-      :class="answerToast.tone"
-      role="status"
-      aria-live="polite"
-    >
-      {{ answerToast.text }}
+    <!-- Anuncios flotantes: no bloquean la interfaz y se ocultan solos. -->
+    <div class="floating-toasts" aria-live="polite">
+      <div
+        v-if="connectionBanner"
+        class="floating-toast info sticky"
+        role="status"
+      >
+        {{ connectionBanner }}
+      </div>
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="floating-toast"
+        :class="toast.tone"
+        role="status"
+      >
+        {{ toast.text }}
+      </div>
     </div>
   </div>
 </template>
@@ -404,8 +405,13 @@ const youManage = ref(false);
 const starting = ref(false);
 const socketStatus = ref<SocketStatus>('connecting');
 const attempt = ref(0);
-const lastError = ref('');
-const notice = ref('');
+type ToastTone = 'ok' | 'ko' | 'info';
+
+interface FloatingToast {
+  id: number;
+  text: string;
+  tone: ToastTone;
+}
 const copied = ref(false);
 const legal = ref<number[]>([]);
 const activeQuestion = ref<PlayerQuestion | null>(null);
@@ -414,7 +420,7 @@ const answering = ref(false);
 const now = ref(Date.now());
 const diceRolling = ref(false);
 const diceFace = ref<number | null>(null);
-const answerToast = ref<{ id: number; text: string; tone: 'ok' | 'ko' } | null>(null);
+const toasts = ref<FloatingToast[]>([]);
 
 // Presentación del dado: 1 s de animación, luego el número y 2 s de pausa
 // antes de reproducir la tirada siguiente (para que el jugador vea su dado).
@@ -428,7 +434,7 @@ let diceTickTimer: number | null = null;
 let diceHoldTimer: number | null = null;
 let pendingQuestion: PlayerQuestion | null = null;
 let toastId = 0;
-let toastTimer: number | null = null;
+const toastTimers = new Map<number, number>();
 
 let socket: GameSocket | null = null;
 let ticker: number | null = null;
@@ -537,14 +543,15 @@ onBeforeUnmount(() => {
   if (ticker !== null) window.clearInterval(ticker);
   if (diceTickTimer !== null) window.clearInterval(diceTickTimer);
   if (diceHoldTimer !== null) window.clearTimeout(diceHoldTimer);
-  if (toastTimer !== null) window.clearTimeout(toastTimer);
+  for (const timer of toastTimers.values()) window.clearTimeout(timer);
+  toastTimers.clear();
   pendingQuestion = null;
 });
 
 function handleStatus(status: SocketStatus, tries: number): void {
   socketStatus.value = status;
   attempt.value = tries;
-  if (status === 'open') lastError.value = '';
+  if (status === 'open') dismissToasts('ko');
 }
 
 function handleMessage(message: GameMessage): void {
@@ -633,7 +640,13 @@ function handleMessage(message: GameMessage): void {
       };
       questionResult.value = result;
       answering.value = false;
-      showAnswerToast(result);
+      if (result.correct) {
+        pushToast(`¡Correcto! +${result.delta}%`, 'ok');
+      } else if (result.timeout) {
+        pushToast(`Se agotó el tiempo (${result.delta}%)`, 'ko');
+      } else {
+        pushToast(`Incorrecto (${result.delta}%)`, 'ko');
+      }
       if (state.value) {
         state.value = {
           ...state.value,
@@ -648,8 +661,7 @@ function handleMessage(message: GameMessage): void {
       if (state.value) state.value = { ...state.value, status: 'question', dice: null };
       break;
     case 'question_phase_end':
-      notice.value = 'Ronda de preguntas terminada. Continúa el juego.';
-      window.setTimeout(() => (notice.value = ''), 2500);
+      pushToast('Ronda de preguntas terminada. Continúa el juego.', 'ok');
       clearPendingQuestion();
       activeQuestion.value = null;
       break;
@@ -661,7 +673,7 @@ function handleMessage(message: GameMessage): void {
       }
       break;
     case 'error':
-      lastError.value = errorText(message.code);
+      pushToast(errorText(message.code), 'ko');
       break;
     case 'pong':
       return;
@@ -780,18 +792,26 @@ function clearPendingQuestion(): void {
   pendingQuestion = null;
 }
 
-function showAnswerToast(result: QuestionResult): void {
-  const text = result.correct
-    ? `¡Correcto! +${result.delta}%`
-    : result.timeout
-      ? `Se agotó el tiempo (${result.delta}%)`
-      : `Incorrecto (${result.delta}%)`;
-  if (toastTimer !== null) window.clearTimeout(toastTimer);
-  answerToast.value = { id: ++toastId, text, tone: result.correct ? 'ok' : 'ko' };
-  toastTimer = window.setTimeout(() => {
-    answerToast.value = null;
-    toastTimer = null;
-  }, TOAST_MS);
+function pushToast(text: string, tone: ToastTone = 'info'): void {
+  const id = ++toastId;
+  toasts.value = [...toasts.value, { id, text, tone }];
+  const timer = window.setTimeout(() => dismissToast(id), TOAST_MS);
+  toastTimers.set(id, timer);
+}
+
+function dismissToast(id: number): void {
+  const timer = toastTimers.get(id);
+  if (timer !== undefined) {
+    window.clearTimeout(timer);
+    toastTimers.delete(id);
+  }
+  toasts.value = toasts.value.filter((toast) => toast.id !== id);
+}
+
+function dismissToasts(tone: ToastTone): void {
+  for (const toast of toasts.value.filter((item) => item.tone === tone)) {
+    dismissToast(toast.id);
+  }
 }
 
 function tokenClickable(player: GamePlayer, token: number): boolean {
@@ -827,12 +847,11 @@ function roll(): void {
 async function startGame(): Promise<void> {
   if (starting.value) return;
   starting.value = true;
-  lastError.value = '';
   try {
     const res = await api.post<{ error?: string }>(`/api/game/rooms/${code}/start`, {});
-    if (!res.ok) lastError.value = res.data.error ?? 'No se pudo iniciar la partida.';
+    if (!res.ok) pushToast(res.data.error ?? 'No se pudo iniciar la partida.', 'ko');
   } catch {
-    lastError.value = 'No se pudo iniciar la partida.';
+    pushToast('No se pudo iniciar la partida.', 'ko');
   } finally {
     starting.value = false;
   }
@@ -905,32 +924,6 @@ async function leaveRoom(): Promise<void> {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.conn-banner {
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-weight: 600;
-  background: var(--secondary-container);
-}
-
-.conn-reconnecting,
-.conn-connecting {
-  background: #fff4d6;
-  color: #6b4e00;
-}
-
-[data-theme="dark"] .conn-reconnecting,
-[data-theme="dark"] .conn-connecting {
-  background: #4a3a00;
-  color: #ffe08a;
-}
-
-.conn-error,
-.conn-closed {
-  background: var(--secondary-container);
-  color: var(--bad, #b3261e);
 }
 
 .game-card {
@@ -1432,7 +1425,7 @@ async function leaveRoom(): Promise<void> {
   .game-card,
   .ludo-stage,
   .turn-bar.my-turn,
-  .answer-toast { animation: none; }
+  .floating-toast { animation: none; }
 }
 
 /* Fichas (jugadores). */
@@ -1708,6 +1701,7 @@ async function leaveRoom(): Promise<void> {
   background: rgba(0, 0, 0, 0.55);
   display: grid;
   place-items: center;
+  box-sizing: border-box;
   padding: 16px;
   z-index: 50;
   animation: overlay-fade 0.25s ease-out both;
@@ -1720,6 +1714,9 @@ async function leaveRoom(): Promise<void> {
 
 .question-card {
   width: min(560px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
   color: var(--text-primary);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
@@ -1832,17 +1829,27 @@ async function leaveRoom(): Promise<void> {
   color: var(--bad, #b3261e);
 }
 
-/* Aviso flotante inferior derecho: pequeño, de alto fijo y sin bloquear. */
-.answer-toast {
+/* Anuncios flotantes inferiores derechos: pequeños, de alto fijo y sin
+   bloquear la interfaz. */
+.floating-toasts {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
   bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 60;
   display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: min(260px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.floating-toast {
+  display: flex;
   align-items: center;
   justify-content: center;
   height: 46px;
-  max-width: min(240px, calc(100vw - 32px));
+  max-width: 100%;
   padding: 0 14px;
   border-radius: 12px;
   font-size: 0.85rem;
@@ -1855,17 +1862,22 @@ async function leaveRoom(): Promise<void> {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  will-change: transform, opacity;
   animation:
     toast-in 0.22s ease-out both,
     toast-out 0.25s ease-in 2.75s both;
 }
 
-.answer-toast.ok {
+.floating-toast.ok {
   background: #006a4a;
 }
 
-.answer-toast.ko {
+.floating-toast.ko {
   background: #b3261e;
+}
+
+.floating-toast.sticky {
+  animation: toast-in 0.22s ease-out both;
 }
 
 @keyframes toast-in {
@@ -1882,6 +1894,20 @@ async function leaveRoom(): Promise<void> {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .question-card {
+    padding: 16px;
+    border-radius: 16px;
+    gap: 12px;
+  }
+
+  .question-text {
+    font-size: 1.02rem;
+  }
+
+  .option-btn {
+    padding: 10px 12px;
+  }
 }
 </style>
 
@@ -1894,5 +1920,18 @@ async function leaveRoom(): Promise<void> {
   max-width: var(--page-max);
   margin: 0 auto;
   padding: 16px 16px 64px;
+}
+
+/* El modal de preguntas también respeta el hueco del sidebar: el fondo cubre
+   toda la pantalla, pero la tarjeta se centra en el área libre. */
+@media (min-width: 769px) {
+  .mobile-sidebar~.room-page .question-overlay {
+    padding-left: calc(var(--sidebar-w) + 16px);
+    transition: padding-left 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
+  }
+
+  .mobile-sidebar.collapsed~.room-page .question-overlay {
+    padding-left: calc(var(--sidebar-w-collapsed) + 16px);
+  }
 }
 </style>
