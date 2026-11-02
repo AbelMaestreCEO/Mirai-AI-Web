@@ -10,6 +10,7 @@ import { isAdminUser, normalizeDni, requireAuth } from '../lib/auth';
 import { extractTextFromDocx, extractTextFromPDF } from '../lib/documents';
 import { jsonResponse } from '../lib/http';
 import { callVision } from '../lib/vision';
+import { recordConceptErrors, ensureConceptErrorsTable } from '../lib/concept-errors';
 import { getAssignmentForStudent } from './chat-context';
 
 // ── QUIZ DE UNA TAREA ─────────────────────────────────────────
@@ -49,6 +50,8 @@ async function ensureQuizSubmissionColumns(env: Env) {
   for (const sql of [
     'ALTER TABLE submissions ADD COLUMN attempt_type TEXT',
     'ALTER TABLE submissions ADD COLUMN retry_used INTEGER DEFAULT 0',
+    // Formativo vs sumativo: las tareas viejas quedan como sumativas.
+    "ALTER TABLE assignments ADD COLUMN grading_mode TEXT DEFAULT 'summative'",
   ]) {
     try {
       await env.MIRAI_AI_DB.prepare(sql).run();
@@ -106,6 +109,10 @@ function parseQuizJson(raw: string): any {
  * @returns {Promise<Response|null>} null si la ruta no es de este módulo.
  */
 export async function handleClassroomApi(request: Request, env: Env, url: URL, path: string, corsHeaders: Record<string, string>) {
+  // Migraciones perezosas: las columnas de apoyo (attempt_type, retry_used y
+  // grading_mode) deben existir antes de cualquier lectura de assignments.
+  await ensureQuizSubmissionColumns(env);
+
   // ── ASISTENCIA: Empleado ──────────────────────────────────
   if (path === '/api/attendance/my-profile' && request.method === 'GET')
     return handleAttMyProfile(request, env, corsHeaders);
@@ -306,6 +313,49 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     } catch (error) {
       console.error('Error obteniendo entregas:', error);
       return jsonResponse({ error: 'Error al obtener entregas' }, 500, corsHeaders);
+    }
+  }
+
+  // Ruta: GET /api/professor-concept-report
+  // Agrupa los conceptos que más falla la clase en una tarea (o en todas las
+  // tareas del profesor si no se envía assignment_id).
+  if (path === '/api/professor-concept-report' && request.method === 'GET') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const assignmentId = (url.searchParams.get('assignment_id') || '').trim();
+    if (assignmentId && !(await canManageAssignment(assignmentId, userDni, env))) {
+      return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    try {
+      await ensureConceptErrorsTable(env);
+      const where = assignmentId ? 'AND ce.assignment_id = ?' : '';
+      const bindings: string[] = [userDni.toUpperCase()];
+      if (assignmentId) bindings.push(assignmentId);
+
+      const { results } = await env.MIRAI_AI_DB.prepare(`
+        SELECT ce.concept,
+               COUNT(*) AS failures,
+               COUNT(DISTINCT ce.user_dni) AS students,
+               MAX(ce.created_at) AS last_failure
+          FROM concept_errors ce
+          JOIN assignments a   ON a.id = ce.assignment_id
+          JOIN user_courses uc ON uc.id = a.course_id
+         WHERE uc.user_dni = ? ${where}
+         GROUP BY ce.concept
+         ORDER BY failures DESC, students DESC
+         LIMIT 25
+      `).bind(...bindings).all<any>();
+
+      return jsonResponse({
+        assignment_id: assignmentId || null,
+        total_concepts: results.length,
+        concepts: results,
+      }, 200, corsHeaders);
+    } catch (error: any) {
+      console.error('Error en reporte de conceptos:', error);
+      return jsonResponse({ error: 'No se pudo generar el reporte de conceptos' }, 500, corsHeaders);
     }
   }
 
@@ -685,7 +735,7 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { title, description, course_id, due_date, section_id, max_score, submission_type } = await request.json<any>();
+    const { title, description, course_id, due_date, section_id, max_score, submission_type, grading_mode } = await request.json<any>();
 
     if (!title || !course_id) {
       return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
@@ -712,10 +762,12 @@ ORDER BY u.last_name, u.first_name
     const parsedMaxScore = parseFloat(max_score);
     const safeMaxScore = (!isNaN(parsedMaxScore) && parsedMaxScore >= 1 && parsedMaxScore <= 100) ? parsedMaxScore : 100;
     const safeSubmissionType = ['document', 'image', 'any'].includes(submission_type) ? submission_type : 'document';
+    const safeGradingMode = grading_mode === 'formative' ? 'formative' : 'summative';
+    await ensureQuizSubmissionColumns(env);
     await env.MIRAI_AI_DB.prepare(`
-    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score, submission_type)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore, safeSubmissionType).run();
+    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore, safeSubmissionType, safeGradingMode).run();
 
     // Auto-asignar todos los estudiantes de la sección
     if (section_id) {
@@ -814,8 +866,8 @@ ORDER BY u.last_name, u.first_name
       const descripcion = String(assignment.description || '').trim().slice(0, 2500);
 
       const schema = mode === 'quiz4'
-        ? '{"questions":[{"question":"...","options":["...","...","...","..."],"correct_index":0,"expected_answer":"..."}]}'
-        : '{"questions":[{"question":"...","expected_answer":"..."}]}';
+        ? '{"questions":[{"question":"...","options":["...","...","...","..."],"correct_index":0,"expected_answer":"...","explanation":"...","concept":"..."}]}'
+        : '{"questions":[{"question":"...","expected_answer":"...","explanation":"...","concept":"..."}]}';
 
       const systemPrompt = `Eres la tutora académica de Mirai. Creas evaluaciones cortas y claras sobre la tarea de un estudiante.
 Reglas:
@@ -825,6 +877,8 @@ Reglas:
 ${mode === 'quiz4'
   ? '- Cada pregunta tiene 4 opciones cortas (máximo 8 palabras) y una sola respuesta correcta.\n- "correct_index" es el índice 0-3 de la opción correcta.'
   : '- No incluyas opciones: el estudiante escribirá su respuesta.\n- "expected_answer" es una respuesta modelo breve (máximo 20 palabras).'}
+- "explanation": 1-2 frases que expliquen por qué la respuesta correcta lo es (máximo 30 palabras).
+- "concept": el concepto o tema evaluado, en 2-5 palabras.
 - Devuelve SOLO el JSON, sin texto adicional ni bloques de código.`;
 
       const userPrompt = `Tarea: ${assignment.title}\n${descripcion ? `Enunciado:\n${descripcion}\n` : ''}
@@ -836,7 +890,7 @@ Formato exacto de respuesta:\n${schema}`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        { temperature: 0.7, max_tokens: 4500 },
+        { temperature: 0.7, max_tokens: 6000 },
         env,
       );
 
@@ -855,6 +909,8 @@ Formato exacto de respuesta:\n${schema}`;
           points: points[index],
           question,
           expected_answer: String(q?.expected_answer || '').trim(),
+          explanation: String(q?.explanation || '').trim().slice(0, 240),
+          concept: String(q?.concept || '').trim().slice(0, 80),
         };
         if (mode === 'quiz4') {
           const options = Array.isArray(q?.options)
@@ -984,9 +1040,16 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
       const maxScore = Math.max(1, Math.round(Number(assignment.max_score) || 100));
       const score = Math.max(0, Math.min(maxScore, Math.round(Number(body?.score) || 0)));
       const correct = Math.max(0, Math.min(10, Math.round(Number(body?.correct) || 0)));
+      const formative = assignment.grading_mode === 'formative';
+      const failures = Array.isArray(body?.failures)
+        ? body.failures.map((item: any) => String(item?.concept ?? item ?? '').trim()).filter(Boolean)
+        : [];
       const modeLabel = mode === 'quiz4' ? 'Quiz 4' : 'Quiz libre';
       const feedback = JSON.stringify({
-        general: `${modeLabel} completado: ${correct} de 10 respuestas correctas. Nota registrada automáticamente.`,
+        general: formative
+          ? `${modeLabel} completado: ${correct} de 10 respuestas correctas. Práctica formativa: no afecta tu nota.`
+          : `${modeLabel} completado: ${correct} de 10 respuestas correctas. Nota registrada automáticamente.`,
+        formative,
       });
 
       await ensureQuizSubmissionColumns(env);
@@ -996,13 +1059,14 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
       ).bind(assignmentId, ownerDni).first<any>();
 
       let submissionId = existing?.id;
+      const storedScore = formative ? null : score;
       if (existing) {
         await env.MIRAI_AI_DB.prepare(`
           UPDATE submissions
              SET file_url = ?, status = 'evaluated', score = ?, feedback = ?,
                  graded_at = datetime('now'), attempt_type = ?, submitted_at = datetime('now')
            WHERE id = ?
-        `).bind(`quiz://${mode}`, score, feedback, mode, submissionId).run();
+        `).bind(`quiz://${mode}`, storedScore, feedback, mode, submissionId).run();
       } else {
         submissionId = crypto.randomUUID();
         await env.MIRAI_AI_DB.prepare(`
@@ -1010,7 +1074,11 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
             (id, assignment_id, user_dni, file_url, status, score, feedback, graded_at,
              submitted_at, attempt_type, retry_used)
           VALUES (?, ?, ?, ?, 'evaluated', ?, ?, datetime('now'), datetime('now'), ?, 0)
-        `).bind(submissionId, assignmentId, ownerDni, `quiz://${mode}`, score, feedback, mode).run();
+        `).bind(submissionId, assignmentId, ownerDni, `quiz://${mode}`, storedScore, feedback, mode).run();
+      }
+
+      if (failures.length) {
+        void recordConceptErrors(env, assignmentId, ownerDni, mode, failures);
       }
 
       const saved = await env.MIRAI_AI_DB.prepare(
@@ -1020,8 +1088,9 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
       return jsonResponse({
         success: true,
         submission_id: submissionId,
-        score,
+        score: storedScore,
         max_score: maxScore,
+        formative,
         retry_used: Number(saved?.retry_used) === 1,
       }, 200, corsHeaders);
     } catch (error: any) {
@@ -1089,6 +1158,7 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
         a.section_id,
         a.created_at,
         a.submission_type,
+        a.grading_mode,
         uc.title    as course_title,
         uc.user_dni as professor_dni,
         s.name      as section_name
@@ -1142,6 +1212,7 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
     s.user_dni,
     s.extracted_text,
     a.max_score,
+    a.grading_mode,
     a.title,
     a.description,
     a.id as assignment_id_db
@@ -1336,19 +1407,22 @@ NO agregues texto adicional fuera del JSON.`;
 
         // 7. Validar la puntuación
         const finalScore = Math.min(Math.max(evaluation.score, 0), submissionData.max_score);
+        const formative = submissionData.grading_mode === 'formative';
+        if (formative) evaluation.feedback.formative = true;
 
-        // 8. Guardar la evaluación en la DB
+        // 8. Guardar la evaluación en la DB (formativo: sin nota visible)
         await env.MIRAI_AI_DB.prepare(`
           UPDATE submissions 
           SET score = ?, status = 'completed', reviewed_at = datetime('now'), feedback = ?
           WHERE id = ?
-      `).bind(finalScore, JSON.stringify(evaluation.feedback), submission_id).run();
+      `).bind(formative ? null : finalScore, JSON.stringify(evaluation.feedback), submission_id).run();
 
         // 9. Devolver la respuesta al frontend
         return jsonResponse({
           success: true,
-          score: finalScore,
+          score: formative ? null : finalScore,
           max_score: submissionData.max_score,
+          formative,
           feedback: evaluation.feedback,
           reasoning: evaluation.reasoning
         }, 200, corsHeaders);

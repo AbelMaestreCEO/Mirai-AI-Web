@@ -1,6 +1,7 @@
 import { callAI } from '../lib/ai';
 import { AI_MODEL_NORMAL } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
+import { recordConceptErrors } from '../lib/concept-errors';
 import { jsonResponse } from '../lib/http';
 import { getAssignmentForStudent } from './chat-context';
 
@@ -54,6 +55,7 @@ async function ensureActivityTables(env: Env) {
   for (const sql of [
     'ALTER TABLE submissions ADD COLUMN attempt_type TEXT',
     'ALTER TABLE submissions ADD COLUMN retry_used INTEGER DEFAULT 0',
+    "ALTER TABLE assignments ADD COLUMN grading_mode TEXT DEFAULT 'summative'",
   ]) {
     try {
       await env.MIRAI_AI_DB.prepare(sql).run();
@@ -413,6 +415,7 @@ async function gradeFlashcards(set: any, answers: any, env: Env, assignmentId: s
       index,
       correct: ok,
       answer,
+      front: card.front,
       back: card.back,
       next_review_days: schedule.intervalDays,
     });
@@ -631,13 +634,14 @@ async function gradeConceptMap(set: any, answers: any) {
   };
 }
 
-async function saveSubmission(env: Env, assignmentId: string, userDni: string, type: ActivityType, score: number, maxScore: number, feedback: any) {
+async function saveSubmission(env: Env, assignmentId: string, userDni: string, type: ActivityType, score: number, maxScore: number, feedback: any, formative: boolean) {
   const ownerDni = userDni.toUpperCase();
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT id FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
   ).bind(assignmentId, ownerDni).first<any>();
   const feedbackJson = JSON.stringify(feedback);
   const fileUrl = `activity://${type}`;
+  const storedScore = formative ? null : score;
 
   let submissionId = existing?.id;
   if (existing) {
@@ -646,7 +650,7 @@ async function saveSubmission(env: Env, assignmentId: string, userDni: string, t
           SET file_url = ?, status = 'evaluated', score = ?, feedback = ?,
               graded_at = datetime('now'), attempt_type = ?, submitted_at = datetime('now')
         WHERE id = ?`
-    ).bind(fileUrl, score, feedbackJson, type, submissionId).run();
+    ).bind(fileUrl, storedScore, feedbackJson, type, submissionId).run();
   } else {
     submissionId = crypto.randomUUID();
     await env.MIRAI_AI_DB.prepare(
@@ -654,7 +658,7 @@ async function saveSubmission(env: Env, assignmentId: string, userDni: string, t
          (id, assignment_id, user_dni, file_url, status, score, feedback, graded_at,
           submitted_at, attempt_type, retry_used)
        VALUES (?, ?, ?, ?, 'evaluated', ?, ?, datetime('now'), datetime('now'), ?, 0)`
-    ).bind(submissionId, assignmentId, ownerDni, fileUrl, score, feedbackJson, type).run();
+    ).bind(submissionId, assignmentId, ownerDni, fileUrl, storedScore, feedbackJson, type).run();
   }
   return submissionId;
 }
@@ -702,6 +706,7 @@ export async function handleActivityApi(
           type,
           assignment_id: assignmentId,
           already_graded: true,
+          formative: assignment.grading_mode === 'formative',
           score: Number(existing.score) || 0,
           max_score: Math.max(1, Math.round(Number(assignment.max_score) || 100)),
           feedback,
@@ -758,8 +763,30 @@ export async function handleActivityApi(
       else graded = await gradeConceptMap(set, answers);
 
       const score = scoreToMax(graded.ratio, maxScore);
-      const feedback = { ...graded.feedback, general: graded.feedback.general || `Actividad completada: ${score}/${maxScore}.` };
-      const submissionId = await saveSubmission(env, assignmentId, userDni, type, score, maxScore, feedback);
+      const formative = assignment.grading_mode === 'formative';
+      const feedback = { ...graded.feedback, general: graded.feedback.general || `Actividad completada: ${score}/${maxScore}.` } as Record<string, any>;
+      if (formative) {
+        feedback.formative = true;
+        feedback.general = `${graded.feedback.general || 'Actividad completada.'} Práctica formativa: no afecta tu nota.`;
+      }
+      const submissionId = await saveSubmission(env, assignmentId, userDni, type, score, maxScore, feedback, formative);
+
+      // Conceptos que quedaron flojos, para el reporte del docente.
+      const failedConcepts: string[] = [];
+      if (type === 'flashcards') {
+        for (const item of graded.details?.results ?? []) {
+          if (!item.correct) failedConcepts.push(item.front || item.back || '');
+        }
+      } else if (type === 'recall' || type === 'summary') {
+        for (const concept of graded.details?.missing ?? []) failedConcepts.push(concept);
+      } else if (type === 'concept_map') {
+        for (const edge of graded.details?.missing ?? []) {
+          if (edge?.from && edge?.to) failedConcepts.push(`${edge.from} → ${edge.to}`);
+        }
+      }
+      if (failedConcepts.length) {
+        void recordConceptErrors(env, assignmentId, userDni, type, failedConcepts);
+      }
 
       const attemptId = crypto.randomUUID();
       await env.MIRAI_AI_DB.prepare(
@@ -781,6 +808,7 @@ export async function handleActivityApi(
         attempt_id: attemptId,
         score,
         max_score: maxScore,
+        formative,
         feedback,
         details: graded.details,
       }, 200, corsHeaders);

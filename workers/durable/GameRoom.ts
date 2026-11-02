@@ -19,6 +19,7 @@
    ni puede elegir su pregunta, ni mover fuera de turno. Ver multijugador.md §9.
    ============================================ */
 import { DurableObject } from 'cloudflare:workers';
+import { recordConceptErrors } from '../lib/concept-errors';
 
 export const LUDO_PATH_LEN = 56;
 export const TOKENS_PER_PLAYER = 4;
@@ -42,6 +43,18 @@ export interface PendingQuestion {
   options: string[];
   answer: number;
   percent: number;
+  explanation: string;
+  concept: string;
+}
+
+/** Pregunta fallada que se muestra en el repaso final del jugador. */
+export interface ReviewItem {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  chosen: number | null;
+  explanation: string;
+  concept: string;
 }
 
 export interface PlayerState {
@@ -71,6 +84,7 @@ export interface GameState {
   maxScore: number;
   maxPlayers: number;
   turnSeconds: number;
+  gradingMode: 'formative' | 'summative';
   status: 'lobby' | 'playing' | 'question' | 'finished';
   players: PlayerState[];
   turnIndex: number;
@@ -84,6 +98,8 @@ export interface GameState {
   specialCells: number[];
   pendingQuestions: Record<string, PendingQuestion>;
   answers: Record<string, number>;
+  /** Preguntas falladas por jugador para el repaso final. */
+  review: Record<string, ReviewItem[]>;
 }
 
 export interface ServerMessage {
@@ -195,6 +211,7 @@ export function publicState(state: GameState) {
     maxPlayers: state.maxPlayers,
     turnSeconds: state.turnSeconds,
     answerSeconds: ANSWER_SECONDS,
+    gradingMode: state.gradingMode,
     status: state.status,
     turnIndex: state.turnIndex,
     dice: state.dice,
@@ -304,6 +321,8 @@ export class GameRoom extends DurableObject<Env> {
       .toArray()[0];
     if (!row) return null;
     this.cachedState = JSON.parse(row.state) as GameState;
+    // Salas creadas antes del repaso final no traen `review`.
+    if (!this.cachedState.review) this.cachedState.review = {};
     return this.cachedState;
   }
 
@@ -386,6 +405,7 @@ export class GameRoom extends DurableObject<Env> {
       maxScore: 100,
       maxPlayers: 4,
       turnSeconds: 40,
+      gradingMode: 'summative',
       status: 'lobby',
       players: [],
       turnIndex: 0,
@@ -399,6 +419,7 @@ export class GameRoom extends DurableObject<Env> {
       specialCells: [],
       pendingQuestions: {},
       answers: {},
+      review: {},
     };
     this.saveState(state);
     return state;
@@ -514,6 +535,7 @@ export class GameRoom extends DurableObject<Env> {
     state.matchId = request.headers.get('X-Game-Match') || `${state.roomId}:${Date.now()}`;
     state.assignmentId = request.headers.get('X-Game-Assignment') || null;
     state.maxScore = Number(request.headers.get('X-Game-Max-Score') ?? 100) || 100;
+    state.gradingMode = request.headers.get('X-Game-Grading-Mode') === 'formative' ? 'formative' : 'summative';
 
     await this.loadQuestionPool(state.assignmentId);
     if (state.assignmentId && this.poolCount() === 0) {
@@ -528,6 +550,7 @@ export class GameRoom extends DurableObject<Env> {
     }
     state.pendingQuestions = {};
     state.answers = {};
+    state.review = {};
     this.startCycle(state, 1);
     return jsonMsg({ ok: true }, 200);
   }
@@ -630,6 +653,8 @@ export class GameRoom extends DurableObject<Env> {
         options: payload.options.map((o: unknown) => String(o)),
         answer: Number(payload.answer ?? 0),
         percent: difficulty === 'hard' ? HARD_PERCENT : EASY_PERCENT,
+        explanation: String(payload.explanation ?? ''),
+        concept: String(payload.concept ?? ''),
       });
     } catch {
       return null;
@@ -903,6 +928,8 @@ export class GameRoom extends DurableObject<Env> {
     player.points += delta;
     player.answered = true;
 
+    if (!correct) this.addReviewItem(state, dni, question, choice);
+
     this.saveState(state);
     this.sendTo(dni, {
       type: 'question_result',
@@ -912,12 +939,31 @@ export class GameRoom extends DurableObject<Env> {
       correctIndex: question.answer,
       delta,
       total: player.points,
+      explanation: question.explanation,
+      concept: question.concept,
+      correctOption: question.options[question.answer] ?? '',
     });
     this.broadcastRoomState(state);
+
+    if (!correct && question.concept) {
+      void recordConceptErrors(this.env, state.assignmentId, dni, 'ludo', [question.concept]);
+    }
 
     if (activePlayers(state).every((p) => p.answered)) {
       this.resumeAfterQuestions(state);
     }
+  }
+
+  private addReviewItem(state: GameState, dni: string, question: PendingQuestion, chosen: number | null) {
+    const item: ReviewItem = {
+      question: question.question,
+      options: question.options,
+      correctIndex: question.answer,
+      chosen,
+      explanation: question.explanation,
+      concept: question.concept,
+    };
+    state.review[dni] = [...(state.review[dni] ?? []), item];
   }
 
   private resumeAfterQuestions(state: GameState) {
@@ -929,6 +975,7 @@ export class GameRoom extends DurableObject<Env> {
       const delta = question.difficulty === 'hard' ? -question.percent : 0;
       player.points += delta;
       player.answered = true;
+      this.addReviewItem(state, player.dni, question, null);
       this.sendTo(player.dni, {
         type: 'question_result',
         seq: state.seq,
@@ -938,7 +985,13 @@ export class GameRoom extends DurableObject<Env> {
         delta,
         total: player.points,
         timeout: true,
+        explanation: question.explanation,
+        concept: question.concept,
+        correctOption: question.options[question.answer] ?? '',
       });
+      if (question.concept) {
+        void recordConceptErrors(this.env, state.assignmentId, player.dni, 'ludo', [question.concept]);
+      }
     }
 
     state.pendingQuestions = {};
@@ -1000,7 +1053,13 @@ export class GameRoom extends DurableObject<Env> {
     this.saveState(state);
 
     const publicWinner = winnerDni ? this.publicId(state, winnerDni) : '';
-    this.broadcast({ type: 'game_over', seq: state.seq, winner: publicWinner });
+    // Cada jugador recibe su propio repaso: las preguntas que falló, con la
+    // respuesta correcta y el porqué (falta-pedagogia.md §3.2).
+    for (const ws of this.ctx.getWebSockets()) {
+      const attachment = ws.deserializeAttachment() as WsAttachment | null;
+      const review = attachment ? state.review[attachment.dni] ?? [] : [];
+      this.send(ws, { type: 'game_over', seq: state.seq, winner: publicWinner, review });
+    }
     this.broadcastRoomState(state);
     void this.ctx.storage.deleteAlarm();
     void this.persistResults(state);
@@ -1057,6 +1116,7 @@ export class GameRoom extends DurableObject<Env> {
 
   /** Los puntos son la nota: se guardan como submission de la tarea (mejor marca). */
   private async applyGrades(state: GameState, players: PlayerState[]) {
+    const formative = state.gradingMode === 'formative';
     for (const player of players) {
       const percent = Math.max(0, Math.min(100, player.points));
       const score = Math.round((state.maxScore * percent) / 100);
@@ -1070,10 +1130,12 @@ export class GameRoom extends DurableObject<Env> {
       // No se pisa una entrega de otro método (documento, quiz...): Ludo es una
       // forma más de hacer la tarea, no un reemplazo silencioso.
       if (existing && !String(existing.file_url ?? '').startsWith('game://')) continue;
-      if (existing && Number(existing.score ?? 0) >= score) continue;
+      // Sumativo: se conserva la mejor marca. Formativo: nunca hay nota visible.
+      if (!formative && existing && Number(existing.score ?? 0) >= score) continue;
 
       const feedback = JSON.stringify({
         source: 'ludo',
+        formative,
         percent,
         max_score: state.maxScore,
         cycle: state.cycle,
@@ -1087,7 +1149,7 @@ export class GameRoom extends DurableObject<Env> {
            file_url = 'game://ludo', status = 'graded', score = excluded.score,
            graded_at = excluded.graded_at, feedback = excluded.feedback, attempt_type = 'ludo'`
       )
-        .bind(crypto.randomUUID(), state.assignmentId, player.dni, score, feedback)
+        .bind(crypto.randomUUID(), state.assignmentId, player.dni, formative ? null : score, feedback)
         .run();
     }
   }
@@ -1110,6 +1172,7 @@ export class GameRoom extends DurableObject<Env> {
       youRole: player?.role ?? 'spectator',
       youManage: canManage,
       legal: legalMoves(state, dni),
+      review: state.status === 'finished' ? state.review[dni] ?? [] : undefined,
       question: question
         ? {
             id: question.id,

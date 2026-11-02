@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1793548033.0704904,
-    "seen": 1793549242.9927285,
-    "ast_hash": "74397b5110b723e731fafed5306a3f53",
+    "mtime": 1793582581.7557752,
+    "seen": 1793582638.458519,
+    "ast_hash": "5f8fa84c4c9e41eb2c0699020f625caf",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1793568363.2445624,
-    "seen": 1793568437.3214395,
-    "ast_hash": "91be7d3436dc5f466a32116406d5c039",
+    "mtime": 1793582653.272776,
+    "seen": 1793582730.1649127,
+    "ast_hash": "135c87f7607fc1de508e1612995de01c",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1793578851.639543,
-    "seen": 1793578864.5357993,
+    "mtime": 1793582715.2739885,
+    "seen": 1793582730.1677032,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -756,9 +756,9 @@
     "semantic_hash": "f16397705b43b603fd9e1a156677a6b9"
   },
   "workers/routes/chat-context.ts": {
-    "mtime": 1793553155.958805,
-    "seen": 1793553457.174361,
-    "ast_hash": "1522f91219d966d4237e05cda8fd9f45",
+    "mtime": 1793582604.709064,
+    "seen": 1793582638.463911,
+    "ast_hash": "0718797ae90ce8d651c7aa307a67dbc8",
     "semantic_hash": ""
   },
   "workers/routes/chat.ts": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1793555372.0636764,
-    "seen": 1793555469.2396631,
-    "ast_hash": "1a7db0f7cc66aee47b1d52a71c091d78",
+    "mtime": 1793582592.3594248,
+    "seen": 1793582638.463995,
+    "ast_hash": "81ab4293449cbbaecd520cd4d6683d41",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {
@@ -1380,21 +1380,21 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1793558558.2784286,
-    "seen": 1793558662.2464788,
-    "ast_hash": "ff0bdc16361f35e9ebbcc2a421b09d2d",
+    "mtime": 1793582648.7495995,
+    "seen": 1793582730.1644733,
+    "ast_hash": "3bb439b0e21aff76947df7acee057a45",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
-    "mtime": 1793558624.3425493,
-    "seen": 1793558662.2523444,
-    "ast_hash": "eec54a49238934f5e7d6f22477f6cd89",
+    "mtime": 1793582600.1251225,
+    "seen": 1793582638.4637303,
+    "ast_hash": "0c5ba44777994ef12e48511abdd0430c",
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1793576361.7499132,
-    "seen": 1793576423.3662746,
-    "ast_hash": "d07a5df4deddd0d2b377b3a06b792182",
+    "mtime": 1793582671.350908,
+    "seen": 1793582730.1679094,
+    "ast_hash": "2853ff07b2c67e91c5c69ea979e69ccb",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1404,15 +1404,15 @@
     "semantic_hash": ""
   },
   "workers/routes/game.ts": {
-    "mtime": 1793575451.7162933,
-    "seen": 1793575486.5626547,
-    "ast_hash": "a9c084f9ea7a2e57f56d806a843a2f66",
+    "mtime": 1793582596.2939289,
+    "seen": 1793582638.4643183,
+    "ast_hash": "ba1361d5c14e24e5e0523f5d57390e19",
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1793569645.8581536,
-    "seen": 1793569701.3242688,
-    "ast_hash": "d0b782827caba1372f6d19905dc05cde",
+    "mtime": 1793582674.8238168,
+    "seen": 1793582730.1631927,
+    "ast_hash": "591608282ec0cc505af08a38c93a2c43",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
@@ -1422,15 +1422,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793579404.235844,
-    "seen": 1793579416.8228765,
-    "ast_hash": "66ec0c72332d6111e3bc0e0d4fbaa1b4",
+    "mtime": 1793582699.3498714,
+    "seen": 1793582730.1657238,
+    "ast_hash": "4fe9817732574261454a2ab26d5d726b",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {
-    "mtime": 1793564872.4449427,
-    "seen": 1793565046.1724713,
-    "ast_hash": "2fe306332882432f4bd66ea8f01f241c",
+    "mtime": 1793582134.1734855,
+    "seen": 1793582567.0368013,
+    "ast_hash": "24d7bbd64efb3381bd0ea8c6b511e463",
     "semantic_hash": ""
   },
   "ludo.md": {
@@ -1515,6 +1515,24 @@
     "mtime": 1793574573.407325,
     "seen": 1793574717.1914203,
     "ast_hash": "6172264c13b19fc9766a93d5e6435047",
+    "semantic_hash": ""
+  },
+  "workers/lib/concept-errors.ts": {
+    "mtime": 1793582113.3543727,
+    "seen": 1793582567.036561,
+    "ast_hash": "5c227cff9764e0c6b85289f24c169126",
+    "semantic_hash": ""
+  },
+  "falta-pedagogia.md": {
+    "mtime": 1793581828.813311,
+    "seen": 1793582567.0400004,
+    "ast_hash": "9dce56d08d24ed58fddb654cf455a666",
+    "semantic_hash": ""
+  },
+  "pedagogia.md": {
+    "mtime": 1793581349.8227322,
+    "seen": 1793582567.0402272,
+    "ast_hash": "07ce9bd5323f8876df8978a1d63846cc",
     "semantic_hash": ""
   }
 }

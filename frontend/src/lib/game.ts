@@ -33,6 +33,7 @@ export interface GameState {
   maxPlayers: number;
   turnSeconds: number;
   answerSeconds?: number;
+  gradingMode?: 'formative' | 'summative';
   status: GameStatus;
   players: GamePlayer[];
   turnIndex: number;
@@ -44,6 +45,16 @@ export interface GameState {
   cycle: number;
   specialCells: number[];
   winnerId: string | null;
+}
+
+/** Pregunta fallada que el servidor devuelve en el repaso final. */
+export interface ReviewItem {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  chosen: number | null;
+  explanation: string;
+  concept: string;
 }
 
 /** Pregunta que solo ve el jugador al que le toca. */
@@ -81,9 +92,13 @@ export interface GameMessage {
   answered?: boolean;
   correct?: boolean;
   correctIndex?: number;
+  correctOption?: string;
+  explanation?: string;
+  concept?: string;
   delta?: number;
   total?: number;
   timeout?: boolean;
+  review?: ReviewItem[];
   [key: string]: unknown;
 }
 

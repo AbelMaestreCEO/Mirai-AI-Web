@@ -151,8 +151,13 @@
       <!-- RESULTADO -->
       <section v-if="result" class="activity-card result-card">
         <div class="result-score">
-          <span class="result-number">{{ result.score }}</span>
-          <span class="result-max">/ {{ result.max_score }}</span>
+          <template v-if="result.formative">
+            <span class="result-max">Práctica formativa · no cuenta para la nota</span>
+          </template>
+          <template v-else>
+            <span class="result-number">{{ result.score }}</span>
+            <span class="result-max">/ {{ result.max_score }}</span>
+          </template>
         </div>
         <div class="result-feedback">
           <div v-for="item in feedbackItems" :key="item.label" class="feedback-row">
@@ -160,6 +165,8 @@
           </div>
           <p class="feedback-general">{{ result.feedback?.general }}</p>
         </div>
+
+        <h3 v-if="hasReview" class="activity-question" style="margin-top:1rem;">Repaso de errores</h3>
 
         <div v-if="type === 'flashcards' && result.details?.results" class="result-details">
           <div v-for="item in result.details.results" :key="item.index" class="detail-row" :class="{ ok: item.correct, bad: !item.correct }">
@@ -240,6 +247,7 @@ interface GradeResult {
   success: boolean;
   score: number;
   max_score: number;
+  formative?: boolean;
   feedback: Record<string, string>;
   details?: any;
 }
@@ -271,6 +279,13 @@ const edges = ref<{ from: string; to: string; label: string }[]>([]);
 
 const summaryWords = computed(() => summaryText.value.trim().split(/\s+/).filter(Boolean).length);
 
+const hasReview = computed(() => {
+  const details = result.value?.details;
+  if (!details) return false;
+  if (type.value === 'flashcards') return (details.results || []).some((item: any) => !item.correct);
+  return Boolean(details.missing?.length || details.extra?.length || details.misconceptions?.length);
+});
+
 const canAddEdge = computed(() => {
   if (!edgeFrom.value || !edgeTo.value || !edgeLabel.value.trim()) return false;
   if (edgeFrom.value === edgeTo.value) return false;
@@ -284,7 +299,7 @@ const canAddEdge = computed(() => {
 const feedbackItems = computed<FeedbackItem[]>(() => {
   const feedback = result.value?.feedback || {};
   return Object.entries(feedback)
-    .filter(([key]) => key !== 'general')
+    .filter(([key]) => key !== 'general' && key !== 'formative')
     .map(([key, value]) => ({
       label: key.replace(/_/g, ' ').replace(/^\w/, (letter) => letter.toUpperCase()),
       value: String(value),
@@ -336,6 +351,7 @@ async function load() {
         success: true,
         score: Number(data.score) || 0,
         max_score: Number(data.max_score) || 0,
+        formative: data.formative === true,
         feedback: data.feedback || {},
       };
       state.value = 'ready';

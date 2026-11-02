@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS assignments (
     max_score       INTEGER DEFAULT 100,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
     section_id      TEXT,
-    submission_type TEXT DEFAULT 'document'
+    submission_type TEXT DEFAULT 'document',
+    grading_mode    TEXT DEFAULT 'summative'
 );
 
 CREATE TABLE IF NOT EXISTS assignment_students (
@@ -76,3 +77,22 @@ CREATE TABLE IF NOT EXISTS submissions (
     FOREIGN KEY (assignment_id) REFERENCES assignments (id),
     UNIQUE (assignment_id, user_dni)
 );
+
+-- Formativo vs sumativo: se añade a bases ya creadas. Las tareas viejas quedan
+-- como sumativas.
+--   ALTER TABLE assignments ADD COLUMN grading_mode TEXT DEFAULT 'summative';
+
+-- Errores conceptuales: alimenta el reporte del docente por tema/concepto.
+CREATE TABLE IF NOT EXISTS concept_errors (
+    id            TEXT PRIMARY KEY,
+    assignment_id TEXT NOT NULL,
+    concept       TEXT NOT NULL,
+    user_dni      TEXT NOT NULL,
+    source        TEXT,
+    created_at    TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_concept_errors_assignment
+    ON concept_errors (assignment_id, concept);
+CREATE INDEX IF NOT EXISTS idx_concept_errors_user
+    ON concept_errors (assignment_id, user_dni);

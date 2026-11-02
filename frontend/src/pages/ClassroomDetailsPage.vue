@@ -253,9 +253,15 @@
           </div>
 
           <div class="feedback-score">
-            <span class="score-label">Tu Puntuación</span>
-            <span class="score-value">{{ finalScore }}</span>
-            <span class="score-max">/ {{ assignment?.max_score }}</span>
+            <template v-if="isFormative">
+              <span class="score-label">Práctica formativa</span>
+              <span class="score-max">No cuenta para la nota</span>
+            </template>
+            <template v-else>
+              <span class="score-label">Tu Puntuación</span>
+              <span class="score-value">{{ finalScore }}</span>
+              <span class="score-max">/ {{ assignment?.max_score }}</span>
+            </template>
           </div>
 
           <div v-if="feedback.items" class="feedback-content">
@@ -349,9 +355,10 @@
           <template v-else-if="quizState === 'done'">
             <div class="quiz-result">
               <div class="quiz-result-icon">{{ quizCorrect >= 6 ? '🎉' : '📚' }}</div>
-              <div class="quiz-result-score">{{ quizScore }} <span>/ {{ quizTotal }} pts</span></div>
+              <div v-if="!isFormative" class="quiz-result-score">{{ quizScore }} <span>/ {{ quizTotal }} pts</span></div>
+              <p v-else class="quiz-result-sub">Práctica formativa · no cuenta para la nota</p>
               <p class="quiz-result-sub">{{ quizCorrect }} de {{ questions.length }} respuestas correctas</p>
-              <p class="quiz-result-sub">✅ Nota guardada automáticamente en la base de datos.</p>
+              <p class="quiz-result-sub">{{ isFormative ? '✅ Resultado guardado como práctica.' : '✅ Nota guardada automáticamente en la base de datos.' }}</p>
 
               <div class="quiz-result-list">
                 <div v-for="(q, i) in questions" :key="q.index" class="quiz-result-item">
@@ -359,13 +366,18 @@
                     <span class="quiz-result-index">#{{ i + 1 }}</span>
                     <span class="quiz-result-question">{{ q.question }}</span>
                     <span class="quiz-result-points" :class="answersCorrect[i] ? 'ok' : 'bad'">
-                      {{ answersCorrect[i] ? `+${q.points}` : '0' }} pts
+                      {{ isFormative ? (answersCorrect[i] ? 'Bien' : 'Repasar') : (answersCorrect[i] ? `+${q.points}` : '0') + ' pts' }}
                     </span>
                   </div>
                   <div class="quiz-result-detail">Tu respuesta: <strong>{{ displayAnswer(i) }}</strong></div>
-                  <div v-if="q.expected_answer && !answersCorrect[i]" class="quiz-result-detail">
+                  <div v-if="q.options && q.correct_index !== undefined" class="quiz-result-detail">
+                    Respuesta correcta: <strong>{{ optionLetter(q.correct_index) }}. {{ q.options[q.correct_index] }}</strong>
+                  </div>
+                  <div v-else-if="q.expected_answer && !answersCorrect[i]" class="quiz-result-detail">
                     Respuesta esperada: <strong>{{ q.expected_answer }}</strong>
                   </div>
+                  <div v-if="q.explanation" class="quiz-result-detail">💡 <strong>Por qué:</strong> {{ q.explanation }}</div>
+                  <div v-if="!answersCorrect[i] && q.concept" class="quiz-result-detail">🎯 Concepto a repasar: <strong>{{ q.concept }}</strong></div>
                 </div>
               </div>
 
@@ -379,7 +391,8 @@
 
           <div v-else-if="quizSubmission && phase === 'evaluated'" class="quiz-result">
             <div class="quiz-result-icon">✅</div>
-            <div class="quiz-result-score">{{ submission?.score }} <span>/ {{ assignment?.max_score }} pts</span></div>
+            <div v-if="!isFormative" class="quiz-result-score">{{ submission?.score }} <span>/ {{ assignment?.max_score }} pts</span></div>
+            <p v-else class="quiz-result-sub">Práctica formativa · no cuenta para la nota</p>
             <p class="quiz-result-sub">{{ quizSubmission.attempt_type === 'quiz4' ? 'Quiz 4' : 'Quiz libre' }} completado</p>
             <div v-if="canDisagree" class="disagree-card">
               <p>¿No estás de acuerdo con tu nota?</p>
@@ -397,7 +410,8 @@
         <section v-else-if="isActivityMethod(method)" class="quiz-section quiz-card">
           <div v-if="activitySubmission && phase === 'evaluated'" class="quiz-result">
             <div class="quiz-result-icon">🧠</div>
-            <div class="quiz-result-score">{{ submission?.score }} <span>/ {{ assignment?.max_score }} pts</span></div>
+            <div v-if="!isFormative" class="quiz-result-score">{{ submission?.score }} <span>/ {{ assignment?.max_score }} pts</span></div>
+            <p v-else class="quiz-result-sub">Práctica formativa · no cuenta para la nota</p>
             <p class="quiz-result-sub">{{ METHOD_LABELS[method] }} completada</p>
             <div v-if="feedback.items" class="feedback-content" style="text-align:left;margin-top:12px;">
               <div v-for="item in feedback.items" :key="item.label" style="margin-bottom:8px;">
@@ -455,6 +469,7 @@ interface AssignmentDetails {
   due_date?: string | null;
   max_score?: number | null;
   submission_type?: string | null;
+  grading_mode?: 'formative' | 'summative' | string | null;
   submission?: Submission | null;
 }
 
@@ -531,6 +546,8 @@ interface QuizQuestion {
   points: number;
   question: string;
   expected_answer?: string;
+  explanation?: string;
+  concept?: string;
   options?: string[];
   correct_index?: number;
 }
@@ -656,11 +673,13 @@ function selectOption(optionIndex: number) {
   answers.value[currentIndex.value] = optionIndex;
   const correct = optionIndex === q.correct_index;
   answersCorrect.value[currentIndex.value] = correct;
+  const correctText = q.options?.[q.correct_index ?? 0];
+  const base = correct
+    ? `✅ ¡Correcto! +${q.points} pts`
+    : `❌ Incorrecto. La respuesta correcta era ${optionLetter(q.correct_index ?? 0)}${correctText ? `: ${correctText}` : ''}`;
   quizFeedback.value[currentIndex.value] = {
     correct,
-    text: correct
-      ? `✅ ¡Correcto! +${q.points} pts`
-      : `❌ Incorrecto. La respuesta correcta era ${optionLetter(q.correct_index ?? 0)}`,
+    text: q.explanation ? `${base} — ${q.explanation}` : base,
   };
 }
 
@@ -696,7 +715,8 @@ async function saveQuizResult() {
   if (method.value !== 'quiz4' && method.value !== 'quiz_free') return;
   try {
     const { ok, status, data } = await api.post<{
-      score?: number;
+      score?: number | null;
+      formative?: boolean;
       retry_used?: boolean;
       error?: string;
     }>('/api/assignment-quiz/submit', {
@@ -705,6 +725,9 @@ async function saveQuizResult() {
       score: quizScore.value,
       correct: quizCorrect.value,
       max_score: quizTotal.value,
+      failures: questions.value
+        .map((q, i) => (answersCorrect.value[i] ? null : { concept: q.concept || q.question }))
+        .filter(Boolean),
     });
     if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
     retryUsed.value = data.retry_used === true;
@@ -804,6 +827,7 @@ watch(assignmentId, () => void load(), { immediate: true });
 const submission = computed(() => assignment.value?.submission ?? null);
 const submittedImage = computed(() => !!submission.value?.file_url && isImageName(submission.value.file_url));
 const finalScore = computed(() => submission.value?.score);
+const isFormative = computed(() => assignment.value?.grading_mode === 'formative');
 
 const quizSubmission = computed(() => {
   const s = submission.value;
@@ -885,7 +909,9 @@ const phase = computed<'pending' | 'review' | 'evaluated' | 'none'>(() => {
 const status = computed(() => {
   switch (phase.value) {
     case 'evaluated':
-      return { cls: 'status-evaluated', text: `Revisado ${finalScore.value}/${assignment.value?.max_score}` };
+      return isFormative.value
+        ? { cls: 'status-evaluated', text: 'Práctica completada' }
+        : { cls: 'status-evaluated', text: `Revisado ${finalScore.value}/${assignment.value?.max_score}` };
     case 'review':
       return { cls: 'status-submitted', text: 'En revisión' };
     case 'pending':
@@ -902,7 +928,7 @@ const feedback = computed(() => {
   try {
     const fb = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Record<string, unknown>;
     const items = Object.entries(fb)
-      .filter(([key, value]) => key !== 'general' && value)
+      .filter(([key, value]) => key !== 'general' && key !== 'formative' && value)
       .map(([key, value]) => ({ label: FEEDBACK_LABELS[key] || key.replace(/_/g, ' ').toUpperCase(), value: String(value) }));
     return { items, image: !!(fb.cumplimiento_requisitos || fb.calidad_visual), general: fb.general ? String(fb.general) : '' };
   } catch {

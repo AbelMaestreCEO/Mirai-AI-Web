@@ -150,6 +150,16 @@
               </select>
             </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Modo de evaluación</label>
+              <select id="task-grading-mode" v-model="taskForm.gradingMode">
+                <option value="summative">Sumativa (cuenta para la nota)</option>
+                <option value="formative">Formativa (practica sin nota)</option>
+              </select>
+              <small style="color: var(--text-secondary); font-size: 0.78rem;">En formativo la práctica no registra nota visible.</small>
+            </div>
+          </div>
           <p v-if="taskError" style="color: var(--error-color, #dc2626); font-size: 0.85rem; margin: 12px 0; text-align: center;">{{ taskError }}</p>
           <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px;">
             Crear Tarea
@@ -182,7 +192,12 @@
               <tr v-else-if="tasks.state === 'error'"><td colspan="5" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>
               <tr v-else-if="!tasks.items.length"><td colspan="5" style="text-align:center; padding: 20px;">No hay tareas creadas</td></tr>
               <tr v-for="t in tasks.items" v-else :key="t.id">
-                <td><strong>{{ t.title }}</strong></td>
+                <td>
+                  <strong>{{ t.title }}</strong>
+                  <div style="font-size:.75rem;color:var(--text-secondary);">
+                    {{ t.grading_mode === 'formative' ? 'Formativa' : 'Sumativa' }}
+                  </div>
+                </td>
                 <td><span class="badge badge-pending">{{ t.course_title || t.course_id }}</span></td>
                 <td>{{ t.due_date ? new Date(t.due_date).toLocaleDateString() : '-' }}</td>
                 <td :id="`count-${t.id}`">{{ studentCounts[t.id] ?? 'Cargando...' }}</td>
@@ -383,6 +398,48 @@
           </table>
         </div>
       </div>
+
+      <!-- TAB: Conceptos que falla la clase -->
+      <div id="tab-concepts" class="admin-tab-content" :class="{ active: tab === 'concepts' }">
+        <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
+          <div class="course-detail-icon">📈</div>
+          <div class="course-detail-info">
+            <h2 class="course-detail-title" style="font-size:1.3rem;">Conceptos por reforzar</h2>
+            <p class="course-detail-description">Qué temas falla más la clase, según quiz, actividades y Ludo</p>
+          </div>
+        </div>
+        <div style="padding: 0 8px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
+          <div class="form-group" style="flex: 1; min-width: 220px; margin-bottom: 0;">
+            <label style="font-size: 0.82rem;">Tarea</label>
+            <select id="concept-task-select" v-model="conceptAssignment" style="margin-top:6px;">
+              <option value="">Todas mis tareas</option>
+              <option v-for="t in tasks.items" :key="t.id" :value="String(t.id)">{{ t.title }}</option>
+            </select>
+          </div>
+          <button class="btn-primary" style="height: 42px;" @click="loadConceptReport">🔄 Actualizar</button>
+        </div>
+        <p style="padding: 0 8px 10px; font-size: .83rem; color: var(--text-secondary);">
+          {{ conceptReport.state === 'ready' ? `${conceptReport.concepts.length} concepto${conceptReport.concepts.length !== 1 ? 's' : ''} con fallos` : '' }}
+        </p>
+        <div style="padding: 0 8px 8px;">
+          <p v-if="conceptReport.state === 'idle' || conceptReport.state === 'loading'" style="color: var(--text-secondary);">Cargando reporte...</p>
+          <p v-else-if="conceptReport.state === 'error'" style="color: var(--error-color, #dc2626);">Error al cargar el reporte.</p>
+          <p v-else-if="!conceptReport.concepts.length" style="color: var(--text-secondary);">Sin fallos registrados todavía.</p>
+          <div
+            v-for="item in conceptReport.concepts"
+            :key="item.concept"
+            style="background: var(--bg-color); padding: 12px 14px; margin-bottom: 8px; border-radius: 10px; display: flex; justify-content: space-between; gap: 12px; align-items: center; border-left: 4px solid var(--primary-color);"
+          >
+            <div style="min-width:0;">
+              <strong style="font-size: .92rem;">{{ item.concept }}</strong>
+              <div style="font-size: .78rem; color: var(--text-secondary); margin-top: 2px;">
+                {{ item.students }} estudiante{{ item.students !== 1 ? 's' : '' }} · último fallo {{ item.last_failure ? new Date(item.last_failure).toLocaleDateString() : '—' }}
+              </div>
+            </div>
+            <span class="badge badge-pending">{{ item.failures }} fallo{{ item.failures !== 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -455,7 +512,7 @@ import { goToPage } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
 import { currentUser } from '@/lib/session';
 
-type Tab = 'create' | 'list' | 'sections' | 'submissions';
+type Tab = 'create' | 'list' | 'sections' | 'submissions' | 'concepts';
 type Id = number | string;
 
 interface Course {
@@ -469,6 +526,7 @@ interface Task {
   course_id?: Id;
   course_title?: string;
   due_date?: string | null;
+  grading_mode?: 'formative' | 'summative' | string | null;
 }
 
 interface Dispute {
@@ -517,6 +575,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'list', label: '📋 Mis Tareas' },
   { id: 'sections', label: '🗂️ Secciones' },
   { id: 'submissions', label: '📊 Trabajos' },
+  { id: 'concepts', label: '📈 Conceptos' },
 ];
 
 const router = useRouter();
@@ -528,6 +587,10 @@ function switchTab(t: Tab) {
   tab.value = t;
   if (t === 'list') void loadTasks();
   else if (t === 'submissions') void loadSubmissions();
+  else if (t === 'concepts') {
+    if (!tasks.items.length) void loadTasks();
+    void loadConceptReport();
+  }
 }
 
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -569,7 +632,7 @@ async function createCourse() {
 }
 
 // ── Tareas ────────────────────────────────────────────────────────────────
-const taskForm = reactive({ title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '' });
+const taskForm = reactive({ title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '', gradingMode: 'summative' });
 const taskError = ref('');
 const tasks = reactive({ state: 'loading' as 'loading' | 'ready' | 'error', items: [] as Task[] });
 const studentCounts = reactive<Record<string, number>>({});
@@ -583,7 +646,7 @@ function onCourseSelect() {
 }
 
 function resetTaskForm() {
-  Object.assign(taskForm, { title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '' });
+  Object.assign(taskForm, { title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '', gradingMode: 'summative' });
   taskError.value = '';
 }
 
@@ -615,6 +678,7 @@ async function createTask() {
       max_score: taskForm.score,
       section_id: taskForm.sectionId || null,
       submission_type: taskForm.submissionType,
+      grading_mode: taskForm.gradingMode,
     });
     if (ok) {
       alert('✅ Tarea creada');
@@ -1027,6 +1091,35 @@ function exportPdf() {
 <script>window.onload = function(){ window.print(); }<\/script>
 </body></html>`);
   win.document.close();
+}
+
+// ── Conceptos que falla la clase ──────────────────────────────────────────
+interface ConceptRow {
+  concept: string;
+  failures: number;
+  students: number;
+  last_failure?: string | null;
+}
+
+const conceptAssignment = ref('');
+const conceptReport = reactive({
+  state: 'idle' as 'idle' | 'loading' | 'ready' | 'error',
+  concepts: [] as ConceptRow[],
+});
+
+async function loadConceptReport() {
+  conceptReport.state = 'loading';
+  try {
+    const query = conceptAssignment.value ? `?assignment_id=${encodeURIComponent(conceptAssignment.value)}` : '';
+    const { ok, status, data } = await api.get<{ concepts?: ConceptRow[] }>(`/api/professor-concept-report${query}`);
+    if (!ok) throw new Error(`HTTP ${status}`);
+    conceptReport.concepts = Array.isArray(data.concepts) ? data.concepts : [];
+    conceptReport.state = 'ready';
+  } catch (err) {
+    console.error('Error cargando conceptos:', err);
+    conceptReport.concepts = [];
+    conceptReport.state = 'error';
+  }
 }
 
 // ── Tiempo real: secciones nuevas o cambiadas ─────────────────────────────

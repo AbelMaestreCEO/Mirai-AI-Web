@@ -93,6 +93,7 @@ async function ensureGameTables(env: Env) {
     'ALTER TABLE game_question_bank ADD COLUMN difficulty TEXT',
     'ALTER TABLE game_question_bank ADD COLUMN qhash TEXT',
     'ALTER TABLE submissions ADD COLUMN attempt_type TEXT',
+    "ALTER TABLE assignments ADD COLUMN grading_mode TEXT DEFAULT 'summative'",
   ]) {
     try {
       await env.MIRAI_AI_DB.prepare(sql).run();
@@ -439,13 +440,15 @@ async function startRoom(request: Request, env: Env, code: string, corsHeaders: 
   // Banco de preguntas: se genera (si falta) antes de empezar, nunca a mitad de
   // partida, para no comer el tiempo de respuesta con la latencia de la IA.
   let maxScore = 100;
+  let gradingMode = 'summative';
   if (room.assignment_id) {
     const assignment = await env.MIRAI_AI_DB.prepare(
-      'SELECT max_score FROM assignments WHERE id = ?'
+      'SELECT max_score, grading_mode FROM assignments WHERE id = ?'
     )
       .bind(room.assignment_id)
       .first<any>();
     if (assignment?.max_score) maxScore = Number(assignment.max_score);
+    if (assignment?.grading_mode === 'formative') gradingMode = 'formative';
 
     const bank = await ensureQuestionBank(
       env,
@@ -473,6 +476,7 @@ async function startRoom(request: Request, env: Env, code: string, corsHeaders: 
   const extra: Record<string, string> = {
     'X-Game-Match': matchId,
     'X-Game-Max-Score': String(maxScore),
+    'X-Game-Grading-Mode': gradingMode,
   };
   if (room.assignment_id) extra['X-Game-Assignment'] = room.assignment_id;
 

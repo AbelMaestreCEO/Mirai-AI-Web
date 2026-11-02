@@ -129,7 +129,7 @@
               <span v-if="!p.connected" class="muted small">desconectado</span>
               <span v-if="p.hitSpecial" class="special-chip" title="Cayó en casilla especial">★</span>
               <span class="chip-score">
-                <strong>{{ p.points }}%</strong>
+                <strong>{{ p.points }}{{ isFormativeGame ? ' pts' : '%' }}</strong>
                 <span class="muted small"> · tiradas {{ Math.min(p.rolls, 3) }}/3</span>
               </span>
             </div>
@@ -232,9 +232,21 @@
           <li v-for="p in rankedPlayers" :key="p.id" class="player-item">
             <span class="color-dot" :class="p.color ? `color-${p.color}` : 'color-none'" />
             <span class="player-name">{{ p.nickname }}</span>
-            <strong>{{ p.points }}%</strong>
+            <strong>{{ p.points }}{{ isFormativeGame ? ' pts' : '%' }}</strong>
           </li>
         </ul>
+        <div v-if="review.length" class="game-review">
+          <h3>Repaso de errores</h3>
+          <div v-for="(item, i) in review" :key="`review-${i}`" class="review-item">
+            <p class="review-question">{{ item.question }}</p>
+            <p class="muted small">
+              Correcta: <strong>{{ optionLetter(item.correctIndex) }}. {{ item.options[item.correctIndex] }}</strong>
+            </p>
+            <p v-if="item.explanation" class="muted small">💡 {{ item.explanation }}</p>
+            <p v-if="item.concept" class="muted small">🎯 Concepto: {{ item.concept }}</p>
+          </div>
+        </div>
+        <p v-else class="muted small">Sin errores en esta partida. 🎉</p>
         <button class="btn-secondary" type="button" @click="leaveRoom">Volver al lobby</button>
       </section>
     </template>
@@ -244,7 +256,7 @@
       <div :key="activeQuestion.id" class="question-card">
         <div class="question-head">
           <span class="q-badge" :class="activeQuestion.difficulty === 'hard' ? 'hard' : 'easy'">
-            {{ activeQuestion.difficulty === 'hard' ? 'Difícil · 20%' : 'Fácil · 10%' }}
+            {{ activeQuestion.difficulty === 'hard' ? 'Difícil' : 'Fácil' }}<template v-if="!isFormativeGame"> · {{ activeQuestion.difficulty === 'hard' ? '20%' : '10%' }}</template>
           </span>
           <span v-if="answerLeft !== null" class="timer">{{ answerLeft }} s</span>
         </div>
@@ -262,6 +274,15 @@
             <span class="option-letter">{{ optionLetter(i) }}</span>
             <span>{{ option }}</span>
           </button>
+        </div>
+        <div v-if="questionResult" class="question-feedback" :class="questionResult.correct ? 'ok' : 'bad'">
+          <p v-if="questionResult.correct">¡Correcto!<template v-if="!isFormativeGame"> +{{ questionResult.delta }}%</template></p>
+          <p v-else>
+            {{ questionResult.timeout ? 'Se agotó el tiempo.' : 'Respuesta incorrecta.' }}
+            La correcta era <strong>{{ optionLetter(questionResult.correctIndex) }}</strong><span v-if="questionResult.correctOption">: {{ questionResult.correctOption }}</span>
+          </p>
+          <p v-if="questionResult.explanation" class="explanation">💡 {{ questionResult.explanation }}</p>
+          <p v-if="questionResult.concept && !questionResult.correct" class="explanation">🎯 Concepto a repasar: {{ questionResult.concept }}</p>
         </div>
         <p class="muted small">
           {{ questionResult ? 'Respuesta enviada. Esperando a los demás jugadores…' : 'Responde antes de que se acabe el tiempo; si no, cuenta como incorrecta.' }}
@@ -304,6 +325,7 @@ import {
   type GamePlayer,
   type GameState,
   type PlayerQuestion,
+  type ReviewItem,
   type SocketStatus,
 } from '@/lib/game';
 import {
@@ -416,6 +438,9 @@ const ringPathD = `${RING.map((cell, i) => `${i === 0 ? 'M' : 'L'}${cell.c + 0.5
 interface QuestionResult {
   correct: boolean;
   correctIndex: number;
+  correctOption?: string;
+  explanation?: string;
+  concept?: string;
   delta: number;
   total: number;
   timeout?: boolean;
@@ -443,6 +468,7 @@ const copied = ref(false);
 const legal = ref<number[]>([]);
 const activeQuestion = ref<PlayerQuestion | null>(null);
 const questionResult = ref<QuestionResult | null>(null);
+const review = ref<ReviewItem[]>([]);
 const answering = ref(false);
 const now = ref(Date.now());
 const diceRolling = ref(false);
@@ -495,6 +521,7 @@ let socket: GameSocket | null = null;
 let ticker: number | null = null;
 
 const playablePlayers = computed(() => state.value?.players.filter((p) => p.role === 'player') ?? []);
+const isFormativeGame = computed(() => state.value?.gradingMode === 'formative');
 
 const specialMarkers = computed(() => {
   const s = state.value;
@@ -651,6 +678,7 @@ function handleMessage(message: GameMessage): void {
       if (state.value?.status === 'question') {
         questionResult.value = activeQuestion.value?.answered ? questionResult.value : null;
       }
+      if (Array.isArray(message.review)) review.value = message.review as ReviewItem[];
       break;
     }
     case 'room_state':
@@ -705,6 +733,9 @@ function handleMessage(message: GameMessage): void {
       const result = {
         correct: message.correct === true,
         correctIndex: Number(message.correctIndex ?? 0),
+        correctOption: typeof message.correctOption === 'string' ? message.correctOption : '',
+        explanation: typeof message.explanation === 'string' ? message.explanation : '',
+        concept: typeof message.concept === 'string' ? message.concept : '',
         delta: Number(message.delta ?? 0),
         total: Number(message.total ?? 0),
         timeout: message.timeout === true,
@@ -712,11 +743,11 @@ function handleMessage(message: GameMessage): void {
       questionResult.value = result;
       answering.value = false;
       if (result.correct) {
-        pushToast(`¡Correcto! +${result.delta}%`, 'ok');
+        pushToast(isFormativeGame.value ? '¡Correcto!' : `¡Correcto! +${result.delta}%`, 'ok');
       } else if (result.timeout) {
-        pushToast(`Se agotó el tiempo (${result.delta}%)`, 'ko');
+        pushToast(isFormativeGame.value ? 'Se agotó el tiempo' : `Se agotó el tiempo (${result.delta}%)`, 'ko');
       } else {
-        pushToast(`Incorrecto (${result.delta}%)`, 'ko');
+        pushToast(isFormativeGame.value ? 'Incorrecto' : `Incorrecto (${result.delta}%)`, 'ko');
       }
       if (state.value) {
         state.value = {
@@ -739,6 +770,7 @@ function handleMessage(message: GameMessage): void {
     case 'game_over':
       clearPendingQuestion();
       activeQuestion.value = null;
+      if (Array.isArray(message.review)) review.value = message.review as ReviewItem[];
       if (state.value) {
         state.value = { ...state.value, status: 'finished', winnerId: message.winner ?? null };
       }
@@ -2281,5 +2313,46 @@ async function leaveRoom(): Promise<void> {
   .mobile-sidebar.collapsed~.room-page .question-overlay {
     padding-left: calc(var(--sidebar-w-collapsed) + 16px);
   }
+}
+
+.question-feedback {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--secondary-container);
+  border-left: 4px solid transparent;
+  line-height: 1.45;
+}
+
+.question-feedback.ok { border-left-color: #22c55e; }
+.question-feedback.bad { border-left-color: #ef4444; }
+
+.question-feedback p { margin: 0 0 4px; }
+
+.question-feedback .explanation {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.game-review {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-review h3 { font-size: 1rem; }
+
+.review-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--secondary-container);
+  border-left: 4px solid #ef4444;
+}
+
+.review-item p { margin: 0 0 4px; }
+
+.review-question {
+  font-weight: 600;
 }
 </style>

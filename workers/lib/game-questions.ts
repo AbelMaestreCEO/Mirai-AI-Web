@@ -20,6 +20,8 @@ export interface BankQuestion {
   question: string;
   options: string[];
   answer: number;
+  explanation: string;
+  concept: string;
 }
 
 const EASY_TARGET = 24;
@@ -31,6 +33,8 @@ interface GeneratedQuestion {
   question: string;
   options: string[];
   answer: number;
+  explanation: string;
+  concept: string;
 }
 
 function systemPrompt(): string {
@@ -38,8 +42,10 @@ function systemPrompt(): string {
     'Eres un generador de preguntas de quiz para estudiantes de secundaria.',
     'Las preguntas deben ser claras, breves, en español y apropiadas para menores.',
     'Cada pregunta tiene exactamente 4 opciones plausibles y una sola correcta.',
+    'Añade "explanation": 1-2 frases que expliquen por qué la opción correcta lo es (máximo 30 palabras).',
+    'Añade "concept": el concepto o tema evaluado, en 2-5 palabras.',
     'Responde SOLO con un arreglo JSON, sin markdown ni explicaciones.',
-    'Formato: [{"question":"...","options":["...","...","...","..."],"answer":0}]',
+    'Formato: [{"question":"...","options":["...","...","...","..."],"answer":0,"explanation":"...","concept":"..."}]',
     '"answer" es el índice (0-3) de la opción correcta.',
   ].join('\n');
 }
@@ -79,7 +85,13 @@ function normalizeQuestions(raw: unknown): GeneratedQuestion[] {
     if (!question || options.length !== 4 || !Number.isInteger(answer) || answer < 0 || answer > 3) {
       continue;
     }
-    out.push({ question: question.slice(0, 300), options: options.map((o) => o.slice(0, 160)), answer });
+    out.push({
+      question: question.slice(0, 300),
+      options: options.map((o) => o.slice(0, 160)),
+      answer,
+      explanation: String(value.explanation ?? '').trim().slice(0, 240),
+      concept: String(value.concept ?? '').trim().slice(0, 80),
+    });
   }
   return out;
 }
@@ -108,7 +120,7 @@ async function generateBatch(
       { role: 'system', content: systemPrompt() },
       { role: 'user', content: userPrompt(topic, difficulty, count) + avoid },
     ],
-    { temperature: 0.8, max_tokens: difficulty === 'easy' ? 2600 : 1600 },
+    { temperature: 0.8, max_tokens: difficulty === 'easy' ? 3200 : 2200 },
     env
   );
 
