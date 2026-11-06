@@ -176,22 +176,37 @@
             <p class="course-detail-description">Administra y monitorea todas tus tareas activas</p>
           </div>
         </div>
+        <div style="padding: 0 8px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <span style="font-size:.82rem; color: var(--text-secondary); font-weight:600;">Clase:</span>
+          <button :class="taskSectionFilter === '' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="taskSectionFilter = ''">Todas</button>
+          <button
+            v-for="sec in sections"
+            :key="sec.id"
+            :class="taskSectionFilter === String(sec.id) ? 'btn-primary' : 'btn-secondary'"
+            style="font-size:.78rem; padding:6px 10px;"
+            @click="taskSectionFilter = String(sec.id)"
+          >
+            {{ sec.name }}
+          </button>
+          <button :class="taskSectionFilter === '__none__' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="taskSectionFilter = '__none__'">Sin clase</button>
+        </div>
         <div style="overflow-x: auto; padding: 0 8px 8px;">
           <table class="data-table">
             <thead>
               <tr>
                 <th>Título</th>
                 <th>Curso</th>
+                <th>Clase</th>
                 <th>Vence</th>
                 <th>Estudiantes</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="tasks-list-body">
-              <tr v-if="tasks.state === 'loading'"><td colspan="5">Cargando...</td></tr>
-              <tr v-else-if="tasks.state === 'error'"><td colspan="5" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>
-              <tr v-else-if="!tasks.items.length"><td colspan="5" style="text-align:center; padding: 20px;">No hay tareas creadas</td></tr>
-              <tr v-for="t in tasks.items" v-else :key="t.id">
+              <tr v-if="tasks.state === 'loading'"><td colspan="6">Cargando...</td></tr>
+              <tr v-else-if="tasks.state === 'error'"><td colspan="6" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>
+              <tr v-else-if="!filteredTasks.length"><td colspan="6" style="text-align:center; padding: 20px;">No hay tareas creadas</td></tr>
+              <tr v-for="t in filteredTasks" v-else :key="t.id">
                 <td>
                   <strong>{{ t.title }}</strong>
                   <div style="font-size:.75rem;color:var(--text-secondary);">
@@ -199,6 +214,7 @@
                   </div>
                 </td>
                 <td><span class="badge badge-pending">{{ t.course_title || t.course_id }}</span></td>
+                <td>{{ t.section_name || 'Sin clase' }}</td>
                 <td>{{ t.due_date ? new Date(t.due_date).toLocaleDateString() : '-' }}</td>
                 <td :id="`count-${t.id}`">{{ studentCounts[t.id] ?? 'Cargando...' }}</td>
                 <td>
@@ -332,6 +348,23 @@
             </div>
             <div style="font-size:.75rem; color: var(--text-secondary); margin-top:2px;">
               {{ p.source_filename }} · {{ new Date(p.created_at).toLocaleDateString('es') }}
+            </div>
+            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+              <div class="form-group" style="margin-bottom:0; min-width:190px;">
+                <label style="font-size:.76rem;">Clase asignada</label>
+                <select v-model="planSectionDraft[p.id]" style="margin-top:4px;">
+                  <option value="">Sin clase</option>
+                  <option v-for="sec in planSectionsFor(p)" :key="sec.id" :value="String(sec.id)">{{ sec.name }}</option>
+                </select>
+              </div>
+              <button
+                class="btn-primary"
+                style="font-size:.78rem; padding:8px 12px;"
+                :disabled="planSectionSaving === p.id"
+                @click="savePlanSection(p)"
+              >
+                {{ planSectionSaving === p.id ? 'Guardando...' : 'Guardar clase' }}
+              </button>
             </div>
             <details style="margin-top:8px;">
               <summary style="cursor:pointer; font-size:.82rem; color: var(--primary-color);">Ver tareas ({{ p.assignments.length }})</summary>
@@ -469,6 +502,20 @@
             <p class="course-detail-description">Revisa las entregas, calificaciones IA y observaciones de tus estudiantes</p>
           </div>
         </div>
+        <div style="padding: 0 8px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <span style="font-size:.82rem; color: var(--text-secondary); font-weight:600;">Clase:</span>
+          <button :class="subSection === '' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="subSection = ''">Todas</button>
+          <button
+            v-for="sec in sections"
+            :key="sec.id"
+            :class="subSection === String(sec.id) ? 'btn-primary' : 'btn-secondary'"
+            style="font-size:.78rem; padding:6px 10px;"
+            @click="subSection = String(sec.id)"
+          >
+            {{ sec.name }}
+          </button>
+          <button :class="subSection === '__none__' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="subSection = '__none__'">Sin clase</button>
+        </div>
         <div style="padding: 0 8px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
           <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
             <label style="font-size: 0.82rem;">Buscar por nombre o cédula</label>
@@ -480,13 +527,6 @@
               </svg>
               <input id="sub-search" v-model="subSearch" type="text" placeholder="Nombre o cédula..." autocomplete="off">
             </div>
-          </div>
-          <div class="form-group" style="min-width: 200px; margin-bottom: 0;">
-            <label style="font-size: 0.82rem;">Filtrar por sección</label>
-            <select id="sub-section-filter" v-model="subSection" style="margin-top: 6px;">
-              <option value="">Todas las secciones</option>
-              <option v-for="name in submissionSections" :key="name" :value="name">{{ name }}</option>
-            </select>
           </div>
           <button class="btn-primary" style="height: 42px; white-space: nowrap;" @click="loadSubmissions">🔄 Actualizar</button>
           <button class="btn-secondary" style="height: 42px; white-space: nowrap;" @click="exportExcel">📥 Excel</button>
@@ -658,6 +698,8 @@ interface Task {
   title: string;
   course_id?: Id;
   course_title?: string;
+  section_id?: Id | null;
+  section_name?: string | null;
   due_date?: string | null;
   grading_mode?: 'formative' | 'summative' | string | null;
 }
@@ -676,6 +718,7 @@ interface Dispute {
 interface Section {
   id: Id;
   name: string;
+  course_id?: Id;
   course_title?: string;
   student_count: number;
 }
@@ -694,6 +737,7 @@ interface SubmissionRow {
   first_name?: string;
   last_name?: string;
   assignment_title?: string;
+  section_id?: Id | null;
   section_name?: string;
   score?: number | null;
   max_score?: number;
@@ -770,6 +814,12 @@ async function createCourse() {
 const taskForm = reactive({ title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '', gradingMode: 'summative' });
 const taskError = ref('');
 const tasks = reactive({ state: 'loading' as 'loading' | 'ready' | 'error', items: [] as Task[] });
+const taskSectionFilter = ref('');
+const filteredTasks = computed(() => {
+  if (!taskSectionFilter.value) return tasks.items;
+  if (taskSectionFilter.value === '__none__') return tasks.items.filter((t) => !t.section_id);
+  return tasks.items.filter((t) => String(t.section_id) === taskSectionFilter.value);
+});
 const studentCounts = reactive<Record<string, number>>({});
 
 function onCourseSelect() {
@@ -902,7 +952,9 @@ interface EvaluationPlanRow {
   points_per_evaluation: number;
   evaluation_count: number;
   created_at: string;
+  course_id?: string;
   course_title?: string;
+  section_id?: string | null;
   assignments: { id: string; title: string; max_score: number }[];
 }
 
@@ -910,6 +962,8 @@ const planForm = reactive({ courseId: '', sectionId: '', maxScore: '20', count: 
 const planFile = ref<File | null>(null);
 const planState = reactive({ generating: false, error: '', fileName: '', result: null as EvaluationPlanResult | null });
 const plans = reactive({ state: 'idle' as 'idle' | 'loading' | 'ready' | 'error', items: [] as EvaluationPlanRow[] });
+const planSectionDraft = reactive<Record<string, string>>({});
+const planSectionSaving = ref('');
 
 function divisorsOf(total: number): number[] {
   const list: number[] = [];
@@ -985,11 +1039,40 @@ async function loadPlans() {
     const { ok, status, data } = await api.get<{ plans?: EvaluationPlanRow[] }>('/api/evaluation-plans');
     if (!ok) throw new Error(`HTTP ${status}`);
     plans.items = Array.isArray(data.plans) ? data.plans : [];
+    for (const plan of plans.items) {
+      planSectionDraft[plan.id] = plan.section_id ? String(plan.section_id) : '';
+    }
     plans.state = 'ready';
   } catch (err) {
     console.error('Error cargando planes:', err);
     plans.items = [];
     plans.state = 'error';
+  }
+}
+
+function planSectionsFor(plan: EvaluationPlanRow): Section[] {
+  return sections.value.filter((s) => !plan.course_id || String(s.course_id) === String(plan.course_id));
+}
+
+async function savePlanSection(plan: EvaluationPlanRow) {
+  const value = planSectionDraft[plan.id] ?? '';
+  planSectionSaving.value = plan.id;
+  try {
+    const { ok, data } = await api.post('/api/update-evaluation-plan-section', {
+      plan_id: plan.id,
+      section_id: value || null,
+    });
+    if (!ok) {
+      alert('❌ Error: ' + errorMessage(data, 'No se pudo actualizar la clase del plan'));
+      return;
+    }
+    await loadPlans();
+    await loadTasks();
+    alert(value ? '✅ Clase asignada al plan' : '✅ Clase quitada del plan');
+  } catch {
+    alert('Error de conexión');
+  } finally {
+    planSectionSaving.value = '';
   }
 }
 
@@ -1252,15 +1335,14 @@ async function loadSubmissions() {
   }
 }
 
-const submissionSections = computed(() => [...new Set(submissions.items.map((s) => s.section_name).filter((n): n is string => !!n))]);
-
 const filteredSubmissions = computed(() => {
   const search = subSearch.value.toLowerCase().trim();
-  const section = subSection.value.toLowerCase();
+  const section = subSection.value;
   return submissions.items.filter((s) => {
     const name = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
     const matchSearch = !search || name.includes(search) || (s.user_dni || '').toLowerCase().includes(search);
-    const matchSection = !section || (s.section_name || '').toLowerCase() === section;
+    const matchSection = !section
+      || (section === '__none__' ? !s.section_id : String(s.section_id) === section);
     return matchSearch && matchSection;
   });
 });

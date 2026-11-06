@@ -80,8 +80,10 @@ async function ensureEvaluationPlanTables(env: Env) {
       max_score REAL NOT NULL,
       points_per_evaluation REAL NOT NULL,
       evaluation_count INTEGER NOT NULL,
+      section_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    'ALTER TABLE evaluation_plans ADD COLUMN section_id TEXT',
     'ALTER TABLE assignments ADD COLUMN plan_id TEXT',
   ];
   for (const sql of statements) {
@@ -318,6 +320,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
             s.status,
             s.submitted_at,
             s.professor_feedback,
+            a.section_id AS section_id,
             sec.name     AS section_name
           FROM submissions s
           JOIN assignments a   ON s.assignment_id = a.id
@@ -827,6 +830,12 @@ ORDER BY u.last_name, u.first_name
     const { results: plans } = await env.MIRAI_AI_DB.prepare(`
       SELECT p.id, p.title, p.strategy, p.source_filename, p.max_score,
              p.points_per_evaluation, p.evaluation_count, p.created_at,
+             p.course_id,
+             COALESCE(p.section_id, (
+               SELECT a.section_id FROM assignments a
+                WHERE a.plan_id = p.id AND a.section_id IS NOT NULL
+                LIMIT 1
+             )) AS section_id,
              c.title AS course_title
         FROM evaluation_plans p
         LEFT JOIN user_courses c ON c.id = p.course_id
@@ -951,9 +960,9 @@ Formato exacto:
       const planId = crypto.randomUUID();
       await env.MIRAI_AI_DB.prepare(`
         INSERT INTO evaluation_plans
-          (id, professor_dni, course_id, title, strategy, source_filename, max_score, points_per_evaluation, evaluation_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(planId, userDni, courseId, planTitle, strategy, file.name.slice(0, 200), maxScore, pointsPerEvaluation, evaluationCount).run();
+          (id, professor_dni, course_id, title, strategy, source_filename, max_score, points_per_evaluation, evaluation_count, section_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(planId, userDni, courseId, planTitle, strategy, file.name.slice(0, 200), maxScore, pointsPerEvaluation, evaluationCount, sectionId).run();
 
       const collectedStudents = sectionId
         ? (await env.MIRAI_AI_DB.prepare('SELECT user_dni FROM section_students WHERE section_id = ?').bind(sectionId).all<any>()).results
@@ -1022,6 +1031,69 @@ Formato exacto:
     } catch (err) {
       console.error('Error creando plan de evaluación:', err);
       return jsonResponse({ error: (err as Error)?.message || 'No se pudo crear el plan de evaluación.' }, 500, corsHeaders);
+    }
+  }
+
+  // POST /api/update-evaluation-plan-section — asigna o quita la clase de un plan.
+  if (path === '/api/update-evaluation-plan-section' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    try {
+      const body = await request.json<any>().catch(() => ({}));
+      const planId = String(body?.plan_id || '');
+      const sectionId = body?.section_id ? String(body.section_id) : null;
+      if (!planId) return jsonResponse({ error: 'plan_id requerido' }, 400, corsHeaders);
+
+      const plan = await env.MIRAI_AI_DB.prepare(
+        'SELECT id, course_id FROM evaluation_plans WHERE id = ? AND professor_dni = ?'
+      ).bind(planId, userDni).first<any>();
+      if (!plan) return jsonResponse({ error: 'Plan no encontrado o no autorizado' }, 403, corsHeaders);
+
+      if (sectionId) {
+        const section = await env.MIRAI_AI_DB.prepare(
+          'SELECT id FROM sections WHERE id = ? AND professor_dni = ? AND course_id = ?'
+        ).bind(sectionId, userDni, plan.course_id).first<any>();
+        if (!section) {
+          return jsonResponse({ error: 'La clase no pertenece a la materia del plan' }, 403, corsHeaders);
+        }
+      }
+
+      await env.MIRAI_AI_DB.prepare(
+        'UPDATE evaluation_plans SET section_id = ? WHERE id = ?'
+      ).bind(sectionId, planId).run();
+      await env.MIRAI_AI_DB.prepare(
+        'UPDATE assignments SET section_id = ? WHERE plan_id = ?'
+      ).bind(sectionId, planId).run();
+
+      const { results: planAssignments } = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM assignments WHERE plan_id = ?'
+      ).bind(planId).all<any>();
+
+      for (const assignment of planAssignments || []) {
+        await env.MIRAI_AI_DB.prepare(
+          'DELETE FROM assignment_students WHERE assignment_id = ?'
+        ).bind(assignment.id).run();
+      }
+
+      if (sectionId && planAssignments?.length) {
+        const { results: students } = await env.MIRAI_AI_DB.prepare(
+          'SELECT user_dni FROM section_students WHERE section_id = ?'
+        ).bind(sectionId).all<any>();
+
+        for (const assignment of planAssignments) {
+          for (const student of students || []) {
+            await env.MIRAI_AI_DB.prepare(
+              'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+            ).bind(assignment.id, student.user_dni).run();
+          }
+        }
+      }
+
+      return jsonResponse({ success: true, section_id: sectionId }, 200, corsHeaders);
+    } catch (err) {
+      console.error('Error actualizando clase del plan:', err);
+      return jsonResponse({ error: 'No se pudo actualizar la clase del plan.' }, 500, corsHeaders);
     }
   }
 

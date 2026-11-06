@@ -233,7 +233,8 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         id TEXT PRIMARY KEY, professor_dni TEXT NOT NULL, course_id TEXT NOT NULL,
         title TEXT NOT NULL, strategy TEXT, source_filename TEXT,
         max_score REAL NOT NULL, points_per_evaluation REAL NOT NULL,
-        evaluation_count INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+        evaluation_count INTEGER NOT NULL, section_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
     ];
     for (const ddl of classroomDDL) {
       try {

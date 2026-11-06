@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS evaluation_plans (
     max_score             REAL NOT NULL,
     points_per_evaluation REAL NOT NULL,
     evaluation_count      INTEGER NOT NULL,
+    section_id            TEXT,
     created_at            DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
