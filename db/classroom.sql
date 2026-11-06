@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS assignments (
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
     section_id      TEXT,
     submission_type TEXT DEFAULT 'document',
-    grading_mode    TEXT DEFAULT 'summative'
+    grading_mode    TEXT DEFAULT 'summative',
+    plan_id         TEXT
 );
 
 CREATE TABLE IF NOT EXISTS assignment_students (
@@ -81,6 +82,21 @@ CREATE TABLE IF NOT EXISTS submissions (
 -- Formativo vs sumativo: se añade a bases ya creadas. Las tareas viejas quedan
 -- como sumativas.
 --   ALTER TABLE assignments ADD COLUMN grading_mode TEXT DEFAULT 'summative';
+--   ALTER TABLE assignments ADD COLUMN plan_id TEXT;
+
+-- Planes de evaluación: agrupan las tareas generadas por la IA desde un archivo.
+CREATE TABLE IF NOT EXISTS evaluation_plans (
+    id                    TEXT PRIMARY KEY,
+    professor_dni         TEXT NOT NULL,
+    course_id             TEXT NOT NULL,
+    title                 TEXT NOT NULL,
+    strategy              TEXT,
+    source_filename       TEXT,
+    max_score             REAL NOT NULL,
+    points_per_evaluation REAL NOT NULL,
+    evaluation_count      INTEGER NOT NULL,
+    created_at            DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Errores conceptuales: alimenta el reporte del docente por tema/concepto.
 CREATE TABLE IF NOT EXISTS concept_errors (

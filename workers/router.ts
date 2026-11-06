@@ -214,7 +214,7 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         id TEXT PRIMARY KEY, course_id TEXT NOT NULL, title TEXT NOT NULL,
         description TEXT, file_url TEXT, due_date DATETIME, max_score INTEGER DEFAULT 100,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, section_id TEXT,
-        submission_type TEXT DEFAULT 'document')`,
+        submission_type TEXT DEFAULT 'document', plan_id TEXT)`,
       `CREATE TABLE IF NOT EXISTS assignment_students (
         assignment_id TEXT NOT NULL, user_dni TEXT NOT NULL,
         PRIMARY KEY (assignment_id, user_dni),
@@ -229,6 +229,11 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         extracted_text TEXT,
         FOREIGN KEY (assignment_id) REFERENCES assignments(id),
         UNIQUE (assignment_id, user_dni))`,
+      `CREATE TABLE IF NOT EXISTS evaluation_plans (
+        id TEXT PRIMARY KEY, professor_dni TEXT NOT NULL, course_id TEXT NOT NULL,
+        title TEXT NOT NULL, strategy TEXT, source_filename TEXT,
+        max_score REAL NOT NULL, points_per_evaluation REAL NOT NULL,
+        evaluation_count INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
     ];
     for (const ddl of classroomDDL) {
       try {

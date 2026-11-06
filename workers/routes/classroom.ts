@@ -8,6 +8,7 @@ import { callAI } from '../lib/ai';
 import { AI_MODEL_NORMAL, AI_MODEL_PRO } from '../lib/ai-models';
 import { isAdminUser, normalizeDni, requireAuth } from '../lib/auth';
 import { extractTextFromDocx, extractTextFromPDF } from '../lib/documents';
+import { extractTextFromOffice } from '../lib/office-text';
 import { jsonResponse } from '../lib/http';
 import { callVision } from '../lib/vision';
 import { recordConceptErrors, ensureConceptErrorsTable } from '../lib/concept-errors';
@@ -62,6 +63,37 @@ async function ensureQuizSubmissionColumns(env: Env) {
   quizSubmissionColumnsReady = true;
 }
 
+// Planes de evaluación: agrupan varias tareas creadas por la IA a partir de un
+// documento del profesor. Se crean de forma perezosa para no exigir migración.
+let evaluationPlanTablesReady = false;
+
+async function ensureEvaluationPlanTables(env: Env) {
+  if (evaluationPlanTablesReady) return;
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS evaluation_plans (
+      id TEXT PRIMARY KEY,
+      professor_dni TEXT NOT NULL,
+      course_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      strategy TEXT,
+      source_filename TEXT,
+      max_score REAL NOT NULL,
+      points_per_evaluation REAL NOT NULL,
+      evaluation_count INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    'ALTER TABLE assignments ADD COLUMN plan_id TEXT',
+  ];
+  for (const sql of statements) {
+    try {
+      await env.MIRAI_AI_DB.prepare(sql).run();
+    } catch {
+      // La tabla o columna ya existe.
+    }
+  }
+  evaluationPlanTablesReady = true;
+}
+
 function quizLevelAt(index: number): string {
   let cursor = 0;
   for (const plan of QUIZ_LEVELS) {
@@ -112,6 +144,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
   // Migraciones perezosas: las columnas de apoyo (attempt_type, retry_used y
   // grading_mode) deben existir antes de cualquier lectura de assignments.
   await ensureQuizSubmissionColumns(env);
+  await ensureEvaluationPlanTables(env);
 
   // ── ASISTENCIA: Empleado ──────────────────────────────────
   if (path === '/api/attendance/my-profile' && request.method === 'GET')
@@ -783,6 +816,213 @@ ORDER BY u.last_name, u.first_name
     }
 
     return jsonResponse({ success: true, id }, 201, corsHeaders);
+  }
+
+  // ── Planes de evaluación ─────────────────────────────────────────────────
+  // GET /api/evaluation-plans — lista los planes del profesor con sus tareas.
+  if (path === '/api/evaluation-plans' && request.method === 'GET') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const { results: plans } = await env.MIRAI_AI_DB.prepare(`
+      SELECT p.id, p.title, p.strategy, p.source_filename, p.max_score,
+             p.points_per_evaluation, p.evaluation_count, p.created_at,
+             c.title AS course_title
+        FROM evaluation_plans p
+        LEFT JOIN user_courses c ON c.id = p.course_id
+       WHERE p.professor_dni = ?
+       ORDER BY p.created_at DESC
+       LIMIT 50
+    `).bind(userDni).all<any>();
+
+    const detailed: any[] = [];
+    for (const plan of plans || []) {
+      const { results: assignments } = await env.MIRAI_AI_DB.prepare(`
+        SELECT id, title, description, due_date, max_score
+          FROM assignments
+         WHERE plan_id = ?
+         ORDER BY created_at ASC, title ASC
+      `).bind(plan.id).all<any>();
+      detailed.push({ ...plan, assignments: assignments || [] });
+    }
+
+    return jsonResponse({ plans: detailed }, 200, corsHeaders);
+  }
+
+  // POST /api/create-evaluation-plan — analiza un documento y crea las tareas.
+  if (path === '/api/create-evaluation-plan' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    try {
+      const contentType = request.headers.get('content-type') || '';
+      if (!contentType.includes('multipart/form-data')) {
+        return jsonResponse({ error: 'Se esperaba un formulario con el archivo.' }, 400, corsHeaders);
+      }
+
+      const form = await request.formData();
+      const file = form.get('file');
+      if (!(file instanceof File)) {
+        return jsonResponse({ error: 'Sube un archivo DOCX, DOC, DOCM, XLS, XLSX o XLSM.' }, 400, corsHeaders);
+      }
+
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (!['docx', 'doc', 'docm', 'xlsx', 'xls', 'xlsm'].includes(ext)) {
+        return jsonResponse({ error: 'Formato no soportado. Usa DOCX, DOC, DOCM, XLS, XLSX o XLSM.' }, 400, corsHeaders);
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        return jsonResponse({ error: 'El archivo supera el límite de 15 MB.' }, 400, corsHeaders);
+      }
+
+      const courseId = String(form.get('course_id') || '');
+      const sectionId = String(form.get('section_id') || '') || null;
+      const maxScore = Number(form.get('max_score'));
+      const evaluationCount = Math.floor(Number(form.get('evaluation_count')));
+      const startDate = String(form.get('start_date') || '');
+      const intervalDays = Math.max(1, Math.min(60, Math.floor(Number(form.get('interval_days')) || 7)));
+
+      if (!courseId) return jsonResponse({ error: 'Selecciona una materia.' }, 400, corsHeaders);
+      if (!Number.isFinite(maxScore) || maxScore <= 0 || maxScore > 100) {
+        return jsonResponse({ error: 'Puntuación máxima inválida (1-100).' }, 400, corsHeaders);
+      }
+      if (!Number.isFinite(evaluationCount) || evaluationCount < 1 || evaluationCount > 30) {
+        return jsonResponse({ error: 'Cantidad de evaluaciones inválida (1-30).' }, 400, corsHeaders);
+      }
+      const pointsPerEvaluation = maxScore / evaluationCount;
+      if (Math.abs(pointsPerEvaluation - Math.round(pointsPerEvaluation * 100) / 100) > 1e-6) {
+        return jsonResponse({ error: 'La cantidad de evaluaciones debe dividir exactamente la puntuación máxima.' }, 400, corsHeaders);
+      }
+
+      const course = await env.MIRAI_AI_DB.prepare(
+        'SELECT id, title FROM user_courses WHERE id = ? AND user_dni = ?'
+      ).bind(courseId, userDni).first<any>();
+      if (!course) return jsonResponse({ error: 'Materia inválida o no autorizada.' }, 403, corsHeaders);
+
+      if (sectionId) {
+        const sec = await env.MIRAI_AI_DB.prepare(
+          'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
+        ).bind(sectionId, userDni).first<any>();
+        if (!sec) return jsonResponse({ error: 'Sección inválida o no autorizada.' }, 403, corsHeaders);
+      }
+
+      const buffer = await file.arrayBuffer();
+      const documentText = await extractTextFromOffice(buffer, file.name);
+
+      const systemPrompt = `Eres un diseñador instruccional experto. Analizas el material de una materia y propones un plan de evaluación coherente.
+Reglas:
+- Divide el contenido del documento en exactamente ${evaluationCount} evaluaciones, en orden pedagógico.
+- Cada evaluación debe cubrir temas concretos del documento y describir qué contenido se evaluará.
+- No inventes temas que no aparezcan en el documento; si falta detalle, evalúa lo que sí está.
+- Distribuye los temas sin repetirlos entre evaluaciones.
+- Devuelve SOLO un JSON válido, sin bloques de código ni texto adicional.`;
+
+      const userPrompt = `Materia: ${course.title}
+Puntuación máxima: ${maxScore}
+Cantidad de evaluaciones: ${evaluationCount}
+Puntaje por evaluación: ${pointsPerEvaluation}
+
+Contenido del documento:
+"""
+${documentText}
+"""
+
+Formato exacto:
+{"plan_title":"...","strategy":"...","evaluations":[{"title":"...","description":"...","topics":["..."],"content":"..."}]}`;
+
+      const raw = await callAI(
+        AI_MODEL_PRO,
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        { temperature: 0.4, max_tokens: 6000 },
+        env,
+      );
+
+      const parsed = parseQuizJson(raw);
+      const planTitle = String(parsed?.plan_title || `Plan de evaluación — ${course.title}`).trim().slice(0, 160);
+      const strategy = String(parsed?.strategy || '').trim().slice(0, 2000);
+      const rawEvaluations = Array.isArray(parsed?.evaluations) ? parsed.evaluations : [];
+      const evaluations = rawEvaluations.slice(0, evaluationCount);
+      if (evaluations.length < evaluationCount) {
+        return jsonResponse({ error: 'La IA no generó todas las evaluaciones. Inténtalo de nuevo.' }, 502, corsHeaders);
+      }
+
+      const planId = crypto.randomUUID();
+      await env.MIRAI_AI_DB.prepare(`
+        INSERT INTO evaluation_plans
+          (id, professor_dni, course_id, title, strategy, source_filename, max_score, points_per_evaluation, evaluation_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(planId, userDni, courseId, planTitle, strategy, file.name.slice(0, 200), maxScore, pointsPerEvaluation, evaluationCount).run();
+
+      const collectedStudents = sectionId
+        ? (await env.MIRAI_AI_DB.prepare('SELECT user_dni FROM section_students WHERE section_id = ?').bind(sectionId).all<any>()).results
+        : [];
+
+      const start = startDate ? new Date(startDate) : null;
+      const startValid = !!start && !Number.isNaN(start.getTime());
+      const created: any[] = [];
+
+      for (let index = 0; index < evaluations.length; index++) {
+        const item = evaluations[index] || {};
+        const topics = Array.isArray(item.topics) ? item.topics.map((t: any) => String(t || '').trim()).filter(Boolean) : [];
+        const content = String(item.content || '').trim();
+        const description = String(item.description || '').trim();
+        const assignmentTitle = `Evaluación ${index + 1}: ${String(item.title || 'Evaluación').trim()}`.slice(0, 180);
+        const assignmentDescription = [
+          `Plan de evaluación: ${planTitle}`,
+          strategy ? `Estrategia: ${strategy}` : '',
+          topics.length ? `Temas: ${topics.join(', ')}` : '',
+          content ? `Contenido a evaluar:\n${content}` : '',
+          description ? `Instrucciones:\n${description}` : '',
+        ].filter(Boolean).join('\n\n').slice(0, 5000);
+
+        const assignmentId = crypto.randomUUID();
+        const dueDate = startValid
+          ? new Date(start!.getTime() + index * intervalDays * 86400000).toISOString()
+          : null;
+
+        await env.MIRAI_AI_DB.prepare(`
+          INSERT INTO assignments
+            (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode, plan_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'document', 'summative', ?)
+        `).bind(assignmentId, courseId, assignmentTitle, assignmentDescription, dueDate, sectionId, pointsPerEvaluation, planId).run();
+
+        for (const st of collectedStudents || []) {
+          await env.MIRAI_AI_DB.prepare(
+            'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+          ).bind(assignmentId, st.user_dni).run();
+        }
+
+        created.push({
+          id: assignmentId,
+          title: assignmentTitle,
+          description: assignmentDescription,
+          topics,
+          content,
+          due_date: dueDate,
+          max_score: pointsPerEvaluation,
+        });
+      }
+
+      return jsonResponse({
+        success: true,
+        plan: {
+          id: planId,
+          title: planTitle,
+          strategy,
+          max_score: maxScore,
+          points_per_evaluation: pointsPerEvaluation,
+          evaluation_count: evaluationCount,
+          source_filename: file.name,
+        },
+        evaluations: created,
+        assignments_created: created.length,
+      }, 201, corsHeaders);
+    } catch (err) {
+      console.error('Error creando plan de evaluación:', err);
+      return jsonResponse({ error: (err as Error)?.message || 'No se pudo crear el plan de evaluación.' }, 500, corsHeaders);
+    }
   }
 
   // Ruta: GET /api/my-submissions (para ESTUDIANTES)

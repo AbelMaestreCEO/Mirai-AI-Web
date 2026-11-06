@@ -210,6 +210,139 @@
         </div>
       </div>
 
+      <!-- TAB: Planes de evaluación -->
+      <div id="tab-plans" class="admin-tab-content" :class="{ active: tab === 'plans' }">
+        <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
+          <div class="course-detail-icon">📚</div>
+          <div class="course-detail-info">
+            <h2 class="course-detail-title" style="font-size:1.3rem;">Planes de Evaluación</h2>
+            <p class="course-detail-description">Sube el material de la materia y la IA creará las evaluaciones con sus temas y contenido</p>
+          </div>
+        </div>
+
+        <form style="padding: 0 8px 8px;" @submit.prevent="createEvaluationPlan">
+          <div class="form-group">
+            <label>Documento de la materia</label>
+            <input
+              type="file"
+              accept=".doc,.docx,.docm,.xls,.xlsx,.xlsm"
+              style="margin-top:6px;"
+              @change="onPlanFileChange"
+            >
+            <small style="color: var(--text-secondary); font-size: .78rem; display:block; margin-top:6px;">
+              Formatos permitidos: DOCX, DOC, DOCM, XLS, XLSX, XLSM (máx. 15 MB)
+            </small>
+            <small v-if="planState.fileName" style="color: var(--primary-color); font-size: .8rem; display:block; margin-top:6px;">
+              Archivo seleccionado: {{ planState.fileName }}
+            </small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Materia</label>
+              <select v-model="planForm.courseId" required>
+                <option value="">Selecciona una materia...</option>
+                <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.title }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sección (Opcional)</label>
+              <select v-model="planForm.sectionId">
+                <option value="">Sin sección específica</option>
+                <option v-for="s in sections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Puntuación máxima de la materia</label>
+              <select v-model="planForm.maxScore" @change="onPlanMaxScoreChange">
+                <option v-for="score in PLAN_SCORES" :key="score" :value="String(score)">{{ score }} puntos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Cantidad de evaluaciones</label>
+              <select v-model="planForm.count">
+                <option v-for="count in planCountOptions" :key="count" :value="String(count)">
+                  {{ count }} evaluación{{ count !== 1 ? 'es' : '' }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Puntuación por evaluación</label>
+              <input :value="`${planPointsPerEvaluation} puntos`" type="text" readonly style="opacity:.8;">
+              <small style="color: var(--text-secondary); font-size: .78rem;">
+                Calculada automáticamente: {{ planForm.maxScore }} ÷ {{ planForm.count }}
+              </small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Primera fecha de entrega (Opcional)</label>
+              <input v-model="planForm.startDate" type="datetime-local">
+            </div>
+            <div class="form-group">
+              <label>Días entre evaluaciones</label>
+              <input v-model="planForm.intervalDays" type="number" min="1" max="60">
+            </div>
+          </div>
+
+          <p v-if="planState.error" style="color: var(--error-color, #dc2626); font-size: .85rem; margin: 12px 0; text-align:center;">
+            {{ planState.error }}
+          </p>
+
+          <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:14px;" :disabled="planState.generating">
+            {{ planState.generating ? 'Analizando documento con IA...' : '✨ Analizar y crear plan' }}
+          </button>
+        </form>
+
+        <div v-if="planState.result" style="padding: 16px 8px;">
+          <div style="background: var(--bg-color); padding: 18px; border-radius: 12px; border-left: 4px solid var(--primary-color);">
+            <h3 style="margin:0 0 6px;">{{ planState.result.plan.title }}</h3>
+            <p style="color: var(--text-secondary); font-size:.86rem; margin:0 0 10px;">
+              {{ planState.result.assignments_created }} tareas creadas · {{ planState.result.plan.points_per_evaluation }} pts cada una · Total {{ planState.result.plan.max_score }}
+            </p>
+            <p v-if="planState.result.plan.strategy" style="font-size:.88rem; margin:0 0 14px;">{{ planState.result.plan.strategy }}</p>
+            <div v-for="(e, i) in planState.result.evaluations" :key="e.id" style="background: var(--glass-bg); border:1px solid var(--glass-border); border-radius:10px; padding:12px; margin-bottom:10px;">
+              <strong style="font-size:.92rem;">{{ e.title }}</strong>
+              <div v-if="e.topics.length" style="font-size:.8rem; color: var(--text-secondary); margin-top:4px;">Temas: {{ e.topics.join(', ') }}</div>
+              <details style="margin-top:8px;">
+                <summary style="cursor:pointer; font-size:.82rem; color: var(--primary-color);">Ver contenido a evaluar</summary>
+                <pre style="white-space:pre-wrap; font-family:inherit; font-size:.82rem; margin-top:8px;">{{ e.description }}</pre>
+              </details>
+              <div style="font-size:.75rem; color: var(--text-secondary); margin-top:6px;">
+                {{ e.due_date ? `Vence: ${new Date(e.due_date).toLocaleDateString('es')}` : 'Sin fecha límite' }} · {{ e.max_score }} pts
+              </div>
+            </div>
+            <button class="btn-secondary" @click="switchTab('list')">Ver todas las tareas</button>
+          </div>
+        </div>
+
+        <div style="padding: 16px 8px;">
+          <h3 class="lessons-section-title">Planes creados</h3>
+          <p v-if="plans.state === 'loading'" style="color: var(--text-secondary);">Cargando...</p>
+          <p v-else-if="plans.state === 'error'" style="color: var(--error-color, #dc2626);">Error al cargar los planes</p>
+          <p v-else-if="!plans.items.length" style="color: var(--text-secondary);">Todavía no has creado planes de evaluación</p>
+          <div v-for="p in plans.items" v-else :key="p.id" style="background: var(--bg-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; border-left: 4px solid var(--primary-color);">
+            <strong>{{ p.title }}</strong>
+            <div style="font-size:.82rem; color: var(--text-secondary); margin-top:3px;">
+              {{ p.course_title || 'Sin materia' }} · {{ p.evaluation_count }} evaluaciones · {{ p.points_per_evaluation }} pts c/u · Total {{ p.max_score }}
+            </div>
+            <div style="font-size:.75rem; color: var(--text-secondary); margin-top:2px;">
+              {{ p.source_filename }} · {{ new Date(p.created_at).toLocaleDateString('es') }}
+            </div>
+            <details style="margin-top:8px;">
+              <summary style="cursor:pointer; font-size:.82rem; color: var(--primary-color);">Ver tareas ({{ p.assignments.length }})</summary>
+              <ul style="margin:8px 0 0 18px; font-size:.82rem;">
+                <li v-for="a in p.assignments" :key="a.id">{{ a.title }} — {{ a.max_score }} pts</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+      </div>
+
       <!-- TAB: Secciones -->
       <div id="tab-sections" class="admin-tab-content" :class="{ active: tab === 'sections' }">
         <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
@@ -506,13 +639,13 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
-import { api, errorMessage } from '@/lib/api';
+import { api, apiFetch, errorMessage } from '@/lib/api';
 import { escapeHtml } from '@/lib/markdown';
 import { goToPage } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
 import { currentUser } from '@/lib/session';
 
-type Tab = 'create' | 'list' | 'sections' | 'submissions' | 'concepts';
+type Tab = 'create' | 'list' | 'plans' | 'sections' | 'submissions' | 'concepts';
 type Id = number | string;
 
 interface Course {
@@ -573,6 +706,7 @@ interface SubmissionRow {
 const TABS: { id: Tab; label: string }[] = [
   { id: 'create', label: '➕ Crear Tarea' },
   { id: 'list', label: '📋 Mis Tareas' },
+  { id: 'plans', label: '📚 Planes' },
   { id: 'sections', label: '🗂️ Secciones' },
   { id: 'submissions', label: '📊 Trabajos' },
   { id: 'concepts', label: '📈 Conceptos' },
@@ -586,6 +720,7 @@ const tab = ref<Tab>('create');
 function switchTab(t: Tab) {
   tab.value = t;
   if (t === 'list') void loadTasks();
+  else if (t === 'plans') void loadPlans();
   else if (t === 'submissions') void loadSubmissions();
   else if (t === 'concepts') {
     if (!tasks.items.length) void loadTasks();
@@ -728,6 +863,133 @@ async function deleteTask(id: Id) {
     await loadCourses();
   } catch {
     alert('Error de conexión');
+  }
+}
+
+// ── Planes de evaluación ─────────────────────────────────────────────────
+const PLAN_SCORES = [10, 20, 25, 50, 100];
+
+interface PlanAssignment {
+  id: string;
+  title: string;
+  description: string;
+  topics: string[];
+  content?: string;
+  due_date: string | null;
+  max_score: number;
+}
+
+interface EvaluationPlanResult {
+  plan: {
+    id: string;
+    title: string;
+    strategy: string;
+    max_score: number;
+    points_per_evaluation: number;
+    evaluation_count: number;
+    source_filename: string;
+  };
+  evaluations: PlanAssignment[];
+  assignments_created: number;
+}
+
+interface EvaluationPlanRow {
+  id: string;
+  title: string;
+  strategy?: string;
+  source_filename?: string;
+  max_score: number;
+  points_per_evaluation: number;
+  evaluation_count: number;
+  created_at: string;
+  course_title?: string;
+  assignments: { id: string; title: string; max_score: number }[];
+}
+
+const planForm = reactive({ courseId: '', sectionId: '', maxScore: '20', count: '4', startDate: '', intervalDays: '7' });
+const planFile = ref<File | null>(null);
+const planState = reactive({ generating: false, error: '', fileName: '', result: null as EvaluationPlanResult | null });
+const plans = reactive({ state: 'idle' as 'idle' | 'loading' | 'ready' | 'error', items: [] as EvaluationPlanRow[] });
+
+function divisorsOf(total: number): number[] {
+  const list: number[] = [];
+  for (let n = 1; n <= total; n++) if (total % n === 0) list.push(n);
+  return list;
+}
+
+const planCountOptions = computed(() => divisorsOf(Number(planForm.maxScore) || 20));
+const planPointsPerEvaluation = computed(() => {
+  const score = Number(planForm.maxScore) || 0;
+  const count = Number(planForm.count) || 1;
+  return Math.round((score / count) * 100) / 100;
+});
+
+function onPlanMaxScoreChange() {
+  const options = planCountOptions.value;
+  if (!options.includes(Number(planForm.count))) {
+    planForm.count = String(options.includes(4) ? 4 : options[Math.min(2, options.length - 1)] || 1);
+  }
+}
+
+function onPlanFileChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  planState.error = '';
+  planState.result = null;
+  const file = input.files?.[0] ?? null;
+  planFile.value = file;
+  planState.fileName = file?.name ?? '';
+}
+
+async function createEvaluationPlan() {
+  planState.error = '';
+  planState.result = null;
+  if (!planFile.value) {
+    planState.error = 'Selecciona un archivo del documento.';
+    return;
+  }
+  if (!planForm.courseId) {
+    planState.error = 'Selecciona una materia.';
+    return;
+  }
+
+  const form = new FormData();
+  form.append('file', planFile.value);
+  form.append('course_id', planForm.courseId);
+  form.append('section_id', planForm.sectionId);
+  form.append('max_score', planForm.maxScore);
+  form.append('evaluation_count', planForm.count);
+  form.append('start_date', planForm.startDate);
+  form.append('interval_days', planForm.intervalDays);
+
+  planState.generating = true;
+  try {
+    const res = await apiFetch('/api/create-evaluation-plan', { method: 'POST', body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      planState.error = errorMessage(data, 'No se pudo crear el plan de evaluación.');
+      return;
+    }
+    planState.result = data as EvaluationPlanResult;
+    await loadTasks();
+    await loadPlans();
+  } catch {
+    planState.error = 'Error de conexión. Inténtalo de nuevo.';
+  } finally {
+    planState.generating = false;
+  }
+}
+
+async function loadPlans() {
+  plans.state = 'loading';
+  try {
+    const { ok, status, data } = await api.get<{ plans?: EvaluationPlanRow[] }>('/api/evaluation-plans');
+    if (!ok) throw new Error(`HTTP ${status}`);
+    plans.items = Array.isArray(data.plans) ? data.plans : [];
+    plans.state = 'ready';
+  } catch (err) {
+    console.error('Error cargando planes:', err);
+    plans.items = [];
+    plans.state = 'error';
   }
 }
 
