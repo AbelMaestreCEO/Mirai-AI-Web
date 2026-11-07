@@ -14,6 +14,7 @@ declare var _migratedMessagesReasoning: boolean | undefined;
 declare var _migratedMessagesImages: boolean | undefined;
 declare var _migratedClassroomTables: boolean | undefined;
 declare var _migratedAssignmentPublishing: boolean | undefined;
+declare var _migratedMembershipTimestamps: boolean | undefined;
 
 interface MiraiPersonaje {
   identidad: string;

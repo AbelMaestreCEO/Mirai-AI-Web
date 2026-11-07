@@ -229,7 +229,7 @@ export async function handleVerify(request: Request, env: Env, corsHeaders: Reco
 
       for (const task of pendingTasks) {
         await env.MIRAI_AI_DB.prepare(
-          'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+          "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
         ).bind(task.assignment_id, user.dni.toUpperCase()).run();
       }
     } catch (e: any) {

@@ -140,8 +140,8 @@ async function ensureCourseSection(courseId: string, professorDni: string, env: 
   for (const sec of rows.slice(1)) {
     if (sec.id === canonical.id) continue;
     await env.MIRAI_AI_DB.prepare(
-      `INSERT OR IGNORE INTO section_students (section_id, user_dni)
-       SELECT ?, user_dni FROM section_students WHERE section_id = ?`,
+      `INSERT OR IGNORE INTO section_students (section_id, user_dni, created_at)
+       SELECT ?, user_dni, datetime('now') FROM section_students WHERE section_id = ?`,
     ).bind(canonical.id, sec.id).run();
     await env.MIRAI_AI_DB.prepare(
       'UPDATE assignments SET section_id = ? WHERE section_id = ?',
@@ -622,7 +622,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     try {
       // Insertar en tabla intermedia (ignora duplicados)
       await env.MIRAI_AI_DB.prepare(`
-            INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)
+            INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))
         `).bind(assignment_id, studentDni).run();
 
       return jsonResponse({ success: true }, 200, corsHeaders);
@@ -825,13 +825,13 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     ).bind(sec.id, ownerDni).first<any>();
 
     await env.MIRAI_AI_DB.prepare(
-      'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
+      "INSERT OR IGNORE INTO section_students (section_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
     ).bind(sec.id, ownerDni).run();
 
     // Las tareas ya creadas para la sección también se asignan al alumno.
     await env.MIRAI_AI_DB.prepare(`
-      INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni)
-      SELECT id, ? FROM assignments WHERE section_id = ?
+      INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at)
+      SELECT id, ?, datetime('now') FROM assignments WHERE section_id = ?
     `).bind(ownerDni, sec.id).run();
 
     return jsonResponse({
@@ -932,14 +932,14 @@ ORDER BY u.last_name, u.first_name
     let inserted = 0, skipped = 0;
     for (const dni of [...new Set(normalized)]) {
       const result = await env.MIRAI_AI_DB.prepare(
-        'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
+        "INSERT OR IGNORE INTO section_students (section_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
       ).bind(section_id, dni).run();
       if (result.meta?.changes > 0) {
         inserted++;
         // Auto-asignar tareas existentes al nuevo estudiante
         for (const task of sectionTasks) {
           await env.MIRAI_AI_DB.prepare(
-            'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+            "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
           ).bind(task.id, dni).run();
         }
       } else {
@@ -969,7 +969,7 @@ ORDER BY u.last_name, u.first_name
     if (!sec) return jsonResponse({ error: 'No autorizado' }, 403, corsHeaders);
 
     await env.MIRAI_AI_DB.prepare(
-      'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
+      "INSERT OR IGNORE INTO section_students (section_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
     ).bind(section_id, studentDni).run();
 
     // Auto-asignar tareas existentes de esta sección al nuevo estudiante
@@ -978,7 +978,7 @@ ORDER BY u.last_name, u.first_name
     ).bind(section_id).all<any>();
     for (const task of sectionTasks) {
       await env.MIRAI_AI_DB.prepare(
-        'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+        "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
       ).bind(task.id, studentDni).run();
     }
 
@@ -1064,7 +1064,7 @@ ORDER BY u.last_name, u.first_name
 
       for (const st of secStudents) {
         await env.MIRAI_AI_DB.prepare(
-          'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+          "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
         ).bind(id, st.user_dni).run();
       }
     }
@@ -1357,7 +1357,7 @@ Formato exacto:
 
         for (const st of collectedStudents || []) {
           await env.MIRAI_AI_DB.prepare(
-            'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+            "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
           ).bind(assignmentId, st.user_dni).run();
         }
 
@@ -1442,7 +1442,7 @@ Formato exacto:
         for (const assignment of planAssignments) {
           for (const student of students || []) {
             await env.MIRAI_AI_DB.prepare(
-              'INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni) VALUES (?, ?)'
+              "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
             ).bind(assignment.id, student.user_dni).run();
           }
         }

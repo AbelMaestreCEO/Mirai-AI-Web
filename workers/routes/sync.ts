@@ -125,26 +125,39 @@ export async function handleSyncPoll(request: Request, env: Env, corsHeaders: Re
 
       } else {
         // Estudiante: secciones donde está inscrito
+        // Una sección nueva O una inscripción reciente (el profesor lo agregó
+        // a una clase ya existente) deben avisarse sin recargar la página.
         const sections = await env.MIRAI_AI_DB.prepare(`
           SELECT s.id, s.name, s.course_id, s.description, s.created_at,
                  p.full_name AS professor_name
           FROM   sections s
           JOIN   section_students ss ON ss.section_id = s.id
           LEFT JOIN professors p     ON p.dni = s.professor_dni
-          WHERE  ss.user_dni = ? AND s.created_at > ?
+          WHERE  ss.user_dni = ? AND (s.created_at > ? OR ss.created_at > ?)
           ORDER  BY s.created_at DESC
           LIMIT  20
-        `).bind(userDni, since).all<any>();
+        `).bind(userDni, since, since).all<any>();
 
+        // Tareas que aparecen para el alumno por: creación, publicación (las
+        // del plan nacen como borrador) o una inscripción reciente. Se cubren
+        // tanto las tareas de la sección como las asignadas individualmente.
         const assignments = await env.MIRAI_AI_DB.prepare(`
           SELECT a.id, a.title, a.description, a.file_url,
                  a.due_date, a.max_score, a.created_at, a.section_id
           FROM   assignments a
           JOIN   section_students ss ON ss.section_id = a.section_id
-          WHERE  ss.user_dni = ? AND a.created_at > ?
-          ORDER  BY a.created_at DESC
+          WHERE  ss.user_dni = ? AND a.published_at IS NOT NULL
+             AND (a.created_at > ? OR a.published_at > ? OR ss.created_at > ?)
+          UNION
+          SELECT a.id, a.title, a.description, a.file_url,
+                 a.due_date, a.max_score, a.created_at, a.section_id
+          FROM   assignments a
+          JOIN   assignment_students ast ON ast.assignment_id = a.id
+          WHERE  ast.user_dni = ? AND a.published_at IS NOT NULL
+             AND (a.created_at > ? OR a.published_at > ? OR ast.created_at > ?)
+          ORDER  BY created_at DESC
           LIMIT  20
-        `).bind(userDni, since).all<any>();
+        `).bind(userDni, since, since, since, userDni, since, since, since).all<any>();
 
         const submissions = await env.MIRAI_AI_DB.prepare(`
           SELECT sub.id, sub.assignment_id, sub.status,

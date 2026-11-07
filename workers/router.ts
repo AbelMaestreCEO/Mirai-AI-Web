@@ -279,6 +279,19 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
     globalThis._migratedAssignmentPublishing = true;
   }
 
+  // Migración: marca de tiempo de inscripción para la sincronización en vivo.
+  // Permite avisar al estudiante cuando lo agregan a una clase o a una tarea
+  // después de creada, sin recargar la página.
+  if (!globalThis._migratedMembershipTimestamps) {
+    try {
+      await env.MIRAI_AI_DB.prepare('ALTER TABLE section_students ADD COLUMN created_at TEXT').run();
+    } catch (_) { /* columna ya existe */ }
+    try {
+      await env.MIRAI_AI_DB.prepare('ALTER TABLE assignment_students ADD COLUMN created_at TEXT').run();
+    } catch (_) { /* columna ya existe */ }
+    globalThis._migratedMembershipTimestamps = true;
+  }
+
   try {
 
     // Ruta: POST /api/chat

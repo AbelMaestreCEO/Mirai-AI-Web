@@ -630,9 +630,9 @@
     "semantic_hash": "25f643efdbb0ad0191e1ae3ddb57bab2"
   },
   "workers/env.d.ts": {
-    "mtime": 1794022124.6895106,
-    "seen": 1794022395.4571643,
-    "ast_hash": "f99b2a3e68785e7b0e999a8158573447",
+    "mtime": 1794088794.5343623,
+    "seen": 1794088924.370802,
+    "ast_hash": "279a716c579b479137e094754f331922",
     "semantic_hash": ""
   },
   "workers/lib/ai-models.ts": {
@@ -732,16 +732,16 @@
     "semantic_hash": "44b266028c3131d82537340eb355ed56"
   },
   "workers/router.ts": {
-    "mtime": 1794022133.9933293,
-    "seen": 1794022395.4594536,
-    "ast_hash": "510e21b320779385ff40a8dfb9dcce07",
+    "mtime": 1794088779.5199974,
+    "seen": 1794088924.3752017,
+    "ast_hash": "609931e7d321ce88bc73df48e20a447d",
     "semantic_hash": ""
   },
   "workers/routes/account.ts": {
-    "mtime": 1791213512.0316508,
-    "seen": 1791840274.783622,
-    "ast_hash": "52898363daa20ed3db5a58141f8ea753",
-    "semantic_hash": "52898363daa20ed3db5a58141f8ea753"
+    "mtime": 1794088855.1601808,
+    "seen": 1794088924.375206,
+    "ast_hash": "df9281299f85f6c4ee7479a31a123bdd",
+    "semantic_hash": ""
   },
   "workers/routes/apa.ts": {
     "mtime": 1791213512.0316508,
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794084182.2328682,
-    "seen": 1794084244.546238,
-    "ast_hash": "198213cdb77c16337446aa88d7c163b1",
+    "mtime": 1794088849.1749086,
+    "seen": 1794088924.376383,
+    "ast_hash": "b8a9ec433be03ebd813853394a14d56d",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {
@@ -876,10 +876,10 @@
     "semantic_hash": "b1e767c5428f8e70017d273661c9bf29"
   },
   "workers/routes/sync.ts": {
-    "mtime": 1791213060.7258475,
-    "seen": 1791840274.7836354,
-    "ast_hash": "a986e2e26940c3dd7482fecb8d4964e5",
-    "semantic_hash": "a986e2e26940c3dd7482fecb8d4964e5"
+    "mtime": 1794088864.311795,
+    "seen": 1794088924.381521,
+    "ast_hash": "5742ebe790b3d7ecf4649c877736eb3a",
+    "semantic_hash": ""
   },
   "workers/routes/tasks.ts": {
     "mtime": 1791213512.0418403,
