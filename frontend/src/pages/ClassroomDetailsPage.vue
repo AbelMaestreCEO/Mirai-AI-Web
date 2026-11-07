@@ -95,7 +95,7 @@
           <div class="course-detail-info">
             <h1 id="task-title" class="course-detail-title">{{ assignment.title || 'Sin título' }}</h1>
             <p id="task-course" class="course-detail-description">
-              {{ (assignment.course_title || 'General') + (assignment.section_name ? ` — Sección: ${assignment.section_name}` : '') }}
+              {{ assignment.course_title || 'General' }}
             </p>
           </div>
         </div>

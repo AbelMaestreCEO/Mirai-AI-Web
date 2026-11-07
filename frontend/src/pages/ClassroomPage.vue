@@ -53,7 +53,6 @@
           <div v-for="cls in classGroups" :key="cls.key" class="class-card">
             <div class="class-icon">📚</div>
             <h3 class="class-title">{{ cls.course_title }}</h3>
-            <p class="class-section">🗂️ Sección: {{ cls.section_name }}</p>
             <div class="class-stats">
               <span>⏳ {{ classStats(cls).pending }} pendientes</span>
               <span>✅ {{ classStats(cls).completed }} completadas</span>
@@ -69,7 +68,6 @@
         <button class="back-btn" @click="selectedClass = null">← Volver a clases</button>
         <div class="class-heading">
           <h2>{{ currentClass?.course_title }}</h2>
-          <span class="class-section">🗂️ Sección: {{ currentClass?.section_name }}</span>
         </div>
 
         <!-- Plan de evaluación de la clase, arriba del todo -->
@@ -138,7 +136,6 @@
             <h3 class="task-title">{{ card.assignment.title }}</h3>
             <p class="task-course-name">
               📚 {{ card.assignment.course_title || 'Sin curso' }}
-              <span v-if="card.assignment.section_name" style="margin-left:8px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🗂️ {{ card.assignment.section_name }}</span>
               <span v-if="card.assignment.submission_type === 'image'" style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">🖼️ Imagen</span>
               <span v-else-if="card.assignment.submission_type === 'any'" style="margin-left:4px; font-size:0.8rem; background:var(--secondary-container); color:var(--accent-color); padding:2px 8px; border-radius:12px;">📎 Cualquier formato</span>
             </p>
