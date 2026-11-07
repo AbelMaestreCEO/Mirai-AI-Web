@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1794009470.793018,
-    "seen": 1794009709.516083,
-    "ast_hash": "ce41ee760ad58f159d948bfe94de2578",
+    "mtime": 1794012771.0744445,
+    "seen": 1794012875.1358693,
+    "ast_hash": "b41e66fe2c2a21079f91caea78aafd1e",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
@@ -1380,15 +1380,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1794009401.848266,
-    "seen": 1794009709.5154881,
-    "ast_hash": "2c683d1e02734c72644d2fb478c2c5bd",
+    "mtime": 1794012835.0128381,
+    "seen": 1794012875.135317,
+    "ast_hash": "86e642fc2c206589eed187059fad76eb",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
-    "mtime": 1793582600.1251225,
-    "seen": 1793582638.4637303,
-    "ast_hash": "0c5ba44777994ef12e48511abdd0430c",
+    "mtime": 1794012800.0105703,
+    "seen": 1794012875.141605,
+    "ast_hash": "b4f534f1032b8fbdaccdce8248d2554f",
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {

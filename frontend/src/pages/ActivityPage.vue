@@ -146,6 +146,74 @@
           </button>
         </div>
       </section>
+
+      <!-- PREDICE LA SALIDA -->
+      <section v-else-if="type === 'predict_output'" class="activity-card">
+        <p class="activity-instruction">{{ payload.instructions }}</p>
+        <pre class="code-block"><code>{{ payload.code }}</code></pre>
+        <p class="activity-note">Lenguaje: {{ payload.language }}</p>
+        <div class="predict-options">
+          <label
+            v-for="(option, index) in payload.options"
+            :key="index"
+            class="predict-option"
+            :class="{ selected: predictSelected === index }"
+          >
+            <input v-model="predictSelected" type="radio" :value="index">
+            <span class="predict-letter">{{ optionLetter(Number(index)) }}</span>
+            <pre class="predict-output">{{ option }}</pre>
+          </label>
+        </div>
+        <div class="activity-actions">
+          <button class="activity-btn" :disabled="grading || predictSelected === null" @click="submitActivity">
+            {{ grading ? 'Evaluando...' : 'Entregar predicción' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- ENCUENTRA EL BUG EN EL CÓDIGO -->
+      <section v-else-if="type === 'find_bug'" class="activity-card">
+        <p class="activity-instruction">{{ payload.instructions }}</p>
+        <p class="activity-note">Lenguaje: {{ payload.language }}</p>
+        <div class="code-block code-lines">
+          <label
+            v-for="(line, index) in codeLines"
+            :key="index"
+            class="code-line"
+            :class="{ selected: bugSelected.includes(index + 1) }"
+          >
+            <input v-model="bugSelected" type="checkbox" :value="index + 1">
+            <span class="code-line-number">{{ index + 1 }}</span>
+            <code class="code-line-text">{{ line || ' ' }}</code>
+          </label>
+        </div>
+        <div class="activity-actions">
+          <button class="activity-btn" :disabled="grading || bugSelected.length === 0" @click="submitActivity">
+            {{ grading ? 'Evaluando...' : 'Entregar depuración' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- ORDENA EL CÓDIGO -->
+      <section v-else-if="type === 'order_code'" class="activity-card">
+        <p class="activity-instruction">{{ payload.instructions }}</p>
+        <p class="activity-note">Lenguaje: {{ payload.language }}</p>
+        <div class="code-block order-list">
+          <div v-for="(line, index) in codeOrder" :key="line.id" class="order-line">
+            <span class="code-line-number">{{ index + 1 }}</span>
+            <pre class="code-line-text">{{ line.text }}</pre>
+            <span class="order-actions">
+              <button class="order-btn" :disabled="index === 0" @click="moveLine(index, -1)">↑</button>
+              <button class="order-btn" :disabled="index === codeOrder.length - 1" @click="moveLine(index, 1)">↓</button>
+            </span>
+          </div>
+        </div>
+        <div class="activity-actions">
+          <button class="activity-btn" :disabled="grading" @click="submitActivity">
+            {{ grading ? 'Evaluando...' : 'Entregar orden' }}
+          </button>
+        </div>
+      </section>
       </template>
 
       <!-- RESULTADO -->
@@ -205,6 +273,61 @@
           </p>
         </div>
 
+        <div v-else-if="type === 'predict_output' && result.details" class="result-details">
+          <pre class="code-block"><code>{{ result.details.code }}</code></pre>
+          <div
+            v-for="(option, index) in result.details.options"
+            :key="index"
+            class="detail-row"
+            :class="{
+              ok: index === result.details.correct_index,
+              bad: index === result.details.selected && index !== result.details.correct_index,
+            }"
+          >
+            <strong>{{ optionLetter(Number(index)) }}.</strong>
+            <pre class="predict-output">{{ option }}</pre>
+            <span v-if="index === result.details.correct_index" class="detail-note">Correcta</span>
+            <span v-else-if="index === result.details.selected" class="detail-note">Tu elección</span>
+          </div>
+          <p v-if="result.details.explanation" class="detail-note"><strong>Por qué:</strong> {{ result.details.explanation }}</p>
+        </div>
+
+        <div v-else-if="type === 'find_bug' && result.details" class="result-details">
+          <div
+            v-for="bug in result.details.bugs"
+            :key="bug.line"
+            class="detail-row"
+            :class="result.details.selected?.includes(bug.line) ? 'ok' : 'bad'"
+          >
+            <div>
+              <p class="detail-question">Línea {{ bug.line }}</p>
+              <p class="detail-answer"><strong>Corrección:</strong> {{ bug.fix }}</p>
+              <p class="detail-note">{{ bug.explanation }}</p>
+              <p v-if="!result.details.selected?.includes(bug.line)" class="detail-note">No marcaste esta línea.</p>
+            </div>
+          </div>
+          <p v-if="result.details.falsePositives" class="detail-note">
+            <strong>Líneas marcadas que eran correctas:</strong> {{ falsePositiveLines }}
+          </p>
+        </div>
+
+        <div v-else-if="type === 'order_code' && result.details" class="result-details">
+          <p class="detail-note">
+            <strong>Coincidencias:</strong> {{ result.details.matches }} / {{ result.details.total }}
+          </p>
+          <div class="order-compare">
+            <div>
+              <p class="activity-label">Orden correcto</p>
+              <pre class="code-block"><code>{{ result.details.expected.join('\n') }}</code></pre>
+            </div>
+            <div>
+              <p class="activity-label">Tu orden</p>
+              <pre class="code-block"><code>{{ result.details.student.join('\n') }}</code></pre>
+            </div>
+          </div>
+          <p v-if="result.details.explanation" class="detail-note"><strong>Qué hace:</strong> {{ result.details.explanation }}</p>
+        </div>
+
         <div class="activity-actions">
           <button class="activity-btn secondary" @click="backToTask">Volver a la tarea</button>
         </div>
@@ -221,7 +344,15 @@ import { api, errorMessage } from '@/lib/api';
 import { dialog } from '@/lib/dialog';
 import { goToPage } from '@/lib/pages';
 
-type ActivityType = 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map';
+type ActivityType =
+  | 'flashcards'
+  | 'find_error'
+  | 'recall'
+  | 'summary'
+  | 'concept_map'
+  | 'predict_output'
+  | 'find_bug'
+  | 'order_code';
 
 const TYPE_LABELS: Record<ActivityType, string> = {
   flashcards: 'Flashcards con repetición espaciada',
@@ -229,6 +360,9 @@ const TYPE_LABELS: Record<ActivityType, string> = {
   recall: 'Recuerdo libre',
   summary: 'Resumen con límite',
   concept_map: 'Mapa conceptual simple',
+  predict_output: 'Predice la salida',
+  find_bug: 'Encuentra el bug',
+  order_code: 'Ordena el código',
 };
 
 const TYPE_HINTS: Record<ActivityType, string> = {
@@ -237,6 +371,9 @@ const TYPE_HINTS: Record<ActivityType, string> = {
   recall: 'Escribe todo lo que recuerdes sin consultar el material.',
   summary: 'Resume el texto respetando el límite de palabras.',
   concept_map: 'Conecta los conceptos con relaciones breves y correctas.',
+  predict_output: 'Lee el código y elige la salida que producirá.',
+  find_bug: 'Marca las líneas de código que contienen un error.',
+  order_code: 'Reordena las líneas para que el programa funcione.',
 };
 
 interface FeedbackItem {
@@ -277,13 +414,29 @@ const edgeFrom = ref('');
 const edgeTo = ref('');
 const edgeLabel = ref('');
 const edges = ref<{ from: string; to: string; label: string }[]>([]);
+const predictSelected = ref<number | null>(null);
+const bugSelected = ref<number[]>([]);
+const codeOrder = ref<{ id: string; text: string }[]>([]);
 
 const summaryWords = computed(() => summaryText.value.trim().split(/\s+/).filter(Boolean).length);
+
+const codeLines = computed<string[]>(() => String(payload.value?.code || '').split('\n'));
+
+const falsePositiveLines = computed<number[]>(() => {
+  const details = result.value?.details;
+  if (!details) return [];
+  const selected: number[] = Array.isArray(details.selected) ? details.selected : [];
+  const bugLines = new Set((details.bugs || []).map((bug: any) => Number(bug.line)));
+  return selected.filter((line) => !bugLines.has(Number(line)));
+});
 
 const hasReview = computed(() => {
   const details = result.value?.details;
   if (!details) return false;
   if (type.value === 'flashcards') return (details.results || []).some((item: any) => !item.correct);
+  if (type.value === 'predict_output') return details.correct === false;
+  if (type.value === 'find_bug') return Number(details.falsePositives) > 0 || Number(details.hits) < Number(details.total_bugs);
+  if (type.value === 'order_code') return Number(details.matches) < Number(details.total);
   return Boolean(details.missing?.length || details.extra?.length || details.misconceptions?.length);
 });
 
@@ -329,6 +482,9 @@ function resetLocalState() {
   edgeTo.value = '';
   edgeLabel.value = '';
   edges.value = [];
+  predictSelected.value = null;
+  bugSelected.value = [];
+  codeOrder.value = [];
   result.value = null;
 }
 
@@ -362,6 +518,9 @@ async function load() {
     if (type.value === 'flashcards') {
       cardAnswers.value = Array((data.cards || []).length).fill('');
     }
+    if (type.value === 'order_code') {
+      codeOrder.value = (data.lines || []).map((line: any) => ({ id: String(line.id), text: String(line.text ?? '') }));
+    }
     state.value = 'ready';
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -391,13 +550,38 @@ function buildAnswers(): any {
   }
   if (type.value === 'recall') return { text: recallText.value };
   if (type.value === 'summary') return { text: summaryText.value };
+  if (type.value === 'predict_output') return { selected: predictSelected.value };
+  if (type.value === 'find_bug') return { selected: bugSelected.value };
+  if (type.value === 'order_code') return { order: codeOrder.value.map((line) => line.id) };
   return { edges: edges.value };
+}
+
+function optionLetter(index: number): string {
+  return 'ABCD'[index] ?? String(index + 1);
+}
+
+function moveLine(index: number, delta: number) {
+  const target = index + delta;
+  if (target < 0 || target >= codeOrder.value.length) return;
+  const copy = [...codeOrder.value];
+  const [item] = copy.splice(index, 1);
+  if (!item) return;
+  copy.splice(target, 0, item);
+  codeOrder.value = copy;
 }
 
 async function submitActivity() {
   if (grading.value) return;
   if (type.value === 'flashcards' && cardAnswers.value.every((answer) => !answer.trim())) {
     dialog.alert('Escribe al menos una respuesta antes de calificar.');
+    return;
+  }
+  if (type.value === 'predict_output' && predictSelected.value === null) {
+    dialog.alert('Elige una de las opciones de salida.');
+    return;
+  }
+  if (type.value === 'find_bug' && bugSelected.value.length === 0) {
+    dialog.alert('Marca al menos una línea con error.');
     return;
   }
   grading.value = true;
@@ -725,8 +909,144 @@ onMounted(() => {
   color: var(--text-secondary, #888);
 }
 
+:where(body[data-page="activity"]) .code-block {
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, .14));
+  border-radius: 10px;
+  padding: .8rem .9rem;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--text-primary, #eee);
+}
+
+:where(body[data-page="activity"]) .code-block code {
+  font-family: inherit;
+  white-space: pre;
+}
+
+:where(body[data-page="activity"]) .predict-options {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+:where(body[data-page="activity"]) .predict-option {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .6rem .7rem;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, .14));
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+:where(body[data-page="activity"]) .predict-option.selected {
+  border-color: var(--accent-primary, #6c63ff);
+  background: rgba(108, 99, 255, .12);
+}
+
+:where(body[data-page="activity"]) .predict-option input {
+  margin-top: .35rem;
+  accent-color: var(--accent-primary, #6c63ff);
+}
+
+:where(body[data-page="activity"]) .predict-letter {
+  font-weight: 700;
+  color: var(--accent-primary, #6c63ff);
+}
+
+:where(body[data-page="activity"]) .predict-output {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+:where(body[data-page="activity"]) .code-lines {
+  padding: .4rem 0;
+}
+
+:where(body[data-page="activity"]) .code-line {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .12rem .6rem;
+  cursor: pointer;
+}
+
+:where(body[data-page="activity"]) .code-line.selected {
+  background: rgba(108, 99, 255, .16);
+}
+
+:where(body[data-page="activity"]) .code-line input {
+  margin-top: .35rem;
+  accent-color: var(--accent-primary, #6c63ff);
+}
+
+:where(body[data-page="activity"]) .code-line-number {
+  min-width: 1.6rem;
+  text-align: right;
+  color: var(--text-secondary, #888);
+  user-select: none;
+}
+
+:where(body[data-page="activity"]) .code-line-text {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .85rem;
+  white-space: pre;
+}
+
+:where(body[data-page="activity"]) .order-list {
+  padding: .4rem 0;
+}
+
+:where(body[data-page="activity"]) .order-line {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .2rem .6rem;
+}
+
+:where(body[data-page="activity"]) .order-line .code-line-text {
+  flex: 1;
+}
+
+:where(body[data-page="activity"]) .order-actions {
+  display: flex;
+  gap: .25rem;
+}
+
+:where(body[data-page="activity"]) .order-btn {
+  background: transparent;
+  color: var(--text-primary, #eee);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, .2));
+  border-radius: 6px;
+  width: 1.8rem;
+  height: 1.8rem;
+  cursor: pointer;
+}
+
+:where(body[data-page="activity"]) .order-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+:where(body[data-page="activity"]) .order-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .8rem;
+}
+
 @media (max-width: 640px) {
   :where(body[data-page="activity"]) .edge-form {
+    grid-template-columns: 1fr;
+  }
+  :where(body[data-page="activity"]) .order-compare {
     grid-template-columns: 1fr;
   }
 }

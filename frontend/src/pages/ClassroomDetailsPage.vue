@@ -175,6 +175,21 @@
               <span class="method-name">Mapa conceptual</span>
               <span class="method-desc">Conecta los conceptos clave con relaciones correctas.</span>
             </button>
+            <button class="method-card" @click="chooseMethod('predict_output')">
+              <span class="method-icon">🔮</span>
+              <span class="method-name">Predice la salida</span>
+              <span class="method-desc">Lee un fragmento de código y elige qué imprimirá o mostrará.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('find_bug')">
+              <span class="method-icon">🐞</span>
+              <span class="method-name">Encuentra el bug</span>
+              <span class="method-desc">Marca las líneas de código que contienen errores reales.</span>
+            </button>
+            <button class="method-card" @click="chooseMethod('order_code')">
+              <span class="method-icon">🔀</span>
+              <span class="method-name">Ordena el código</span>
+              <span class="method-desc">Reordena las líneas para reconstruir el programa correcto.</span>
+            </button>
             <button class="method-card method-card-ludo" @click="openLudo">
               <span class="method-icon">🎲</span>
               <span class="method-name">Ludo multijugador</span>
@@ -533,11 +548,11 @@ const fatal = ref('');
 const isImageName = (name: string) => /\.(png|jpg|jpeg|webp)$/i.test(name);
 
 // ── Módulos Aprender / Hacer ──────────────────────────────────────────────
-type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map';
+type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' | 'predict_output' | 'find_bug' | 'order_code';
 
-const ACTIVITY_METHODS: TaskMethod[] = ['flashcards', 'find_error', 'recall', 'summary', 'concept_map'];
+const ACTIVITY_METHODS: TaskMethod[] = ['flashcards', 'find_error', 'recall', 'summary', 'concept_map', 'predict_output', 'find_bug', 'order_code'];
 
-function isActivityMethod(value: TaskMethod | null): value is 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' {
+function isActivityMethod(value: TaskMethod | null): value is 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' | 'predict_output' | 'find_bug' | 'order_code' {
   return !!value && ACTIVITY_METHODS.includes(value);
 }
 
@@ -567,6 +582,9 @@ const METHOD_LABELS: Record<TaskMethod, string> = {
   recall: 'Recuerdo libre',
   summary: 'Resumen con límite',
   concept_map: 'Mapa conceptual',
+  predict_output: 'Predice la salida',
+  find_bug: 'Encuentra el bug',
+  order_code: 'Ordena el código',
 };
 
 const METHOD_STORAGE_PREFIX = 'mirai-task-method:';
