@@ -66,6 +66,50 @@
           <span class="class-section">🗂️ Sección: {{ currentClass?.section_name }}</span>
         </div>
 
+        <!-- Plan de evaluación de la clase, arriba del todo -->
+        <section v-if="classPlans.length" class="eval-plans">
+          <h3 class="eval-plans-title">📚 Plan de evaluación</h3>
+          <article v-for="plan in classPlans" :key="plan.id" class="eval-plan-card">
+            <header class="eval-plan-head">
+              <div>
+                <h4 class="eval-plan-name">{{ plan.title }}</h4>
+                <p v-if="plan.strategy" class="eval-plan-strategy">{{ plan.strategy }}</p>
+              </div>
+              <div class="eval-plan-total">
+                <span class="eval-plan-total-value">{{ plan.obtained }}</span>
+                <span class="eval-plan-total-max">/ {{ plan.maxScore || plan.total }} pts</span>
+              </div>
+            </header>
+
+            <ul class="eval-plan-items">
+              <li v-for="item in plan.items" :key="item.assignment.id" class="eval-plan-item">
+                <div class="eval-plan-item-main">
+                  <strong class="eval-plan-item-title">{{ item.assignment.title }}</strong>
+                  <div class="eval-plan-item-meta">
+                    <span>📅 {{ planDue(item.assignment.due_date) }}</span>
+                    <span>Puntaje: {{ item.assignment.max_score ?? '—' }}</span>
+                  </div>
+                  <details class="eval-plan-contents">
+                    <summary>Ver contenidos</summary>
+                    <p>{{ planContents(item.assignment.description) }}</p>
+                  </details>
+                </div>
+                <span
+                  class="eval-plan-grade"
+                  :class="{
+                    'is-graded': item.score !== null,
+                    'is-submitted': item.submitted && item.score === null,
+                  }"
+                >
+                  {{ item.score !== null
+                    ? `${item.score} / ${item.assignment.max_score ?? '?'}`
+                    : item.submitted ? 'Entregado' : 'Pendiente' }}
+                </span>
+              </li>
+            </ul>
+          </article>
+        </section>
+
         <div id="tasks-count" class="tasks-count">{{ countLabel }}</div>
 
         <div id="tasks-container" ref="containerEl" class="task-list">
@@ -157,12 +201,21 @@ import { currentUser } from '@/lib/session';
 interface Assignment {
   id: number | string;
   title: string;
+  description?: string | null;
   course_id?: string | null;
   course_title?: string | null;
   section_id?: string | null;
   section_name?: string | null;
   submission_type?: string | null;
   due_date?: string | null;
+  max_score?: number | null;
+  created_at?: string | null;
+  plan_id?: string | null;
+  plan_title?: string | null;
+  plan_strategy?: string | null;
+  plan_max_score?: number | null;
+  points_per_evaluation?: number | null;
+  evaluation_count?: number | null;
 }
 
 interface Submission {
@@ -261,6 +314,80 @@ watch(classGroups, (groups) => {
 const filtered = computed(() =>
   selectedClass.value === null ? assignments.value : currentClass.value?.assignments ?? [],
 );
+
+interface PlanItem {
+  assignment: Assignment;
+  score: number | null;
+  submitted: boolean;
+}
+
+interface ClassPlan {
+  id: string;
+  title: string;
+  strategy: string;
+  maxScore: number;
+  total: number;
+  obtained: number;
+  items: PlanItem[];
+}
+
+// Plan de evaluación de la clase seleccionada, con sus contenidos y notas.
+const classPlans = computed<ClassPlan[]>(() => {
+  const byAssignment = new Map(
+    submissions.value
+      .filter((s) => s.status !== 'reset')
+      .map((s) => [String(s.assignment_id), s]),
+  );
+  const plans = new Map<string, ClassPlan>();
+  for (const assignment of currentClass.value?.assignments ?? []) {
+    if (!assignment.plan_id) continue;
+    const key = String(assignment.plan_id);
+    let plan = plans.get(key);
+    if (!plan) {
+      plan = {
+        id: key,
+        title: assignment.plan_title || 'Plan de evaluación',
+        strategy: assignment.plan_strategy || '',
+        maxScore: Number(assignment.plan_max_score) || 0,
+        total: 0,
+        obtained: 0,
+        items: [],
+      };
+      plans.set(key, plan);
+    }
+    const submission = byAssignment.get(String(assignment.id));
+    const score = submission?.score ?? null;
+    plan.total += Number(assignment.max_score) || 0;
+    if (score !== null) plan.obtained += Number(score) || 0;
+    plan.items.push({ assignment, score, submitted: !!submission });
+  }
+  for (const plan of plans.values()) {
+    plan.items.sort((a, b) => {
+      const aKey = String(a.assignment.due_date || a.assignment.created_at || '');
+      const bKey = String(b.assignment.due_date || b.assignment.created_at || '');
+      return aKey.localeCompare(bKey) || a.assignment.title.localeCompare(b.assignment.title);
+    });
+  }
+  return [...plans.values()];
+});
+
+// Quita las líneas de cabecera del plan que ya se muestran aparte.
+function planContents(description?: string | null): string {
+  const text = String(description || '').trim();
+  if (!text) return 'Sin contenido detallado.';
+  const cleaned = text
+    .replace(/^Plan de evaluación:.*$/m, '')
+    .replace(/^Estrategia:.*$/m, '')
+    .trim();
+  return cleaned || 'Sin contenido detallado.';
+}
+
+function planDue(value?: string | null): string {
+  if (!value) return 'Sin fecha';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Sin fecha';
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
 
 const classLabel = computed(() => {
   const n = classGroups.value.length;
@@ -489,5 +616,147 @@ onMounted(async () => {
   font-size: 1.3rem;
   font-weight: 800;
   color: var(--text-primary);
+}
+
+/* Plan de evaluación de la clase */
+:where(body[data-page="classroom"]) .eval-plans {
+  margin: 18px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+:where(body[data-page="classroom"]) .eval-plans-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  padding: 0 4px;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-card {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-lg);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--secondary-container);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-strategy {
+  margin-top: 4px;
+  font-size: .82rem;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-total-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent-color);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-total-max {
+  font-size: .8rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-item-title {
+  display: block;
+  color: var(--text-primary);
+  font-size: .92rem;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: .78rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-contents {
+  margin-top: 8px;
+  font-size: .82rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-contents summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-contents p {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-color);
+  white-space: pre-line;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-grade {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: .8rem;
+  font-weight: 700;
+  background: rgba(245, 158, 11, .15);
+  color: #b45309;
+  white-space: nowrap;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-grade.is-graded {
+  background: rgba(22, 163, 74, .15);
+  color: #16a34a;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-grade.is-submitted {
+  background: var(--secondary-container);
+  color: var(--accent-color);
 }
 </style>

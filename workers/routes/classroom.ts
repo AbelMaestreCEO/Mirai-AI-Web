@@ -1314,24 +1314,36 @@ Formato exacto:
     SELECT * FROM (
         SELECT DISTINCT
             a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-            a.section_id, a.created_at, a.submission_type,
+            a.section_id, a.created_at, a.submission_type, a.plan_id,
             c.title as course_title,
-            s.name  as section_name
+            s.name  as section_name,
+            ep.title as plan_title,
+            ep.strategy as plan_strategy,
+            ep.max_score as plan_max_score,
+            ep.points_per_evaluation,
+            ep.evaluation_count
         FROM assignments a
         JOIN section_students ss ON ss.section_id = a.section_id
         LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
+        LEFT JOIN evaluation_plans ep ON ep.id = a.plan_id
         WHERE UPPER(ss.user_dni) = UPPER(?) AND a.published_at IS NOT NULL
         UNION
         SELECT DISTINCT
             a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
-            a.section_id, a.created_at, a.submission_type,
+            a.section_id, a.created_at, a.submission_type, a.plan_id,
             c.title as course_title,
-            s.name  as section_name
+            s.name  as section_name,
+            ep.title as plan_title,
+            ep.strategy as plan_strategy,
+            ep.max_score as plan_max_score,
+            ep.points_per_evaluation,
+            ep.evaluation_count
         FROM assignments a
         JOIN assignment_students ast ON ast.assignment_id = a.id
         LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
+        LEFT JOIN evaluation_plans ep ON ep.id = a.plan_id
         WHERE UPPER(ast.user_dni) = UPPER(?) AND a.published_at IS NOT NULL
     )
     ORDER BY created_at DESC
