@@ -77,7 +77,6 @@
             <header class="eval-plan-head">
               <div>
                 <h4 class="eval-plan-name">{{ plan.title }}</h4>
-                <p v-if="plan.strategy" class="eval-plan-strategy">{{ plan.strategy }}</p>
               </div>
               <div class="eval-plan-total">
                 <span class="eval-plan-total-value">{{ plan.obtained }}</span>
@@ -704,13 +703,6 @@ onMounted(async () => {
   font-size: 1rem;
   font-weight: 800;
   color: var(--text-primary);
-}
-
-:where(body[data-page="classroom"]) .eval-plan-strategy {
-  margin-top: 4px;
-  font-size: .82rem;
-  color: var(--text-secondary);
-  white-space: pre-line;
 }
 
 :where(body[data-page="classroom"]) .eval-plan-total {
