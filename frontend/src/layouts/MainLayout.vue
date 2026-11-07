@@ -102,6 +102,7 @@ import AppLink from '@/components/AppLink.vue';
 import { NAV_ITEMS } from '@/lib/nav';
 import { pageHref } from '@/lib/pages';
 import { resetSession } from '@/lib/session';
+import { dialog } from '@/lib/dialog';
 import { closeMenu, shell, toggleCollapsed } from '@/lib/shell';
 
 const route = useRoute();
@@ -118,7 +119,7 @@ function onNavigate() {
 }
 
 async function logout() {
-  if (!confirm('¿Estás seguro de que deseas cerrar sesión?')) return;
+  if (!(await dialog.confirm('¿Estás seguro de que deseas cerrar sesión?', { title: 'Cerrar sesión', tone: 'warning' }))) return;
   try {
     await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
   } catch {

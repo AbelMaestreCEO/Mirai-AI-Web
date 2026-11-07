@@ -148,6 +148,7 @@ import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { goToPage } from '@/lib/pages';
 import { ensureSubscribed } from '@/lib/push';
 import { flashElement, showToast, useRealtime } from '@/lib/realtime';
@@ -336,9 +337,9 @@ async function openProfessorPanel() {
   try {
     const { data } = await api.get<{ is_professor?: boolean }>('/api/check-professor-role');
     if (data.is_professor) goToPage(router, 'classroom_admin');
-    else alert('⛔ No tienes acceso al panel de profesor. Contacta al administrador.');
+    else dialog.alert('⛔ No tienes acceso al panel de profesor. Contacta al administrador.');
   } catch {
-    alert('Error verificando acceso. Inténtalo de nuevo.');
+    dialog.alert('Error verificando acceso. Inténtalo de nuevo.');
   }
 }
 

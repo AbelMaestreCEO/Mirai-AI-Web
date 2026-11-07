@@ -1,6 +1,7 @@
 // Piezas del chat sin interfaz: contrato de /api/chat, lectura del streaming,
 // detectores de tipo de petición y descargas. La página es ChatPage.vue.
 
+import { dialog } from './dialog';
 import { proxiedAssetUrl } from './markdown';
 
 export const CONVERSATION_KEY = 'mirai-ai-conversation-id';
@@ -218,7 +219,10 @@ export async function downloadImage(imageUrl: string, filename = 'imagen.png'): 
     await downloadVia(proxiedAssetUrl(imageUrl.replace(location.origin, ''), 'image'), filename);
   } catch (error) {
     console.error('Error descargando imagen:', error);
-    alert('No se pudo descargar automáticamente. Haz clic derecho en la imagen y selecciona "Guardar imagen como..."');
+    void dialog.alert('No se pudo descargar automáticamente. Haz clic derecho en la imagen y selecciona "Guardar imagen como..."', {
+      title: 'Descarga no disponible',
+      tone: 'warning',
+    });
   }
 }
 
@@ -227,6 +231,9 @@ export async function downloadVideo(videoUrl: string, filename: string): Promise
     await downloadVia(proxiedAssetUrl(videoUrl, 'video'), filename);
   } catch (error) {
     console.error('Error descargando video:', error);
-    alert('No se pudo descargar automáticamente. Haz clic derecho y "Guardar como..."');
+    void dialog.alert('No se pudo descargar automáticamente. Haz clic derecho y "Guardar como..."', {
+      title: 'Descarga no disponible',
+      tone: 'warning',
+    });
   }
 }

@@ -379,6 +379,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { ensureSubscribed } from '@/lib/push';
 import { flashElement, useRealtime } from '@/lib/realtime';
 
@@ -708,10 +709,10 @@ async function submitForm() {
 
 // ── Eliminar ──────────────────────────────────────────────────────────────
 async function deleteProduct(id: Product['id']) {
-  if (!confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y se borrará la imagen asociada.')) return;
+  if (!(await dialog.confirm('¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer y se borrará la imagen asociada.'))) return;
   const { ok, data } = await api.delete(`/api/inventory/delete?id=${encodeURIComponent(String(id))}`);
   if (!ok) {
-    alert(`❌ Error: ${errorMessage(data, 'Error al eliminar')}`);
+    dialog.alert(`❌ Error: ${errorMessage(data, 'Error al eliminar')}`);
     return;
   }
   await loadInventory({ quiet: true });

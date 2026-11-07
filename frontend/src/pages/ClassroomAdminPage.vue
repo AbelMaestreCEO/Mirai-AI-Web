@@ -680,6 +680,7 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { escapeHtml } from '@/lib/markdown';
 import { goToPage } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
@@ -798,15 +799,15 @@ async function createCourse() {
   try {
     const { ok, data } = await api.post('/api/create-course', { title: courseForm.title, description: courseForm.description, user_dni: dni.value });
     if (ok) {
-      alert('✅ Curso creado con éxito');
+      dialog.alert('✅ Curso creado con éxito');
       courseModal.value = false;
       Object.assign(courseForm, { title: '', description: '' });
       await loadCourses();
     } else {
-      alert('❌ Error: ' + errorMessage(data, ''));
+      dialog.alert('❌ Error: ' + errorMessage(data, ''));
     }
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   }
 }
 
@@ -866,7 +867,7 @@ async function createTask() {
       grading_mode: taskForm.gradingMode,
     });
     if (ok) {
-      alert('✅ Tarea creada');
+      dialog.alert('✅ Tarea creada');
       resetTaskForm();
       switchTab('list');
     } else {
@@ -902,17 +903,17 @@ async function countStudents(taskId: Id) {
 }
 
 async function deleteTask(id: Id) {
-  if (!confirm('¿Eliminar esta tarea? Se borrarán todas las entregas.')) return;
+  if (!(await dialog.confirm('¿Eliminar esta tarea? Se borrarán todas las entregas.'))) return;
   try {
     const { ok } = await api.delete(`/api/delete-assignment?id=${encodeURIComponent(String(id))}`);
     if (!ok) {
-      alert('Error al eliminar');
+      dialog.alert('Error al eliminar');
       return;
     }
     await loadTasks();
     await loadCourses();
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   }
 }
 
@@ -1063,14 +1064,14 @@ async function savePlanSection(plan: EvaluationPlanRow) {
       section_id: value || null,
     });
     if (!ok) {
-      alert('❌ Error: ' + errorMessage(data, 'No se pudo actualizar la clase del plan'));
+      dialog.alert('❌ Error: ' + errorMessage(data, 'No se pudo actualizar la clase del plan'));
       return;
     }
     await loadPlans();
     await loadTasks();
-    alert(value ? '✅ Clase asignada al plan' : '✅ Clase quitada del plan');
+    dialog.alert(value ? '✅ Clase asignada al plan' : '✅ Clase quitada del plan');
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   } finally {
     planSectionSaving.value = '';
   }
@@ -1093,14 +1094,14 @@ async function loadDisputes() {
 }
 
 async function reviewDispute(submissionId: Id, maxScore: number) {
-  const input = prompt(`Ingresa la nueva nota (0-${maxScore}):`);
+  const input = await dialog.prompt(`Ingresa la nueva nota (0-${maxScore}):`);
   if (input === null) return;
   const note = parseInt(input, 10);
   if (Number.isNaN(note) || note < 0 || note > maxScore) {
-    alert('Nota inválida. Debe ser un número entre 0 y ' + maxScore);
+    dialog.alert('Nota inválida. Debe ser un número entre 0 y ' + maxScore);
     return;
   }
-  const feedback = prompt('Ingresa tu retroalimentación para el estudiante (opcional):') || '';
+  const feedback = await dialog.prompt('Ingresa tu retroalimentación para el estudiante (opcional):') || '';
   try {
     const { ok, data } = await api.post<{ new_score?: number; error?: string }>('/api/professor-update-grade', {
       submission_id: submissionId,
@@ -1108,12 +1109,12 @@ async function reviewDispute(submissionId: Id, maxScore: number) {
       feedback,
     });
     if (!ok) throw new Error(errorMessage(data, 'Error al actualizar nota'));
-    alert(`✅ Nota actualizada a ${data.new_score}/${maxScore}. La disputa ha sido resuelta.`);
+    dialog.alert(`✅ Nota actualizada a ${data.new_score}/${maxScore}. La disputa ha sido resuelta.`);
     await loadDisputes();
     await loadTasks();
   } catch (err) {
     console.error('Error:', err);
-    alert('❌ Error al actualizar nota: ' + reason(err));
+    dialog.alert('❌ Error al actualizar nota: ' + reason(err));
   }
 }
 
@@ -1143,31 +1144,31 @@ async function loadSections() {
 async function createSection() {
   const name = sectionForm.name.trim();
   if (!name || !sectionForm.courseId) {
-    alert('El nombre y la materia son obligatorios');
+    dialog.alert('El nombre y la materia son obligatorios');
     return;
   }
   try {
     const { ok, data } = await api.post('/api/create-section', { name, course_id: sectionForm.courseId, description: sectionForm.description.trim() });
     if (ok) {
-      alert('✅ Sección creada');
+      dialog.alert('✅ Sección creada');
       Object.assign(sectionForm, { name: '', courseId: '', description: '' });
       await loadSections();
     } else {
-      alert('❌ Error: ' + errorMessage(data, ''));
+      dialog.alert('❌ Error: ' + errorMessage(data, ''));
     }
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   }
 }
 
 async function deleteSection(id: Id) {
-  if (!confirm('¿Eliminar esta sección? No se eliminarán las tareas ni los estudiantes ya asignados.')) return;
+  if (!(await dialog.confirm('¿Eliminar esta sección? No se eliminarán las tareas ni los estudiantes ya asignados.'))) return;
   try {
     const { ok, data } = await api.delete(`/api/delete-section?id=${encodeURIComponent(String(id))}`);
     if (ok) await loadSections();
-    else alert('❌ Error: ' + errorMessage(data, ''));
+    else dialog.alert('❌ Error: ' + errorMessage(data, ''));
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   }
 }
 
@@ -1195,7 +1196,7 @@ async function selectSectionForStudents(id: Id) {
 async function addStudentToSection() {
   const userDni = sectionStudentDni.value.trim();
   if (!selectedSection.value || !userDni) {
-    alert('Selecciona una sección y escribe un DNI');
+    dialog.alert('Selecciona una sección y escribe un DNI');
     return;
   }
   try {
@@ -1205,15 +1206,15 @@ async function addStudentToSection() {
       await loadSections();
       await loadSectionStudents();
     } else {
-      alert('❌ Error: ' + errorMessage(data, ''));
+      dialog.alert('❌ Error: ' + errorMessage(data, ''));
     }
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   }
 }
 
 async function removeStudentFromSection(userDni: string) {
-  if (!confirm('¿Quitar a este estudiante de la sección?')) return;
+  if (!(await dialog.confirm('¿Quitar a este estudiante de la sección?'))) return;
   try {
     const { ok } = await api.delete('/api/section-remove-student', { section_id: selectedSection.value, user_dni: userDni });
     if (ok) {
@@ -1221,7 +1222,7 @@ async function removeStudentFromSection(userDni: string) {
       await loadSections();
     }
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   }
 }
 
@@ -1255,7 +1256,7 @@ const batchFileInput = ref<HTMLInputElement | null>(null);
 
 function openBatchModal() {
   if (!selectedSection.value) {
-    alert('Selecciona una sección primero');
+    dialog.alert('Selecciona una sección primero');
     return;
   }
   Object.assign(batch, { open: true, dnis: [], error: '', importing: false });
@@ -1306,12 +1307,12 @@ async function confirmBatchImport() {
       await loadSectionStudents();
       const inserted = data.inserted ?? 0;
       const skipped = data.skipped ?? 0;
-      alert(`✅ Importación completa: ${inserted} agregado${inserted !== 1 ? 's' : ''}, ${skipped} ya existía${skipped !== 1 ? 'n' : ''}.`);
+      dialog.alert(`✅ Importación completa: ${inserted} agregado${inserted !== 1 ? 's' : ''}, ${skipped} ya existía${skipped !== 1 ? 'n' : ''}.`);
     } else {
-      alert('❌ Error: ' + (data.error || 'Error desconocido'));
+      dialog.alert('❌ Error: ' + (data.error || 'Error desconocido'));
     }
   } catch {
-    alert('Error de conexión');
+    dialog.alert('Error de conexión');
   } finally {
     batch.importing = false;
   }
@@ -1362,7 +1363,7 @@ function feedbackSummary(raw: SubmissionRow['feedback'], max = Infinity): string
 function exportExcel() {
   const list = filteredSubmissions.value;
   if (!list.length) {
-    alert('No hay datos para exportar');
+    dialog.alert('No hay datos para exportar');
     return;
   }
   const headers = ['Estudiante', 'Cédula', 'Tarea', 'Sección', 'Nota IA', 'Nota Máxima', 'Estado', 'Fecha Entrega', 'Observaciones IA', 'Retroalimentación Profesor'];
@@ -1389,7 +1390,7 @@ function exportExcel() {
 function exportPdf() {
   const list = filteredSubmissions.value;
   if (!list.length) {
-    alert('No hay datos para exportar');
+    dialog.alert('No hay datos para exportar');
     return;
   }
   const cell = (v: unknown) => escapeHtml(String(v));
@@ -1480,7 +1481,7 @@ onMounted(async () => {
       return;
     }
     if (!data.is_professor) {
-      alert('⛔ Acceso denegado.');
+      dialog.alert('⛔ Acceso denegado.');
       goToPage(router, '');
       return;
     }

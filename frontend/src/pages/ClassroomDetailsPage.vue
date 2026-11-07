@@ -446,6 +446,7 @@ import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { extractText, fileExtension } from '@/lib/chat-files';
 import { goToPage } from '@/lib/pages';
 
@@ -570,9 +571,9 @@ const METHOD_LABELS: Record<TaskMethod, string> = {
 
 const METHOD_STORAGE_PREFIX = 'mirai-task-method:';
 
-function chooseMethod(next: TaskMethod) {
+async function chooseMethod(next: TaskMethod) {
   if (methodLocked.value) return;
-  if (!confirm(`Vas a hacer esta tarea con "${METHOD_LABELS[next]}". Esa será tu única forma de hacerla y no podrás cambiarla después. ¿Continuar?`)) {
+  if (!(await dialog.confirm(`Vas a hacer esta tarea con "${METHOD_LABELS[next]}". Esa será tu única forma de hacerla y no podrás cambiarla después. ¿Continuar?`))) {
     return;
   }
   methodLocked.value = true;
@@ -777,7 +778,7 @@ async function finishQuiz() {
 }
 
 async function disagreeWithGrade() {
-  if (!confirm('Puedes reiniciar esta tarea para volver a hacerla, pero solo tienes una oportunidad. ¿Continuar?')) {
+  if (!(await dialog.confirm('Puedes reiniciar esta tarea para volver a hacerla, pero solo tienes una oportunidad. ¿Continuar?'))) {
     return;
   }
   try {
@@ -794,7 +795,7 @@ async function disagreeWithGrade() {
       await load();
     }
   } catch (err) {
-    alert(err instanceof Error ? err.message : String(err));
+    dialog.alert(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -947,11 +948,11 @@ const submitStatus = ref<{ text: string; type: 'success' | 'error' } | null>(nul
 function addFile(file: File) {
   const allowed = upload.value.accept.split(',').map((e) => e.replace('.', ''));
   if (!allowed.includes(fileExtension(file.name))) {
-    alert(`El archivo ${file.name} no es válido. Esta tarea solo acepta: ${upload.value.label}.`);
+    dialog.alert(`El archivo ${file.name} no es válido. Esta tarea solo acepta: ${upload.value.label}.`);
     return;
   }
   if (file.size > MAX_FILE_SIZE) {
-    alert(`El archivo ${file.name} supera los 10MB`);
+    dialog.alert(`El archivo ${file.name} supera los 10MB`);
     return;
   }
   files.value.push(file);
@@ -1041,17 +1042,17 @@ async function confirmEvaluation() {
   const criteria = submittedImage.value ? IMAGE_CRITERIA : DOCUMENT_CRITERIA;
   const intro = submittedImage.value ? '🖼️ La IA analizará tu imagen' : 'La IA evaluará tu trabajo';
   const message = `${intro} basándose en los siguientes criterios:\n\n${criteria.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n¿Deseas proceder?`;
-  if (!confirm(message)) return;
+  if (!(await dialog.confirm(message))) return;
 
   evaluating.value = true;
   try {
     const { ok, data } = await api.post<{ score?: number; max_score?: number; error?: string }>('/api/evaluate-submission', { submission_id: s.id });
     if (!ok) throw new Error(errorMessage(data, 'Error al evaluar'));
-    alert(`✅ Evaluación completada: ${data.score}/${data.max_score}`);
+    dialog.alert(`✅ Evaluación completada: ${data.score}/${data.max_score}`);
     await load();
   } catch (err) {
     console.error('Error evaluando:', err);
-    alert('❌ Error al evaluar: ' + (err instanceof Error ? err.message : String(err)));
+    dialog.alert('❌ Error al evaluar: ' + (err instanceof Error ? err.message : String(err)));
   } finally {
     evaluating.value = false;
   }

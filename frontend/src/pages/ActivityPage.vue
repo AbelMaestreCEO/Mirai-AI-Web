@@ -218,6 +218,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { goToPage } from '@/lib/pages';
 
 type ActivityType = 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map';
@@ -396,7 +397,7 @@ function buildAnswers(): any {
 async function submitActivity() {
   if (grading.value) return;
   if (type.value === 'flashcards' && cardAnswers.value.every((answer) => !answer.trim())) {
-    alert('Escribe al menos una respuesta antes de calificar.');
+    dialog.alert('Escribe al menos una respuesta antes de calificar.');
     return;
   }
   grading.value = true;
@@ -410,7 +411,7 @@ async function submitActivity() {
     result.value = data;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err) {
-    alert(err instanceof Error ? err.message : String(err));
+    dialog.alert(err instanceof Error ? err.message : String(err));
   } finally {
     grading.value = false;
   }

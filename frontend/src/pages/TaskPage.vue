@@ -361,6 +361,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { accentColor, loadGoogleMaps, mapColorScheme, pinSvg } from '@/lib/google-maps';
 import { ensureSubscribed, notificationPermission, requestNotifications } from '@/lib/push';
 
@@ -684,7 +685,7 @@ function openEditModal(t: Task) {
 async function saveTask() {
   const title = form.title.trim();
   if (!title) {
-    alert('Escribe un título.');
+    dialog.alert('Escribe un título.');
     return;
   }
   const payload = {
@@ -731,7 +732,7 @@ async function saveTask() {
     }
     modalOpen.value = false;
   } catch (err) {
-    alert(`Error al guardar: ${err instanceof Error ? err.message : String(err)}`);
+    dialog.alert(`Error al guardar: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     saving.value = false;
   }

@@ -180,9 +180,9 @@
     "semantic_hash": "ddfcafb52f75c798d6952f486c72876f"
   },
   "frontend/src/App.vue": {
-    "mtime": 1792971604.4283311,
-    "seen": 1792971731.7168734,
-    "ast_hash": "41eb41b692e44d10201efdd6df57daf1",
+    "mtime": 1794009322.2567098,
+    "seen": 1794009709.499046,
+    "ast_hash": "029d9edf71e7fbbd42fe106a213727e9",
     "semantic_hash": ""
   },
   "frontend/src/boot/appearance.ts": {
@@ -228,9 +228,9 @@
     "semantic_hash": "61832bb97bfc3651664ea8ba4c220a32"
   },
   "frontend/src/layouts/MainLayout.vue": {
-    "mtime": 1792881583.1245844,
-    "seen": 1792881610.2361183,
-    "ast_hash": "cc711be6cfc08e02ef41436943b01256",
+    "mtime": 1794009497.1456916,
+    "seen": 1794009709.501526,
+    "ast_hash": "b88238a9503246d4a056358461f688e7",
     "semantic_hash": ""
   },
   "frontend/src/lib/apa-docx.ts": {
@@ -240,10 +240,10 @@
     "semantic_hash": "9cc625e1b651c0465a7b1c105c858717"
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1791240939.1455941,
-    "seen": 1791840274.7835732,
-    "ast_hash": "439846a6f52d683d8691f806b26d8be0",
-    "semantic_hash": "439846a6f52d683d8691f806b26d8be0"
+    "mtime": 1794009522.5245676,
+    "seen": 1794009709.5018566,
+    "ast_hash": "a245dc3238bdcb16c5e613135905086c",
+    "semantic_hash": ""
   },
   "frontend/src/lib/cdn.ts": {
     "mtime": 1791258331.4960506,
@@ -258,10 +258,10 @@
     "semantic_hash": "9c18fa2b8fd70c42e35600a73f12fc92"
   },
   "frontend/src/lib/chat.ts": {
-    "mtime": 1791948771.6782744,
-    "seen": 1792123934.5175052,
-    "ast_hash": "7e118a11254a483e318d4d87d962f42e",
-    "semantic_hash": "7e118a11254a483e318d4d87d962f42e"
+    "mtime": 1794009522.621109,
+    "seen": 1794009709.5023935,
+    "ast_hash": "81e0fa63182163311ad51304495fb3c5",
+    "semantic_hash": ""
   },
   "frontend/src/lib/code-languages.ts": {
     "mtime": 1791241845.6155033,
@@ -390,45 +390,45 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/AttendanceAdminPage.vue": {
-    "mtime": 1792884851.30826,
-    "seen": 1792884887.7075574,
-    "ast_hash": "24c8ff6975fe4952f6227ed93ecdd3d7",
+    "mtime": 1794009401.8790183,
+    "seen": 1794009709.5160668,
+    "ast_hash": "a347556ee8513cd74298232beb301a3c",
     "semantic_hash": ""
   },
   "frontend/src/pages/AttendancePage.vue": {
-    "mtime": 1791258331.4980502,
-    "seen": 1791840274.783589,
-    "ast_hash": "147ccae00abdaa8d59d8acb7a66df4f3",
-    "semantic_hash": "147ccae00abdaa8d59d8acb7a66df4f3"
+    "mtime": 1794009401.8870223,
+    "seen": 1794009709.5160713,
+    "ast_hash": "a024b208159424199f00e81726dfc540",
+    "semantic_hash": ""
   },
   "frontend/src/pages/ChatPage.vue": {
-    "mtime": 1792809578.6299553,
-    "seen": 1792809626.683216,
-    "ast_hash": "5f4f86f0b1fb6f9e3263edf2c5af41e5",
+    "mtime": 1794009401.9025452,
+    "seen": 1794009709.5160756,
+    "ast_hash": "334cbf9aef33ea5fd7f7e2fc32a19a2b",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1793998591.996598,
-    "seen": 1793998705.176241,
-    "ast_hash": "d5542b4dd74af4473ef687e2ea60130f",
+    "mtime": 1794009401.9215465,
+    "seen": 1794009709.5160792,
+    "ast_hash": "55f8b06c75c48b16f8d5add0cabc897e",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1793582653.272776,
-    "seen": 1793582730.1649127,
-    "ast_hash": "135c87f7607fc1de508e1612995de01c",
+    "mtime": 1794009470.793018,
+    "seen": 1794009709.516083,
+    "ast_hash": "ce41ee760ad58f159d948bfe94de2578",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
-    "mtime": 1793556414.9770913,
-    "seen": 1793558662.2469704,
-    "ast_hash": "c6bf29a02d7d25fa0842ee9f7dc917cf",
+    "mtime": 1794009401.9482934,
+    "seen": 1794009709.5160863,
+    "ast_hash": "62946ba26877bee6c21e2ac4009042a1",
     "semantic_hash": ""
   },
   "frontend/src/pages/CodePage.vue": {
-    "mtime": 1792857315.0691504,
-    "seen": 1792857374.35888,
-    "ast_hash": "bca76fa6779ec00f3522e49c12ba2531",
+    "mtime": 1794009401.9592676,
+    "seen": 1794009709.5160897,
+    "ast_hash": "638ca37228472c20a0637ac6c4d48d1a",
     "semantic_hash": ""
   },
   "frontend/src/pages/CourseCategoryPage.vue": {
@@ -450,9 +450,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/DietPage.vue": {
-    "mtime": 1792884853.3157952,
-    "seen": 1792884887.708123,
-    "ast_hash": "48e3e57e59e5001edff53c478661ecb9",
+    "mtime": 1794009470.9263294,
+    "seen": 1794009709.5173397,
+    "ast_hash": "ba25c28866920d90c0ed087b5a3b23fc",
     "semantic_hash": ""
   },
   "frontend/src/pages/DocumentationPage.vue": {
@@ -468,15 +468,15 @@
     "semantic_hash": "a2c65d0f32d0aa08ccf8464234e2c221"
   },
   "frontend/src/pages/FormatPage.vue": {
-    "mtime": 1792937357.5818894,
-    "seen": 1792937451.8833468,
-    "ast_hash": "f8227218bdcfab574a328ec4277cb932",
+    "mtime": 1794009402.0358772,
+    "seen": 1794009709.518361,
+    "ast_hash": "2d44e9e5e8af91c1be528f62b007bef1",
     "semantic_hash": ""
   },
   "frontend/src/pages/GenerationPage.vue": {
-    "mtime": 1792884533.5115943,
-    "seen": 1792884567.3759809,
-    "ast_hash": "ca53472801e3db699a2f0ecd4d696faf",
+    "mtime": 1794009402.0591872,
+    "seen": 1794009709.5193093,
+    "ast_hash": "542910d8db4f48e42a572d3d3fce42c0",
     "semantic_hash": ""
   },
   "frontend/src/pages/HomePage.vue": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/InventoryPage.vue": {
-    "mtime": 1792884854.8206584,
-    "seen": 1792884887.7084916,
-    "ast_hash": "ad48011ef27f015153543e69adc73adc",
+    "mtime": 1794009402.0706143,
+    "seen": 1794009709.5196707,
+    "ast_hash": "cc94c8480eae450244dfc8527cdc0b3d",
     "semantic_hash": ""
   },
   "frontend/src/pages/InvestigationPage.vue": {
@@ -558,9 +558,9 @@
     "semantic_hash": "a6fdc9b6f709a870245671ec94e4fe83"
   },
   "frontend/src/pages/SalesPage.vue": {
-    "mtime": 1792884860.7220714,
-    "seen": 1792884887.7097008,
-    "ast_hash": "78402064c077d3ff53c5e9573c69b0ba",
+    "mtime": 1794009470.8000374,
+    "seen": 1794009709.5234034,
+    "ast_hash": "917289fa0b37fbd012f2806f03ec1f74",
     "semantic_hash": ""
   },
   "frontend/src/pages/SettingsPage.vue": {
@@ -570,10 +570,10 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/TaskPage.vue": {
-    "mtime": 1791262259.4556653,
-    "seen": 1791840274.7836065,
-    "ast_hash": "4a902fb8b5a2ed3fc1a334ec5b8acd11",
-    "semantic_hash": "4a902fb8b5a2ed3fc1a334ec5b8acd11"
+    "mtime": 1794009402.1063006,
+    "seen": 1794009709.5237463,
+    "ast_hash": "72858781002da7cfbc6065025ca7385c",
+    "semantic_hash": ""
   },
   "frontend/src/pages/VerifyPage.vue": {
     "mtime": 1791493523.2582383,
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1793582648.7495995,
-    "seen": 1793582730.1644733,
-    "ast_hash": "3bb439b0e21aff76947df7acee057a45",
+    "mtime": 1794009401.848266,
+    "seen": 1794009709.5154881,
+    "ast_hash": "2c683d1e02734c72644d2fb478c2c5bd",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
@@ -1539,6 +1539,18 @@
     "mtime": 1793997191.7214644,
     "seen": 1793997352.0180545,
     "ast_hash": "0525243fe4dcfe37cd5e17b1d5219fe2",
+    "semantic_hash": ""
+  },
+  "frontend/src/components/AppDialog.vue": {
+    "mtime": 1794009321.737566,
+    "seen": 1794009709.499608,
+    "ast_hash": "02348e657e13646dd333ef902c5f0ec9",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/dialog.ts": {
+    "mtime": 1794009637.7695653,
+    "seen": 1794009709.5033288,
+    "ast_hash": "af07212f476d8df493d137027c80974a",
     "semantic_hash": ""
   }
 }

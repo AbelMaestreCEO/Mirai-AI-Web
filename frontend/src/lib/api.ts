@@ -3,6 +3,7 @@
 // La sesión va en una cookie HttpOnly (session=...) que pone el propio Worker:
 // aquí no se guarda ni se envía ningún token a mano.
 
+import { dialog } from './dialog';
 import { currentUser } from './session';
 
 /** Cuerpo de error que devuelven las rutas del Worker. */
@@ -31,7 +32,10 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   // como un código de verificación caducado.
   if (res.status === 401 && currentUser.value && !path.startsWith('/api/me') && !sessionExpiredShown) {
     sessionExpiredShown = true;
-    alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión y vuelve a iniciar sesión.');
+    void dialog.alert('Tu sesión ha expirado o es inválida. Por favor, cierra sesión y vuelve a iniciar sesión.', {
+      title: 'Sesión expirada',
+      tone: 'warning',
+    });
   }
   return res;
 }

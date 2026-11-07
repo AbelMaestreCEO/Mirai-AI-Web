@@ -185,6 +185,7 @@ import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { formatMessageContent } from '@/lib/markdown';
 import { handleMarkdownClick } from '@/lib/markdown-actions';
 import { currentUser, ensureSession } from '@/lib/session';
@@ -406,7 +407,7 @@ async function createNewChat() {
 }
 
 async function deleteChat(chatId: string) {
-  if (!confirm('¿Eliminar este chat y todo su historial?')) return;
+  if (!(await dialog.confirm('¿Eliminar este chat y todo su historial?'))) return;
   try {
     const { ok, status } = await api.delete(`/api/code-chats/${encodeURIComponent(chatId)}`);
     if (!ok) throw new Error(`HTTP ${status}`);

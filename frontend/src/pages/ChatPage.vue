@@ -218,6 +218,7 @@ import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import ChatMessageItem, { type ModifyAction } from '@/components/chat/ChatMessageItem.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { handleMarkdownClick } from '@/lib/markdown-actions';
 import { currentUser } from '@/lib/session';
 import { closeMenu } from '@/lib/shell';
@@ -703,18 +704,18 @@ const chips = ref<{ id: string; name: string; loading: boolean; preview?: string
 
 async function processFile(file: File) {
   if (file.size > MAX_FILE_SIZE) {
-    alert(`El archivo "${file.name}" excede el tamaño máximo de 10MB`);
+    dialog.alert(`El archivo "${file.name}" excede el tamaño máximo de 10MB`);
     return;
   }
   // Una captura pegada llega como «image.png»; una foto puede venir sin extensión.
   const isImage = file.type.startsWith('image/');
   const extension = isImage && !IMAGE_FORMATS.includes(fileExtension(file.name)) ? 'jpg' : fileExtension(file.name);
   if (!SUPPORTED_FORMATS.includes(extension)) {
-    alert(`El formato .${extension} no es soportado`);
+    dialog.alert(`El formato .${extension} no es soportado`);
     return;
   }
   if (isImage && chips.value.filter((c) => c.preview).length >= MAX_CHAT_IMAGES) {
-    alert(`Como mucho ${MAX_CHAT_IMAGES} imágenes por mensaje`);
+    dialog.alert(`Como mucho ${MAX_CHAT_IMAGES} imágenes por mensaje`);
     return;
   }
 
@@ -722,7 +723,7 @@ async function processFile(file: File) {
   // Reducida antes de subir: es lo que verá el modelo (ver prepareImage).
   const image = isImage ? await prepareImage(file).catch(() => null) : null;
   if (isImage && !image) {
-    alert(`No se ha podido abrir la imagen "${file.name}".`);
+    dialog.alert(`No se ha podido abrir la imagen "${file.name}".`);
     return;
   }
   const preview = image ? URL.createObjectURL(image) : undefined;
@@ -744,7 +745,7 @@ async function processFile(file: File) {
     console.error(`Error procesando archivo ${file.name}:`, error);
     chips.value = chips.value.filter((c) => c.id !== id);
     if (preview) URL.revokeObjectURL(preview);
-    alert(`Error al procesar "${file.name}". Intenta con otro archivo.`);
+    dialog.alert(`Error al procesar "${file.name}". Intenta con otro archivo.`);
   }
 }
 
@@ -830,7 +831,7 @@ async function startRecording() {
     recording.value = true;
   } catch (err) {
     console.error('Error accediendo al micrófono:', err);
-    alert('No se pudo acceder al micrófono. Verifica los permisos.');
+    dialog.alert('No se pudo acceder al micrófono. Verifica los permisos.');
   }
 }
 
@@ -1001,7 +1002,7 @@ async function saveRename(conv: Conversation) {
 }
 
 async function deleteConversation(id: string) {
-  if (!confirm('¿Eliminar esta conversación? No se puede deshacer.')) return;
+  if (!(await dialog.confirm('¿Eliminar esta conversación? No se puede deshacer.'))) return;
   try {
     const { ok } = await api.delete('/api/chat/clear', { conversation_id: id });
     if (!ok) throw new Error('Error eliminando');
@@ -1009,7 +1010,7 @@ async function deleteConversation(id: string) {
     await loadConversations();
   } catch (error) {
     console.error('Error eliminando conversación:', error);
-    alert('Error al eliminar la conversación.');
+    dialog.alert('Error al eliminar la conversación.');
   }
 }
 

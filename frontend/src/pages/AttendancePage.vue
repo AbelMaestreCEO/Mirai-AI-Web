@@ -135,6 +135,7 @@ import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { escapeHtml } from '@/lib/markdown';
 import { currentUser } from '@/lib/session';
 import { JSQR_SRC, loadGlobal, XLSX_SRC, type SheetJs } from '@/lib/cdn';
@@ -259,7 +260,7 @@ function exportPdf() {
         </table></body></html>`;
   const win = window.open('', '_blank');
   if (!win) {
-    alert('Activa las ventanas emergentes para exportar PDF.');
+    dialog.alert('Activa las ventanas emergentes para exportar PDF.');
     return;
   }
   win.document.write(html);
@@ -276,7 +277,7 @@ async function exportExcel() {
   try {
     XLSX = await loadGlobal<SheetJs>('XLSX', XLSX_SRC);
   } catch {
-    alert('Librería cargando, reintenta.');
+    dialog.alert('Librería cargando, reintenta.');
     return;
   }
   const label = periodLabel();

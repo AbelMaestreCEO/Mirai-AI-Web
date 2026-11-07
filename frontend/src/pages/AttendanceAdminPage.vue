@@ -288,6 +288,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { escapeHtml } from '@/lib/markdown';
 import { QRCODE_SRC, XLSX_SRC, loadGlobal, type SheetJs } from '@/lib/cdn';
 
@@ -436,7 +437,7 @@ async function exportExcel() {
   try {
     XLSX = await loadGlobal<SheetJs>('XLSX', XLSX_SRC);
   } catch {
-    alert('Librería de Excel cargando, reintenta.');
+    dialog.alert('Librería de Excel cargando, reintenta.');
     return;
   }
   const ws = XLSX.utils.aoa_to_sheet([
@@ -490,7 +491,7 @@ function exportPdf() {
         </body></html>`;
   const win = window.open('', '_blank');
   if (!win) {
-    alert('Activa las ventanas emergentes para exportar PDF.');
+    dialog.alert('Activa las ventanas emergentes para exportar PDF.');
     return;
   }
   win.document.write(html);
@@ -554,12 +555,12 @@ async function saveClass() {
 }
 
 async function deleteClass(c: AttClass) {
-  if (!confirm(`¿Eliminar la clase "${c.name}"? Los registros de asistencia se conservarán.`)) return;
+  if (!(await dialog.confirm(`¿Eliminar la clase "${c.name}"? Los registros de asistencia se conservarán.`))) return;
   try {
     const { ok } = await api.delete(`${API_CLASSES}/${c.id}`);
     if (ok) void loadClasses();
   } catch {
-    alert('Sin conexión.');
+    dialog.alert('Sin conexión.');
   }
 }
 
@@ -616,7 +617,7 @@ async function generateClassQr() {
 function downloadClassQr() {
   const canvas = qrWrap.value?.querySelector('canvas');
   if (!canvas || qrModal.state !== 'ready') {
-    alert('Genera el QR primero.');
+    dialog.alert('Genera el QR primero.');
     return;
   }
   const link = document.createElement('a');
@@ -734,13 +735,13 @@ async function addSection() {
 }
 
 async function removeStudent(dni: string) {
-  if (!confirm(`¿Quitar a ${dni} de esta clase?`)) return;
+  if (!(await dialog.confirm(`¿Quitar a ${dni} de esta clase?`))) return;
   try {
     await api.delete(`${API_CLASSES}/${studentsModal.classId}/students/${encodeURIComponent(dni)}`);
     await loadClassStudents();
     void loadClasses();
   } catch {
-    alert('Sin conexión.');
+    dialog.alert('Sin conexión.');
   }
 }
 

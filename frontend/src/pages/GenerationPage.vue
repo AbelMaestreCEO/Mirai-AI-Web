@@ -598,6 +598,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, apiFetch, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { ensureSubscribed } from '@/lib/push';
 
 type Tab = 'texto' | 'imagen' | 'editar' | 'activos' | 'video' | 'videoedit' | 'avatar' | 'musica';
@@ -1499,7 +1500,7 @@ function clearAvatar() {
 }
 
 async function deleteAvatarCharacter(id: number) {
-  if (!confirm('¿Eliminar este personaje guardado?')) return;
+  if (!(await dialog.confirm('¿Eliminar este personaje guardado?'))) return;
   await api.delete(`/api/video-avatar/characters?id=${id}`).catch(() => undefined);
   if (s.avatarCharacterId === id) clearAvatar();
   void loadCharacters();
@@ -1660,7 +1661,7 @@ async function deleteHistoryItem(id: number) {
 }
 
 async function clearHistory(type: Tab | null) {
-  if (!confirm(type ? `¿Borrar todo el historial de ${type}?` : '¿Borrar TODO el historial de generación?')) return;
+  if (!(await dialog.confirm(type ? `¿Borrar todo el historial de ${type}?` : '¿Borrar TODO el historial de generación?'))) return;
   await api.delete(type ? `/api/gen-history?type=${type}` : '/api/gen-history').catch(() => undefined);
   await loadHistory();
 }

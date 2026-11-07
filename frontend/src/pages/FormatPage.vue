@@ -148,6 +148,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { apiFetch, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 
 interface FormatRule {
   keyword: string;
@@ -192,7 +193,7 @@ function addFiles(list: FileList | null | undefined) {
     else if (f.size > MAX_FILE_SIZE) errors.push(`${f.name}: supera el límite de 20 MB`);
     else files.value.push(f);
   }
-  if (errors.length) alert('Archivos no válidos:\n\n' + errors.join('\n'));
+  if (errors.length) dialog.alert('Archivos no válidos:\n\n' + errors.join('\n'));
 }
 
 function onFilesChosen() {
@@ -215,11 +216,11 @@ const keywordInput = ref<HTMLInputElement | null>(null);
 function addRule() {
   const kw = keyword.value.trim();
   if (!kw) {
-    alert('Ingresa una palabra clave.');
+    dialog.alert('Ingresa una palabra clave.');
     return;
   }
   if (!bold.value && !italic.value && !underline.value) {
-    alert('Selecciona al menos un estilo.');
+    dialog.alert('Selecciona al menos un estilo.');
     return;
   }
   rules.value.push({
@@ -260,7 +261,7 @@ async function step(path: string, init: RequestInit, fallback: string): Promise<
 
 async function processFiles() {
   if (!files.value.length || !rules.value.length) {
-    alert('Sube archivos y define al menos una regla.');
+    dialog.alert('Sube archivos y define al menos una regla.');
     return;
   }
 

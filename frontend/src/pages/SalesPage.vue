@@ -390,6 +390,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { ensureSubscribed } from '@/lib/push';
 
 interface Listing {
@@ -494,7 +495,7 @@ async function run(action: () => Promise<unknown>, errorPrefix: string) {
     await action();
   } catch (err) {
     if (err instanceof SessionExpired) emptyMessage.value = 'No has iniciado sesión o tu sesión ha expirado.';
-    else alert(`${errorPrefix}${err instanceof Error ? err.message : String(err)}`);
+    else dialog.alert(`${errorPrefix}${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -528,7 +529,7 @@ function canSell(l: Listing): boolean {
 }
 
 async function withdrawListing(id: string) {
-  if (!confirm('¿Retirar este artículo de la venta? Dejará de estar disponible para compradores.')) return;
+  if (!(await dialog.confirm('¿Retirar este artículo de la venta? Dejará de estar disponible para compradores.'))) return;
   await run(async () => {
     await mutate('delete', `/api/sales/listings/${encodeURIComponent(id)}`);
     await loadAll();
@@ -552,7 +553,7 @@ async function toggleFavorite(b: Buyer) {
 }
 
 async function deleteBuyer(id: string) {
-  if (!confirm('¿Eliminar este comprador? Esta acción no se puede deshacer.')) return;
+  if (!(await dialog.confirm('¿Eliminar este comprador? Esta acción no se puede deshacer.'))) return;
   await run(async () => {
     await mutate('delete', `/api/sales/buyers/${encodeURIComponent(id)}`);
     await fetchBuyers();
@@ -567,8 +568,8 @@ async function updateTransactionStatus(id: string, status: 'pagado' | 'cancelado
   }, 'Error: ');
 }
 
-function cancelTransaction(id: string) {
-  if (confirm('¿Cancelar esta venta? La cantidad se devolverá al inventario y al artículo en venta.')) void updateTransactionStatus(id, 'cancelado');
+async function cancelTransaction(id: string) {
+  if (await dialog.confirm('¿Cancelar esta venta? La cantidad se devolverá al inventario y al artículo en venta.')) void updateTransactionStatus(id, 'cancelado');
 }
 
 // ── Modales ───────────────────────────────────────────────────────────────
@@ -632,7 +633,7 @@ const pickerBuyers = computed(() => buyers.value.filter((b) => matchesBuyer(b, p
 
 function openPurchaseModal(listingId?: string, buyerId?: string) {
   if (!sellable.value.length) {
-    alert('No tienes artículos disponibles para vender. Ve a Inventario y pon alguno a la venta.');
+    dialog.alert('No tienes artículos disponibles para vender. Ve a Inventario y pon alguno a la venta.');
     return;
   }
   const preselected = listingId && sellable.value.some((l) => l.id === listingId) ? listingId : sellable.value[0]!.id;

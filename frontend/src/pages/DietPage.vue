@@ -482,6 +482,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { apiFetch } from '@/lib/api';
+import { dialog } from '@/lib/dialog';
 import { RECIPES, RECIPE_CARDS, type Recipe } from '@/lib/diet-recipes';
 
 interface LogItem {
@@ -735,8 +736,8 @@ function removeMeal() {
   modal.value = null;
 }
 
-function clearPlan() {
-  if (!confirm('¿Limpiar el plan completo?')) return;
+async function clearPlan() {
+  if (!(await dialog.confirm('¿Limpiar el plan completo?'))) return;
   state.planner = {};
   del('planner');
 }
@@ -775,8 +776,8 @@ function removeLogItem(i: number) {
   put('log', state.log);
 }
 
-function clearLog() {
-  if (!confirm('¿Limpiar el registro de hoy?')) return;
+async function clearLog() {
+  if (!(await dialog.confirm('¿Limpiar el registro de hoy?'))) return;
   state.log = [];
   del('log');
 }
