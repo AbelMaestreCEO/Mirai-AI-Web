@@ -1172,6 +1172,49 @@ ORDER BY u.last_name, u.first_name
     return jsonResponse({ plans: detailed }, 200, corsHeaders);
   }
 
+  // DELETE /api/delete-evaluation-plan — elimina un plan y sus tareas generadas.
+  if (path === '/api/delete-evaluation-plan' && request.method === 'DELETE') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const planId = (url.searchParams.get('id') || '').trim();
+    if (!planId) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+
+    const plan = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM evaluation_plans WHERE id = ? AND professor_dni = ?'
+    ).bind(planId, userDni).first<any>();
+    if (!plan) return jsonResponse({ error: 'Plan no encontrado o no autorizado' }, 403, corsHeaders);
+
+    try {
+      const { results: assignments } = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM assignments WHERE plan_id = ?'
+      ).bind(planId).all<any>();
+
+      // Tablas auxiliares que se crean de forma perezosa: si aún no existen,
+      // no hay nada que borrar y no debe romper la eliminación del plan.
+      const optionalTables = ['concept_errors', 'activity_attempts', 'activity_sets', 'flashcard_reviews'];
+
+      for (const assignment of assignments || []) {
+        const assignmentId = assignment.id;
+        await env.MIRAI_AI_DB.prepare('DELETE FROM assignment_students WHERE assignment_id = ?').bind(assignmentId).run();
+        await env.MIRAI_AI_DB.prepare('DELETE FROM submissions WHERE assignment_id = ?').bind(assignmentId).run();
+        for (const table of optionalTables) {
+          try {
+            await env.MIRAI_AI_DB.prepare(`DELETE FROM ${table} WHERE assignment_id = ?`).bind(assignmentId).run();
+          } catch (_) { /* tabla inexistente */ }
+        }
+        await env.MIRAI_AI_DB.prepare('DELETE FROM assignments WHERE id = ?').bind(assignmentId).run();
+      }
+
+      await env.MIRAI_AI_DB.prepare('DELETE FROM evaluation_plans WHERE id = ?').bind(planId).run();
+
+      return jsonResponse({ success: true, deleted_assignments: (assignments || []).length }, 200, corsHeaders);
+    } catch (error) {
+      console.error('Error eliminando plan de evaluación:', error);
+      return jsonResponse({ error: 'Error al eliminar el plan de evaluación' }, 500, corsHeaders);
+    }
+  }
+
   // POST /api/create-evaluation-plan — analiza un documento y crea las tareas.
   if (path === '/api/create-evaluation-plan' && request.method === 'POST') {
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
@@ -1291,7 +1334,8 @@ Formato exacto:
         const topics = Array.isArray(item.topics) ? item.topics.map((t: any) => String(t || '').trim()).filter(Boolean) : [];
         const content = String(item.content || '').trim();
         const description = String(item.description || '').trim();
-        const assignmentTitle = `Evaluación ${index + 1}: ${String(item.title || 'Evaluación').trim()}`.slice(0, 180);
+        const rawTitle = String(item.title || '').trim().replace(/^evaluaci[oó]n\s*\d*\s*[:\-–—.]?\s*/i, '').trim();
+        const assignmentTitle = `Evaluación ${index + 1}: ${rawTitle || 'Evaluación'}`.slice(0, 180);
         const assignmentDescription = [
           `Plan de evaluación: ${planTitle}`,
           strategy ? `Estrategia: ${strategy}` : '',
@@ -1307,8 +1351,8 @@ Formato exacto:
 
         await env.MIRAI_AI_DB.prepare(`
           INSERT INTO assignments
-            (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode, plan_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'document', 'summative', ?)
+            (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode, plan_id, published_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'document', 'summative', ?, NULL)
         `).bind(assignmentId, courseId, assignmentTitle, assignmentDescription, dueDate, sectionId, pointsPerEvaluation, planId).run();
 
         for (const st of collectedStudents || []) {
@@ -1474,7 +1518,44 @@ Formato exacto:
              ORDER BY c.title, s.name
         `).bind(userDni.toUpperCase()).all<any>();
 
-      return jsonResponse({ assignments, submissions, classes }, 200, corsHeaders);
+      // Planes de evaluación de las clases del estudiante. Se incluyen aunque
+      // las tareas del plan aún no tengan entregas, para mostrarlos siempre.
+      const { results: plans } = await env.MIRAI_AI_DB.prepare(`
+            SELECT DISTINCT
+                   p.id, p.title, p.strategy, p.max_score,
+                   p.points_per_evaluation, p.evaluation_count, p.course_id,
+                   COALESCE(p.section_id, (
+                     SELECT a.section_id FROM assignments a
+                      WHERE a.plan_id = p.id AND a.section_id IS NOT NULL
+                      LIMIT 1
+                   )) AS section_id,
+                   c.title AS course_title
+              FROM evaluation_plans p
+              LEFT JOIN user_courses c ON c.id = p.course_id
+             WHERE p.section_id IN (
+                     SELECT section_id FROM section_students
+                      WHERE UPPER(user_dni) = UPPER(?)
+                   )
+                OR p.id IN (
+                     SELECT a.plan_id FROM assignments a
+                       JOIN assignment_students ast ON ast.assignment_id = a.id
+                      WHERE UPPER(ast.user_dni) = UPPER(?) AND a.plan_id IS NOT NULL
+                   )
+             ORDER BY p.created_at DESC
+        `).bind(userDni.toUpperCase(), userDni.toUpperCase()).all<any>();
+
+      const detailedPlans: any[] = [];
+      for (const plan of plans || []) {
+        const { results: planAssignments } = await env.MIRAI_AI_DB.prepare(`
+              SELECT id, title, description, due_date, max_score, created_at
+                FROM assignments
+               WHERE plan_id = ?
+               ORDER BY created_at ASC, title ASC
+          `).bind(plan.id).all<any>();
+        detailedPlans.push({ ...plan, assignments: planAssignments || [] });
+      }
+
+      return jsonResponse({ assignments, submissions, classes, plans: detailedPlans }, 200, corsHeaders);
 
     } catch (error) {
       console.error('Error en my-submissions:', error);

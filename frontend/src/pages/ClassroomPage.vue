@@ -85,32 +85,50 @@
               </div>
             </header>
 
-            <ul class="eval-plan-items">
-              <li v-for="item in plan.items" :key="item.assignment.id" class="eval-plan-item">
-                <div class="eval-plan-item-main">
-                  <strong class="eval-plan-item-title">{{ item.assignment.title }}</strong>
-                  <div class="eval-plan-item-meta">
-                    <span>📅 {{ planDue(item.assignment.due_date) }}</span>
-                    <span>Puntaje: {{ item.assignment.max_score ?? '—' }}</span>
-                  </div>
-                  <details class="eval-plan-contents">
-                    <summary>Ver contenidos</summary>
-                    <p>{{ planContents(item.assignment.description) }}</p>
-                  </details>
-                </div>
-                <span
-                  class="eval-plan-grade"
-                  :class="{
-                    'is-graded': item.score !== null,
-                    'is-submitted': item.submitted && item.score === null,
-                  }"
-                >
-                  {{ item.score !== null
-                    ? `${item.score} / ${item.assignment.max_score ?? '?'}`
-                    : item.submitted ? 'Entregado' : 'Pendiente' }}
-                </span>
-              </li>
-            </ul>
+            <div class="eval-plan-table-wrap">
+              <table class="eval-plan-table">
+                <thead>
+                  <tr>
+                    <th class="col-index">#</th>
+                    <th>Evaluación</th>
+                    <th>Contenidos</th>
+                    <th>Vence</th>
+                    <th class="col-score">Puntaje</th>
+                    <th class="col-status">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, i) in plan.items" :key="item.assignment.id">
+                    <td class="col-index">{{ i + 1 }}</td>
+                    <td><strong class="eval-plan-item-title">{{ item.assignment.title }}</strong></td>
+                    <td>
+                      <details class="eval-plan-contents">
+                        <summary>Ver contenidos</summary>
+                        <p>{{ planContents(item.assignment.description) }}</p>
+                      </details>
+                    </td>
+                    <td class="col-date">📅 {{ planDue(item.assignment.due_date) }}</td>
+                    <td class="col-score">{{ item.assignment.max_score ?? '—' }}</td>
+                    <td class="col-status">
+                      <span
+                        class="eval-plan-grade"
+                        :class="{
+                          'is-graded': item.score !== null,
+                          'is-submitted': item.submitted && item.score === null,
+                        }"
+                      >
+                        {{ item.score !== null
+                          ? `${item.score} / ${item.assignment.max_score ?? '?'}`
+                          : item.submitted ? 'Entregado' : 'Pendiente' }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="!plan.items.length">
+                    <td colspan="6" class="eval-plan-empty">Este plan todavía no tiene evaluaciones.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </article>
         </section>
 
@@ -234,6 +252,28 @@ interface StudentClass {
   course_title?: string | null;
 }
 
+interface PlanAssignment {
+  id: number | string;
+  title: string;
+  description?: string | null;
+  due_date?: string | null;
+  max_score?: number | null;
+  created_at?: string | null;
+}
+
+interface EvaluationPlan {
+  id: string;
+  title: string;
+  strategy?: string | null;
+  max_score?: number | null;
+  points_per_evaluation?: number | null;
+  evaluation_count?: number | null;
+  course_id?: string | null;
+  section_id?: string | null;
+  course_title?: string | null;
+  assignments: PlanAssignment[];
+}
+
 interface ClassGroup {
   key: string;
   course_title: string;
@@ -253,6 +293,7 @@ const canOpenProfessorPanel = computed(() => {
 const assignments = ref<Assignment[]>([]);
 const submissions = ref<Submission[]>([]);
 const classes = ref<StudentClass[]>([]);
+const plans = ref<EvaluationPlan[]>([]);
 const state = ref<'loading' | 'ready' | 'expired' | 'error'>('loading');
 const error = ref('');
 const containerEl = ref<HTMLElement | null>(null);
@@ -266,6 +307,7 @@ async function loadTasks() {
       assignments?: Assignment[];
       submissions?: Submission[];
       classes?: StudentClass[];
+      plans?: EvaluationPlan[];
     }>(`/api/my-submissions?user_dni=${encodeURIComponent(dni)}`);
     if (status === 401) {
       state.value = 'expired';
@@ -275,6 +317,7 @@ async function loadTasks() {
     assignments.value = data.assignments || [];
     submissions.value = data.submissions || [];
     classes.value = data.classes || [];
+    plans.value = data.plans || [];
     state.value = 'ready';
   } catch (err) {
     console.error('Error cargando tareas:', err);
@@ -326,7 +369,7 @@ const filtered = computed(() =>
 );
 
 interface PlanItem {
-  assignment: Assignment;
+  assignment: PlanAssignment;
   score: number | null;
   submitted: boolean;
 }
@@ -342,43 +385,40 @@ interface ClassPlan {
 }
 
 // Plan de evaluación de la clase seleccionada, con sus contenidos y notas.
+// Se construye a partir de los planes del estudiante, así aparece aunque la
+// clase todavía no tenga tareas visibles.
 const classPlans = computed<ClassPlan[]>(() => {
+  const cls = currentClass.value;
+  if (!cls) return [];
   const byAssignment = new Map(
     submissions.value
       .filter((s) => s.status !== 'reset')
       .map((s) => [String(s.assignment_id), s]),
   );
-  const plans = new Map<string, ClassPlan>();
-  for (const assignment of currentClass.value?.assignments ?? []) {
-    if (!assignment.plan_id) continue;
-    const key = String(assignment.plan_id);
-    let plan = plans.get(key);
-    if (!plan) {
-      plan = {
-        id: key,
-        title: assignment.plan_title || 'Plan de evaluación',
-        strategy: assignment.plan_strategy || '',
-        maxScore: Number(assignment.plan_max_score) || 0,
-        total: 0,
-        obtained: 0,
-        items: [],
+  return plans.value
+    .filter((p) => `${p.course_id || 'none'}::${p.section_id || 'none'}` === cls.key)
+    .map((plan) => {
+      const items: PlanItem[] = (plan.assignments || []).map((assignment) => {
+        const submission = byAssignment.get(String(assignment.id));
+        return { assignment, score: submission?.score ?? null, submitted: !!submission };
+      });
+      items.sort((a, b) => {
+        const aKey = String(a.assignment.due_date || a.assignment.created_at || '');
+        const bKey = String(b.assignment.due_date || b.assignment.created_at || '');
+        return aKey.localeCompare(bKey) || a.assignment.title.localeCompare(b.assignment.title);
+      });
+      const total = items.reduce((sum, item) => sum + (Number(item.assignment.max_score) || 0), 0);
+      const obtained = items.reduce((sum, item) => sum + (item.score !== null ? Number(item.score) || 0 : 0), 0);
+      return {
+        id: String(plan.id),
+        title: plan.title || 'Plan de evaluación',
+        strategy: plan.strategy || '',
+        maxScore: Number(plan.max_score) || total,
+        total,
+        obtained,
+        items,
       };
-      plans.set(key, plan);
-    }
-    const submission = byAssignment.get(String(assignment.id));
-    const score = submission?.score ?? null;
-    plan.total += Number(assignment.max_score) || 0;
-    if (score !== null) plan.obtained += Number(score) || 0;
-    plan.items.push({ assignment, score, submitted: !!submission });
-  }
-  for (const plan of plans.values()) {
-    plan.items.sort((a, b) => {
-      const aKey = String(a.assignment.due_date || a.assignment.created_at || '');
-      const bKey = String(b.assignment.due_date || b.assignment.created_at || '');
-      return aKey.localeCompare(bKey) || a.assignment.title.localeCompare(b.assignment.title);
     });
-  }
-  return [...plans.values()];
 });
 
 // Quita las líneas de cabecera del plan que ya se muestran aparte.
@@ -691,39 +731,65 @@ onMounted(async () => {
   color: var(--text-secondary);
 }
 
-:where(body[data-page="classroom"]) .eval-plan-items {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+:where(body[data-page="classroom"]) .eval-plan-table-wrap {
+  overflow-x: auto;
 }
 
-:where(body[data-page="classroom"]) .eval-plan-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 20px;
-  border-top: 1px solid var(--glass-border);
+:where(body[data-page="classroom"]) .eval-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
 }
 
-:where(body[data-page="classroom"]) .eval-plan-item-main {
-  flex: 1;
-  min-width: 0;
+:where(body[data-page="classroom"]) .eval-plan-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: .76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--text-secondary);
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--glass-border);
+  white-space: nowrap;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--glass-border);
+  vertical-align: top;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-table .col-index {
+  width: 36px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom"]) .eval-plan-table .col-date,
+:where(body[data-page="classroom"]) .eval-plan-table .col-score {
+  white-space: nowrap;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-table .col-status {
+  text-align: right;
+}
+
+:where(body[data-page="classroom"]) .eval-plan-empty {
+  text-align: center;
+  padding: 18px;
+  color: var(--text-secondary);
 }
 
 :where(body[data-page="classroom"]) .eval-plan-item-title {
   display: block;
   color: var(--text-primary);
-  font-size: .92rem;
-}
-
-:where(body[data-page="classroom"]) .eval-plan-item-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 4px;
-  font-size: .78rem;
-  color: var(--text-secondary);
+  font-size: .9rem;
 }
 
 :where(body[data-page="classroom"]) .eval-plan-contents {

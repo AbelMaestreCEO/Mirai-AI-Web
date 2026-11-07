@@ -398,17 +398,6 @@
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Primera fecha de entrega (Opcional)</label>
-              <input v-model="planForm.startDate" type="datetime-local">
-            </div>
-            <div class="form-group">
-              <label>Días entre evaluaciones</label>
-              <input v-model="planForm.intervalDays" type="number" min="1" max="60">
-            </div>
-          </div>
-
           <p v-if="planState.error" style="color: var(--error-color, #dc2626); font-size: .85rem; margin: 12px 0; text-align:center;">
             {{ planState.error }}
           </p>
@@ -459,6 +448,7 @@
                 <li v-for="a in p.assignments" :key="a.id">{{ a.title }} — {{ a.max_score }} pts</li>
               </ul>
             </details>
+            <button class="action-btn btn-delete" style="margin-top:10px;" @click="deletePlan(p)">🗑️ Eliminar plan y sus tareas</button>
           </div>
         </div>
       </div>
@@ -1204,7 +1194,7 @@ interface EvaluationPlanRow {
   assignments: { id: string; title: string; max_score: number }[];
 }
 
-const planForm = reactive({ courseId: '', maxScore: '20', count: '4', startDate: '', intervalDays: '7' });
+const planForm = reactive({ courseId: '', maxScore: '20', count: '4' });
 const planFile = ref<File | null>(null);
 const planState = reactive({ generating: false, error: '', fileName: '', result: null as EvaluationPlanResult | null });
 const plans = reactive({ state: 'idle' as 'idle' | 'loading' | 'ready' | 'error', items: [] as EvaluationPlanRow[] });
@@ -1257,8 +1247,6 @@ async function createEvaluationPlan() {
   if (sectionId) form.append('section_id', sectionId);
   form.append('max_score', planForm.maxScore);
   form.append('evaluation_count', planForm.count);
-  form.append('start_date', planForm.startDate);
-  form.append('interval_days', planForm.intervalDays);
 
   planState.generating = true;
   try {
@@ -1275,6 +1263,27 @@ async function createEvaluationPlan() {
     planState.error = 'Error de conexión. Inténtalo de nuevo.';
   } finally {
     planState.generating = false;
+  }
+}
+
+async function deletePlan(plan: EvaluationPlanRow) {
+  const count = plan.assignments.length;
+  const message = count
+    ? `¿Eliminar el plan "${plan.title}" y sus ${count} tarea${count !== 1 ? 's' : ''}? Se borrarán también las entregas.`
+    : `¿Eliminar el plan "${plan.title}"?`;
+  if (!(await dialog.confirm(message))) return;
+  try {
+    const { ok } = await api.delete(`/api/delete-evaluation-plan?id=${encodeURIComponent(plan.id)}`);
+    if (!ok) {
+      dialog.alert('Error al eliminar el plan');
+      return;
+    }
+    if (planState.result?.plan.id === plan.id) planState.result = null;
+    await loadPlans();
+    await loadTasks();
+    await loadCourses();
+  } catch {
+    dialog.alert('Error de conexión');
   }
 }
 

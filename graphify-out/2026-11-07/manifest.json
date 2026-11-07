@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794068132.376538,
-    "seen": 1794068198.6596322,
-    "ast_hash": "b3fc3866047b96d6afc55b79516f5f74",
+    "mtime": 1794082158.2252555,
+    "seen": 1794082274.337704,
+    "ast_hash": "ff138229b6e41f3272f90f53218dd6f9",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
-    "mtime": 1794068148.0951934,
-    "seen": 1794068198.6596358,
-    "ast_hash": "680fefb5bc2a40af84e5b75025f9b4b0",
+    "mtime": 1794082202.9789946,
+    "seen": 1794082274.337915,
+    "ast_hash": "06c7cccb20057c894b13437895a4fe99",
     "semantic_hash": ""
   },
   "frontend/src/pages/CodePage.vue": {
@@ -444,9 +444,9 @@
     "semantic_hash": "d42f4fa6a3c20889288376075bacec22"
   },
   "frontend/src/pages/CoursesPage.vue": {
-    "mtime": 1792884861.3014748,
-    "seen": 1792884887.7081215,
-    "ast_hash": "7fa89615084c67ce4c5309513f429f69",
+    "mtime": 1794081364.6157122,
+    "seen": 1794081439.5005755,
+    "ast_hash": "e6caa36653b9a6c9930e426c26911b26",
     "semantic_hash": ""
   },
   "frontend/src/pages/DietPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794080945.398112,
-    "seen": 1794080960.975551,
+    "mtime": 1794082449.84851,
+    "seen": 1794083385.196174,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794067906.4016175,
-    "seen": 1794068198.6654224,
-    "ast_hash": "8d716c99419aa628df331e01789053e7",
+    "mtime": 1794083343.763867,
+    "seen": 1794083385.2021914,
+    "ast_hash": "fabefde6caa4b94dc5cc44c90804f46f",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {
