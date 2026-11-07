@@ -867,9 +867,13 @@ body::before {
   flex-direction: column;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.06);
   overflow: hidden;
-  /* Sin transición de `width`: al arrastrar el borde de la ventana el menú
-     se quedaría persiguiendo al contenido durante 0.4s en cada píxel. */
-  transition: transform 0.4s cubic-bezier(0.05, 0.7, 0.1, 1);
+  /* `transform` cubre el deslizamiento móvil y `width` el colapso a dock:
+     ambos se animan con la GPU para que el panel nunca salte de golpe.
+     `box-shadow` acompaña al ancho para que la sombra no aparezca cortada. */
+  transition:
+    transform 0.4s cubic-bezier(0.05, 0.7, 0.1, 1),
+    width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.32s ease;
 }
 
 /* Botón de cierre oculto en PC */
@@ -894,6 +898,9 @@ footer.footer {
   align-items: center;
   border-bottom: 1px solid var(--glass-border);
   background: var(--secondary-container);
+  transition:
+    padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.32s ease;
 }
 
 .sidebar-header h3 {
@@ -911,10 +918,16 @@ footer.footer {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  /* Se desvanece y recoge su ancho en vez de desaparecer de golpe. */
+  transition: opacity 0.26s ease, max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mobile-sidebar.collapsed .sidebar-brand {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  pointer-events: none;
 }
 
 /* Contenido del Sidebar */
@@ -945,6 +958,14 @@ footer.footer {
   color: var(--text-secondary);
   margin-bottom: 12px;
   font-weight: 600;
+  overflow: hidden;
+  max-height: 40px;
+  /* Títulos y textos que se recogen al colapsar: transiciones cortas sobre
+     propiedades que no fuerzan repintados caros. */
+  transition:
+    opacity 0.24s ease,
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-links {
@@ -1003,6 +1024,7 @@ footer.footer {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  max-height: 80px;
 }
 
 .sidebar-social a {
@@ -1048,6 +1070,8 @@ footer.footer {
   border-top: 1px solid var(--glass-border);
   text-align: center;
   background: var(--secondary-container);
+  max-height: 120px;
+  overflow: hidden;
 }
 
 .sidebar-footer p {
@@ -2230,6 +2254,8 @@ footer.footer {
   letter-spacing: 0.08em;
   color: var(--text-secondary);
   font-weight: 600;
+  max-height: 24px;
+  overflow: hidden;
 }
 
 .new-conv-btn {
@@ -2278,6 +2304,7 @@ footer.footer {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
+  max-height: 100vh;
 }
 
 .conversations-list::-webkit-scrollbar {
@@ -5151,17 +5178,65 @@ html[data-theme="dark"] .category-stats {
   /* Ancho reducido para solo iconos */
 }
 
+/* Textos y bloques que se recogen al colapsar. La opacidad se anima junto con
+   el ancho/altura para que nada aparezca o desaparezca de golpe. */
+.mobile-sidebar .sidebar-social,
+.mobile-sidebar .sidebar-footer,
+.mobile-sidebar .logout-btn span,
+.mobile-sidebar .settings-sidebar-btn span,
+.mobile-sidebar .conversations-list,
+.mobile-sidebar .conversations-header h4,
+.mobile-sidebar .collapsible-header,
+.mobile-sidebar .collapsible-content:not(.nav-collapsible-content) {
+  transition:
+    opacity 0.26s ease,
+    max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    margin 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.32s ease,
+    border-width 0.32s ease;
+}
+
+/* Anchos/altos de partida para que la transición tenga de dónde animar. */
+.mobile-sidebar .logout-btn span,
+.mobile-sidebar .settings-sidebar-btn span {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.mobile-sidebar .collapsible-header {
+  max-height: 80px;
+  overflow: hidden;
+}
+
 .mobile-sidebar.collapsed .sidebar-header h3,
 .mobile-sidebar.collapsed .sidebar-section h4,
 .mobile-sidebar.collapsed .sidebar-links a span:not(.icon-only),
 .mobile-sidebar.collapsed .sidebar-social,
 .mobile-sidebar.collapsed .sidebar-footer,
 .mobile-sidebar.collapsed .logout-btn span,
+.mobile-sidebar.collapsed .settings-sidebar-btn span,
 .mobile-sidebar.collapsed .collapsible-content:not(.nav-collapsible-content),
 .mobile-sidebar.collapsed .conversations-list,
 .mobile-sidebar.collapsed .conversations-header h4,
 .mobile-sidebar.collapsed .collapsible-header {
-  display: none !important;
+  opacity: 0;
+  max-height: 0;
+  max-width: 0;
+  overflow: hidden;
+  pointer-events: none;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.mobile-sidebar.collapsed .sidebar-footer {
+  border-top-width: 0;
+}
+
+.mobile-sidebar.collapsed .conversations-list {
+  flex: 0 0 auto;
 }
 
 /* Nav grid en sidebar colapsado: columna única, solo primeros 3 visibles */
@@ -5187,15 +5262,10 @@ html[data-theme="dark"] .category-stats {
 }
 
 .mobile-sidebar.collapsed .nav-label {
-  display: none;
-}
-
-.mobile-sidebar.collapsed .nav-grid-item:nth-child(n+4) {
-  display: none;
-}
-
-.mobile-sidebar.collapsed .nav-grid.nav-expanded .nav-grid-item:nth-child(n+4) {
-  display: flex;
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 /* Botón toggle para mostrar/ocultar iconos extra */
@@ -5226,15 +5296,8 @@ html[data-theme="dark"] .category-stats {
   font-size: 1rem;
 }
 
-/* En sidebar expandido: toggle también visible */
-.nav-grid-item:nth-child(n+4) {
-  /* visible por defecto en sidebar expandido */
-}
-
-.nav-grid:not(.nav-expanded) .nav-grid-item.nav-extra {
-  display: none;
-}
-
+/* En sidebar expandido todos los accesos se ven; los extra los controla
+   el TransitionGroup del layout para animar su salida (no display:none). */
 .nav-toggle-expanded {
   display: block;
   width: 100%;
@@ -5379,16 +5442,43 @@ html[data-theme="dark"] .category-stats {
     /* Restaurar ancho completo en móvil */
   }
 
-  .mobile-sidebar.collapsed .sidebar-header h3,
+  /* En móvil el colapso no aplica: el panel vuelve a mostrar todo su
+     contenido sin heredar las transiciones de recogido de escritorio. */
+  .mobile-sidebar.collapsed .sidebar-brand,
   .mobile-sidebar.collapsed .sidebar-section h4,
   .mobile-sidebar.collapsed .sidebar-links a span,
+  .mobile-sidebar.collapsed .nav-label,
   .mobile-sidebar.collapsed .sidebar-social,
   .mobile-sidebar.collapsed .sidebar-footer,
   .mobile-sidebar.collapsed .logout-btn span,
+  .mobile-sidebar.collapsed .settings-sidebar-btn span,
   .mobile-sidebar.collapsed .collapsible-content,
+  .mobile-sidebar.collapsed .collapsible-header,
   .mobile-sidebar.collapsed .conversations-list,
   .mobile-sidebar.collapsed .conversations-header h4 {
-    display: block !important;
+    opacity: 1;
+    max-height: none;
+    max-width: none;
+    overflow: visible;
+    pointer-events: auto;
+    margin-top: revert;
+    margin-bottom: revert;
+    padding-top: revert;
+    padding-bottom: revert;
+  }
+
+  .mobile-sidebar.collapsed .sidebar-brand,
+  .mobile-sidebar.collapsed .nav-label {
+    max-width: 100%;
+  }
+
+  .mobile-sidebar.collapsed .sidebar-footer {
+    border-top-width: 1px;
+    padding: 14px 20px;
+  }
+
+  .mobile-sidebar.collapsed .conversations-list {
+    flex: 1;
   }
 
   .mobile-sidebar.collapsed .sidebar-links a {
@@ -5484,6 +5574,9 @@ html[data-theme="dark"] .category-stats {
   padding-top: 20px;
   border-top: 1px solid var(--glass-border);
   padding: 16px 20px;
+  transition:
+    margin 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-logo img {
@@ -5494,6 +5587,9 @@ html[data-theme="dark"] .category-stats {
   height: auto;
   object-fit: contain;
   display: inline-block;
+  transition:
+    max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* En sidebar colapsado, logo más pequeño */
@@ -7192,6 +7288,29 @@ html[data-theme="dark"] .category-stats {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 4px;
+  position: relative;
+}
+
+/* Entrada y salida de los accesos ("Ver más"/"Ver menos" y colapso). */
+.sidebar-item-enter-active,
+.sidebar-item-leave-active {
+  transition:
+    opacity 0.26s ease,
+    transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.sidebar-item-enter-active {
+  transition-delay: calc(var(--nav-i, 0) * 16ms);
+}
+
+.sidebar-item-enter-from,
+.sidebar-item-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.94);
+}
+
+.sidebar-item-move {
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .nav-grid-item {
@@ -7265,6 +7384,12 @@ img.nav-icon {
   font-weight: 500;
   color: var(--text-secondary);
   text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity 0.24s ease,
+    max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-grid-item.active-link .nav-label {
@@ -7610,9 +7735,9 @@ body::before {
   color: var(--accent-color);
 }
 
-/* Colapsado: ocultar texto */
+/* Colapsado: el texto se recoge con la transición del grupo de arriba. */
 .mobile-sidebar.collapsed .settings-sidebar-btn span {
-  display: none;
+  white-space: nowrap;
 }
 
 .mobile-sidebar.collapsed .settings-sidebar-btn {
@@ -7953,11 +8078,10 @@ body[data-page] :is(
   .task-card
 ) {
   box-sizing: border-box;
-  height: 320px;
-  min-height: 320px;
-  max-height: 320px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: auto;
+  min-height: 250px;
+  max-height: none;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -8070,9 +8194,9 @@ body[data-page] :is(
 
 /* Inventario fija height:100% con un selector de ID: se mantiene el alto común. */
 body[data-page="inventory"] #inventory-grid .course-card {
-  height: 320px;
-  min-height: 320px;
-  max-height: 320px;
+  height: auto;
+  min-height: 250px;
+  max-height: none;
 }
 
 /* Modo oscuro común. */
@@ -8126,7 +8250,9 @@ html[data-theme="dark"] body[data-page] :is(
   background: rgba(208, 188, 255, 0.32);
 }
 
-@media (max-width: 600px) {
+/* Escritorio: cuadros más altos y anchos, con el contenido escalado para
+   que el diseño acompañe el nuevo tamaño. */
+@media (min-width: 769px) {
   body[data-page] :is(
     .courses-grid,
     .categories-grid,
@@ -8145,7 +8271,8 @@ html[data-theme="dark"] body[data-page] :is(
     .lessons-grid,
     .mode-cards-grid
   ) {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
   }
 
   body[data-page] :is(
@@ -8167,9 +8294,137 @@ html[data-theme="dark"] body[data-page] :is(
     .mode-card,
     .task-card
   ) {
-    height: 300px;
-    min-height: 300px;
-    max-height: 300px;
-    padding: 1.15rem;
+    min-height: 340px;
+    padding: 1.7rem;
+    gap: 0.95rem;
+  }
+
+  body[data-page] :is(.category-title, .course-title) {
+    font-size: 1.2rem;
+  }
+
+  body[data-page] :is(.category-desc, .course-description) {
+    font-size: 0.92rem;
+    line-height: 1.6;
+  }
+
+  body[data-page] :is(.category-icon, .course-icon) {
+    width: 54px;
+    height: 54px;
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  body[data-page] :is(
+    .courses-grid,
+    .categories-grid,
+    .dashboard-grid,
+    .task-list,
+    .gen-history-grid,
+    .reports-grid,
+    .doc-grid,
+    .plans-grid,
+    .users-grid,
+    .classes-grid,
+    .usage-grid,
+    .steps-grid,
+    .apa-rules-grid,
+    .inv-sources-grid,
+    .lessons-grid,
+    .mode-cards-grid
+  ) {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  body[data-page] :is(
+    .category-card,
+    .course-card,
+    .project-card,
+    .lesson-card,
+    .dashboard-card,
+    .doc-card,
+    .plan-card,
+    .user-card,
+    .report-card-student,
+    .class-card,
+    .usage-card,
+    .step-card,
+    .apa-rule-card,
+    .inv-source-card,
+    .gen-hist-card,
+    .mode-card,
+    .task-card
+  ) {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: 1.6rem 1.4rem;
+    gap: 0.95rem;
+  }
+
+  /* En móvil las tarjetas crecen con el contenido: tipografía e iconos más
+     grandes y sin recortar la descripción. */
+  body[data-page] :is(.category-title, .course-title) {
+    font-size: 1.25rem;
+  }
+
+  body[data-page] :is(.category-desc, .course-description) {
+    font-size: 0.98rem;
+    -webkit-line-clamp: unset;
+    display: block;
+    overflow: visible;
+  }
+
+  body[data-page] :is(.category-icon, .course-icon) {
+    width: 56px;
+    height: 56px;
+    font-size: 1.9rem;
+  }
+}
+
+/* ============================================
+   APARICIÓN SUAVE DEL PANEL LATERAL
+   ============================================ */
+/* Sólo opacidad y translate: se compone en GPU, sin recalcular layout. Se usa
+   `backwards` para que al terminar la animación los estados :hover vuelvan a
+   mandar (por ejemplo el translateY de las tarjetas de navegación). */
+@keyframes sidebar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#sidebar-page-section > *,
+.settings-sidebar-btn,
+.logout-btn {
+  animation: sidebar-enter 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+
+.settings-sidebar-btn {
+  animation-delay: 0.12s;
+}
+
+.logout-btn {
+  animation-delay: 0.16s;
+}
+
+/* Con movimiento reducido el panel cambia de estado al instante. */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sidebar,
+  .mobile-sidebar *,
+  .mobile-sidebar *::before,
+  .mobile-sidebar *::after,
+  .mobile-overlay {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
   }
 }

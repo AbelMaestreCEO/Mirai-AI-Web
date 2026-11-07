@@ -24,14 +24,21 @@
       <section class="sidebar-section">
         <h4>Navegación</h4>
         <div class="collapsible-content nav-collapsible-content" style="max-height: 500px; opacity: 1; margin-top: 0.5rem">
-          <div class="nav-grid" :class="{ 'nav-expanded': shell.navExpanded }">
+          <TransitionGroup
+            tag="div"
+            name="sidebar-item"
+            appear
+            class="nav-grid"
+            :class="{ 'nav-expanded': shell.navExpanded }"
+          >
             <AppLink
-              v-for="(item, i) in NAV_ITEMS"
+              v-for="{ item, i } in visibleNavItems"
               :key="item.slug"
               :to="item.slug"
               class="nav-grid-item"
               :class="{ 'nav-extra': i >= 3, 'active-link': isActive(item.slug) }"
               :data-tooltip="item.tooltip"
+              :style="{ '--nav-i': i }"
               @navigate="onNavigate"
             >
               <img
@@ -46,7 +53,8 @@
               />
               <span class="nav-label">{{ item.label }}</span>
             </AppLink>
-          </div>
+          </TransitionGroup>
+
           <button class="nav-toggle-expanded" @click="shell.navExpanded = !shell.navExpanded">
             {{ shell.navExpanded ? 'Ver menos ▴' : 'Ver más ▾' }}
           </button>
@@ -97,6 +105,7 @@
 <script setup lang="ts">
 // Barra lateral de la app (la .mobile-sidebar de las páginas antiguas, que
 // manejaban app.js y mirai-boot.js).
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import AppLink from '@/components/AppLink.vue';
 import { NAV_ITEMS } from '@/lib/nav';
@@ -108,6 +117,12 @@ import { closeMenu, shell, toggleCollapsed } from '@/lib/shell';
 const route = useRoute();
 const year = new Date().getFullYear();
 
+/** Accesos visibles: los tres base y los extra solo con "Ver más", así el
+ *  TransitionGroup puede animar su entrada y su salida (no desaparecen de golpe). */
+const visibleNavItems = computed(() =>
+  NAV_ITEMS.map((item, i) => ({ item, i })).filter(({ i }) => shell.navExpanded || i < 3),
+);
+
 /** Página actual: el primer segmento de la ruta es el slug antiguo. */
 function isActive(slug: string): boolean {
   const current = route.path.replace(/^\/+/, '').split('/')[0] ?? '';
@@ -115,6 +130,8 @@ function isActive(slug: string): boolean {
 }
 
 function onNavigate() {
+  // Al elegir un módulo la lista vuelve a mostrar solo los accesos base.
+  shell.navExpanded = false;
   if (window.innerWidth <= 768) closeMenu();
 }
 

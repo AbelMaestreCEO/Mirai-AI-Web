@@ -11,7 +11,7 @@
     </div>
 
     <div class="classroom-toolbar">
-      <div id="user-greeting" style="font-size: 1rem; color: var(--text-secondary);">Hola, {{ currentUser?.dni || 'Estudiante' }}</div>
+      <div id="user-greeting" style="font-size: 1rem; color: var(--text-secondary);">Hola, {{ currentUser?.name || currentUser?.dni || 'Estudiante' }}</div>
       <button
         v-if="canOpenProfessorPanel"
         id="professor-btn"

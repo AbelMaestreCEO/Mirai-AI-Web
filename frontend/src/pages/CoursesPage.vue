@@ -21,7 +21,7 @@
       </div>
       <div id="filter-pills" class="filter-pills">
         <button class="filter-pill" :class="{ active: activeSub === 'todos' }" data-category="todos" @click="activeSub = 'todos'">Todos</button>
-        <button v-for="sub in subcategories" :key="sub.id" class="filter-pill" :class="{ active: activeSub === sub.id }" :data-category="sub.id" @click="activeSub = sub.id">
+        <button v-for="sub in visibleSubcategories" :key="sub.id" class="filter-pill" :class="{ active: activeSub === sub.id }" :data-category="sub.id" @click="activeSub = sub.id">
           {{ sub.icon || '📚' }} {{ sub.title }}
         </button>
       </div>
@@ -145,6 +145,19 @@ watch(searchInput, (v) => {
 onBeforeUnmount(() => clearTimeout(searchTimer));
 
 const categoryCourses = computed(() => (mainCategory.value ? courses.value.filter((c) => c.category === mainCategory.value) : courses.value));
+
+// Solo las subcategorías relacionadas con los cursos mostrados.
+const visibleSubcategories = computed(() => {
+  const present = new Set(categoryCourses.value.map((c) => c.subcategory).filter(Boolean));
+  return subcategories.value.filter((s) => present.has(s.id));
+});
+
+// Si cambia la categoría, descarta un filtro de subcategoría que ya no aplica.
+watch([visibleSubcategories, mainCategory], () => {
+  if (activeSub.value !== 'todos' && !visibleSubcategories.value.some((s) => s.id === activeSub.value)) {
+    activeSub.value = 'todos';
+  }
+});
 
 function visible(course: Course): boolean {
   const matchesSub = activeSub.value === 'todos' || String(course.subcategory || '') === activeSub.value;
