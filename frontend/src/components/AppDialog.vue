@@ -96,6 +96,8 @@ watch(
 </script>
 
 <style scoped>
+/* Todo sale de las variables de styles.css, que además reescribe
+   applyAppearance() con la paleta de acento elegida por el usuario. */
 .app-dialog-root {
   position: fixed;
   inset: 0;
@@ -104,15 +106,16 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  background: rgba(18, 12, 34, 0.44);
+  background: rgba(20, 16, 30, 0.42);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
 }
 
 .app-dialog {
-  --dialog-accent: #6750a4;
-  --dialog-accent-soft: rgba(103, 80, 164, 0.12);
-  --dialog-accent-glow: rgba(103, 80, 164, 0.2);
+  --dialog-accent: var(--accent-color, #6750a4);
+  --dialog-gradient: var(--accent-gradient, linear-gradient(135deg, #6750a4, #9a82db));
+  --dialog-soft: var(--secondary-container, #e8def8);
+  --dialog-glow: var(--accent-glow, rgba(103, 80, 164, 0.18));
   position: relative;
   width: 100%;
   max-width: 420px;
@@ -123,38 +126,82 @@ watch(
   gap: 0.85rem;
   padding: 1.6rem;
   border-radius: 22px;
-  border: 1px solid rgba(103, 80, 164, 0.16);
-  background:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.97) 100%);
+  border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.16));
+  background: var(--glass-bg, #ffffff);
+  color: var(--text-primary, #1c1b1f);
   box-shadow:
-    0 24px 60px rgba(30, 20, 55, 0.22),
-    0 2px 8px rgba(30, 20, 55, 0.08);
+    var(--glass-shadow, 0 6px 24px rgba(0, 0, 0, 0.12)),
+    0 24px 60px rgba(0, 0, 0, 0.16);
   outline: none;
 }
 
+/* Tonos semánticos: el acento de cada uno se adapta al tema. */
 .app-dialog.tone-danger,
 .app-dialog.tone-error {
   --dialog-accent: #b3261e;
-  --dialog-accent-soft: rgba(179, 38, 30, 0.1);
-  --dialog-accent-glow: rgba(179, 38, 30, 0.18);
+  --dialog-gradient: linear-gradient(135deg, #8c1d18, #b3261e 55%, #d32f2f);
+  --dialog-soft: rgba(179, 38, 30, 0.1);
+  --dialog-glow: rgba(179, 38, 30, 0.2);
 }
 
 .app-dialog.tone-success {
   --dialog-accent: #1b6b3a;
-  --dialog-accent-soft: rgba(27, 107, 58, 0.1);
-  --dialog-accent-glow: rgba(27, 107, 58, 0.18);
+  --dialog-gradient: linear-gradient(135deg, #1b6b3a, #2e7d32 60%, #43a047);
+  --dialog-soft: rgba(27, 107, 58, 0.1);
+  --dialog-glow: rgba(27, 107, 58, 0.2);
 }
 
 .app-dialog.tone-warning {
-  --dialog-accent: #9a6700;
-  --dialog-accent-soft: rgba(154, 103, 0, 0.12);
-  --dialog-accent-glow: rgba(154, 103, 0, 0.2);
+  --dialog-accent: #8a5a00;
+  --dialog-gradient: linear-gradient(135deg, #8a5a00, #b7791f 60%, #d69e2e);
+  --dialog-soft: rgba(154, 103, 0, 0.12);
+  --dialog-glow: rgba(154, 103, 0, 0.2);
 }
 
 .app-dialog.tone-info {
   --dialog-accent: #0b6bcb;
-  --dialog-accent-soft: rgba(11, 107, 203, 0.1);
-  --dialog-accent-glow: rgba(11, 107, 203, 0.18);
+  --dialog-gradient: linear-gradient(135deg, #0b5cab, #1e88e5 60%, #42a5f5);
+  --dialog-soft: rgba(11, 107, 203, 0.1);
+  --dialog-glow: rgba(11, 107, 203, 0.2);
+}
+
+:global(html[data-theme='dark']) .app-dialog-root {
+  background: rgba(4, 3, 8, 0.58);
+}
+
+:global(html[data-theme='dark']) .app-dialog {
+  box-shadow:
+    var(--glass-shadow, 0 6px 24px rgba(0, 0, 0, 0.3)),
+    0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+:global(html[data-theme='dark']) .app-dialog.tone-danger,
+:global(html[data-theme='dark']) .app-dialog.tone-error {
+  --dialog-accent: #f2b8b5;
+  --dialog-gradient: linear-gradient(135deg, #8c1d18, #b3261e);
+  --dialog-soft: rgba(242, 184, 181, 0.12);
+  --dialog-glow: rgba(242, 184, 181, 0.16);
+}
+
+:global(html[data-theme='dark']) .app-dialog.tone-success {
+  --dialog-accent: #a6e3b5;
+  --dialog-gradient: linear-gradient(135deg, #1b5e20, #2e7d32);
+  --dialog-soft: rgba(166, 227, 181, 0.12);
+  --dialog-glow: rgba(166, 227, 181, 0.16);
+}
+
+:global(html[data-theme='dark']) .app-dialog.tone-warning {
+  --dialog-accent: #ffd479;
+  --dialog-gradient: linear-gradient(135deg, #7a4f00, #9a6700);
+  --dialog-soft: rgba(255, 212, 121, 0.12);
+  --dialog-glow: rgba(255, 212, 121, 0.16);
+}
+
+:global(html[data-theme='dark']) .app-dialog.tone-info {
+  --dialog-accent: #9ecbff;
+  --dialog-gradient: linear-gradient(135deg, #0b4f8a, #1565c0);
+  --dialog-soft: rgba(158, 203, 255, 0.12);
+  --dialog-glow: rgba(158, 203, 255, 0.16);
 }
 
 .app-dialog-icon {
@@ -165,8 +212,8 @@ watch(
   justify-content: center;
   border-radius: 14px;
   color: var(--dialog-accent);
-  background: var(--dialog-accent-soft);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: var(--dialog-soft);
+  box-shadow: inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.4));
 }
 
 .app-dialog-title {
@@ -174,14 +221,14 @@ watch(
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--text-primary, #1c1b1f);
 }
 
 .app-dialog-message {
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.55;
-  color: var(--text-secondary, #5c5668);
+  color: var(--text-secondary, #49454f);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -197,24 +244,28 @@ watch(
   width: 100%;
   padding: 0.7rem 0.9rem;
   border-radius: 12px;
-  border: 1.5px solid rgba(103, 80, 164, 0.18);
-  background: var(--secondary-container, #f5f0ff);
-  color: var(--text-primary, #1a1a1a);
+  border: 1.5px solid var(--glass-border, rgba(103, 80, 164, 0.18));
+  background: var(--secondary-container, #e8def8);
+  color: var(--text-primary, #1c1b1f);
   font: inherit;
   font-size: 0.95rem;
   outline: none;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
+.app-dialog-input::placeholder {
+  color: var(--text-tertiary, #79747e);
+}
+
 .app-dialog-input:focus {
   border-color: var(--dialog-accent);
-  box-shadow: 0 0 0 3px var(--dialog-accent-glow);
+  box-shadow: 0 0 0 3px var(--dialog-glow);
 }
 
 .app-dialog-suffix {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-secondary, #777);
+  color: var(--text-secondary, #49454f);
 }
 
 .app-dialog-actions {
@@ -239,27 +290,25 @@ watch(
 }
 
 .app-dialog-btn.cancel {
-  border: 1px solid rgba(103, 80, 164, 0.2);
+  border: 1px solid var(--glass-border, rgba(103, 80, 164, 0.2));
   background: transparent;
-  color: var(--text-secondary, #5c5668);
+  color: var(--text-secondary, #49454f);
 }
 
 .app-dialog-btn.cancel:hover {
-  background: var(--secondary-container, #ede7f6);
+  background: var(--secondary-container, #e8def8);
 }
 
 .app-dialog-btn.confirm {
   border: 1px solid transparent;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 55%),
-    var(--dialog-accent);
+  background: var(--dialog-gradient);
   color: #fff;
-  box-shadow: 0 8px 20px var(--dialog-accent-glow);
+  box-shadow: 0 8px 20px var(--dialog-glow);
 }
 
 .app-dialog-btn.confirm:hover {
   filter: brightness(1.06);
-  box-shadow: 0 10px 24px var(--dialog-accent-glow);
+  box-shadow: 0 10px 24px var(--dialog-glow);
 }
 
 .app-dialog-btn:focus-visible {
@@ -287,37 +336,6 @@ watch(
 .app-dialog-leave-to .app-dialog {
   opacity: 0;
   transform: translateY(14px) scale(0.96);
-}
-
-:global(html[data-theme='dark']) .app-dialog-root {
-  background: rgba(6, 4, 12, 0.6);
-}
-
-:global(html[data-theme='dark']) .app-dialog {
-  border-color: rgba(208, 188, 255, 0.2);
-  background: linear-gradient(150deg, #1c1826 0%, #241e33 100%);
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.55),
-    0 2px 8px rgba(0, 0, 0, 0.35);
-}
-
-:global(html[data-theme='dark']) .app-dialog-icon {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-:global(html[data-theme='dark']) .app-dialog-input {
-  background: rgba(208, 188, 255, 0.08);
-  border-color: rgba(208, 188, 255, 0.2);
-  color: var(--text-primary, #ece7f6);
-}
-
-:global(html[data-theme='dark']) .app-dialog-btn.cancel {
-  border-color: rgba(208, 188, 255, 0.22);
-  color: var(--text-secondary, #b9b3c4);
-}
-
-:global(html[data-theme='dark']) .app-dialog-btn.cancel:hover {
-  background: rgba(208, 188, 255, 0.1);
 }
 
 @media (max-width: 480px) {

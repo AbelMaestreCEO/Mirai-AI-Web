@@ -1542,9 +1542,9 @@
     "semantic_hash": ""
   },
   "frontend/src/components/AppDialog.vue": {
-    "mtime": 1794009321.737566,
-    "seen": 1794009709.499608,
-    "ast_hash": "02348e657e13646dd333ef902c5f0ec9",
+    "mtime": 1794009968.9719605,
+    "seen": 1794010018.0788083,
+    "ast_hash": "855cc1f847ee9203a7028c1ac76e5092",
     "semantic_hash": ""
   },
   "frontend/src/lib/dialog.ts": {
