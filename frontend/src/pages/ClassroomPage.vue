@@ -12,8 +12,14 @@
 
     <div class="classroom-toolbar">
       <div id="user-greeting" style="font-size: 1rem; color: var(--text-secondary);">Hola, {{ currentUser?.dni || 'Estudiante' }}</div>
-      <button id="professor-btn" class="btn-secondary" title="Acceso para Profesores" @click="openProfessorPanel">
-        👨‍🏫 ¿Es un profesor?
+      <button
+        v-if="canOpenProfessorPanel"
+        id="professor-btn"
+        class="btn-secondary"
+        title="Panel docente"
+        @click="openProfessorPanel"
+      >
+        👨‍🏫 Panel docente
       </button>
     </div>
 
@@ -240,6 +246,13 @@ interface ClassGroup {
 
 const router = useRouter();
 const route = useRoute();
+
+// El botón del panel docente solo se muestra a profesores y administradores.
+const canOpenProfessorPanel = computed(() => {
+  const role = String(currentUser.value?.role || '').toLowerCase();
+  return ['admin', 'teacher', 'professor', 'profesor'].includes(role);
+});
+
 const assignments = ref<Assignment[]>([]);
 const submissions = ref<Submission[]>([]);
 const classes = ref<StudentClass[]>([]);

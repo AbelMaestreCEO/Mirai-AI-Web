@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794024215.5395844,
-    "seen": 1794024246.850567,
-    "ast_hash": "3df32cdd34ff6f31cfff42e099d4b030",
+    "mtime": 1794025261.3053508,
+    "seen": 1794025294.889649,
+    "ast_hash": "870e6d2686839797a52d6eed908286b6",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
-    "mtime": 1794024675.1943436,
-    "seen": 1794024714.146961,
-    "ast_hash": "d4cb2d1c385f2812b0f63d1431593a47",
+    "mtime": 1794025462.5487409,
+    "seen": 1794025501.4240224,
+    "ast_hash": "8eee35f468320ff477a60e6df26a9a90",
     "semantic_hash": ""
   },
   "frontend/src/pages/CodePage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794024696.843216,
-    "seen": 1794024714.1503744,
+    "mtime": 1794025485.0865743,
+    "seen": 1794025501.4267473,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794024642.8009748,
-    "seen": 1794024714.1538754,
-    "ast_hash": "4c435828b8e6aa5eb1e40dc6fe761331",
+    "mtime": 1794025467.3369322,
+    "seen": 1794025501.4301796,
+    "ast_hash": "734690bb2d1ce9e5bde764e3bbe5ba8f",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {

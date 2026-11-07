@@ -96,6 +96,20 @@ async function ensureEvaluationPlanTables(env: Env) {
   evaluationPlanTablesReady = true;
 }
 
+// Columna de enlaces de invitación: se garantiza aquí (además de la migración
+// de router.ts) para que /api/sections nunca falle si el ALTER quedó pendiente.
+let sectionInviteColumnReady = false;
+
+async function ensureSectionInviteColumn(env: Env) {
+  if (sectionInviteColumnReady) return;
+  try {
+    await env.MIRAI_AI_DB.prepare('ALTER TABLE sections ADD COLUMN invite_code TEXT').run();
+  } catch {
+    // La columna ya existe (o la tabla la crea la migración de router.ts).
+  }
+  sectionInviteColumnReady = true;
+}
+
 function quizLevelAt(index: number): string {
   let cursor = 0;
   for (const plan of QUIZ_LEVELS) {
@@ -147,6 +161,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
   // grading_mode) deben existir antes de cualquier lectura de assignments.
   await ensureQuizSubmissionColumns(env);
   await ensureEvaluationPlanTables(env);
+  await ensureSectionInviteColumn(env);
 
   // ── ASISTENCIA: Empleado ──────────────────────────────────
   if (path === '/api/attendance/my-profile' && request.method === 'GET')
@@ -630,17 +645,27 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { results } = await env.MIRAI_AI_DB.prepare(`
-    SELECT s.id, s.name, s.description, s.course_id, s.created_at, s.invite_code,
+    const baseQuery = (withInviteCode: boolean) => `
+    SELECT s.id, s.name, s.description, s.course_id, s.created_at${withInviteCode ? ', s.invite_code' : ''},
            uc.title as course_title,
            COUNT(ss.user_dni) as student_count
     FROM sections s
     LEFT JOIN user_courses  uc ON s.course_id = uc.id
     LEFT JOIN section_students ss ON s.id = ss.section_id
-    WHERE s.professor_dni = ?
+    WHERE UPPER(s.professor_dni) = UPPER(?)
     GROUP BY s.id
     ORDER BY s.created_at DESC
-  `).bind(userDni).all<any>();
+  `;
+
+    let results: any[] = [];
+    try {
+      const res = await env.MIRAI_AI_DB.prepare(baseQuery(true)).bind(userDni).all<any>();
+      results = res.results || [];
+    } catch {
+      // Base de datos antigua sin invite_code: se listan las secciones igual.
+      const res = await env.MIRAI_AI_DB.prepare(baseQuery(false)).bind(userDni).all<any>();
+      results = (res.results || []).map((row: any) => ({ ...row, invite_code: null }));
+    }
 
     return jsonResponse(results, 200, corsHeaders);
   }
@@ -903,7 +928,7 @@ ORDER BY u.last_name, u.first_name
       return jsonResponse({ is_professor: false }, 401, corsHeaders);
     }
 
-    const isProfessor = await isAuthorizedProfessor(userDni, env);
+    const isProfessor = await isAdminUser(userDni, env) || await isAuthorizedProfessor(userDni, env);
     return jsonResponse({ is_professor: isProfessor }, 200, corsHeaders);
   }
   // --- NUEVAS RUTAS PARA ADMIN ---

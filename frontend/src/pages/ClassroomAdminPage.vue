@@ -227,9 +227,17 @@
             <div class="form-group">
               <label>Sección (Opcional — asigna automáticamente a sus estudiantes)</label>
               <select id="task-section-select" v-model="taskForm.sectionId">
-                <option value="">Sin sección específica</option>
+                <option value="">{{ classSections.length ? 'Sin sección específica' : 'No hay secciones en esta clase' }}</option>
                 <option v-for="s in classSections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
               </select>
+              <small v-if="sectionsState === 'error'" style="color: var(--error-color, #dc2626); font-size: .78rem; display: block; margin-top: 6px;">
+                No se pudieron cargar las secciones.
+                <button type="button" style="border:none;background:none;color:var(--accent-color);font:inherit;font-weight:600;cursor:pointer;padding:0;" @click="loadSections()">Reintentar</button>
+              </small>
+              <small v-else-if="!classSections.length" style="color: var(--text-secondary); font-size: .78rem; display: block; margin-top: 6px;">
+                Crea una sección para poder asignar esta tarea a un grupo.
+                <button type="button" style="border:none;background:none;color:var(--accent-color);font:inherit;font-weight:600;cursor:pointer;padding:0;" @click="switchTab('sections')">Crear sección</button>
+              </small>
             </div>
           </div>
           <div class="form-row">
@@ -358,9 +366,17 @@
             <div class="form-group">
               <label>Sección (Opcional)</label>
               <select v-model="planForm.sectionId">
-                <option value="">Sin sección específica</option>
+                <option value="">{{ classSections.length ? 'Sin sección específica' : 'No hay secciones en esta clase' }}</option>
                 <option v-for="s in classSections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
               </select>
+              <small v-if="sectionsState === 'error'" style="color: var(--error-color, #dc2626); font-size: .78rem; display: block; margin-top: 6px;">
+                No se pudieron cargar las secciones.
+                <button type="button" style="border:none;background:none;color:var(--accent-color);font:inherit;font-weight:600;cursor:pointer;padding:0;" @click="loadSections()">Reintentar</button>
+              </small>
+              <small v-else-if="!classSections.length" style="color: var(--text-secondary); font-size: .78rem; display: block; margin-top: 6px;">
+                Crea una sección para asignar el plan a un grupo.
+                <button type="button" style="border:none;background:none;color:var(--accent-color);font:inherit;font-weight:600;cursor:pointer;padding:0;" @click="switchTab('sections')">Crear sección</button>
+              </small>
             </div>
           </div>
 
@@ -447,9 +463,12 @@
               <div class="form-group" style="margin-bottom:0; min-width:190px;">
                 <label style="font-size:.76rem;">Clase asignada</label>
                 <select v-model="planSectionDraft[p.id]" style="margin-top:4px;">
-                  <option value="">Sin clase</option>
+                  <option value="">{{ planSectionsFor(p).length ? 'Sin clase' : 'No hay secciones en esta clase' }}</option>
                   <option v-for="sec in planSectionsFor(p)" :key="sec.id" :value="String(sec.id)">{{ sec.name }}</option>
                 </select>
+                <small v-if="!planSectionsFor(p).length" style="color: var(--text-secondary); font-size: .74rem; display:block; margin-top:4px;">
+                  Crea una sección para asignar este plan.
+                </small>
               </div>
               <button
                 class="btn-primary"
@@ -532,9 +551,12 @@
             <div class="form-group">
               <label>Seleccionar Sección</label>
               <select id="section-student-select" v-model="selectedSection" @change="loadSectionStudents">
-                <option value="">Selecciona una sección...</option>
+                <option value="">{{ classSections.length ? 'Selecciona una sección...' : 'No hay secciones en esta clase' }}</option>
                 <option v-for="s in classSections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
               </select>
+              <small v-if="!classSections.length" style="color: var(--text-secondary); font-size: .78rem; display: block; margin-top: 6px;">
+                Crea una sección primero para poder agregar estudiantes.
+              </small>
             </div>
             <div class="form-group">
               <label>DNI del Estudiante</label>
@@ -611,6 +633,7 @@
             {{ sec.name }}
           </button>
           <button :class="subSection === '__none__' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="subSection = '__none__'">Sin clase</button>
+          <span v-if="!classSections.length" style="font-size:.78rem; color: var(--text-secondary);">(Esta clase no tiene secciones)</span>
         </div>
         <div style="padding: 0 8px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;">
           <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
@@ -982,11 +1005,18 @@ const selectedCourse = computed(() =>
   courses.value.find((c) => String(c.id) === selectedCourseId.value) ?? null,
 );
 
-const classSections = computed(() =>
-  selectedCourseId.value
-    ? sections.value.filter((s) => String(s.course_id) === selectedCourseId.value)
-    : sections.value,
-);
+const classSections = computed(() => {
+  if (!selectedCourseId.value) return sections.value;
+  const courseId = selectedCourseId.value;
+  const courseTitle = (selectedCourse.value?.title || '').trim().toLowerCase();
+  // Coincidencia por id y, como respaldo, por título de la clase: así también
+  // aparecen secciones antiguas cuyo course_id quedó desactualizado.
+  return sections.value.filter((s) => {
+    if (String(s.course_id) === courseId) return true;
+    if (!courseTitle) return false;
+    return String(s.course_title || '').trim().toLowerCase() === courseTitle;
+  });
+});
 
 const classTasks = computed(() =>
   selectedCourseId.value
@@ -1011,14 +1041,20 @@ const visiblePlans = computed(() =>
 );
 
 function classSectionCount(course: Course): number {
-  return sections.value.filter((s) => String(s.course_id) === String(course.id)).length;
+  const title = (course.title || '').trim().toLowerCase();
+  return sections.value.filter((s) => {
+    if (String(s.course_id) === String(course.id)) return true;
+    return !!title && String(s.course_title || '').trim().toLowerCase() === title;
+  }).length;
 }
 
 function selectCourse(course: Course) {
   selectedCourseId.value = String(course.id);
   taskForm.courseId = String(course.id);
+  taskForm.sectionId = '';
   sectionForm.courseId = String(course.id);
   planForm.courseId = String(course.id);
+  planForm.sectionId = '';
   taskSectionFilter.value = '';
   subSection.value = '';
   conceptAssignment.value = '';
@@ -1026,11 +1062,13 @@ function selectCourse(course: Course) {
   sectionStudents.items = [];
   tab.value = 'info';
   void loadTasks();
-  void ensureCourseInviteLinks();
+  void loadSections().then(() => ensureCourseInviteLinks());
 }
 
 function backToClasses() {
   selectedCourseId.value = '';
+  taskForm.sectionId = '';
+  planForm.sectionId = '';
   taskSectionFilter.value = '';
   subSection.value = '';
   conceptAssignment.value = '';
@@ -1071,6 +1109,7 @@ function switchTab(t: Tab) {
     return;
   }
   tab.value = t;
+  if (t === 'sections' || t === 'create' || t === 'plans') void loadSections();
   if (t === 'list') void loadTasks();
   else if (t === 'plans') void loadPlans();
   else if (t === 'submissions') void loadSubmissions();
@@ -1438,7 +1477,8 @@ async function loadPlans() {
 }
 
 function planSectionsFor(plan: EvaluationPlanRow): Section[] {
-  return sections.value.filter((s) => !plan.course_id || String(s.course_id) === String(plan.course_id));
+  const base = selectedCourseId.value ? classSections.value : sections.value;
+  return base.filter((s) => !plan.course_id || String(s.course_id) === String(plan.course_id));
 }
 
 async function savePlanSection(plan: EvaluationPlanRow) {
