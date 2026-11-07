@@ -109,6 +109,73 @@
     </div>
 
     <div class="tabs-container">
+      <!-- TAB: Información de la clase -->
+      <div id="tab-info" class="admin-tab-content" :class="{ active: tab === 'info' }">
+        <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
+          <div class="course-detail-icon">📚</div>
+          <div class="course-detail-info">
+            <h2 class="course-detail-title" style="font-size:1.3rem;">{{ selectedCourse?.title }}</h2>
+            <p class="course-detail-description">
+              {{ selectedCourse?.description || 'Información general de la clase y enlace para que se unan tus estudiantes.' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="inventory-stats" style="padding: 0 8px 18px;">
+          <div class="stat-card">
+            <div class="stat-icon">🗂️</div>
+            <div class="stat-content">
+              <span class="stat-label">Secciones</span>
+              <span class="stat-value">{{ classSections.length }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+              <span class="stat-label">Estudiantes</span>
+              <span class="stat-value">{{ classStudentCount }}</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-content">
+              <span class="stat-label">Tareas</span>
+              <span class="stat-value">{{ classTasks.length }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding: 0 8px 24px;">
+          <h3 style="margin-bottom: 6px;">🔗 Enlace para unirse a la clase</h3>
+          <p style="color: var(--text-secondary); font-size: .85rem; margin-bottom: 14px;">
+            Comparte este enlace con tus estudiantes. Al abrirlo e iniciar sesión, se unirán automáticamente a la sección.
+          </p>
+          <div v-if="classSections.length" style="display: flex; flex-direction: column; gap: 12px;">
+            <div
+              v-for="sec in classSections"
+              :key="sec.id"
+              style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; background: var(--glass-bg);"
+            >
+              <strong style="display: block; margin-bottom: 8px;">{{ sec.name }}</strong>
+              <div v-if="sec.invite_code" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input
+                  :value="sectionLink(sec)"
+                  type="text"
+                  readonly
+                  style="flex: 1; min-width: 220px; font-size: .82rem;"
+                >
+                <button class="btn-secondary" style="white-space: nowrap;" @click="copyLink(sectionLink(sec))">📋 Copiar</button>
+              </div>
+              <span v-else style="font-size: .82rem; color: var(--text-secondary);">Preparando enlace…</span>
+            </div>
+          </div>
+          <p v-else style="color: var(--text-secondary); font-size: .9rem;">
+            Esta clase todavía no tiene secciones. Crea una para generar el enlace de invitación.
+          </p>
+          <button class="btn-secondary" style="margin-top: 16px;" @click="switchTab('sections')">🗂️ Gestionar secciones</button>
+        </div>
+      </div>
+
       <!-- TAB: Crear Tarea -->
       <div id="tab-create" class="admin-tab-content" :class="{ active: tab === 'create' }">
         <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
@@ -667,7 +734,7 @@
           </button>
           <p v-if="!courses.length" class="admin-sidebar-hint">Todavía no tienes clases.</p>
         </div>
-        <button class="admin-sidebar-btn" :class="{ active: tab === 'sections' }" @click="switchTab('sections')">
+        <button v-if="!selectedCourse" class="admin-sidebar-btn" :class="{ active: tab === 'sections' }" @click="switchTab('sections')">
           🗂️ Secciones
         </button>
 
@@ -825,12 +892,14 @@ import { goToPage } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
 import { currentUser } from '@/lib/session';
 
-type Tab = 'classes' | 'create' | 'list' | 'plans' | 'sections' | 'submissions' | 'concepts';
+type Tab = 'classes' | 'info' | 'create' | 'list' | 'plans' | 'sections' | 'submissions' | 'concepts';
 type Id = number | string;
 
 interface Course {
   id: Id;
   title: string;
+  description?: string | null;
+  created_at?: string | null;
 }
 
 interface Task {
@@ -895,6 +964,7 @@ interface SubmissionRow {
 }
 
 const CLASS_TABS: { id: Tab; label: string }[] = [
+  { id: 'info', label: 'ℹ️ Información' },
   { id: 'list', label: '📋 Mis Tareas' },
   { id: 'create', label: '➕ Crear Tarea' },
   { id: 'plans', label: '📚 Planes' },
@@ -924,6 +994,10 @@ const classTasks = computed(() =>
     : tasks.items,
 );
 
+const classStudentCount = computed(() =>
+  classSections.value.reduce((total, s) => total + (Number(s.student_count) || 0), 0),
+);
+
 const filteredDisputes = computed(() =>
   selectedCourseId.value
     ? disputes.items.filter((d) => String(d.course_id) === selectedCourseId.value)
@@ -950,7 +1024,7 @@ function selectCourse(course: Course) {
   conceptAssignment.value = '';
   selectedSection.value = '';
   sectionStudents.items = [];
-  tab.value = 'list';
+  tab.value = 'info';
   void loadTasks();
   void ensureCourseInviteLinks();
 }
