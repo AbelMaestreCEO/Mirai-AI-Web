@@ -130,10 +130,10 @@
           <p id="task-description" class="task-desc-text">{{ assignment.description || 'Sin descripción' }}</p>
         </div>
 
-        <!-- Cómo hacer la tarea: se elige una sola vez -->
-        <div v-if="!methodLocked" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
+        <!-- Cómo hacer la tarea: se puede cambiar de forma cuando quieras -->
+        <div v-if="showMethods" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
           <h2 class="section-title">¿Cómo quieres hacer tu tarea?</h2>
-          <p class="section-subtitle">Elige una sola forma. No podrás cambiarla después.</p>
+          <p class="section-subtitle">Puedes cambiar de forma cuando quieras. Si ya tenías una nota, la nueva la reemplazará.</p>
           <div class="task-methods-grid">
             <button class="method-card" @click="chooseMethod('document')">
               <span class="method-icon">📄</span>
@@ -198,8 +198,8 @@
           </div>
         </div>
         <div v-else class="method-locked-bar" style="margin: 0 20px 24px;">
-          🔒 Forma elegida: <strong>{{ method ? METHOD_LABELS[method] : '' }}</strong>
-          <span>No se puede cambiar</span>
+          Forma elegida: <strong>{{ method ? METHOD_LABELS[method] : '' }}</strong>
+          <button class="ludo-link" type="button" @click="showMethods = true">🔁 Cambiar forma</button>
           <button class="ludo-link" type="button" @click="openLudo">🎲 Jugar Ludo multijugador</button>
         </div>
 
@@ -291,9 +291,9 @@
 
           <div v-if="canDisagree" class="disagree-card">
             <p>¿No estás de acuerdo con tu nota?</p>
-            <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+            <button class="course-start-btn" @click="disagreeWithGrade">Volver a hacer la tarea</button>
           </div>
-          <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+          <p v-else class="disagree-used">Aún no hay una entrega calificada para volver a hacer.</p>
         </div>
         </template>
 
@@ -398,9 +398,9 @@
 
               <div v-if="canDisagree" class="disagree-card">
                 <p>¿No estás de acuerdo con tu nota?</p>
-                <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+                <button class="course-start-btn" @click="disagreeWithGrade">Volver a hacer la tarea</button>
               </div>
-              <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+              <p v-else class="disagree-used">Aún no hay una entrega calificada para volver a hacer.</p>
             </div>
           </template>
 
@@ -411,13 +411,13 @@
             <p class="quiz-result-sub">{{ quizSubmission.attempt_type === 'quiz4' ? 'Quiz 4' : 'Quiz libre' }} completado</p>
             <div v-if="canDisagree" class="disagree-card">
               <p>¿No estás de acuerdo con tu nota?</p>
-              <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+              <button class="course-start-btn" @click="disagreeWithGrade">Volver a hacer la tarea</button>
             </div>
-            <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+            <p v-else class="disagree-used">Aún no hay una entrega calificada para volver a hacer.</p>
           </div>
 
           <div v-else class="quiz-result">
-            <p class="quiz-result-sub">Tu forma de hacer la tarea está bloqueada.</p>
+            <p class="quiz-result-sub">Puedes comenzar o repetir este quiz cuando quieras.</p>
             <button class="course-start-btn" @click="startQuiz(method)">Comenzar quiz</button>
           </div>
         </section>
@@ -437,9 +437,9 @@
             </div>
             <div v-if="canDisagree" class="disagree-card">
               <p>¿No estás de acuerdo con tu nota?</p>
-              <button class="course-start-btn" @click="disagreeWithGrade">Reiniciar tarea (solo una vez)</button>
+              <button class="course-start-btn" @click="disagreeWithGrade">Volver a hacer la tarea</button>
             </div>
-            <p v-else class="disagree-used">Ya usaste tu único reinicio para esta tarea.</p>
+            <p v-else class="disagree-used">Aún no hay una entrega calificada para volver a hacer.</p>
           </div>
           <div v-else class="quiz-result">
             <p class="quiz-result-sub">Tu actividad está lista. Vuelve a abrirla para continuar.</p>
@@ -570,7 +570,7 @@ interface QuizQuestion {
 
 const activeTab = ref<'learn' | 'do'>('learn');
 const method = ref<TaskMethod | null>(null);
-const methodLocked = ref(false);
+const showMethods = ref(true);
 const retryUsed = ref(false);
 
 const METHOD_LABELS: Record<TaskMethod, string> = {
@@ -590,16 +590,15 @@ const METHOD_LABELS: Record<TaskMethod, string> = {
 const METHOD_STORAGE_PREFIX = 'mirai-task-method:';
 
 async function chooseMethod(next: TaskMethod) {
-  if (methodLocked.value) return;
-  if (!(await dialog.confirm(`Vas a hacer esta tarea con "${METHOD_LABELS[next]}". Esa será tu única forma de hacerla y no podrás cambiarla después. ¿Continuar?`))) {
+  if (!(await dialog.confirm(`Vas a hacer esta tarea con "${METHOD_LABELS[next]}". Si ya tenías una nota, la nueva la reemplazará. ¿Continuar?`))) {
     return;
   }
-  methodLocked.value = true;
   method.value = next;
+  showMethods.value = false;
   try {
     localStorage.setItem(`${METHOD_STORAGE_PREFIX}${assignmentId.value}`, next);
   } catch {
-    // Sin almacenamiento local: el bloqueo dura solo esta visita.
+    // Sin almacenamiento local: la elección dura solo esta visita.
   }
   if (isActivityMethod(next)) {
     openActivity(next);
@@ -796,7 +795,7 @@ async function finishQuiz() {
 }
 
 async function disagreeWithGrade() {
-  if (!(await dialog.confirm('Puedes reiniciar esta tarea para volver a hacerla, pero solo tienes una oportunidad. ¿Continuar?'))) {
+  if (!(await dialog.confirm('Puedes volver a hacer esta tarea. La nueva nota reemplazará a la anterior. ¿Continuar?'))) {
     return;
   }
   try {
@@ -863,7 +862,6 @@ const activitySubmission = computed<TaskMethod | null>(() => {
 });
 
 const canDisagree = computed(() => {
-  if (retryUsed.value) return false;
   if (quizState.value === 'done') return true;
   const s = submission.value;
   return !!s && s.status !== 'reset' && (s.status === 'evaluated' || s.status === 'completed');
@@ -877,7 +875,7 @@ function syncMethodFromSubmission() {
       const allowed: TaskMethod[] = ['document', 'quiz4', 'quiz_free', ...ACTIVITY_METHODS];
       if (stored && allowed.includes(stored as TaskMethod)) {
         method.value = stored as TaskMethod;
-        methodLocked.value = true;
+        showMethods.value = false;
         activeTab.value = 'do';
       }
     } catch {
@@ -889,7 +887,7 @@ function syncMethodFromSubmission() {
   const activity = activitySubmission.value;
   if (activity) {
     method.value = activity;
-    methodLocked.value = true;
+    showMethods.value = false;
     activeTab.value = 'do';
     return;
   }
@@ -897,14 +895,14 @@ function syncMethodFromSubmission() {
   const type = quiz ? (s.attempt_type || s.file_url?.slice('quiz://'.length)) : '';
   if (type === 'quiz4' || type === 'quiz_free') {
     method.value = type;
-    methodLocked.value = true;
+    showMethods.value = false;
     activeTab.value = 'do';
     if (s.status === 'reset') void startQuiz(type);
     return;
   }
   if (s.file_url && !s.file_url.startsWith('quiz://') && !s.file_url.startsWith('activity://')) {
     method.value = 'document';
-    methodLocked.value = true;
+    showMethods.value = false;
     activeTab.value = 'do';
   }
 }

@@ -329,6 +329,7 @@
         </div>
 
         <div class="activity-actions">
+          <button class="activity-btn" @click="repeatActivity">Repetir actividad</button>
           <button class="activity-btn secondary" @click="backToTask">Volver a la tarea</button>
         </div>
       </section>
@@ -526,6 +527,11 @@ async function load() {
     error.value = err instanceof Error ? err.message : String(err);
     state.value = 'error';
   }
+}
+
+async function repeatActivity() {
+  if (!(await dialog.confirm('Puedes repetir esta actividad. La nueva nota reemplazará a la anterior. ¿Continuar?'))) return;
+  void load();
 }
 
 function addEdge() {

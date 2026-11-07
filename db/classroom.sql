@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS sections (
     course_id     TEXT NOT NULL,
     name          TEXT NOT NULL,
     description   TEXT DEFAULT '',
+    invite_code   TEXT,
     created_at    TEXT DEFAULT (datetime('now'))
 );
 
@@ -48,8 +49,13 @@ CREATE TABLE IF NOT EXISTS assignments (
     section_id      TEXT,
     submission_type TEXT DEFAULT 'document',
     grading_mode    TEXT DEFAULT 'summative',
-    plan_id         TEXT
+    plan_id         TEXT,
+    published_at    DATETIME
 );
+
+-- Borradores vs publicadas: `published_at` NULL = borrador. El profesor decide
+-- cuándo publicar cada tarea; una vez publicada su contenido no se modifica.
+-- Las tareas anteriores a esta función se publican una vez (ver router.ts).
 
 CREATE TABLE IF NOT EXISTS assignment_students (
     assignment_id TEXT NOT NULL,

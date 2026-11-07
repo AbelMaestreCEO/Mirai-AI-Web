@@ -7,3 +7,36 @@
 :where(body[data-page="classroom_admin"]) .admin-tab-content.active {
   display: block !important;
 }
+
+/* Navegación del panel docente dentro de la barra lateral */
+:where(body[data-page="classroom_admin"]) .admin-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-btn {
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-btn:hover {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-btn.active {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+  background: var(--secondary-container);
+}

@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794009401.9215465,
-    "seen": 1794009709.5160792,
-    "ast_hash": "55f8b06c75c48b16f8d5add0cabc897e",
+    "mtime": 1794021738.9805832,
+    "seen": 1794021931.0554519,
+    "ast_hash": "b13b8e1570d1946ed4461d1c7c849f19",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1794009470.793018,
-    "seen": 1794009709.516083,
-    "ast_hash": "ce41ee760ad58f159d948bfe94de2578",
+    "mtime": 1794021869.121956,
+    "seen": 1794021931.0554533,
+    "ast_hash": "e2bb3fe642f499e114c0a6701200a0be",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1793998638.1962085,
-    "seen": 1793998705.2848935,
-    "ast_hash": "a136fc62ba04b353f2710a515a9614fd",
+    "mtime": 1794021811.8851,
+    "seen": 1794021931.0623982,
+    "ast_hash": "386458e8bddd311debce027e608e312b",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {
@@ -1380,15 +1380,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1794009401.848266,
-    "seen": 1794009709.5154881,
-    "ast_hash": "2c683d1e02734c72644d2fb478c2c5bd",
+    "mtime": 1794021887.188119,
+    "seen": 1794021931.0550478,
+    "ast_hash": "3397132b75b9bdbb693a5ba0df7a475b",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
-    "mtime": 1793582600.1251225,
-    "seen": 1793582638.4637303,
-    "ast_hash": "0c5ba44777994ef12e48511abdd0430c",
+    "mtime": 1794021804.593071,
+    "seen": 1794021931.0620463,
+    "ast_hash": "6e02b2d008357813fdf7269ecae1d666",
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
@@ -1551,6 +1551,12 @@
     "mtime": 1794009637.7695653,
     "seen": 1794009709.5033288,
     "ast_hash": "af07212f476d8df493d137027c80974a",
+    "semantic_hash": ""
+  },
+  "test-code.md": {
+    "mtime": 1794021219.8243904,
+    "seen": 1794021931.0655935,
+    "ast_hash": "91429a706eac6efda3283d3978fb3729",
     "semantic_hash": ""
   }
 }

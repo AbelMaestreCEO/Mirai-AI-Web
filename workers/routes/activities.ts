@@ -135,29 +135,9 @@ function wordCount(text: string): number {
   return String(text || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
-function inferSubmissionType(row: any): string {
-  const explicit = String(row?.attempt_type || '').trim();
-  if (explicit) return explicit;
-  const fileUrl = String(row?.file_url || '');
-  if (fileUrl.startsWith('quiz://')) return fileUrl.slice('quiz://'.length);
-  if (fileUrl.startsWith('activity://')) return fileUrl.slice('activity://'.length);
-  if (fileUrl) return 'document';
-  return '';
-}
-
 async function getAssignment(assignmentId: string, userDni: string, env: Env) {
   const assignment = await getAssignmentForStudent(assignmentId, userDni, env);
   return assignment || null;
-}
-
-async function methodLock(env: Env, assignmentId: string, userDni: string, type: ActivityType): Promise<string | null> {
-  const row = await env.MIRAI_AI_DB.prepare(
-    'SELECT attempt_type, file_url, status FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
-  ).bind(assignmentId, userDni).first<any>();
-  if (!row || row.status === 'reset') return null;
-  const existing = inferSubmissionType(row);
-  if (!existing || existing === type) return null;
-  return existing;
 }
 
 function buildContext(assignment: any): string {
@@ -948,32 +928,6 @@ export async function handleActivityApi(
       const assignment = await getAssignment(assignmentId, userDni, env);
       if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
 
-      const locked = await methodLock(env, assignmentId, userDni, type);
-      if (locked) {
-        return jsonResponse({ error: `Ya elegiste otra forma de hacer esta tarea (${locked}).` }, 409, corsHeaders);
-      }
-
-      const existing = await env.MIRAI_AI_DB.prepare(
-        'SELECT attempt_type, file_url, status, score, feedback FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
-      ).bind(assignmentId, userDni).first<any>();
-      if (existing && existing.status !== 'reset' && inferSubmissionType(existing) === type) {
-        let feedback: Record<string, unknown> = {};
-        try {
-          feedback = JSON.parse(String(existing.feedback || '{}'));
-        } catch {
-          feedback = {};
-        }
-        return jsonResponse({
-          type,
-          assignment_id: assignmentId,
-          already_graded: true,
-          formative: assignment.grading_mode === 'formative',
-          score: Number(existing.score) || 0,
-          max_score: Math.max(1, Math.round(Number(assignment.max_score) || 100)),
-          feedback,
-        }, 200, corsHeaders);
-      }
-
       let set = await loadSet(env, assignmentId, type);
       if (!set) {
         set = await generateSet(assignment, type, env);
@@ -997,18 +951,6 @@ export async function handleActivityApi(
 
       const assignment = await getAssignment(assignmentId, userDni, env);
       if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
-
-      const locked = await methodLock(env, assignmentId, userDni, type);
-      if (locked) {
-        return jsonResponse({ error: `Ya elegiste otra forma de hacer esta tarea (${locked}).` }, 409, corsHeaders);
-      }
-
-      const alreadyGraded = await env.MIRAI_AI_DB.prepare(
-        'SELECT attempt_type, file_url, status FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
-      ).bind(assignmentId, userDni).first<any>();
-      if (alreadyGraded && alreadyGraded.status !== 'reset' && inferSubmissionType(alreadyGraded) === type) {
-        return jsonResponse({ error: 'Ya completaste esta actividad. Tu nota ya está guardada.' }, 409, corsHeaders);
-      }
 
       const set = await loadSet(env, assignmentId, type);
       if (!set) return jsonResponse({ error: 'La actividad no está preparada. Vuelve a abrirla.' }, 409, corsHeaders);

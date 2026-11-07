@@ -54,7 +54,9 @@ export default defineRouter(() => {
     const session = await ensureSession();
     // Sin red o con el servidor caído no se sabe si hay sesión: se deja pasar
     // y cada llamada a la API dirá lo que haga falta (igual que auth-guard.js).
-    if (session.status === 'anonymous') return { name: 'login' };
+    if (session.status === 'anonymous') {
+      return { name: 'login', query: { redirect: to.fullPath } };
+    }
     return true;
   });
 

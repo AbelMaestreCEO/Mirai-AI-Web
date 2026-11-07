@@ -144,7 +144,7 @@
 // Migración de public/classroom.html y public/classroom.js: tareas del alumno
 // con su estado de entrega, filtro por clase y resumen en la barra lateral.
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
@@ -186,6 +186,7 @@ interface ClassGroup {
 }
 
 const router = useRouter();
+const route = useRoute();
 const assignments = ref<Assignment[]>([]);
 const submissions = ref<Submission[]>([]);
 const classes = ref<StudentClass[]>([]);
@@ -376,9 +377,40 @@ useRealtime('classroom', (raw) => {
   }
 });
 
-onMounted(() => {
+// Enlace de invitación: /classroom?join=CODE
+async function joinFromLink(): Promise<boolean> {
+  const code = typeof route.query.join === 'string' ? route.query.join.trim() : '';
+  if (!code) return false;
+  try {
+    const { ok, data } = await api.post<{
+      already_member?: boolean;
+      section?: { name?: string };
+      error?: string;
+    }>('/api/join-section', { code });
+    if (!ok) {
+      dialog.alert(data.error || 'El enlace de invitación no es válido.');
+      return false;
+    }
+    showToast(
+      data.already_member
+        ? `Ya estabas en la clase ${data.section?.name || ''}`.trim()
+        : `✅ Te uniste a la clase ${data.section?.name || ''}`.trim(),
+    );
+    return true;
+  } catch {
+    dialog.alert('Error de conexión al unirse a la clase.');
+    return false;
+  } finally {
+    const query = { ...route.query };
+    delete query.join;
+    void router.replace({ path: route.path, query });
+  }
+}
+
+onMounted(async () => {
   void ensureSubscribed();
-  void loadTasks();
+  await joinFromLink();
+  await loadTasks();
 });
 </script>
 

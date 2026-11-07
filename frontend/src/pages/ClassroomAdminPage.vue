@@ -10,7 +10,7 @@
       <p id="professor-greeting">{{ authorized ? `Hola, Profesor ${dni}` : 'Gestiona tus cursos y tareas de forma eficiente' }}</p>
     </div>
 
-    <div class="courses-toolbar">
+    <div v-if="tab === 'list'" class="courses-toolbar">
       <div class="courses-search">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -22,7 +22,7 @@
       <button class="btn-primary" @click="newTask">➕ Nueva Tarea</button>
     </div>
 
-    <div class="inventory-stats" style="padding: 0 20px;">
+    <div v-if="tab === 'list'" class="inventory-stats" style="padding: 0 20px;">
       <div class="stat-card">
         <div class="stat-icon">📚</div>
         <div class="stat-content">
@@ -47,7 +47,7 @@
     </div>
 
     <!-- Disputas -->
-    <div class="courses-container" style="padding-top: 0;">
+    <div v-if="tab === 'list'" class="courses-container" style="padding-top: 0;">
       <div class="course-detail-header" style="margin-bottom: 20px;">
         <div class="course-detail-icon">⚠️</div>
         <div class="course-detail-info">
@@ -87,10 +87,6 @@
     </div>
 
     <div class="tabs-container">
-      <div class="admin-tabs-nav">
-        <button v-for="t in TABS" :key="t.id" class="admin-tab-btn" :class="{ active: tab === t.id }" :data-tab="t.id" @click="switchTab(t.id)">{{ t.label }}</button>
-      </div>
-
       <!-- TAB: Crear Tarea -->
       <div id="tab-create" class="admin-tab-content" :class="{ active: tab === 'create' }">
         <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
@@ -199,13 +195,14 @@
                 <th>Clase</th>
                 <th>Vence</th>
                 <th>Estudiantes</th>
+                <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody id="tasks-list-body">
-              <tr v-if="tasks.state === 'loading'"><td colspan="6">Cargando...</td></tr>
-              <tr v-else-if="tasks.state === 'error'"><td colspan="6" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>
-              <tr v-else-if="!filteredTasks.length"><td colspan="6" style="text-align:center; padding: 20px;">No hay tareas creadas</td></tr>
+              <tr v-if="tasks.state === 'loading'"><td colspan="7">Cargando...</td></tr>
+              <tr v-else-if="tasks.state === 'error'"><td colspan="7" style="text-align:center; color: var(--text-secondary);">Error al cargar tareas. Intenta de nuevo.</td></tr>
+              <tr v-else-if="!filteredTasks.length"><td colspan="7" style="text-align:center; padding: 20px;">No hay tareas creadas</td></tr>
               <tr v-for="t in filteredTasks" v-else :key="t.id">
                 <td>
                   <strong>{{ t.title }}</strong>
@@ -218,7 +215,17 @@
                 <td>{{ t.due_date ? new Date(t.due_date).toLocaleDateString() : '-' }}</td>
                 <td :id="`count-${t.id}`">{{ studentCounts[t.id] ?? 'Cargando...' }}</td>
                 <td>
-                  <button class="action-btn btn-delete" @click="deleteTask(t.id)">🗑️ Eliminar</button>
+                  <span v-if="t.published_at" class="badge" style="background:#16a34a22;color:#16a34a;">Publicada</span>
+                  <span v-else class="badge" style="background:#f59e0b22;color:#b45309;">Borrador</span>
+                </td>
+                <td>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <template v-if="!t.published_at">
+                      <button class="action-btn btn-edit" @click="editTask(t)">✏️ Editar</button>
+                      <button class="action-btn btn-edit" @click="publishTask(t)">📢 Publicar</button>
+                    </template>
+                    <button class="action-btn btn-delete" @click="deleteTask(t.id)">🗑️ Eliminar</button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -424,8 +431,9 @@
                 <span style="color: var(--text-secondary); font-size: 0.85rem; margin-left: 8px;">📚 {{ sec.course_title || '' }}</span>
                 <br><small style="color: var(--text-secondary);">{{ sec.student_count }} estudiante{{ sec.student_count !== 1 ? 's' : '' }}</small>
               </div>
-              <div style="display: flex; gap: 8px; flex-shrink: 0;">
+              <div style="display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap;">
                 <button class="action-btn btn-edit" @click="selectSectionForStudents(sec.id)">👥 Ver</button>
+                <button class="action-btn btn-edit" @click="copySectionInvite(sec)">🔗 Enlace</button>
                 <button class="action-btn btn-delete" @click="deleteSection(sec.id)">🗑️ Eliminar</button>
               </div>
             </div>
@@ -530,6 +538,7 @@
           </div>
           <button class="btn-primary" style="height: 42px; white-space: nowrap;" @click="loadSubmissions">🔄 Actualizar</button>
           <button class="btn-secondary" style="height: 42px; white-space: nowrap;" @click="exportExcel">📥 Excel</button>
+          <button class="btn-secondary" style="height: 42px; white-space: nowrap;" @click="exportSectionExcel">📊 Excel por sección</button>
           <button class="btn-secondary" style="height: 42px; white-space: nowrap;" @click="exportPdf">🖨️ PDF</button>
         </div>
         <p id="sub-result-count" style="padding: 0 8px 10px; font-size: 0.83rem; color: var(--text-secondary);">
@@ -561,7 +570,7 @@
                 <td>{{ s.section_name || '—' }}</td>
                 <td><strong>{{ s.score !== null && s.score !== undefined ? `${s.score} / ${s.max_score}` : '—' }}</strong></td>
                 <td>
-                  <span v-if="s.status === 'completed'" class="badge" style="background:#16a34a22;color:#16a34a;">Calificado</span>
+                  <span v-if="s.status === 'completed' || s.status === 'evaluated'" class="badge" style="background:#16a34a22;color:#16a34a;">Calificado</span>
                   <span v-else class="badge badge-pending">Pendiente</span>
                 </td>
                 <td style="white-space:nowrap;">{{ s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—' }}</td>
@@ -616,6 +625,26 @@
     </div>
   </main>
 
+  <!-- Navegación del panel docente, en la barra lateral -->
+  <Teleport to="#sidebar-page-section" defer>
+    <h4>Panel Docente</h4>
+    <div class="sidebar-panel-section">
+      <p class="sidebar-panel-label">Gestión</p>
+      <nav class="admin-sidebar-nav">
+        <button
+          v-for="t in TABS"
+          :key="t.id"
+          class="admin-sidebar-btn"
+          :class="{ active: tab === t.id }"
+          :data-tab="t.id"
+          @click="switchTab(t.id)"
+        >
+          {{ t.label }}
+        </button>
+      </nav>
+    </div>
+  </Teleport>
+
   <!-- MODAL: Crear Curso -->
   <div id="modal-new-course" class="modal" :class="{ show: courseModal }" :style="{ display: courseModal ? 'flex' : 'none' }" @click.self="courseModal = false">
     <div class="modal-overlay" @click="courseModal = false"></div>
@@ -637,6 +666,60 @@
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
           <button type="button" class="btn-secondary" @click="courseModal = false">Cancelar</button>
           <button type="submit" class="btn-primary">Crear Curso</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Editar tarea en borrador -->
+  <div id="modal-edit-task" class="modal" :class="{ show: editOpen }" :style="{ display: editOpen ? 'flex' : 'none' }" @click.self="editOpen = false">
+    <div class="modal-overlay" @click="editOpen = false"></div>
+    <div class="modal-content">
+      <button class="modal-close" @click="editOpen = false">&times;</button>
+      <div class="modal-header">
+        <h2>Editar Tarea</h2>
+        <p class="modal-subtitle">Solo se puede editar mientras siga en borrador</p>
+      </div>
+      <form @submit.prevent="saveTaskEdit">
+        <div class="form-group">
+          <label>Título</label>
+          <input v-model="editForm.title" type="text" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea v-model="editForm.description" rows="4"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha límite</label>
+            <input v-model="editForm.due" type="datetime-local">
+          </div>
+          <div class="form-group">
+            <label>Puntuación máxima</label>
+            <input v-model="editForm.score" type="number" min="1" max="100" step="0.01">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo de entrega</label>
+            <select v-model="editForm.submissionType">
+              <option value="document">📄 Documento (PDF / DOCX)</option>
+              <option value="image">🖼️ Imagen (PNG / JPG / WEBP)</option>
+              <option value="any">📎 Cualquier formato</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Modo de evaluación</label>
+            <select v-model="editForm.gradingMode">
+              <option value="summative">Sumativa (cuenta para la nota)</option>
+              <option value="formative">Formativa (práctica sin nota)</option>
+            </select>
+          </div>
+        </div>
+        <p v-if="editError" style="color: var(--error-color, #dc2626); font-size: .85rem; margin: 12px 0; text-align: center;">{{ editError }}</p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <button type="button" class="btn-secondary" @click="editOpen = false">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar cambios</button>
         </div>
       </form>
     </div>
@@ -703,6 +786,10 @@ interface Task {
   section_name?: string | null;
   due_date?: string | null;
   grading_mode?: 'formative' | 'summative' | string | null;
+  submission_type?: string | null;
+  description?: string | null;
+  max_score?: number | null;
+  published_at?: string | null;
 }
 
 interface Dispute {
@@ -722,6 +809,7 @@ interface Section {
   course_id?: Id;
   course_title?: string;
   student_count: number;
+  invite_code?: string | null;
 }
 
 interface SectionStudent {
@@ -834,6 +922,83 @@ function onCourseSelect() {
 function resetTaskForm() {
   Object.assign(taskForm, { title: '', courseId: '', description: '', due: '', score: '100', submissionType: 'document', sectionId: '', gradingMode: 'summative' });
   taskError.value = '';
+}
+
+// Edición de tareas en borrador y publicación.
+const editOpen = ref(false);
+const editError = ref('');
+const editForm = reactive({
+  id: '' as Id,
+  title: '',
+  description: '',
+  due: '',
+  score: '100',
+  submissionType: 'document',
+  gradingMode: 'summative',
+});
+
+function toDateTimeInput(value?: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function editTask(task: Task) {
+  editError.value = '';
+  Object.assign(editForm, {
+    id: task.id,
+    title: task.title,
+    description: task.description || '',
+    due: toDateTimeInput(task.due_date),
+    score: String(task.max_score ?? 100),
+    submissionType: task.submission_type || 'document',
+    gradingMode: task.grading_mode === 'formative' ? 'formative' : 'summative',
+  });
+  editOpen.value = true;
+}
+
+async function saveTaskEdit() {
+  editError.value = '';
+  if (!editForm.title.trim()) {
+    editError.value = 'El título es obligatorio.';
+    return;
+  }
+  try {
+    const { ok, data } = await api.post('/api/update-assignment', {
+      id: editForm.id,
+      title: editForm.title,
+      description: editForm.description,
+      due_date: editForm.due || null,
+      max_score: editForm.score,
+      submission_type: editForm.submissionType,
+      grading_mode: editForm.gradingMode,
+    });
+    if (!ok) {
+      editError.value = errorMessage(data, 'No se pudo guardar la tarea.');
+      return;
+    }
+    editOpen.value = false;
+    await loadTasks();
+  } catch {
+    editError.value = 'Error de conexión. Inténtalo de nuevo.';
+  }
+}
+
+async function publishTask(task: Task) {
+  if (!(await dialog.confirm(`¿Publicar "${task.title}"? Después de publicarla ya no podrás modificar su contenido.`))) return;
+  try {
+    const { ok, data } = await api.post('/api/publish-assignment', { id: task.id, publish: true });
+    if (!ok) {
+      dialog.alert('❌ ' + errorMessage(data, 'No se pudo publicar la tarea.'));
+      return;
+    }
+    await loadTasks();
+    dialog.alert('✅ Tarea publicada: ya es visible para los estudiantes.');
+  } catch {
+    dialog.alert('Error de conexión');
+  }
 }
 
 function newTask() {
@@ -1186,6 +1351,30 @@ async function loadSectionStudents() {
   }
 }
 
+async function copySectionInvite(section: Section) {
+  try {
+    const { ok, data } = await api.post<{ code?: string; invite_code?: string; error?: string }>('/api/section-invite', {
+      section_id: section.id,
+    });
+    if (!ok) {
+      dialog.alert('❌ ' + errorMessage(data, 'No se pudo generar el enlace.'));
+      return;
+    }
+    const code = data.code || data.invite_code || '';
+    const link = `${window.location.origin}/classroom?join=${encodeURIComponent(code)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      section.invite_code = code;
+      dialog.alert(`🔗 Enlace copiado al portapapeles:\n\n${link}`);
+    } catch {
+      await dialog.prompt('Copia este enlace para invitar a tus estudiantes:', { defaultValue: link });
+      section.invite_code = code;
+    }
+  } catch {
+    dialog.alert('Error de conexión');
+  }
+}
+
 async function selectSectionForStudents(id: Id) {
   selectedSection.value = String(id);
   await loadSectionStudents();
@@ -1360,6 +1549,69 @@ function feedbackSummary(raw: SubmissionRow['feedback'], max = Infinity): string
   }
 }
 
+interface SectionGradeReport {
+  section: { id: string; name: string; course_title?: string };
+  students: { dni: string; first_name?: string; last_name?: string }[];
+  assignments: { id: string; title: string; max_score: number; due_date?: string | null }[];
+  scores: Record<string, Record<string, { score: number | null; status?: string; submitted_at?: string }>>;
+}
+
+async function exportSectionExcel() {
+  const sectionId = subSection.value;
+  if (!sectionId || sectionId === '__none__') {
+    dialog.alert('Selecciona una sección arriba para descargar su reporte de notas.');
+    return;
+  }
+  try {
+    const { ok, data } = await api.get<SectionGradeReport & { error?: string }>(
+      `/api/section-grade-report?section_id=${encodeURIComponent(sectionId)}`,
+    );
+    if (!ok) {
+      dialog.alert('❌ ' + errorMessage(data, 'No se pudo generar el reporte.'));
+      return;
+    }
+    if (!data.students.length) {
+      dialog.alert('Esta sección todavía no tiene estudiantes.');
+      return;
+    }
+
+    const cell = (v: unknown) => escapeHtml(String(v ?? ''));
+    const headers = ['Estudiante', 'Cédula', ...data.assignments.map((a) => `${a.title} (/${a.max_score})`), 'Nota final'];
+    const rows = data.students.map((student) => {
+      const dni = String(student.dni || '').toUpperCase();
+      const byAssignment = data.scores[dni] || {};
+      let obtained = 0;
+      let possible = 0;
+      const cells = data.assignments.map((a) => {
+        const entry = byAssignment[String(a.id)];
+        possible += Number(a.max_score) || 0;
+        if (!entry || entry.score === null || entry.score === undefined) return '';
+        obtained += Number(entry.score) || 0;
+        return String(entry.score);
+      });
+      const finalScore = possible > 0 ? `${obtained} / ${possible} (${((obtained / possible) * 100).toFixed(1)}%)` : '';
+      return [fullName(student) || '—', student.dni || '—', ...cells, finalScore];
+    });
+
+    const html = `<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>
+      <h2>Notas — ${cell(data.section.name)}${data.section.course_title ? ` (${cell(data.section.course_title)})` : ''}</h2>
+      <p>Exportado el ${new Date().toLocaleDateString('es')}</p>
+      <table border="1"><thead><tr>${headers.map((h) => `<th>${cell(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((row) => `<tr>${row.map((v) => `<td>${cell(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    </body></html>`;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const safeName = data.section.name.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_|_$/g, '');
+    link.download = `notas_${safeName || 'seccion'}_${new Date().toISOString().slice(0, 10)}.xls`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch {
+    dialog.alert('Error de conexión');
+  }
+}
+
 function exportExcel() {
   const list = filteredSubmissions.value;
   if (!list.length) {
@@ -1374,7 +1626,7 @@ function exportExcel() {
     s.section_name || '',
     s.score ?? '',
     s.max_score ?? '',
-    s.status === 'completed' ? 'Calificado' : 'Pendiente',
+    s.status === 'completed' || s.status === 'evaluated' ? 'Calificado' : 'Pendiente',
     s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es') : '',
     feedbackSummary(s.feedback),
     s.professor_feedback || '',
@@ -1402,7 +1654,7 @@ function exportPdf() {
             <td>${cell(s.assignment_title || '—')}</td>
             <td>${cell(s.section_name || '—')}</td>
             <td><b>${cell(s.score !== null && s.score !== undefined ? `${s.score} / ${s.max_score}` : '—')}</b></td>
-            <td>${s.status === 'completed' ? 'Calificado' : 'Pendiente'}</td>
+            <td>${s.status === 'completed' || s.status === 'evaluated' ? 'Calificado' : 'Pendiente'}</td>
             <td>${cell(s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es') : '—')}</td>
             <td style="font-size:11px;">${cell(feedbackSummary(s.feedback) || '—')}</td>
         </tr>`,

@@ -214,7 +214,8 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
         id TEXT PRIMARY KEY, course_id TEXT NOT NULL, title TEXT NOT NULL,
         description TEXT, file_url TEXT, due_date DATETIME, max_score INTEGER DEFAULT 100,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, section_id TEXT,
-        submission_type TEXT DEFAULT 'document', plan_id TEXT)`,
+        submission_type TEXT DEFAULT 'document', plan_id TEXT,
+        published_at DATETIME)`,
       `CREATE TABLE IF NOT EXISTS assignment_students (
         assignment_id TEXT NOT NULL, user_dni TEXT NOT NULL,
         PRIMARY KEY (assignment_id, user_dni),
@@ -244,6 +245,38 @@ export async function handleApiRequest(request: Request, env: Env, ctx: Executio
       }
     }
     globalThis._migratedClassroomTables = true;
+  }
+
+  // Migración: publicación de tareas y enlaces de invitación a secciones.
+  // `published_at` NULL = borrador (el profesor decide cuándo publicarla).
+  // Las tareas que ya existían se publican una sola vez, marcado en
+  // app_migrations para no volver a publicar borradores nuevos en cada isolate.
+  if (!globalThis._migratedAssignmentPublishing) {
+    try {
+      await env.MIRAI_AI_DB.prepare(
+        'CREATE TABLE IF NOT EXISTS app_migrations (name TEXT PRIMARY KEY)'
+      ).run();
+      const marker = await env.MIRAI_AI_DB.prepare(
+        "SELECT 1 AS done FROM app_migrations WHERE name = 'assignments_published_at'"
+      ).first<any>();
+      try {
+        await env.MIRAI_AI_DB.prepare('ALTER TABLE sections ADD COLUMN invite_code TEXT').run();
+      } catch (_) { /* columna ya existe */ }
+      if (!marker) {
+        try {
+          await env.MIRAI_AI_DB.prepare('ALTER TABLE assignments ADD COLUMN published_at DATETIME').run();
+        } catch (_) { /* columna ya existe */ }
+        await env.MIRAI_AI_DB.prepare(
+          "UPDATE assignments SET published_at = COALESCE(created_at, datetime('now')) WHERE published_at IS NULL"
+        ).run();
+        await env.MIRAI_AI_DB.prepare(
+          "INSERT OR IGNORE INTO app_migrations (name) VALUES ('assignments_published_at')"
+        ).run();
+      }
+    } catch (e) {
+      console.error('Migración de publicación de tareas:', (e as Error)?.message);
+    }
+    globalThis._migratedAssignmentPublishing = true;
   }
 
   try {

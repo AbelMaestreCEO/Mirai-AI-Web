@@ -124,7 +124,7 @@
 // comportamiento: si ya hay sesión se va al inicio; si el usuario tiene 2FA,
 // se le manda a /verify (página antigua) tras avisar.
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import AppLink from '@/components/AppLink.vue';
 import { api, errorMessage, isNeedsVerification, type ApiErrorBody, type LoginResponse } from '@/lib/api';
 import { fullNavigate, pageHref } from '@/lib/pages';
@@ -135,7 +135,14 @@ interface Message {
 }
 
 const router = useRouter();
+const route = useRoute();
 const required = (v: string) => !!v || 'Campo requerido';
+
+// Vuelve a la página que pedía sesión (por ejemplo, un enlace de invitación).
+function afterLoginTarget(): string {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '';
+  return redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : pageHref('');
+}
 
 const email = ref('');
 const password = ref('');
@@ -171,7 +178,7 @@ function shake() {
 onMounted(async () => {
   try {
     const { ok } = await api.get('/api/me');
-    if (ok) fullNavigate(pageHref(''), { replace: true });
+    if (ok) fullNavigate(afterLoginTarget(), { replace: true });
   } catch {
     // Sin conexión o sin sesión: se queda en el login.
   }
@@ -188,7 +195,7 @@ async function onLogin() {
 
     if (ok) {
       // La cookie de sesión ya la ha puesto el Worker.
-      fullNavigate(pageHref(''));
+      fullNavigate(afterLoginTarget());
       return;
     }
 

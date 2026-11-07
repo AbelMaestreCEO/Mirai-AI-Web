@@ -352,6 +352,70 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     }
   }
 
+  // Ruta: GET /api/section-grade-report?section_id=...
+  // Matriz de notas de una sección: alumnos × tareas, para el reporte Excel.
+  if (path === '/api/section-grade-report' && request.method === 'GET') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const sectionId = (url.searchParams.get('section_id') || '').trim();
+    if (!sectionId) return jsonResponse({ error: 'section_id requerido' }, 400, corsHeaders);
+
+    try {
+      const section = await env.MIRAI_AI_DB.prepare(`
+        SELECT s.id, s.name, s.course_id, uc.title AS course_title
+          FROM sections s
+          LEFT JOIN user_courses uc ON uc.id = s.course_id
+         WHERE s.id = ? AND s.professor_dni = ?
+      `).bind(sectionId, userDni).first<any>();
+      if (!section) return jsonResponse({ error: 'Sección no encontrada o no autorizada' }, 403, corsHeaders);
+
+      const { results: students } = await env.MIRAI_AI_DB.prepare(`
+        SELECT ss.user_dni AS dni,
+               u.first_name, u.last_name
+          FROM section_students ss
+          LEFT JOIN users u ON UPPER(u.dni) = UPPER(ss.user_dni)
+         WHERE ss.section_id = ?
+         ORDER BY u.last_name, u.first_name, ss.user_dni
+      `).bind(sectionId).all<any>();
+
+      const { results: assignments } = await env.MIRAI_AI_DB.prepare(`
+        SELECT id, title, max_score, due_date, published_at
+          FROM assignments
+         WHERE section_id = ?
+         ORDER BY created_at ASC, title ASC
+      `).bind(sectionId).all<any>();
+
+      const { results: submissions } = await env.MIRAI_AI_DB.prepare(`
+        SELECT s.user_dni, s.assignment_id, s.score, s.status, s.submitted_at
+          FROM submissions s
+          JOIN assignments a ON a.id = s.assignment_id
+         WHERE a.section_id = ?
+      `).bind(sectionId).all<any>();
+
+      const scores: Record<string, Record<string, any>> = {};
+      for (const sub of submissions || []) {
+        const dni = String(sub.user_dni || '').toUpperCase();
+        if (!scores[dni]) scores[dni] = {};
+        scores[dni][String(sub.assignment_id)] = {
+          score: sub.score,
+          status: sub.status,
+          submitted_at: sub.submitted_at,
+        };
+      }
+
+      return jsonResponse({
+        section,
+        students: students || [],
+        assignments: assignments || [],
+        scores,
+      }, 200, corsHeaders);
+    } catch (error) {
+      console.error('Error en reporte por sección:', error);
+      return jsonResponse({ error: 'No se pudo generar el reporte por sección' }, 500, corsHeaders);
+    }
+  }
+
   // Ruta: GET /api/professor-concept-report
   // Agrupa los conceptos que más falla la clase en una tarea (o en todas las
   // tareas del profesor si no se envía assignment_id).
@@ -556,7 +620,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     if (!userDni || userDni instanceof Response) return userDni;
 
     const { results } = await env.MIRAI_AI_DB.prepare(`
-    SELECT s.id, s.name, s.description, s.course_id, s.created_at,
+    SELECT s.id, s.name, s.description, s.course_id, s.created_at, s.invite_code,
            uc.title as course_title,
            COUNT(ss.user_dni) as student_count
     FROM sections s
@@ -593,6 +657,73 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
   `).bind(id, userDni, course_id, name, description || '').run();
 
     return jsonResponse({ success: true, id }, 201, corsHeaders);
+  }
+
+  // POST /api/section-invite — genera (o devuelve) el código del enlace de la sección.
+  if (path === '/api/section-invite' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const { section_id } = await request.json<any>().catch(() => ({}));
+    if (!section_id) return jsonResponse({ error: 'section_id requerido' }, 400, corsHeaders);
+
+    const sec = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, invite_code FROM sections WHERE id = ? AND professor_dni = ?'
+    ).bind(section_id, userDni).first<any>();
+    if (!sec) return jsonResponse({ error: 'Sección no encontrada o no autorizada' }, 403, corsHeaders);
+
+    let code = sec.invite_code ? String(sec.invite_code) : '';
+    if (!code) {
+      code = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+      await env.MIRAI_AI_DB.prepare('UPDATE sections SET invite_code = ? WHERE id = ?')
+        .bind(code, section_id).run();
+    }
+
+    return jsonResponse({ success: true, code, invite_code: code }, 200, corsHeaders);
+  }
+
+  // POST /api/join-section — el estudiante se une con el código del enlace.
+  if (path === '/api/join-section' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const { code } = await request.json<any>().catch(() => ({}));
+    const inviteCode = String(code || '').trim();
+    if (!inviteCode) return jsonResponse({ error: 'Enlace inválido' }, 400, corsHeaders);
+
+    const sec = await env.MIRAI_AI_DB.prepare(`
+      SELECT s.id, s.name, s.course_id, uc.title AS course_title
+        FROM sections s
+        LEFT JOIN user_courses uc ON uc.id = s.course_id
+       WHERE s.invite_code = ? COLLATE NOCASE
+    `).bind(inviteCode).first<any>();
+    if (!sec) return jsonResponse({ error: 'El enlace no es válido o la sección ya no existe' }, 404, corsHeaders);
+
+    const ownerDni = userDni.toUpperCase();
+    const before = await env.MIRAI_AI_DB.prepare(
+      'SELECT 1 AS ok FROM section_students WHERE section_id = ? AND UPPER(user_dni) = UPPER(?)'
+    ).bind(sec.id, ownerDni).first<any>();
+
+    await env.MIRAI_AI_DB.prepare(
+      'INSERT OR IGNORE INTO section_students (section_id, user_dni) VALUES (?, ?)'
+    ).bind(sec.id, ownerDni).run();
+
+    // Las tareas ya creadas para la sección también se asignan al alumno.
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni)
+      SELECT id, ? FROM assignments WHERE section_id = ?
+    `).bind(ownerDni, sec.id).run();
+
+    return jsonResponse({
+      success: true,
+      already_member: !!before,
+      section: {
+        id: sec.id,
+        name: sec.name,
+        course_id: sec.course_id,
+        course_title: sec.course_title,
+      },
+    }, 200, corsHeaders);
   }
 
   // DELETE /api/delete-section?id=xxx
@@ -819,6 +950,69 @@ ORDER BY u.last_name, u.first_name
     }
 
     return jsonResponse({ success: true, id }, 201, corsHeaders);
+  }
+
+  // 1b. Editar tarea: POST /api/update-assignment
+  // Solo mientras siga en borrador. Una vez publicada, su contenido es inmutable.
+  if (path === '/api/update-assignment' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const { id, title, description, due_date, max_score, submission_type, grading_mode } = await request.json<any>();
+    if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+    if (!await canManageAssignment(String(id), userDni, env)) {
+      return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    const current = await env.MIRAI_AI_DB.prepare(
+      'SELECT published_at FROM assignments WHERE id = ?'
+    ).bind(id).first<any>();
+    if (!current) return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+    if (current.published_at) {
+      return jsonResponse({ error: 'La tarea ya está publicada: su contenido no se puede modificar.' }, 409, corsHeaders);
+    }
+    if (!String(title || '').trim()) {
+      return jsonResponse({ error: 'El título es obligatorio.' }, 400, corsHeaders);
+    }
+
+    const parsedMaxScore = parseFloat(max_score);
+    const safeMaxScore = (!isNaN(parsedMaxScore) && parsedMaxScore >= 1 && parsedMaxScore <= 100) ? parsedMaxScore : 100;
+    const safeSubmissionType = ['document', 'image', 'any'].includes(submission_type) ? submission_type : 'document';
+    const safeGradingMode = grading_mode === 'formative' ? 'formative' : 'summative';
+
+    await env.MIRAI_AI_DB.prepare(`
+      UPDATE assignments
+         SET title = ?, description = ?, due_date = ?, max_score = ?,
+             submission_type = ?, grading_mode = ?
+       WHERE id = ?
+    `).bind(String(title).trim(), description || '', due_date || null, safeMaxScore, safeSubmissionType, safeGradingMode, id).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
+  }
+
+  // 1c. Publicar tarea: POST /api/publish-assignment
+  // El profesor decide cuándo la tarea deja de ser borrador y pasa a los alumnos.
+  if (path === '/api/publish-assignment' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const { id, publish } = await request.json<any>();
+    if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+    if (!await canManageAssignment(String(id), userDni, env)) {
+      return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    // Un borrador puede publicarse; una tarea publicada no se puede ocultar de
+    // nuevo (así su contenido ya entregado no cambia bajo los pies del alumno).
+    if (publish === false) {
+      return jsonResponse({ error: 'Una tarea publicada no se puede volver a borrador.' }, 409, corsHeaders);
+    }
+
+    await env.MIRAI_AI_DB.prepare(
+      "UPDATE assignments SET published_at = COALESCE(published_at, datetime('now')) WHERE id = ?"
+    ).bind(id).run();
+
+    return jsonResponse({ success: true }, 200, corsHeaders);
   }
 
   // ── Planes de evaluación ─────────────────────────────────────────────────
@@ -1116,7 +1310,7 @@ Formato exacto:
         JOIN section_students ss ON ss.section_id = a.section_id
         LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
-        WHERE UPPER(ss.user_dni) = UPPER(?)
+        WHERE UPPER(ss.user_dni) = UPPER(?) AND a.published_at IS NOT NULL
         UNION
         SELECT DISTINCT
             a.id, a.title, a.description, a.due_date, a.max_score, a.course_id,
@@ -1127,7 +1321,7 @@ Formato exacto:
         JOIN assignment_students ast ON ast.assignment_id = a.id
         LEFT JOIN user_courses c ON c.id = a.course_id
         LEFT JOIN sections s ON s.id = a.section_id
-        WHERE UPPER(ast.user_dni) = UPPER(?)
+        WHERE UPPER(ast.user_dni) = UPPER(?) AND a.published_at IS NOT NULL
     )
     ORDER BY created_at DESC
 `).bind(userDni.toUpperCase(), userDni.toUpperCase()).all<any>();
@@ -1431,9 +1625,6 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
       ).bind(assignmentId, userDni.toUpperCase()).first<any>();
 
       if (!row) return jsonResponse({ error: 'No hay una tarea finalizada para reiniciar' }, 404, corsHeaders);
-      if (Number(row.retry_used) === 1) {
-        return jsonResponse({ error: 'Ya usaste tu único reinicio para esta tarea' }, 409, corsHeaders);
-      }
 
       await env.MIRAI_AI_DB.prepare(`
         UPDATE submissions
@@ -1478,7 +1669,7 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
     LEFT JOIN user_courses uc ON a.course_id = uc.id
     LEFT JOIN sections     s  ON a.section_id = s.id
     INNER JOIN assignment_students ast ON a.id = ast.assignment_id
-    WHERE a.id = ? AND ast.user_dni = ?
+    WHERE a.id = ? AND ast.user_dni = ? AND a.published_at IS NOT NULL
 `);
 
       const assignment = await assignStmt.bind(id, userDni.toUpperCase()).first<any>();
@@ -1858,10 +2049,13 @@ NO agregues texto adicional fuera del JSON.`;
 
         // Obtener el tipo de entrega configurado por el profesor
         const assignmentData = await env.MIRAI_AI_DB.prepare(
-          'SELECT id, submission_type FROM assignments WHERE id = ?'
+          'SELECT id, submission_type, published_at FROM assignments WHERE id = ?'
         ).bind(assignmentId).first<any>();
         if (!assignmentData) {
           return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+        }
+        if (!assignmentData.published_at) {
+          return jsonResponse({ error: 'Esta tarea todavía no está publicada' }, 403, corsHeaders);
         }
         const submissionType = assignmentData.submission_type || 'document';
 
@@ -1881,15 +2075,11 @@ NO agregues texto adicional fuera del JSON.`;
           return jsonResponse({ error: 'No tienes esta tarea asignada' }, 403, corsHeaders);
         }
 
-        // Una entrega por alumno y tarea: antes se acumulaban duplicados sin límite.
-        // Si la tarea fue reiniciada (status = 'reset'), se permite reemplazarla.
+        // Una sola fila por alumno y tarea: si vuelve a entregar, la nueva
+        // entrega (y su nueva nota) reemplaza a la anterior.
         const alreadySubmitted = await env.MIRAI_AI_DB.prepare(
           'SELECT id, status FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)'
         ).bind(assignmentId, userDni).first<any>();
-
-        if (alreadySubmitted && alreadySubmitted.status !== 'reset') {
-          return jsonResponse({ error: 'Ya entregaste esta tarea' }, 409, corsHeaders);
-        }
 
         const extension = (file.name.split('.').pop() ?? '').toLowerCase();
         const isImageExt = ['png', 'jpg', 'jpeg', 'webp'].includes(extension);

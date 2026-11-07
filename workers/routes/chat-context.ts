@@ -37,7 +37,7 @@ function learningModeRules(mode: string) {
 export async function getAssignmentForStudent(assignmentId: string | undefined, userDni: string, env: Env) {
   return env.MIRAI_AI_DB.prepare(`
     SELECT a.* FROM assignments a
-    WHERE a.id = ? AND (
+    WHERE a.id = ? AND a.published_at IS NOT NULL AND (
       EXISTS (SELECT 1 FROM section_students ss WHERE ss.section_id = a.section_id AND UPPER(ss.user_dni) = UPPER(?))
       OR EXISTS (SELECT 1 FROM assignment_students ast WHERE ast.assignment_id = a.id AND UPPER(ast.user_dni) = UPPER(?))
     )
