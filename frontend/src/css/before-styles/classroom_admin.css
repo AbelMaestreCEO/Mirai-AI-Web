@@ -40,3 +40,132 @@
   border-color: var(--accent-color);
   background: var(--secondary-container);
 }
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-classes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 8px 10px;
+  border-left: 2px solid var(--glass-border);
+  margin-left: 6px;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-class-item {
+  border: none;
+  background: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-align: left;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-class-item:hover {
+  color: var(--accent-color);
+  background: var(--glass-bg);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-class {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--glass-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-class-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--glass-border);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-link-btn {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent-color);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-sidebar-back {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+/* Selector de clases (vista principal) */
+:where(body[data-page="classroom_admin"]) .admin-class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  padding: 0 8px 24px;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-class-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-class-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-class-icon {
+  font-size: 1.6rem;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-class-name {
+  font-size: 1rem;
+}
+
+:where(body[data-page="classroom_admin"]) .admin-class-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_admin"]) .admin-class-open {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-color);
+}

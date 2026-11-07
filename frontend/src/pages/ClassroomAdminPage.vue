@@ -10,6 +10,28 @@
       <p id="professor-greeting">{{ authorized ? `Hola, Profesor ${dni}` : 'Gestiona tus cursos y tareas de forma eficiente' }}</p>
     </div>
 
+    <!-- VISTA: Clases -->
+    <div id="tab-classes" class="admin-tab-content" :class="{ active: tab === 'classes' }">
+      <div class="course-detail-header" style="margin-bottom: 24px; padding: 24px;">
+        <div class="course-detail-icon">🏫</div>
+        <div class="course-detail-info">
+          <h2 class="course-detail-title" style="font-size:1.3rem;">Mis Clases</h2>
+          <p class="course-detail-description">Selecciona una clase para gestionar sus tareas, planes, secciones, trabajos y conceptos.</p>
+        </div>
+        <button class="btn-primary" style="margin-left:auto;" @click="courseModal = true">➕ Nueva Clase</button>
+      </div>
+      <p v-if="coursesFailed" style="padding: 0 8px; color: var(--error-color, #dc2626);">No se pudieron cargar tus clases.</p>
+      <p v-else-if="!courses.length" style="padding: 0 8px; color: var(--text-secondary);">Todavía no tienes clases. Crea la primera con “Nueva Clase”.</p>
+      <div v-else class="admin-class-grid">
+        <button v-for="c in courses" :key="c.id" class="admin-class-card" @click="selectCourse(c)">
+          <span class="admin-class-icon">📚</span>
+          <strong class="admin-class-name">{{ c.title }}</strong>
+          <span class="admin-class-meta">{{ classSectionCount(c) }} sección{{ classSectionCount(c) !== 1 ? 'es' : '' }}</span>
+          <span class="admin-class-open">Abrir clase →</span>
+        </button>
+      </div>
+    </div>
+
     <div v-if="tab === 'list'" class="courses-toolbar">
       <div class="courses-search">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -34,7 +56,7 @@
         <div class="stat-icon">📝</div>
         <div class="stat-content">
           <span class="stat-label">Tareas Activas</span>
-          <span id="stat-tasks" class="stat-value">{{ tasks.items.length }}</span>
+          <span id="stat-tasks" class="stat-value">{{ filteredTasks.length }}</span>
         </div>
       </div>
       <div class="stat-card">
@@ -70,8 +92,8 @@
           <tbody id="disputed-assignments-list">
             <tr v-if="disputes.state === 'loading'"><td colspan="6">Cargando disputas...</td></tr>
             <tr v-else-if="disputes.state === 'error'"><td colspan="6" style="text-align:center; color: var(--error-color);">Error al cargar disputas</td></tr>
-            <tr v-else-if="!disputes.items.length"><td colspan="6" style="text-align:center; padding: 20px;">No hay disputas pendientes</td></tr>
-            <tr v-for="d in disputes.items" v-else :key="d.id">
+            <tr v-else-if="!filteredDisputes.length"><td colspan="6" style="text-align:center; padding: 20px;">No hay disputas pendientes</td></tr>
+            <tr v-for="d in filteredDisputes" v-else :key="d.id">
               <td><strong>{{ d.assignment_title }}</strong></td>
               <td>{{ d.first_name || '' }} {{ d.last_name || '' }}</td>
               <td><span class="badge badge-pending">{{ d.score }}/{{ d.max_score }}</span></td>
@@ -104,15 +126,12 @@
               <input id="task-title" v-model="taskForm.title" type="text" placeholder="Ej: Examen Final de JavaScript" required>
             </div>
             <div class="form-group">
-              <label>Curso</label>
-              <select id="task-course-select" v-model="taskForm.courseId" required @change="onCourseSelect">
-                <option value="">{{ coursesFailed ? 'Sin cursos disponibles' : 'Selecciona un curso...' }}</option>
+              <label>Clase</label>
+              <input v-if="selectedCourse" :value="selectedCourse.title" type="text" readonly style="opacity:.85;">
+              <select v-else id="task-course-select" v-model="taskForm.courseId" required @change="onCourseSelect">
+                <option value="">{{ coursesFailed ? 'Sin clases disponibles' : 'Selecciona una clase...' }}</option>
                 <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.title }}</option>
-                <option value="__ADD_NEW__" style="font-weight: bold; color: var(--primary-color);">+ Agregar Nuevo Curso</option>
               </select>
-              <button id="btn-add-course" type="button" class="btn-primary" style="margin-top: 10px; font-size: 0.8rem; padding: 8px 12px;" @click="courseModal = true">
-                + Agregar Nuevo Curso
-              </button>
             </div>
           </div>
           <div class="form-group">
@@ -142,7 +161,7 @@
               <label>Sección (Opcional — asigna automáticamente a sus estudiantes)</label>
               <select id="task-section-select" v-model="taskForm.sectionId">
                 <option value="">Sin sección específica</option>
-                <option v-for="s in sections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
+                <option v-for="s in classSections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
               </select>
             </div>
           </div>
@@ -176,7 +195,7 @@
           <span style="font-size:.82rem; color: var(--text-secondary); font-weight:600;">Clase:</span>
           <button :class="taskSectionFilter === '' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="taskSectionFilter = ''">Todas</button>
           <button
-            v-for="sec in sections"
+            v-for="sec in classSections"
             :key="sec.id"
             :class="taskSectionFilter === String(sec.id) ? 'btn-primary' : 'btn-secondary'"
             style="font-size:.78rem; padding:6px 10px;"
@@ -262,9 +281,10 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>Materia</label>
-              <select v-model="planForm.courseId" required>
-                <option value="">Selecciona una materia...</option>
+              <label>Clase</label>
+              <input v-if="selectedCourse" :value="selectedCourse.title" type="text" readonly style="opacity:.85;">
+              <select v-else v-model="planForm.courseId" required>
+                <option value="">Selecciona una clase...</option>
                 <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.title }}</option>
               </select>
             </div>
@@ -272,7 +292,7 @@
               <label>Sección (Opcional)</label>
               <select v-model="planForm.sectionId">
                 <option value="">Sin sección específica</option>
-                <option v-for="s in sections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
+                <option v-for="s in classSections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
               </select>
             </div>
           </div>
@@ -347,8 +367,8 @@
           <h3 class="lessons-section-title">Planes creados</h3>
           <p v-if="plans.state === 'loading'" style="color: var(--text-secondary);">Cargando...</p>
           <p v-else-if="plans.state === 'error'" style="color: var(--error-color, #dc2626);">Error al cargar los planes</p>
-          <p v-else-if="!plans.items.length" style="color: var(--text-secondary);">Todavía no has creado planes de evaluación</p>
-          <div v-for="p in plans.items" v-else :key="p.id" style="background: var(--bg-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; border-left: 4px solid var(--primary-color);">
+          <p v-else-if="!visiblePlans.length" style="color: var(--text-secondary);">Todavía no has creado planes de evaluación para esta clase</p>
+          <div v-for="p in visiblePlans" v-else :key="p.id" style="background: var(--bg-color); padding: 14px; margin-bottom: 10px; border-radius: 10px; border-left: 4px solid var(--primary-color);">
             <strong>{{ p.title }}</strong>
             <div style="font-size:.82rem; color: var(--text-secondary); margin-top:3px;">
               {{ p.course_title || 'Sin materia' }} · {{ p.evaluation_count }} evaluaciones · {{ p.points_per_evaluation }} pts c/u · Total {{ p.max_score }}
@@ -399,9 +419,10 @@
               <input id="section-name" v-model="sectionForm.name" type="text" placeholder="Ej: Sección A - Turno Mañana">
             </div>
             <div class="form-group">
-              <label>Materia</label>
-              <select id="section-course-select" v-model="sectionForm.courseId">
-                <option value="">Selecciona una materia...</option>
+              <label>Clase</label>
+              <input v-if="selectedCourse" :value="selectedCourse.title" type="text" readonly style="opacity:.85;">
+              <select v-else id="section-course-select" v-model="sectionForm.courseId">
+                <option value="">Selecciona una clase...</option>
                 <option v-for="c in courses" :key="c.id" :value="String(c.id)">{{ c.title }}</option>
               </select>
             </div>
@@ -418,9 +439,9 @@
           <div id="sections-list" style="margin-bottom: 32px;">
             <p v-if="sectionsState === 'loading'" style="color: var(--text-secondary);">Cargando...</p>
             <p v-else-if="sectionsState === 'error'" style="color: red;">Error al cargar secciones</p>
-            <p v-else-if="!sections.length" style="color: var(--text-secondary);">No hay secciones creadas todavía</p>
+            <p v-else-if="!classSections.length" style="color: var(--text-secondary);">No hay secciones creadas todavía</p>
             <div
-              v-for="sec in sections"
+              v-for="sec in classSections"
               v-else
               :key="sec.id"
               :data-section-id="sec.id"
@@ -445,7 +466,7 @@
               <label>Seleccionar Sección</label>
               <select id="section-student-select" v-model="selectedSection" @change="loadSectionStudents">
                 <option value="">Selecciona una sección...</option>
-                <option v-for="s in sections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
+                <option v-for="s in classSections" :key="s.id" :value="String(s.id)">{{ s.name }} — {{ s.course_title || '' }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -514,7 +535,7 @@
           <span style="font-size:.82rem; color: var(--text-secondary); font-weight:600;">Clase:</span>
           <button :class="subSection === '' ? 'btn-primary' : 'btn-secondary'" style="font-size:.78rem; padding:6px 10px;" @click="subSection = ''">Todas</button>
           <button
-            v-for="sec in sections"
+            v-for="sec in classSections"
             :key="sec.id"
             :class="subSection === String(sec.id) ? 'btn-primary' : 'btn-secondary'"
             style="font-size:.78rem; padding:6px 10px;"
@@ -594,8 +615,8 @@
           <div class="form-group" style="flex: 1; min-width: 220px; margin-bottom: 0;">
             <label style="font-size: 0.82rem;">Tarea</label>
             <select id="concept-task-select" v-model="conceptAssignment" style="margin-top:6px;">
-              <option value="">Todas mis tareas</option>
-              <option v-for="t in tasks.items" :key="t.id" :value="String(t.id)">{{ t.title }}</option>
+              <option value="">Todas las tareas de la clase</option>
+              <option v-for="t in classTasks" :key="t.id" :value="String(t.id)">{{ t.title }}</option>
             </select>
           </div>
           <button class="btn-primary" style="height: 42px;" @click="loadConceptReport">🔄 Actualizar</button>
@@ -629,18 +650,53 @@
   <Teleport to="#sidebar-page-section" defer>
     <h4>Panel Docente</h4>
     <div class="sidebar-panel-section">
-      <p class="sidebar-panel-label">Gestión</p>
+      <p class="sidebar-panel-label">Navegación</p>
       <nav class="admin-sidebar-nav">
-        <button
-          v-for="t in TABS"
-          :key="t.id"
-          class="admin-sidebar-btn"
-          :class="{ active: tab === t.id }"
-          :data-tab="t.id"
-          @click="switchTab(t.id)"
-        >
-          {{ t.label }}
+        <button class="admin-sidebar-btn" :class="{ active: tab === 'classes' }" @click="backToClasses">
+          🏫 Clases
         </button>
+        <div v-if="!selectedCourse" class="admin-sidebar-classes">
+          <button
+            v-for="c in courses"
+            :key="c.id"
+            type="button"
+            class="admin-sidebar-class-item"
+            @click="selectCourse(c)"
+          >
+            📚 {{ c.title }}
+          </button>
+          <p v-if="!courses.length" class="admin-sidebar-hint">Todavía no tienes clases.</p>
+        </div>
+        <button class="admin-sidebar-btn" :class="{ active: tab === 'sections' }" @click="switchTab('sections')">
+          🗂️ Secciones
+        </button>
+
+        <template v-if="selectedCourse">
+          <div class="admin-sidebar-class">
+            <span class="admin-sidebar-class-label">Clase seleccionada</span>
+            <strong>{{ selectedCourse.title }}</strong>
+            <template v-if="classSections.length">
+              <div v-for="sec in classSections" :key="sec.id" class="admin-sidebar-link">
+                <span>{{ sec.name }}</span>
+                <button type="button" class="admin-sidebar-link-btn" @click="copyLink(sectionLink(sec))">🔗 Copiar enlace</button>
+              </div>
+            </template>
+            <p v-else class="admin-sidebar-hint">Crea una sección para generar el enlace de invitación.</p>
+          </div>
+
+          <p class="sidebar-panel-label" style="margin-top:14px;">Esta clase</p>
+          <button
+            v-for="t in CLASS_TABS"
+            :key="t.id"
+            class="admin-sidebar-btn"
+            :class="{ active: tab === t.id }"
+            :data-tab="t.id"
+            @click="switchTab(t.id)"
+          >
+            {{ t.label }}
+          </button>
+          <button class="admin-sidebar-btn admin-sidebar-back" @click="backToClasses">← Cambiar de clase</button>
+        </template>
       </nav>
     </div>
   </Teleport>
@@ -769,7 +825,7 @@ import { goToPage } from '@/lib/pages';
 import { useRealtime } from '@/lib/realtime';
 import { currentUser } from '@/lib/session';
 
-type Tab = 'create' | 'list' | 'plans' | 'sections' | 'submissions' | 'concepts';
+type Tab = 'classes' | 'create' | 'list' | 'plans' | 'sections' | 'submissions' | 'concepts';
 type Id = number | string;
 
 interface Course {
@@ -794,6 +850,7 @@ interface Task {
 
 interface Dispute {
   id: Id;
+  course_id?: Id;
   assignment_title: string;
   first_name?: string;
   last_name?: string;
@@ -826,6 +883,7 @@ interface SubmissionRow {
   first_name?: string;
   last_name?: string;
   assignment_title?: string;
+  course_id?: Id;
   section_id?: Id | null;
   section_name?: string;
   score?: number | null;
@@ -836,21 +894,108 @@ interface SubmissionRow {
   professor_feedback?: string;
 }
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'create', label: '➕ Crear Tarea' },
+const CLASS_TABS: { id: Tab; label: string }[] = [
   { id: 'list', label: '📋 Mis Tareas' },
+  { id: 'create', label: '➕ Crear Tarea' },
   { id: 'plans', label: '📚 Planes' },
-  { id: 'sections', label: '🗂️ Secciones' },
-  { id: 'submissions', label: '📊 Trabajos' },
   { id: 'concepts', label: '📈 Conceptos' },
+  { id: 'submissions', label: '📊 Trabajos' },
 ];
 
 const router = useRouter();
 const dni = computed(() => currentUser.value?.dni ?? '');
 const authorized = ref(false);
-const tab = ref<Tab>('create');
+const tab = ref<Tab>('classes');
+const selectedCourseId = ref('');
+
+const selectedCourse = computed(() =>
+  courses.value.find((c) => String(c.id) === selectedCourseId.value) ?? null,
+);
+
+const classSections = computed(() =>
+  selectedCourseId.value
+    ? sections.value.filter((s) => String(s.course_id) === selectedCourseId.value)
+    : sections.value,
+);
+
+const classTasks = computed(() =>
+  selectedCourseId.value
+    ? tasks.items.filter((t) => String(t.course_id) === selectedCourseId.value)
+    : tasks.items,
+);
+
+const filteredDisputes = computed(() =>
+  selectedCourseId.value
+    ? disputes.items.filter((d) => String(d.course_id) === selectedCourseId.value)
+    : disputes.items,
+);
+
+const visiblePlans = computed(() =>
+  selectedCourseId.value
+    ? plans.items.filter((p) => String(p.course_id) === selectedCourseId.value)
+    : plans.items,
+);
+
+function classSectionCount(course: Course): number {
+  return sections.value.filter((s) => String(s.course_id) === String(course.id)).length;
+}
+
+function selectCourse(course: Course) {
+  selectedCourseId.value = String(course.id);
+  taskForm.courseId = String(course.id);
+  sectionForm.courseId = String(course.id);
+  planForm.courseId = String(course.id);
+  taskSectionFilter.value = '';
+  subSection.value = '';
+  conceptAssignment.value = '';
+  selectedSection.value = '';
+  sectionStudents.items = [];
+  tab.value = 'list';
+  void loadTasks();
+  void ensureCourseInviteLinks();
+}
+
+function backToClasses() {
+  selectedCourseId.value = '';
+  taskSectionFilter.value = '';
+  subSection.value = '';
+  conceptAssignment.value = '';
+  tab.value = 'classes';
+}
+
+function sectionLink(section: Section): string {
+  return `${window.location.origin}/classroom?join=${encodeURIComponent(section.invite_code || '')}`;
+}
+
+async function copyLink(link: string) {
+  try {
+    await navigator.clipboard.writeText(link);
+    await dialog.alert(`🔗 Enlace copiado al portapapeles:\n\n${link}`);
+  } catch {
+    await dialog.prompt('Copia este enlace para invitar a tus estudiantes:', { defaultValue: link });
+  }
+}
+
+// Al entrar a una clase se garantiza que cada sección tenga su enlace.
+async function ensureCourseInviteLinks() {
+  for (const section of classSections.value) {
+    if (section.invite_code) continue;
+    try {
+      const { ok, data } = await api.post<{ invite_code?: string; code?: string }>('/api/section-invite', {
+        section_id: section.id,
+      });
+      if (ok) section.invite_code = data.invite_code || data.code || '';
+    } catch {
+      // Si falla, el botón de enlace manual lo reintenta.
+    }
+  }
+}
 
 function switchTab(t: Tab) {
+  if (t !== 'classes' && t !== 'sections' && !selectedCourseId.value) {
+    tab.value = 'classes';
+    return;
+  }
   tab.value = t;
   if (t === 'list') void loadTasks();
   else if (t === 'plans') void loadPlans();
@@ -905,9 +1050,10 @@ const taskError = ref('');
 const tasks = reactive({ state: 'loading' as 'loading' | 'ready' | 'error', items: [] as Task[] });
 const taskSectionFilter = ref('');
 const filteredTasks = computed(() => {
-  if (!taskSectionFilter.value) return tasks.items;
-  if (taskSectionFilter.value === '__none__') return tasks.items.filter((t) => !t.section_id);
-  return tasks.items.filter((t) => String(t.section_id) === taskSectionFilter.value);
+  let list = classTasks.value;
+  if (!taskSectionFilter.value) return list;
+  if (taskSectionFilter.value === '__none__') return list.filter((t) => !t.section_id);
+  return list.filter((t) => String(t.section_id) === taskSectionFilter.value);
 });
 const studentCounts = reactive<Record<string, number>>({});
 
@@ -1004,6 +1150,7 @@ async function publishTask(task: Task) {
 function newTask() {
   switchTab('create');
   resetTaskForm();
+  taskForm.courseId = selectedCourseId.value;
   void nextTick(() => {
     document.getElementById('create-task-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     (document.getElementById('task-title') as HTMLInputElement | null)?.focus();
@@ -1316,8 +1463,9 @@ async function createSection() {
     const { ok, data } = await api.post('/api/create-section', { name, course_id: sectionForm.courseId, description: sectionForm.description.trim() });
     if (ok) {
       dialog.alert('✅ Sección creada');
-      Object.assign(sectionForm, { name: '', courseId: '', description: '' });
+      Object.assign(sectionForm, { name: '', courseId: selectedCourseId.value, description: '' });
       await loadSections();
+      if (selectedCourseId.value) void ensureCourseInviteLinks();
     } else {
       dialog.alert('❌ Error: ' + errorMessage(data, ''));
     }
@@ -1531,9 +1679,10 @@ const filteredSubmissions = computed(() => {
   return submissions.items.filter((s) => {
     const name = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
     const matchSearch = !search || name.includes(search) || (s.user_dni || '').toLowerCase().includes(search);
+    const matchCourse = !selectedCourseId.value || String(s.course_id) === selectedCourseId.value;
     const matchSection = !section
       || (section === '__none__' ? !s.section_id : String(s.section_id) === section);
-    return matchSearch && matchSection;
+    return matchSearch && matchCourse && matchSection;
   });
 });
 
@@ -1707,7 +1856,10 @@ const conceptReport = reactive({
 async function loadConceptReport() {
   conceptReport.state = 'loading';
   try {
-    const query = conceptAssignment.value ? `?assignment_id=${encodeURIComponent(conceptAssignment.value)}` : '';
+    const params = new URLSearchParams();
+    if (conceptAssignment.value) params.set('assignment_id', conceptAssignment.value);
+    else if (selectedCourseId.value) params.set('course_id', selectedCourseId.value);
+    const query = params.toString() ? `?${params.toString()}` : '';
     const { ok, status, data } = await api.get<{ concepts?: ConceptRow[] }>(`/api/professor-concept-report${query}`);
     if (!ok) throw new Error(`HTTP ${status}`);
     conceptReport.concepts = Array.isArray(data.concepts) ? data.concepts : [];

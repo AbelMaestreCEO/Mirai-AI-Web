@@ -283,14 +283,16 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
                 s.submitted_at,
                 a.title as assignment_title,
                 a.max_score,
+                a.course_id,
                 u.first_name,
                 u.last_name
             FROM submissions s
             JOIN assignments a ON s.assignment_id = a.id
+            JOIN user_courses uc ON uc.id = a.course_id
             JOIN users u ON s.user_dni = u.dni
-            WHERE s.dispute_status = 'pending'
+            WHERE s.dispute_status = 'pending' AND uc.user_dni = ?
             ORDER BY s.submitted_at DESC
-        `).all<any>();
+        `).bind(userDni).all<any>();
 
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
@@ -320,6 +322,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
             s.status,
             s.submitted_at,
             s.professor_feedback,
+            a.course_id  AS course_id,
             a.section_id AS section_id,
             sec.name     AS section_name
           FROM submissions s
@@ -424,15 +427,23 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     if (!userDni || userDni instanceof Response) return userDni;
 
     const assignmentId = (url.searchParams.get('assignment_id') || '').trim();
+    const courseId = (url.searchParams.get('course_id') || '').trim();
     if (assignmentId && !(await canManageAssignment(assignmentId, userDni, env))) {
       return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+    if (courseId) {
+      const ownCourse = await env.MIRAI_AI_DB.prepare(
+        'SELECT id FROM user_courses WHERE id = ? AND user_dni = ?'
+      ).bind(courseId, userDni).first<any>();
+      if (!ownCourse) return jsonResponse({ error: 'Materia no encontrada o no autorizada' }, 403, corsHeaders);
     }
 
     try {
       await ensureConceptErrorsTable(env);
-      const where = assignmentId ? 'AND ce.assignment_id = ?' : '';
+      const where = assignmentId ? 'AND ce.assignment_id = ?' : courseId ? 'AND a.course_id = ?' : '';
       const bindings: string[] = [userDni.toUpperCase()];
       if (assignmentId) bindings.push(assignmentId);
+      else if (courseId) bindings.push(courseId);
 
       const { results } = await env.MIRAI_AI_DB.prepare(`
         SELECT ce.concept,
