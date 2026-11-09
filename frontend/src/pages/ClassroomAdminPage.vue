@@ -139,29 +139,71 @@
         </div>
 
         <div style="padding: 0 8px 24px;">
-          <h3 style="margin-bottom: 6px;">🔗 Enlace para unirse a la clase</h3>
+          <h3 class="lessons-section-title">Secciones de la clase</h3>
           <p style="color: var(--text-secondary); font-size: .85rem; margin-bottom: 14px;">
-            Comparte este enlace con tus estudiantes. Al abrirlo e iniciar sesión, se unirán automáticamente a la clase.
+            Crea una o varias secciones para esta clase. Cada sección tiene su propio enlace para que los estudiantes se registren; puedes repetir el nombre para distintos horarios.
           </p>
-          <div v-if="currentSection" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; background: var(--glass-bg);">
-            <div v-if="currentSection.invite_code" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <input
-                :value="currentSectionLink"
-                type="text"
-                readonly
-                style="flex: 1; min-width: 220px; font-size: .82rem;"
-              >
-              <button class="btn-secondary" style="white-space: nowrap;" @click="copyLink(currentSectionLink)">📋 Copiar</button>
+
+          <form
+            class="section-create-form"
+            style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 14px; background: var(--glass-bg); margin-bottom: 18px;"
+            @submit.prevent="createSection"
+          >
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre de la sección</label>
+                <input v-model="sectionForm.name" type="text" placeholder="Ej: Sección 1" required>
+              </div>
+              <div class="form-group">
+                <label>Fecha de inicio</label>
+                <input v-model="sectionForm.startDate" type="date" required>
+              </div>
+              <div class="form-group">
+                <label>Aula (opcional)</label>
+                <input v-model="sectionForm.classroom" type="text" placeholder="Ej: Aula 12">
+              </div>
             </div>
-            <span v-else style="font-size: .82rem; color: var(--text-secondary);">Preparando enlace…</span>
-          </div>
-          <p v-else style="color: var(--text-secondary); font-size: .9rem;">
-            Preparando el enlace de la clase…
+            <button class="btn-primary" type="submit" :disabled="sectionForm.saving">
+              {{ sectionForm.saving ? 'Creando…' : '➕ Crear sección' }}
+            </button>
+          </form>
+
+          <p v-if="!courseSections.length" style="color: var(--text-secondary); font-size: .9rem;">
+            Esta clase todavía no tiene secciones. Crea la primera para generar su enlace.
           </p>
+          <div v-else style="display: flex; flex-direction: column; gap: 12px;">
+            <div
+              v-for="sec in courseSections"
+              :key="sec.id"
+              style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 12px; background: var(--glass-bg);"
+              :style="String(sec.id) === selectedSection ? 'border-color: var(--primary-color);' : ''"
+            >
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                <strong style="font-size: .95rem;">{{ sec.name }}</strong>
+                <span style="font-size: .78rem; color: var(--text-secondary);">Inicio: {{ formatDate(sec.start_date) }}</span>
+                <span v-if="sec.classroom" style="font-size: .78rem; color: var(--text-secondary);">Aula: {{ sec.classroom }}</span>
+                <span style="font-size: .78rem; color: var(--text-secondary);">{{ sec.student_count }} estudiante{{ Number(sec.student_count) !== 1 ? 's' : '' }}</span>
+              </div>
+              <div v-if="sec.invite_code" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                <input :value="sectionLink(sec)" type="text" readonly style="flex: 1; min-width: 220px; font-size: .82rem;">
+                <button class="btn-secondary" type="button" style="white-space: nowrap;" @click="copyLink(sectionLink(sec))">📋 Copiar</button>
+              </div>
+              <div v-else style="margin-bottom: 8px;">
+                <button class="btn-secondary" type="button" @click="ensureSectionLink(sec)">🔗 Generar enlace</button>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-secondary" type="button" @click="selectSection(sec)">👥 Ver estudiantes</button>
+                <button class="action-btn btn-delete" type="button" style="max-width: 120px;" @click="deleteSection(sec)">🗑️ Eliminar</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div style="padding: 0 8px 24px;">
           <h3 class="lessons-section-title">Estudiantes de la clase</h3>
+          <p v-if="currentSection" style="color: var(--text-secondary); font-size: .85rem; margin-bottom: 12px;">
+            Sección: <strong>{{ currentSection.name }}</strong>
+          </p>
           <div class="form-row">
             <div class="form-group">
               <label>Cédula del Estudiante</label>
@@ -177,9 +219,9 @@
             </button>
           </div>
           <div ref="sectionStudentsEl" style="max-height: 400px; overflow-y: auto;">
-            <p v-if="!currentSection" style="color: var(--text-secondary);">Cargando estudiantes…</p>
+            <p v-if="!currentSection" style="color: var(--text-secondary);">Selecciona o crea una sección para gestionar sus estudiantes.</p>
             <p v-else-if="sectionStudents.state === 'error'" style="color: red;">Error cargando estudiantes</p>
-            <p v-else-if="sectionStudents.state === 'ready' && !sectionStudents.items.length" style="color: var(--text-secondary);">Aún no hay estudiantes en esta clase</p>
+            <p v-else-if="sectionStudents.state === 'ready' && !sectionStudents.items.length" style="color: var(--text-secondary);">Aún no hay estudiantes en esta sección</p>
             <div
               v-for="s in sectionStudents.items"
               v-else
@@ -778,6 +820,8 @@ interface Section {
   course_title?: string;
   student_count: number;
   invite_code?: string | null;
+  start_date?: string | null;
+  classroom?: string | null;
 }
 
 interface SectionStudent {
@@ -851,12 +895,13 @@ function selectCourse(course: Course) {
   planForm.courseId = String(course.id);
   conceptAssignment.value = '';
   selectedSection.value = '';
+  currentSection.value = null;
   sectionStudents.items = [];
   sectionStudents.state = 'idle';
   tab.value = 'info';
   void loadTasks();
   void loadPlans();
-  void ensureCourseSection();
+  void refreshCourseSections();
 }
 
 function backToClasses() {
@@ -885,32 +930,50 @@ async function copyLink(link: string) {
   }
 }
 
-// Al entrar a una clase se resuelve su sección única (con enlace garantizado)
-// y se carga su lista de estudiantes.
-async function ensureCourseSection() {
+// Al entrar a una clase se cargan sus secciones (la actual o la primera) y la
+// lista de estudiantes de la sección elegida.
+async function refreshCourseSections() {
+  await loadSections();
   if (!selectedCourseId.value) return;
-  try {
-    const { ok, data } = await api.post<Section>('/api/course-section', {
-      course_id: selectedCourseId.value,
-    });
-    if (!ok) return;
-    currentSection.value = data;
-    selectedSection.value = String(data.id);
+  const list = courseSections.value;
+  const still = list.find((s) => String(s.id) === selectedSection.value);
+  if (still) {
+    currentSection.value = still;
     await loadSectionStudents();
-  } catch {
-    // El enlace se puede reintentar al volver a abrir la clase.
+    return;
+  }
+  const first = list[0];
+  if (first) {
+    await selectSection(first);
+  } else {
+    currentSection.value = null;
+    selectedSection.value = '';
+    sectionStudents.items = [];
+    sectionStudents.state = 'idle';
   }
 }
 
-// Resuelve la sección única de una clase para asignarle tareas/planes.
+async function selectSection(section: Section) {
+  selectedSection.value = String(section.id);
+  currentSection.value = section;
+  await loadSectionStudents();
+}
+
+// Resuelve la sección a la que se asignan tareas/planes: la actual si es de la
+// misma clase; si no, la primera de la clase; si no hay, crea la de defecto.
 async function resolveCourseSection(courseId: string): Promise<string | null> {
   if (currentSection.value && String(currentSection.value.course_id) === String(courseId)) {
     return String(currentSection.value.id);
   }
+  const local = sections.value.find((s) => String(s.course_id) === String(courseId));
+  if (local) return String(local.id);
   try {
     const { ok, data } = await api.post<Section>('/api/course-section', { course_id: courseId });
     if (ok && data?.id) {
-      if (String(courseId) === selectedCourseId.value) currentSection.value = data;
+      if (String(courseId) === selectedCourseId.value) {
+        currentSection.value = data;
+        selectedSection.value = String(data.id);
+      }
       return String(data.id);
     }
   } catch {
@@ -1346,11 +1409,92 @@ async function reviewDispute(submissionId: Id, maxScore: number) {
 const sections = ref<Section[]>([]);
 const sectionsState = ref<'loading' | 'ready' | 'error'>('loading');
 const totalStudents = computed(() => sections.value.reduce((sum, s) => sum + (Number(s.student_count) || 0), 0));
+const courseSections = computed(() =>
+  selectedCourseId.value
+    ? sections.value.filter((s) => String(s.course_id) === selectedCourseId.value)
+    : [],
+);
+const sectionForm = reactive({ name: '', startDate: '', classroom: '', saving: false });
 const selectedSection = ref('');
 const sectionStudentDni = ref('');
 const sectionStudents = reactive({ state: 'idle' as 'idle' | 'ready' | 'error', items: [] as SectionStudent[] });
 const sectionStudentsEl = ref<HTMLElement | null>(null);
 const brokenAvatars = reactive(new Set<string>());
+
+function formatDate(value?: string | null): string {
+  if (!value) return 'Sin definir';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  return date.toLocaleDateString();
+}
+
+async function createSection() {
+  if (!selectedCourseId.value) return;
+  const name = sectionForm.name.trim();
+  if (!name) {
+    dialog.alert('Escribe el nombre de la sección');
+    return;
+  }
+  sectionForm.saving = true;
+  try {
+    const { ok, data } = await api.post<Section>('/api/create-section', {
+      course_id: selectedCourseId.value,
+      name,
+      start_date: sectionForm.startDate || null,
+      classroom: sectionForm.classroom.trim() || null,
+    });
+    if (!ok) {
+      dialog.alert('❌ Error: ' + errorMessage(data, 'No se pudo crear la sección.'));
+      return;
+    }
+    Object.assign(sectionForm, { name: '', startDate: '', classroom: '', saving: false });
+    await loadSections();
+    const created = data?.id
+      ? sections.value.find((s) => String(s.id) === String(data.id))
+      : undefined;
+    if (created) await selectSection(created);
+    dialog.alert('✅ Sección creada con su enlace de registro.');
+  } catch {
+    dialog.alert('Error de conexión');
+  } finally {
+    sectionForm.saving = false;
+  }
+}
+
+async function ensureSectionLink(section: Section) {
+  try {
+    const { ok, data } = await api.post<{ code?: string }>('/api/section-invite', { section_id: section.id });
+    if (!ok || !data.code) {
+      dialog.alert('No se pudo generar el enlace de la sección.');
+      return;
+    }
+    await loadSections();
+    const updated = sections.value.find((s) => String(s.id) === String(section.id));
+    if (updated && selectedSection.value === String(section.id)) currentSection.value = updated;
+  } catch {
+    dialog.alert('Error de conexión');
+  }
+}
+
+async function deleteSection(section: Section) {
+  if (!(await dialog.confirm(`¿Eliminar la sección "${section.name}"? Se quitarán sus estudiantes y enlace.`))) return;
+  try {
+    const { ok } = await api.delete(`/api/delete-section?id=${encodeURIComponent(String(section.id))}`);
+    if (!ok) {
+      dialog.alert('No se pudo eliminar la sección.');
+      return;
+    }
+    if (selectedSection.value === String(section.id)) {
+      selectedSection.value = '';
+      currentSection.value = null;
+      sectionStudents.items = [];
+      sectionStudents.state = 'idle';
+    }
+    await refreshCourseSections();
+  } catch {
+    dialog.alert('Error de conexión');
+  }
+}
 
 async function loadSections() {
   try {
@@ -1717,8 +1861,7 @@ async function loadConceptReport() {
 // ── Tiempo real: estudiantes o clases cambiadas ───────────────────────────
 useRealtime('classroom', (raw) => {
   if ((raw as { sections?: unknown[] } | null)?.sections?.length) {
-    void loadSections();
-    if (selectedCourseId.value) void ensureCourseSection();
+    void refreshCourseSections();
   }
 });
 

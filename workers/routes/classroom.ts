@@ -102,58 +102,50 @@ let sectionInviteColumnReady = false;
 
 async function ensureSectionInviteColumn(env: Env) {
   if (sectionInviteColumnReady) return;
-  try {
-    await env.MIRAI_AI_DB.prepare('ALTER TABLE sections ADD COLUMN invite_code TEXT').run();
-  } catch {
-    // La columna ya existe (o la tabla la crea la migración de router.ts).
+  const migrations = [
+    'ALTER TABLE sections ADD COLUMN invite_code TEXT',
+    'ALTER TABLE sections ADD COLUMN start_date TEXT',
+    'ALTER TABLE sections ADD COLUMN classroom TEXT',
+  ];
+  for (const sql of migrations) {
+    try {
+      await env.MIRAI_AI_DB.prepare(sql).run();
+    } catch {
+      // La columna ya existe (o la tabla la crea la migración de router.ts).
+    }
   }
   sectionInviteColumnReady = true;
 }
 
-// Una clase (user_courses) tiene una única "sección" implícita que guarda su
-// lista de estudiantes y su enlace de invitación. Si la clase aún conserva
-// varias secciones heredadas, se consolidan en la más antigua.
+// Sección "por defecto" de una clase (la más antigua). Las secciones que crea
+// el docente se conservan: no se consolidan ni se borran automáticamente.
 async function ensureCourseSection(courseId: string, professorDni: string, env: Env) {
   const { results } = await env.MIRAI_AI_DB.prepare(`
-    SELECT id, name, invite_code
+    SELECT id, name, invite_code, start_date, classroom
       FROM sections
      WHERE course_id = ? AND UPPER(professor_dni) = UPPER(?)
      ORDER BY created_at ASC, rowid ASC
   `).bind(courseId, professorDni).all<any>();
 
-  const rows = results || [];
-  let canonical = rows[0];
+  const canonical = (results || [])[0];
+  if (canonical) return canonical;
 
-  if (!canonical) {
-    const course = await env.MIRAI_AI_DB.prepare(
-      'SELECT title FROM user_courses WHERE id = ? AND user_dni = ?'
-    ).bind(courseId, professorDni).first<any>();
-    const id = crypto.randomUUID();
-    const name = String(course?.title || 'General').trim() || 'General';
-    await env.MIRAI_AI_DB.prepare(
-      `INSERT INTO sections (id, professor_dni, course_id, name, description)
-       VALUES (?, ?, ?, ?, '')`,
-    ).bind(id, professorDni, courseId, name).run();
-    return { id, name, invite_code: null as string | null };
-  }
-
-  for (const sec of rows.slice(1)) {
-    if (sec.id === canonical.id) continue;
-    await env.MIRAI_AI_DB.prepare(
-      `INSERT OR IGNORE INTO section_students (section_id, user_dni, created_at)
-       SELECT ?, user_dni, datetime('now') FROM section_students WHERE section_id = ?`,
-    ).bind(canonical.id, sec.id).run();
-    await env.MIRAI_AI_DB.prepare(
-      'UPDATE assignments SET section_id = ? WHERE section_id = ?',
-    ).bind(canonical.id, sec.id).run();
-    await env.MIRAI_AI_DB.prepare(
-      'UPDATE evaluation_plans SET section_id = ? WHERE section_id = ?',
-    ).bind(canonical.id, sec.id).run();
-    await env.MIRAI_AI_DB.prepare('DELETE FROM section_students WHERE section_id = ?').bind(sec.id).run();
-    await env.MIRAI_AI_DB.prepare('DELETE FROM sections WHERE id = ?').bind(sec.id).run();
-  }
-
-  return canonical;
+  const course = await env.MIRAI_AI_DB.prepare(
+    'SELECT title FROM user_courses WHERE id = ? AND user_dni = ?'
+  ).bind(courseId, professorDni).first<any>();
+  const id = crypto.randomUUID();
+  const name = String(course?.title || 'General').trim() || 'General';
+  await env.MIRAI_AI_DB.prepare(
+    `INSERT INTO sections (id, professor_dni, course_id, name, description)
+     VALUES (?, ?, ?, ?, '')`,
+  ).bind(id, professorDni, courseId, name).run();
+  return {
+    id,
+    name,
+    invite_code: null as string | null,
+    start_date: null as string | null,
+    classroom: null as string | null,
+  };
 }
 
 function quizLevelAt(index: number): string {
@@ -309,6 +301,15 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     const { title, description } = await request.json<any>();
 
     if (!title) return jsonResponse({ error: 'El nombre del curso es obligatorio' }, 400, corsHeaders);
+
+    const duplicate = await env.MIRAI_AI_DB.prepare(
+      `SELECT id FROM user_courses
+        WHERE UPPER(user_dni) = UPPER(?)
+          AND LOWER(TRIM(title)) = LOWER(TRIM(?))`,
+    ).bind(userDni, title).first<any>();
+    if (duplicate) {
+      return jsonResponse({ error: 'Ya existe una clase con ese nombre para tu perfil' }, 409, corsHeaders);
+    }
 
     const id = crypto.randomUUID();
 
@@ -692,7 +693,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     if (!userDni || userDni instanceof Response) return userDni;
 
     const baseQuery = (withInviteCode: boolean) => `
-    SELECT s.id, s.name, s.description, s.course_id, s.created_at${withInviteCode ? ', s.invite_code' : ''},
+    SELECT s.id, s.name, s.description, s.course_id, s.created_at${withInviteCode ? ', s.invite_code, s.start_date, s.classroom' : ''},
            uc.title as course_title,
            COUNT(ss.user_dni) as student_count
     FROM sections s
@@ -750,6 +751,8 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
       course_title: course.title,
       invite_code: code,
       code,
+      start_date: section.start_date ?? null,
+      classroom: section.classroom ?? null,
       student_count: Number(countRow?.c || 0),
     }, 200, corsHeaders);
   }
@@ -759,7 +762,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { name, description, course_id } = await request.json<any>();
+    const { name, description, course_id, start_date, classroom } = await request.json<any>();
     if (!name || !course_id) {
       return jsonResponse({ error: 'Nombre y Materia son requeridos' }, 400, corsHeaders);
     }
@@ -771,12 +774,24 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     if (!course) return jsonResponse({ error: 'Materia no encontrada o no autorizada' }, 403, corsHeaders);
 
     const id = crypto.randomUUID();
+    const code = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    const safeStartDate = start_date ? String(start_date).trim() : null;
+    const safeClassroom = classroom ? String(classroom).trim() : null;
     await env.MIRAI_AI_DB.prepare(`
-    INSERT INTO sections (id, professor_dni, course_id, name, description)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(id, userDni, course_id, name, description || '').run();
+    INSERT INTO sections (id, professor_dni, course_id, name, description, invite_code, start_date, classroom)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, userDni, course_id, String(name).trim(), description || '', code, safeStartDate, safeClassroom).run();
 
-    return jsonResponse({ success: true, id }, 201, corsHeaders);
+    return jsonResponse({
+      success: true,
+      id,
+      name: String(name).trim(),
+      course_id,
+      invite_code: code,
+      start_date: safeStartDate,
+      classroom: safeClassroom,
+      student_count: 0,
+    }, 201, corsHeaders);
   }
 
   // POST /api/section-invite — genera (o devuelve) el código del enlace de la sección.

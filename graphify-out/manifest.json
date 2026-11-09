@@ -324,9 +324,9 @@
     "semantic_hash": "3f23478416aaccdd8e6b9562bddcb464"
   },
   "frontend/src/lib/nav.ts": {
-    "mtime": 1793569607.9446323,
-    "seen": 1793569701.3248465,
-    "ast_hash": "7511e4ef51f03e94f06a87fcbbc0c16b",
+    "mtime": 1794254872.5562503,
+    "seen": 1794255025.978983,
+    "ast_hash": "7ba3dc29afd40efbfeda2b39403d2423",
     "semantic_hash": ""
   },
   "frontend/src/lib/pages.ts": {
@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794084198.0237021,
-    "seen": 1794084244.531385,
-    "ast_hash": "eab855b3b50026ed9edf451b077ceaaa",
+    "mtime": 1794255061.2416296,
+    "seen": 1794255085.199206,
+    "ast_hash": "0bcf65d064ae8b6260e180c0fb476bb9",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
-    "mtime": 1794082202.9789946,
-    "seen": 1794082274.337915,
-    "ast_hash": "06c7cccb20057c894b13437895a4fe99",
+    "mtime": 1794090801.0034046,
+    "seen": 1794255025.981575,
+    "ast_hash": "d05e3175e44992c3cd343f0ebaea0809",
     "semantic_hash": ""
   },
   "frontend/src/pages/CodePage.vue": {
@@ -480,9 +480,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/HomePage.vue": {
-    "mtime": 1792886722.080429,
-    "seen": 1792886731.7286515,
-    "ast_hash": "f736ad688ee78d33b42ecdc82541a9cd",
+    "mtime": 1794254881.7750795,
+    "seen": 1794255025.9835339,
+    "ast_hash": "c2e45f15864dca9523d4fe4e77a6e8e4",
     "semantic_hash": ""
   },
   "frontend/src/pages/InventoryPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794084200.7923515,
-    "seen": 1794084244.5389009,
+    "mtime": 1794090802.0237863,
+    "seen": 1794255025.9871664,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794088849.1749086,
-    "seen": 1794088924.376383,
-    "ast_hash": "b8a9ec433be03ebd813853394a14d56d",
+    "mtime": 1794254864.9674568,
+    "seen": 1794255025.9957986,
+    "ast_hash": "fc4742658a1f5975eee6b47cdac3276d",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {
@@ -1557,6 +1557,12 @@
     "mtime": 1794021219.8243904,
     "seen": 1794021931.0655935,
     "ast_hash": "91429a706eac6efda3283d3978fb3729",
+    "semantic_hash": ""
+  },
+  "juego-cartas.md": {
+    "mtime": 1794102441.907523,
+    "seen": 1794255026.00195,
+    "ast_hash": "a8647e944aa0030c8301e0292d1eb3f1",
     "semantic_hash": ""
   }
 }

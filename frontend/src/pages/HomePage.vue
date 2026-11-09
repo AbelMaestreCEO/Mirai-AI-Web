@@ -53,10 +53,6 @@
         <img class="shortcut-icon" src="/icons/ui/classroom-48.png" srcset="/icons/ui/classroom-48.png 1x, /icons/ui/classroom-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
         <span class="shortcut-label">Aula</span>
       </AppLink>
-      <AppLink to="inventory" class="shortcut-card">
-        <img class="shortcut-icon" src="/icons/ui/inventory-48.png" srcset="/icons/ui/inventory-48.png 1x, /icons/ui/inventory-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
-        <span class="shortcut-label">Inventario</span>
-      </AppLink>
       <AppLink to="mirror" class="shortcut-card">
         <img class="shortcut-icon" src="/icons/ui/photos-48.png" srcset="/icons/ui/photos-48.png 1x, /icons/ui/photos-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
         <span class="shortcut-label">Fotos</span>
@@ -238,30 +234,6 @@
             </template>
           </ul>
           <AppLink to="task" class="dashboard-card-link">Ver todas las tareas →</AppLink>
-        </div>
-        <!-- Stock bajo en inventario -->
-        <div class="dashboard-card">
-          <div class="dashboard-card-header">
-            <h3>📦 Stock Bajo</h3>
-            <span v-if="alerts.inventory.items.length" class="badge badge-danger" style="display: inline-block">{{ alerts.inventory.items.length }}</span>
-          </div>
-          <ul class="dashboard-alert-list">
-            <li v-if="!alerts.inventory.loaded" class="dashboard-empty">
-              <div class="dashboard-empty-icon">📭</div>
-              Cargando inventario...
-            </li>
-            <li v-else-if="!alerts.inventory.items.length" class="dashboard-empty">
-              <div class="dashboard-empty-icon">✅</div>{{ alerts.inventory.empty }}
-            </li>
-            <template v-else>
-              <li v-for="(item, i) in alerts.inventory.items.slice(0, 5)" :key="i" class="dashboard-alert-item">
-                <span class="alert-icon">{{ item.icon }}</span>
-                <span class="alert-text">{{ item.text }}</span>
-                <span class="alert-meta">{{ item.meta }}</span>
-              </li>
-            </template>
-          </ul>
-          <AppLink to="inventory" class="dashboard-card-link">Ver inventario →</AppLink>
         </div>
       </div>
     </div>

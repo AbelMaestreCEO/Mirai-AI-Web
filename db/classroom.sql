@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS sections (
     name          TEXT NOT NULL,
     description   TEXT DEFAULT '',
     invite_code   TEXT,
+    start_date    TEXT,
+    classroom     TEXT,
     created_at    TEXT DEFAULT (datetime('now'))
 );
 
