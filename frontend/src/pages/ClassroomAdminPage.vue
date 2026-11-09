@@ -416,6 +416,31 @@
             </div>
           </div>
 
+          <div class="form-group">
+            <label>Secciones para asignar las actividades *</label>
+            <p v-if="!courseSections.length" style="color: var(--error-color, #dc2626); font-size: .85rem; margin-top: 6px;">
+              Esta clase no tiene secciones. Créalas en la pestaña Información antes de generar un plan.
+            </p>
+            <div v-else>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px;">
+                <label
+                  v-for="sec in courseSections"
+                  :key="sec.id"
+                  style="display: flex; align-items: center; gap: 6px; font-size: .88rem; cursor: pointer;"
+                >
+                  <input v-model="planForm.sectionIds" type="checkbox" :value="String(sec.id)">
+                  <span>
+                    {{ sec.name }}
+                    <span v-if="sec.classroom" style="color: var(--text-secondary); font-size: .78rem;">({{ sec.classroom }})</span>
+                  </span>
+                </label>
+              </div>
+              <button type="button" class="btn-secondary" style="margin-top: 8px;" @click="toggleAllPlanSections">
+                {{ allPlanSectionsSelected ? 'Quitar todas' : 'Seleccionar todas' }}
+              </button>
+            </div>
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label>Puntuación máxima de la materia</label>
@@ -893,6 +918,7 @@ function selectCourse(course: Course) {
   selectedCourseId.value = String(course.id);
   taskForm.courseId = String(course.id);
   planForm.courseId = String(course.id);
+  planForm.sectionIds = [];
   conceptAssignment.value = '';
   selectedSection.value = '';
   currentSection.value = null;
@@ -1257,7 +1283,7 @@ interface EvaluationPlanRow {
   assignments: { id: string; title: string; max_score: number }[];
 }
 
-const planForm = reactive({ courseId: '', maxScore: '20', count: '4' });
+const planForm = reactive({ courseId: '', maxScore: '20', count: '4', sectionIds: [] as string[] });
 const planFile = ref<File | null>(null);
 const planState = reactive({ generating: false, error: '', fileName: '', result: null as EvaluationPlanResult | null });
 const plans = reactive({ state: 'idle' as 'idle' | 'loading' | 'ready' | 'error', items: [] as EvaluationPlanRow[] });
@@ -1274,6 +1300,16 @@ const planPointsPerEvaluation = computed(() => {
   const count = Number(planForm.count) || 1;
   return Math.round((score / count) * 100) / 100;
 });
+
+const allPlanSectionsSelected = computed(() =>
+  courseSections.value.length > 0 && planForm.sectionIds.length === courseSections.value.length,
+);
+
+function toggleAllPlanSections() {
+  planForm.sectionIds = allPlanSectionsSelected.value
+    ? []
+    : courseSections.value.map((s) => String(s.id));
+}
 
 function onPlanMaxScoreChange() {
   const options = planCountOptions.value;
@@ -1302,12 +1338,15 @@ async function createEvaluationPlan() {
     planState.error = 'Selecciona una materia.';
     return;
   }
+  if (!planForm.sectionIds.length) {
+    planState.error = 'Selecciona al menos una sección para asignar las actividades.';
+    return;
+  }
 
-  const sectionId = await resolveCourseSection(planForm.courseId);
   const form = new FormData();
   form.append('file', planFile.value);
   form.append('course_id', planForm.courseId);
-  if (sectionId) form.append('section_id', sectionId);
+  form.append('section_ids', planForm.sectionIds.join(','));
   form.append('max_score', planForm.maxScore);
   form.append('evaluation_count', planForm.count);
 

@@ -1256,13 +1256,22 @@ ORDER BY u.last_name, u.first_name
       }
 
       const courseId = String(form.get('course_id') || '');
-      const sectionId = String(form.get('section_id') || '') || null;
+      const legacySectionId = String(form.get('section_id') || '').trim();
+      const rawSectionIds = String(form.get('section_ids') || '');
+      const sectionIds = [...new Set(
+        (rawSectionIds ? rawSectionIds.split(',') : (legacySectionId ? [legacySectionId] : []))
+          .map((id) => id.trim())
+          .filter(Boolean),
+      )];
       const maxScore = Number(form.get('max_score'));
       const evaluationCount = Math.floor(Number(form.get('evaluation_count')));
       const startDate = String(form.get('start_date') || '');
       const intervalDays = Math.max(1, Math.min(60, Math.floor(Number(form.get('interval_days')) || 7)));
 
       if (!courseId) return jsonResponse({ error: 'Selecciona una materia.' }, 400, corsHeaders);
+      if (!sectionIds.length) {
+        return jsonResponse({ error: 'Selecciona al menos una sección para asignar las actividades.' }, 400, corsHeaders);
+      }
       if (!Number.isFinite(maxScore) || maxScore <= 0 || maxScore > 100) {
         return jsonResponse({ error: 'Puntuación máxima inválida (1-100).' }, 400, corsHeaders);
       }
@@ -1279,11 +1288,15 @@ ORDER BY u.last_name, u.first_name
       ).bind(courseId, userDni).first<any>();
       if (!course) return jsonResponse({ error: 'Materia inválida o no autorizada.' }, 403, corsHeaders);
 
-      if (sectionId) {
-        const sec = await env.MIRAI_AI_DB.prepare(
-          'SELECT id FROM sections WHERE id = ? AND professor_dni = ?'
-        ).bind(sectionId, userDni).first<any>();
-        if (!sec) return jsonResponse({ error: 'Sección inválida o no autorizada.' }, 403, corsHeaders);
+      const sectionPlaceholders = sectionIds.map(() => '?').join(',');
+      const { results: validSections } = await env.MIRAI_AI_DB.prepare(
+        `SELECT id FROM sections
+          WHERE id IN (${sectionPlaceholders})
+            AND UPPER(professor_dni) = UPPER(?)
+            AND course_id = ?`,
+      ).bind(...sectionIds, userDni, courseId).all<any>();
+      if ((validSections || []).length !== sectionIds.length) {
+        return jsonResponse({ error: 'Una o más secciones no son válidas o no pertenecen a esta clase.' }, 403, corsHeaders);
       }
 
       const buffer = await file.arrayBuffer();
@@ -1330,19 +1343,27 @@ Formato exacto:
       }
 
       const planId = crypto.randomUUID();
+      const planSectionId = sectionIds.length === 1 ? sectionIds[0] : null;
       await env.MIRAI_AI_DB.prepare(`
         INSERT INTO evaluation_plans
           (id, professor_dni, course_id, title, strategy, source_filename, max_score, points_per_evaluation, evaluation_count, section_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(planId, userDni, courseId, planTitle, strategy, file.name.slice(0, 200), maxScore, pointsPerEvaluation, evaluationCount, sectionId).run();
+      `).bind(planId, userDni, courseId, planTitle, strategy, file.name.slice(0, 200), maxScore, pointsPerEvaluation, evaluationCount, planSectionId).run();
 
-      const collectedStudents = sectionId
-        ? (await env.MIRAI_AI_DB.prepare('SELECT user_dni FROM section_students WHERE section_id = ?').bind(sectionId).all<any>()).results
-        : [];
+      const { results: sectionStudentRows } = await env.MIRAI_AI_DB.prepare(
+        `SELECT section_id, user_dni FROM section_students WHERE section_id IN (${sectionPlaceholders})`,
+      ).bind(...sectionIds).all<any>();
+      const studentsBySection = new Map<string, any[]>();
+      for (const row of sectionStudentRows || []) {
+        const list = studentsBySection.get(String(row.section_id)) || [];
+        list.push(row);
+        studentsBySection.set(String(row.section_id), list);
+      }
 
       const start = startDate ? new Date(startDate) : null;
       const startValid = !!start && !Number.isNaN(start.getTime());
       const created: any[] = [];
+      let assignmentsCreated = 0;
 
       for (let index = 0; index < evaluations.length; index++) {
         const item = evaluations[index] || {};
@@ -1359,25 +1380,33 @@ Formato exacto:
           description ? `Instrucciones:\n${description}` : '',
         ].filter(Boolean).join('\n\n').slice(0, 5000);
 
-        const assignmentId = crypto.randomUUID();
         const dueDate = startValid
           ? new Date(start!.getTime() + index * intervalDays * 86400000).toISOString()
           : null;
 
-        await env.MIRAI_AI_DB.prepare(`
-          INSERT INTO assignments
-            (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode, plan_id, published_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'document', 'summative', ?, NULL)
-        `).bind(assignmentId, courseId, assignmentTitle, assignmentDescription, dueDate, sectionId, pointsPerEvaluation, planId).run();
+        let firstAssignmentId = '';
 
-        for (const st of collectedStudents || []) {
-          await env.MIRAI_AI_DB.prepare(
-            "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
-          ).bind(assignmentId, st.user_dni).run();
+        // Una tarea por cada sección seleccionada: sólo esas secciones la ven.
+        for (const targetSectionId of sectionIds) {
+          const assignmentId = crypto.randomUUID();
+          await env.MIRAI_AI_DB.prepare(`
+            INSERT INTO assignments
+              (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode, plan_id, published_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'document', 'summative', ?, NULL)
+          `).bind(assignmentId, courseId, assignmentTitle, assignmentDescription, dueDate, targetSectionId, pointsPerEvaluation, planId).run();
+
+          for (const st of studentsBySection.get(String(targetSectionId)) || []) {
+            await env.MIRAI_AI_DB.prepare(
+              "INSERT OR IGNORE INTO assignment_students (assignment_id, user_dni, created_at) VALUES (?, ?, datetime('now'))"
+            ).bind(assignmentId, st.user_dni).run();
+          }
+
+          assignmentsCreated++;
+          if (!firstAssignmentId) firstAssignmentId = assignmentId;
         }
 
         created.push({
-          id: assignmentId,
+          id: firstAssignmentId,
           title: assignmentTitle,
           description: assignmentDescription,
           topics,
@@ -1399,7 +1428,7 @@ Formato exacto:
           source_filename: file.name,
         },
         evaluations: created,
-        assignments_created: created.length,
+        assignments_created: assignmentsCreated,
       }, 201, corsHeaders);
     } catch (err) {
       console.error('Error creando plan de evaluación:', err);
