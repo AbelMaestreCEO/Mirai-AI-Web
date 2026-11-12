@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794257442.713589,
-    "seen": 1794257477.1265948,
-    "ast_hash": "a3f7c6330d882a342a89716c119b2d0b",
+    "mtime": 1794444456.1514876,
+    "seen": 1794445178.2529745,
+    "ast_hash": "51947a7c120ecbac5a213dddb3a0cfde",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1794068155.257176,
-    "seen": 1794068198.6596339,
-    "ast_hash": "f79846167be8bc61049d0b409521b399",
+    "mtime": 1794445088.8864737,
+    "seen": 1794445178.2529848,
+    "ast_hash": "9d1aa7ac153d0ba47e8dbcf679c1f1bb",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794257411.6012726,
-    "seen": 1794257477.1327348,
-    "ast_hash": "60e125738ad5c330f29a52f5cd00ba69",
+    "mtime": 1794445081.3227928,
+    "seen": 1794445178.2827132,
+    "ast_hash": "f1f1762f4cc3835aebe37a5e77b293d9",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {
@@ -1386,15 +1386,15 @@
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
-    "mtime": 1794021804.593071,
-    "seen": 1794021931.0620463,
-    "ast_hash": "6e02b2d008357813fdf7269ecae1d666",
+    "mtime": 1794444397.8827627,
+    "seen": 1794445178.280567,
+    "ast_hash": "71e5a8e1bb44ddcdd3c47f0777382357",
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1793582671.350908,
-    "seen": 1793582730.1679094,
-    "ast_hash": "2853ff07b2c67e91c5c69ea979e69ccb",
+    "mtime": 1794444370.3964639,
+    "seen": 1794445178.2681832,
+    "ast_hash": "e16942cbc322b62456199df8d68218d2",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1563,6 +1563,18 @@
     "mtime": 1794102441.907523,
     "seen": 1794255026.00195,
     "ast_hash": "a8647e944aa0030c8301e0292d1eb3f1",
+    "semantic_hash": ""
+  },
+  "workers/lib/task-modes.ts": {
+    "mtime": 1794444203.844512,
+    "seen": 1794445178.275199,
+    "ast_hash": "f70af9984cb463e992463d077b686b23",
+    "semantic_hash": ""
+  },
+  "workers/lib/task-progress.ts": {
+    "mtime": 1794444992.7346396,
+    "seen": 1794445178.2752054,
+    "ast_hash": "85ba4fd8832fac9225278c10dcecb3d0",
     "semantic_hash": ""
   }
 }

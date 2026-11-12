@@ -3,6 +3,10 @@ import { AI_MODEL_NORMAL } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
 import { recordConceptErrors } from '../lib/concept-errors';
 import { jsonResponse } from '../lib/http';
+import {
+  getSelectedTaskModes,
+  recordTaskModeResult,
+} from '../lib/task-progress';
 import { getAssignmentForStudent } from './chat-context';
 
 export type ActivityType =
@@ -959,6 +963,15 @@ export async function handleActivityApi(
       const answers = body?.answers || {};
       let graded: { ratio: number; feedback: Record<string, string>; details: any };
 
+      // En el flujo de 4 modos, solo se puede calificar lo que el estudiante eligió.
+      const selectedModes = await getSelectedTaskModes(env, assignmentId, userDni);
+      if (selectedModes && selectedModes.length && !selectedModes.includes(type)) {
+        return jsonResponse({
+          error: 'Ese modo no está entre las 4 actividades que elegiste para esta tarea.',
+        }, 409, corsHeaders);
+      }
+      const usesModeFlow = !!selectedModes && selectedModes.length > 0;
+
       if (type === 'flashcards') graded = await gradeFlashcards(set, answers, env, assignmentId, userDni);
       else if (type === 'find_error') graded = await gradeFindError(set, answers);
       else if (type === 'recall') graded = await gradeRecall(set, answers, maxScore, env);
@@ -975,7 +988,11 @@ export async function handleActivityApi(
         feedback.formative = true;
         feedback.general = `${graded.feedback.general || 'Actividad completada.'} Práctica formativa: no afecta tu nota.`;
       }
-      const submissionId = await saveSubmission(env, assignmentId, userDni, type, score, maxScore, feedback, formative);
+      // Con 4 modos elegidos, la nota de la tarea la compone task-progress.
+      // Sin selección (tareas antiguas) se mantiene el guardado directo.
+      const submissionId = usesModeFlow
+        ? null
+        : await saveSubmission(env, assignmentId, userDni, type, score, maxScore, feedback, formative);
 
       // Conceptos que quedaron flojos, para el reporte del docente.
       const failedConcepts: string[] = [];
@@ -1016,12 +1033,19 @@ export async function handleActivityApi(
         score, maxScore,
       ).run();
 
+      // Registra este modo dentro de las 4 actividades de la tarea.
+      const taskProgress = await recordTaskModeResult(
+        env, assignmentId, userDni, type,
+        formative ? 0 : score, maxScore, attemptId, feedback,
+      );
+
       return jsonResponse({
         success: true,
         assignment_id: assignmentId,
         type,
-        submission_id: submissionId,
+        submission_id: submissionId ?? attemptId,
         attempt_id: attemptId,
+        task_progress: taskProgress,
         score,
         max_score: maxScore,
         formative,

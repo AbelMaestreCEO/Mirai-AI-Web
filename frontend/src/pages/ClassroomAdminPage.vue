@@ -354,6 +354,7 @@
                   <strong>{{ t.title }}</strong>
                   <div style="font-size:.75rem;color:var(--text-secondary);">
                     {{ t.grading_mode === 'formative' ? 'Formativa' : 'Sumativa' }}
+                    · {{ taskModeCount(t) }} modos de evaluación
                   </div>
                 </td>
                 <td><span class="badge badge-pending">{{ t.course_title || t.course_id }}</span></td>
@@ -365,6 +366,7 @@
                 </td>
                 <td>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button class="action-btn btn-edit" @click="openTaskModes(t)">🧩 Evaluación</button>
                     <template v-if="!t.published_at">
                       <button class="action-btn btn-edit" @click="editTask(t)">✏️ Editar</button>
                       <button class="action-btn btn-edit" @click="publishTask(t)">📢 Publicar</button>
@@ -757,6 +759,39 @@
     </div>
   </div>
 
+  <!-- MODAL: Modos de evaluación de la tarea -->
+  <div id="modal-task-modes" class="modal" :class="{ show: modesModal.open }" :style="{ display: modesModal.open ? 'flex' : 'none' }" @click.self="modesModal.open = false">
+    <div class="modal-overlay" @click="modesModal.open = false"></div>
+    <div class="modal-content">
+      <button class="modal-close" @click="modesModal.open = false">&times;</button>
+      <div class="modal-header">
+        <h2>Evaluación de la tarea</h2>
+        <p class="modal-subtitle">Elige qué modos de hacer la tarea estarán disponibles para el estudiante. Debe dejar activos al menos 4.</p>
+      </div>
+      <p v-if="modesModal.task" style="font-weight:600;margin-bottom:12px;">{{ modesModal.task.title }}</p>
+      <div class="task-modes-grid">
+        <label v-for="option in TASK_MODE_OPTIONS" :key="option.value" class="task-mode-option" :class="{ selected: modesModal.selected.includes(option.value) }">
+          <input type="checkbox" :checked="modesModal.selected.includes(option.value)" @change="toggleTaskMode(option.value)">
+          <span class="task-mode-icon">{{ option.icon }}</span>
+          <span class="task-mode-text">
+            <strong>{{ option.label }}</strong>
+            <small>{{ option.description }}</small>
+          </span>
+        </label>
+      </div>
+      <p class="task-modes-count" :style="{ color: modesModal.selected.length < 4 ? 'var(--error-color, #dc2626)' : 'var(--text-secondary)' }">
+        {{ modesModal.selected.length }} seleccionados · mínimo 4
+      </p>
+      <p v-if="modesModal.error" style="color: var(--error-color, #dc2626); font-size: .85rem;">{{ modesModal.error }}</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn-secondary" @click="modesModal.open = false">Cancelar</button>
+        <button type="button" class="btn-primary" :disabled="modesModal.selected.length < 4 || modesModal.saving" @click="saveTaskModes">
+          {{ modesModal.saving ? 'Guardando…' : 'Guardar evaluación' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Importar estudiantes por lote -->
   <div id="modal-batch-students" class="modal" :class="{ show: batch.open }" :style="{ display: batch.open ? 'flex' : 'none' }">
     <div class="modal-overlay" @click="batch.open = false"></div>
@@ -824,6 +859,7 @@ interface Task {
   description?: string | null;
   max_score?: number | null;
   published_at?: string | null;
+  activity_modes?: string | null;
 }
 
 interface Dispute {
@@ -1067,6 +1103,91 @@ const taskError = ref('');
 const tasks = reactive({ state: 'loading' as 'loading' | 'ready' | 'error', items: [] as Task[] });
 const filteredTasks = computed(() => classTasks.value);
 const studentCounts = reactive<Record<string, number>>({});
+
+const TASK_MODE_OPTIONS = [
+  { value: 'document', label: 'Documento o imagen', icon: '📄', description: 'Sube PDF, DOCX o imagen.' },
+  { value: 'quiz4', label: 'Quiz 4', icon: '🅰️', description: '10 preguntas con 4 opciones.' },
+  { value: 'quiz_free', label: 'Quiz libre', icon: '✍️', description: '10 preguntas de respuesta abierta.' },
+  { value: 'flashcards', label: 'Flashcards', icon: '🃏', description: 'Memoriza con repetición espaciada.' },
+  { value: 'find_error', label: 'Detecta el error', icon: '🔍', description: 'Encuentra las oraciones incorrectas.' },
+  { value: 'recall', label: 'Recuerdo libre', icon: '🧠', description: 'Explica el tema de memoria.' },
+  { value: 'summary', label: 'Resumen con límite', icon: '📝', description: 'Sintetiza el texto en pocas palabras.' },
+  { value: 'concept_map', label: 'Mapa conceptual', icon: '🗺️', description: 'Conecta los conceptos clave.' },
+  { value: 'predict_output', label: 'Predice la salida', icon: '🔮', description: 'Adivina qué imprimirá el código.' },
+  { value: 'find_bug', label: 'Encuentra el bug', icon: '🐞', description: 'Marca las líneas con errores.' },
+  { value: 'order_code', label: 'Ordena el código', icon: '🔀', description: 'Reordena las líneas del programa.' },
+  { value: 'ludo', label: 'Ludo multijugador', icon: '🎲', description: 'Juega con la clase y suma puntos.' },
+] as const;
+
+const ALL_TASK_MODES: string[] = TASK_MODE_OPTIONS.map((option) => option.value);
+
+function parseTaskModeList(raw?: string | null): string[] {
+  if (!raw) return [...ALL_TASK_MODES];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const valid = parsed.map((value) => String(value)).filter((value) => ALL_TASK_MODES.includes(value));
+      if (valid.length) return valid;
+    }
+  } catch {
+    // Se usa la lista completa.
+  }
+  return [...ALL_TASK_MODES];
+}
+
+const modesModal = reactive({
+  open: false,
+  task: null as Task | null,
+  selected: [] as string[],
+  error: '',
+  saving: false,
+});
+
+function taskModeCount(task: Task): number {
+  return parseTaskModeList(task.activity_modes).length;
+}
+
+function openTaskModes(task: Task) {
+  modesModal.task = task;
+  modesModal.selected = parseTaskModeList(task.activity_modes);
+  modesModal.error = '';
+  modesModal.saving = false;
+  modesModal.open = true;
+}
+
+function toggleTaskMode(mode: string) {
+  const index = modesModal.selected.indexOf(mode);
+  if (index >= 0) modesModal.selected.splice(index, 1);
+  else modesModal.selected.push(mode);
+}
+
+async function saveTaskModes() {
+  if (!modesModal.task) return;
+  modesModal.error = '';
+  if (modesModal.selected.length < 4) {
+    modesModal.error = 'Debes dejar activos al menos 4 modos.';
+    return;
+  }
+  modesModal.saving = true;
+  try {
+    const { ok, data } = await api.post<{ modes?: string[]; error?: string }>('/api/set-assignment-modes', {
+      id: modesModal.task.id,
+      modes: modesModal.selected,
+    });
+    if (!ok) {
+      modesModal.error = errorMessage(data, 'No se pudieron guardar los modos.');
+      return;
+    }
+    modesModal.task.activity_modes = JSON.stringify(data.modes || modesModal.selected);
+    modesModal.open = false;
+    await loadTasks();
+  } catch {
+    modesModal.error = 'Error de conexión. Inténtalo de nuevo.';
+  } finally {
+    modesModal.saving = false;
+  }
+}
+
 
 function onCourseSelect() {
   // La opción "+ Agregar Nuevo Curso" abre el modal en vez de quedarse elegida.

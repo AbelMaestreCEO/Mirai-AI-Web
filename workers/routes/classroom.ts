@@ -12,6 +12,20 @@ import { extractTextFromOffice } from '../lib/office-text';
 import { jsonResponse } from '../lib/http';
 import { callVision } from '../lib/vision';
 import { recordConceptErrors, ensureConceptErrorsTable } from '../lib/concept-errors';
+import {
+  deleteTaskModeProgress,
+  ensureTaskModeTables,
+  getTaskProgress,
+  recordTaskModeResult,
+  saveTaskModeSelection,
+} from '../lib/task-progress';
+import {
+  enabledTaskModes,
+  isTaskMode,
+  parseTaskModes,
+  REQUIRED_TASK_MODES,
+  TaskMode,
+} from '../lib/task-modes';
 import { getAssignmentForStudent } from './chat-context';
 
 // ── QUIZ DE UNA TAREA ─────────────────────────────────────────
@@ -198,6 +212,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
   // Migraciones perezosas: las columnas de apoyo (attempt_type, retry_used y
   // grading_mode) deben existir antes de cualquier lectura de assignments.
   await ensureQuizSubmissionColumns(env);
+  await ensureTaskModeTables(env);
   await ensureEvaluationPlanTables(env);
   await ensureSectionInviteColumn(env);
 
@@ -562,6 +577,100 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
       console.error('Error listando tareas:', error);
       return jsonResponse({ error: 'Error al obtener tareas' }, 500, corsHeaders);
     }
+  }
+
+  // ── Modos de evaluación por tarea ────────────────────────────────────────
+  // El profesor activa qué modos puede usar el estudiante. Cada tarea exige 4.
+  if (path === '/api/assignment-modes' && request.method === 'GET') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const id = (url.searchParams.get('id') || '').trim();
+    if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+    if (!await canManageAssignment(id, userDni, env)) {
+      return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    const row = await env.MIRAI_AI_DB.prepare(
+      'SELECT activity_modes FROM assignments WHERE id = ?',
+    ).bind(id).first<any>();
+    if (!row) return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
+
+    return jsonResponse({
+      id,
+      modes: enabledTaskModes(row.activity_modes),
+      configured: !!parseTaskModes(row.activity_modes),
+      required: REQUIRED_TASK_MODES,
+    }, 200, corsHeaders);
+  }
+
+  if (path === '/api/set-assignment-modes' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const body = await request.json<any>().catch(() => ({}));
+    const id = String(body?.id || '').trim();
+    const modes = parseTaskModes(body?.modes);
+    if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+    if (!modes) return jsonResponse({ error: 'Selecciona los modos de evaluación' }, 400, corsHeaders);
+    if (modes.length < REQUIRED_TASK_MODES) {
+      return jsonResponse({
+        error: `Activa al menos ${REQUIRED_TASK_MODES} modos para que el estudiante pueda hacer la tarea.`,
+      }, 400, corsHeaders);
+    }
+    if (!await canManageAssignment(id, userDni, env)) {
+      return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    await env.MIRAI_AI_DB.prepare(
+      'UPDATE assignments SET activity_modes = ? WHERE id = ?',
+    ).bind(JSON.stringify(modes), id).run();
+
+    return jsonResponse({ success: true, modes, required: REQUIRED_TASK_MODES }, 200, corsHeaders);
+  }
+
+  if (path === '/api/task-modes/progress' && request.method === 'GET') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const id = (url.searchParams.get('id') || '').trim();
+    if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
+    const assignment = await getAssignmentForStudent(id, userDni, env);
+    if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+    const progress = await getTaskProgress(env, id, userDni, assignment);
+    return jsonResponse(progress, 200, corsHeaders);
+  }
+
+  if (path === '/api/task-modes/select' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const body = await request.json<any>().catch(() => ({}));
+    const id = String(body?.assignment_id || '').trim();
+    const modes = parseTaskModes(body?.modes) ?? [];
+    if (!id) return jsonResponse({ error: 'Falta assignment_id' }, 400, corsHeaders);
+
+    const assignment = await getAssignmentForStudent(id, userDni, env);
+    if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+    const enabled = enabledTaskModes(assignment.activity_modes);
+    if (enabled.length < REQUIRED_TASK_MODES) {
+      return jsonResponse({
+        error: `Tu profesor debe activar al menos ${REQUIRED_TASK_MODES} modos para que puedas hacer esta tarea.`,
+      }, 409, corsHeaders);
+    }
+    if (modes.length !== REQUIRED_TASK_MODES) {
+      return jsonResponse({ error: `Debes elegir exactamente ${REQUIRED_TASK_MODES} modos distintos.` }, 400, corsHeaders);
+    }
+    const invalid = modes.filter((mode) => !enabled.includes(mode));
+    if (invalid.length) {
+      return jsonResponse({ error: 'Alguno de los modos elegidos no está activado por tu profesor.' }, 400, corsHeaders);
+    }
+
+    await saveTaskModeSelection(env, id, userDni, modes);
+    const progress = await getTaskProgress(env, id, userDni, assignment);
+    return jsonResponse({ success: true, progress }, 200, corsHeaders);
   }
 
   if (path === '/api/courses' && request.method === 'GET') {
@@ -1037,10 +1146,22 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { title, description, course_id, due_date, section_id, max_score, submission_type, grading_mode } = await request.json<any>();
+    const { title, description, course_id, due_date, section_id, max_score, submission_type, grading_mode, activity_modes } = await request.json<any>();
 
     if (!title || !course_id) {
       return jsonResponse({ error: 'Título y Curso requeridos' }, 400, corsHeaders);
+    }
+
+    // Modos de evaluación: si el profesor los envía deben ser al menos 4.
+    // Sin enviarlos, la tarea queda con todos los modos disponibles.
+    const requestedModes = activity_modes === undefined || activity_modes === null
+      ? null
+      : parseTaskModes(activity_modes);
+    if (activity_modes !== undefined && activity_modes !== null && !requestedModes) {
+      return jsonResponse({ error: 'Selecciona al menos 4 modos de evaluación válidos' }, 400, corsHeaders);
+    }
+    if (requestedModes && requestedModes.length < REQUIRED_TASK_MODES) {
+      return jsonResponse({ error: `Activa al menos ${REQUIRED_TASK_MODES} modos de evaluación.` }, 400, corsHeaders);
     }
 
     // El curso tiene que ser del profesor. Se validaba section_id pero NO
@@ -1067,9 +1188,9 @@ ORDER BY u.last_name, u.first_name
     const safeGradingMode = grading_mode === 'formative' ? 'formative' : 'summative';
     await ensureQuizSubmissionColumns(env);
     await env.MIRAI_AI_DB.prepare(`
-    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore, safeSubmissionType, safeGradingMode).run();
+    INSERT INTO assignments (id, course_id, title, description, due_date, section_id, max_score, submission_type, grading_mode, activity_modes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, course_id, title, description || '', due_date || null, section_id || null, safeMaxScore, safeSubmissionType, safeGradingMode, requestedModes ? JSON.stringify(requestedModes) : null).run();
 
     // Auto-asignar todos los estudiantes de la sección
     if (section_id) {
@@ -1093,10 +1214,17 @@ ORDER BY u.last_name, u.first_name
     const userDni = await requireProfessorAuth(request, env, corsHeaders);
     if (!userDni || userDni instanceof Response) return userDni;
 
-    const { id, title, description, due_date, max_score, submission_type, grading_mode } = await request.json<any>();
+    const { id, title, description, due_date, max_score, submission_type, grading_mode, activity_modes } = await request.json<any>();
     if (!id) return jsonResponse({ error: 'ID requerido' }, 400, corsHeaders);
     if (!await canManageAssignment(String(id), userDni, env)) {
       return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    const requestedModes = activity_modes === undefined || activity_modes === null
+      ? undefined
+      : parseTaskModes(activity_modes);
+    if (activity_modes !== undefined && activity_modes !== null && (!requestedModes || requestedModes.length < REQUIRED_TASK_MODES)) {
+      return jsonResponse({ error: `Activa al menos ${REQUIRED_TASK_MODES} modos de evaluación.` }, 400, corsHeaders);
     }
 
     const current = await env.MIRAI_AI_DB.prepare(
@@ -1118,9 +1246,10 @@ ORDER BY u.last_name, u.first_name
     await env.MIRAI_AI_DB.prepare(`
       UPDATE assignments
          SET title = ?, description = ?, due_date = ?, max_score = ?,
-             submission_type = ?, grading_mode = ?
+             submission_type = ?, grading_mode = ?,
+             activity_modes = COALESCE(?, activity_modes)
        WHERE id = ?
-    `).bind(String(title).trim(), description || '', due_date || null, safeMaxScore, safeSubmissionType, safeGradingMode, id).run();
+    `).bind(String(title).trim(), description || '', due_date || null, safeMaxScore, safeSubmissionType, safeGradingMode, requestedModes ? JSON.stringify(requestedModes) : null, id).run();
 
     return jsonResponse({ success: true }, 200, corsHeaders);
   }
@@ -1848,6 +1977,13 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
         'SELECT retry_used FROM submissions WHERE id = ?'
       ).bind(submissionId).first<any>();
 
+      // Cada quiz completado cuenta como uno de los modos de la tarea.
+      await recordTaskModeResult(
+        env, assignmentId, ownerDni, mode,
+        formative ? 0 : score, maxScore, String(submissionId),
+        { general: feedback ? JSON.parse(feedback).general : undefined },
+      );
+
       return jsonResponse({
         success: true,
         submission_id: submissionId,
@@ -1889,6 +2025,10 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
          WHERE id = ?
       `).bind(row.id).run();
 
+      // El nuevo flujo de 4 modos también se reinicia: el estudiante vuelve a
+      // elegir sus cuatro actividades.
+      await deleteTaskModeProgress(env, assignmentId, userDni);
+
       return jsonResponse({ success: true, retry_used: true }, 200, corsHeaders);
     } catch (error: any) {
       console.error('Error reiniciando tarea:', error);
@@ -1919,6 +2059,7 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
         a.created_at,
         a.submission_type,
         a.grading_mode,
+        a.activity_modes,
         uc.title    as course_title,
         uc.user_dni as professor_dni,
         s.name      as section_name
@@ -1971,6 +2112,7 @@ Incluye todos los índices recibidos y no agregues texto fuera del JSON.`;
     s.file_url,
     s.user_dni,
     s.extracted_text,
+    s.attempt_type,
     a.max_score,
     a.grading_mode,
     a.title,
@@ -2177,6 +2319,20 @@ NO agregues texto adicional fuera del JSON.`;
           WHERE id = ?
       `).bind(formative ? null : finalScore, JSON.stringify(evaluation.feedback), submission_id).run();
 
+        // El documento evaluado es uno de los modos de la tarea.
+        if (submissionData.user_dni && submissionData.assignment_id) {
+          await recordTaskModeResult(
+            env,
+            String(submissionData.assignment_id),
+            String(submissionData.user_dni),
+            'document',
+            formative ? 0 : finalScore,
+            Number(submissionData.max_score) || 100,
+            String(submission_id),
+            { general: evaluation.feedback?.general || 'Documento evaluado.' },
+          );
+        }
+
         // 9. Devolver la respuesta al frontend
         return jsonResponse({
           success: true,
@@ -2243,7 +2399,7 @@ NO agregues texto adicional fuera del JSON.`;
 
         // Verificar que la entrega existe
         const submission = await env.MIRAI_AI_DB.prepare(`
-          SELECT id, assignment_id FROM submissions WHERE id = ?
+          SELECT id, assignment_id, user_dni, attempt_type FROM submissions WHERE id = ?
       `).bind(submission_id).first<any>();
 
         if (!submission) {
@@ -2282,6 +2438,21 @@ NO agregues texto adicional fuera del JSON.`;
           WHERE id = ?
       `).bind(finalScore, finalScore, feedback || null, submission_id).run();
 
+        // La nota manual del profesor también actualiza el modo correspondiente.
+        const gradedMode = isTaskMode(submission.attempt_type) ? submission.attempt_type : null;
+        if (gradedMode && submission.user_dni) {
+          await recordTaskModeResult(
+            env,
+            String(submission.assignment_id),
+            String(submission.user_dni),
+            gradedMode,
+            finalScore,
+            Number(assignment.max_score) || 100,
+            String(submission_id),
+            { general: feedback || 'Nota ajustada por el profesor.' },
+          );
+        }
+
         return jsonResponse({ success: true, new_score: finalScore }, 200, corsHeaders);
 
       } catch (error: any) {
@@ -2306,7 +2477,7 @@ NO agregues texto adicional fuera del JSON.`;
 
         // Obtener el tipo de entrega configurado por el profesor
         const assignmentData = await env.MIRAI_AI_DB.prepare(
-          'SELECT id, submission_type, published_at FROM assignments WHERE id = ?'
+          'SELECT id, submission_type, published_at, max_score FROM assignments WHERE id = ?'
         ).bind(assignmentId).first<any>();
         if (!assignmentData) {
           return jsonResponse({ error: 'Tarea no encontrada' }, 404, corsHeaders);
@@ -2393,6 +2564,11 @@ NO agregues texto adicional fuera del JSON.`;
             VALUES (?, ?, ?, ?, 'pending', datetime('now'), 'document', 0)
         `).bind(submissionId, assignmentId, ownerDni, `/api/file/${r2Key}`).run();
         }
+
+        // Documento entregado: queda como modo "en progreso" hasta evaluarse.
+        await recordTaskModeResult(
+          env, assignmentId, ownerDni, 'document', null, Number(assignmentData.max_score) || 100, String(submissionId), null, 'pending',
+        );
 
         return jsonResponse({ success: true, submission_id: submissionId }, 200, corsHeaders);
 

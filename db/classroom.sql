@@ -121,3 +121,34 @@ CREATE INDEX IF NOT EXISTS idx_concept_errors_assignment
     ON concept_errors (assignment_id, concept);
 CREATE INDEX IF NOT EXISTS idx_concept_errors_user
     ON concept_errors (assignment_id, user_dni);
+
+-- Evaluación por "modos de hacer tarea":
+-- `assignments.activity_modes` guarda un JSON con los modos activados por el
+-- profesor (mínimo 4). NULL = todos los modos (tareas antiguas).
+--   ALTER TABLE assignments ADD COLUMN activity_modes TEXT;
+
+CREATE TABLE IF NOT EXISTS task_mode_selections (
+    assignment_id TEXT NOT NULL,
+    user_dni      TEXT NOT NULL,
+    modes         TEXT NOT NULL,
+    created_at    TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (assignment_id, user_dni)
+);
+
+-- Una fila por modo elegido y estudiante. La nota final es el promedio de los 4.
+CREATE TABLE IF NOT EXISTS task_mode_results (
+    assignment_id TEXT NOT NULL,
+    user_dni      TEXT NOT NULL,
+    mode          TEXT NOT NULL,
+    score         REAL,
+    max_score     REAL,
+    status        TEXT DEFAULT 'completed',
+    ref           TEXT,
+    feedback      TEXT,
+    created_at    TEXT DEFAULT (datetime('now')),
+    updated_at    TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (assignment_id, user_dni, mode)
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_mode_results_user
+    ON task_mode_results (assignment_id, user_dni);

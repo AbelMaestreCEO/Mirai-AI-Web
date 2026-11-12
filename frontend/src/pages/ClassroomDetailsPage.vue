@@ -130,77 +130,88 @@
           <p id="task-description" class="task-desc-text">{{ assignment.description || 'Sin descripción' }}</p>
         </div>
 
-        <!-- Cómo hacer la tarea: se puede cambiar de forma cuando quieras -->
-        <div v-if="showMethods" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
+        <!-- Progreso de la tarea: 4 modos -->
+        <div v-if="progress" class="task-progress-card" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
+          <div class="task-progress-head">
+            <span>Progreso de la tarea</span>
+            <span>{{ progress.completed_count }} / {{ progress.required }} actividades</span>
+          </div>
+          <div class="task-progress-track">
+            <div class="task-progress-fill" :style="{ width: progressPercent + '%' }"></div>
+          </div>
+          <div class="task-progress-meta">
+            <span v-if="progress.formative">Práctica formativa · no cuenta para la nota</span>
+            <span v-else-if="!progress.complete">
+              Nota actual: <strong>{{ progress.current_average }}</strong> / {{ progress.max_score }}
+            </span>
+            <span v-else>
+              Nota final: <strong>{{ progress.final_score }}</strong> / {{ progress.max_score }}
+            </span>
+            <span v-if="!progress.complete" class="task-progress-pending">
+              Faltan {{ Math.max(0, progress.required - progress.completed_count) }} actividad(es)
+            </span>
+          </div>
+          <p v-if="progress.legacy_score != null && !progress.complete" class="task-progress-legacy">
+            Nota anterior registrada: {{ progress.legacy_score }} / {{ progress.max_score }}. Se actualizará al completar las 4 actividades.
+          </p>
+        </div>
+
+        <!-- Elegir los 4 modos -->
+        <div v-if="choosingModes" class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
           <h2 class="section-title">¿Cómo quieres hacer tu tarea?</h2>
-          <p class="section-subtitle">Puedes cambiar de forma cuando quieras. Si ya tenías una nota, la nueva la reemplazará.</p>
+          <p class="section-subtitle">Elige 4 modos distintos. La nota final es el promedio de los 4 puntajes.</p>
+          <p v-if="progress && progress.enabled_modes.length < 4" class="task-modes-warning">
+            Tu profesor debe activar al menos 4 modos de evaluación para que puedas hacer esta tarea.
+          </p>
           <div class="task-methods-grid">
-            <button class="method-card" @click="chooseMethod('document')">
-              <span class="method-icon">📄</span>
-              <span class="method-name">Documento o imagen</span>
-              <span class="method-desc">Sube tu trabajo en PDF, DOCX o imagen.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('quiz4')">
-              <span class="method-icon">🅰️</span>
-              <span class="method-name">Quiz 4</span>
-              <span class="method-desc">10 preguntas con 4 opciones (A, B, C y D).</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('quiz_free')">
-              <span class="method-icon">�o?��?</span>
-              <span class="method-name">Quiz libre</span>
-              <span class="method-desc">10 preguntas abiertas para escribir tu respuesta.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('flashcards')">
-              <span class="method-icon">🃏</span>
-              <span class="method-name">Flashcards</span>
-              <span class="method-desc">Memoriza con repetición espaciada y comprueba tus aciertos.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('find_error')">
-              <span class="method-icon">🔍</span>
-              <span class="method-name">Detecta el error</span>
-              <span class="method-desc">Encuentra las oraciones incorrectas y explica la corrección.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('recall')">
-              <span class="method-icon">✍️</span>
-              <span class="method-name">Recuerdo libre</span>
-              <span class="method-desc">Explica el tema de memoria y descubre qué te faltó.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('summary')">
-              <span class="method-icon">📝</span>
-              <span class="method-name">Resumen con límite</span>
-              <span class="method-desc">Sintetiza el texto fuente en un número exacto de palabras.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('concept_map')">
-              <span class="method-icon">🗺️</span>
-              <span class="method-name">Mapa conceptual</span>
-              <span class="method-desc">Conecta los conceptos clave con relaciones correctas.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('predict_output')">
-              <span class="method-icon">🔮</span>
-              <span class="method-name">Predice la salida</span>
-              <span class="method-desc">Lee un fragmento de código y elige qué imprimirá o mostrará.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('find_bug')">
-              <span class="method-icon">🐞</span>
-              <span class="method-name">Encuentra el bug</span>
-              <span class="method-desc">Marca las líneas de código que contienen errores reales.</span>
-            </button>
-            <button class="method-card" @click="chooseMethod('order_code')">
-              <span class="method-icon">🔀</span>
-              <span class="method-name">Ordena el código</span>
-              <span class="method-desc">Reordena las líneas para reconstruir el programa correcto.</span>
-            </button>
-            <button class="method-card method-card-ludo" @click="openLudo">
-              <span class="method-icon">🎲</span>
-              <span class="method-name">Ludo multijugador</span>
-              <span class="method-desc">Juega con tu clase: las respuestas correctas suman a tu nota. No bloquea tu entrega.</span>
+            <button
+              v-for="mode in availableModes"
+              :key="mode"
+              class="method-card"
+              :class="{ selected: selectionDraft.includes(mode) }"
+              @click="toggleModeDraft(mode)"
+            >
+              <span class="method-icon">{{ taskModeMeta(mode).icon }}</span>
+              <span class="method-name">{{ taskModeMeta(mode).label }}</span>
+              <span class="method-desc">{{ taskModeMeta(mode).description }}</span>
+              <span v-if="selectionDraft.includes(mode)" class="method-check">✓</span>
             </button>
           </div>
+          <p class="task-modes-count">{{ selectionDraft.length }} de 4 seleccionados</p>
+          <button
+            class="course-start-btn"
+            :disabled="selectionDraft.length !== 4 || savingModes || (progress?.enabled_modes.length ?? 0) < 4"
+            @click="confirmModes"
+          >
+            {{ savingModes ? 'Guardando...' : 'Confirmar 4 modos' }}
+          </button>
+          <button v-if="progress && progress.selected_modes.length" class="ludo-link" type="button" style="margin-left:10px;" @click="choosingModes = false">
+            Cancelar
+          </button>
         </div>
-        <div v-else class="method-locked-bar" style="margin: 0 20px 24px;">
-          Forma elegida: <strong>{{ method ? METHOD_LABELS[method] : '' }}</strong>
-          <button class="ludo-link" type="button" @click="showMethods = true">🔁 Cambiar forma</button>
-          <button class="ludo-link" type="button" @click="openLudo">🎲 Jugar Ludo multijugador</button>
+
+        <!-- Modos elegidos: progreso y acceso -->
+        <div v-else class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
+          <h2 class="section-title">Tus 4 modos de hacer la tarea</h2>
+          <p class="section-subtitle">Completa cada modo para promediar tu nota final.</p>
+          <div class="task-methods-grid">
+            <button
+              v-for="mode in selectedModes"
+              :key="mode"
+              class="method-card"
+              :class="{ active: method === mode, done: isModeDone(mode) }"
+              @click="chooseMethod(mode)"
+            >
+              <span class="method-icon">{{ taskModeMeta(mode).icon }}</span>
+              <span class="method-name">{{ taskModeMeta(mode).label }}</span>
+              <span class="method-desc">{{ modeStatusText(mode) }}</span>
+              <span v-if="isModeDone(mode)" class="method-check">✓</span>
+            </button>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+            <button class="ludo-link" type="button" @click="startChangeModes">🔁 Cambiar modos</button>
+            <button v-if="selectedModes.includes('ludo')" class="ludo-link" type="button" @click="openLudo">🎲 Jugar Ludo multijugador</button>
+          </div>
         </div>
 
         <!-- ══ ENTREGA: DOCUMENTO O IMAGEN ══ -->
@@ -548,7 +559,7 @@ const fatal = ref('');
 const isImageName = (name: string) => /\.(png|jpg|jpeg|webp)$/i.test(name);
 
 // ── Módulos Aprender / Hacer ──────────────────────────────────────────────
-type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' | 'predict_output' | 'find_bug' | 'order_code';
+type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' | 'predict_output' | 'find_bug' | 'order_code' | 'ludo';
 
 const ACTIVITY_METHODS: TaskMethod[] = ['flashcards', 'find_error', 'recall', 'summary', 'concept_map', 'predict_output', 'find_bug', 'order_code'];
 
@@ -568,6 +579,28 @@ interface QuizQuestion {
   correct_index?: number;
 }
 
+interface TaskModeResultInfo {
+  score: number | null;
+  max_score: number;
+  status: string;
+}
+
+interface TaskProgress {
+  assignment_id: string;
+  max_score: number;
+  formative: boolean;
+  enabled_modes: string[];
+  selected_modes: string[];
+  required: number;
+  completed_count: number;
+  total_points: number;
+  current_average: number;
+  final_score: number | null;
+  complete: boolean;
+  results: Record<string, TaskModeResultInfo>;
+  legacy_score: number | null;
+}
+
 const activeTab = ref<'learn' | 'do'>('learn');
 const method = ref<TaskMethod | null>(null);
 const showMethods = ref(true);
@@ -585,20 +618,119 @@ const METHOD_LABELS: Record<TaskMethod, string> = {
   predict_output: 'Predice la salida',
   find_bug: 'Encuentra el bug',
   order_code: 'Ordena el código',
+  ludo: 'Ludo multijugador',
 };
 
-const METHOD_STORAGE_PREFIX = 'mirai-task-method:';
+const TASK_MODE_META: Record<string, { icon: string; label: string; description: string }> = {
+  document: { icon: '📄', label: 'Documento o imagen', description: 'Sube tu trabajo en PDF, DOCX o imagen.' },
+  quiz4: { icon: '🅰️', label: 'Quiz 4', description: '10 preguntas con 4 opciones.' },
+  quiz_free: { icon: '✍️', label: 'Quiz libre', description: '10 preguntas de respuesta abierta.' },
+  flashcards: { icon: '🃏', label: 'Flashcards', description: 'Memoriza con repetición espaciada.' },
+  find_error: { icon: '🔍', label: 'Detecta el error', description: 'Encuentra las oraciones incorrectas.' },
+  recall: { icon: '🧠', label: 'Recuerdo libre', description: 'Explica el tema de memoria.' },
+  summary: { icon: '📝', label: 'Resumen con límite', description: 'Sintetiza el texto en pocas palabras.' },
+  concept_map: { icon: '🗺️', label: 'Mapa conceptual', description: 'Conecta los conceptos clave.' },
+  predict_output: { icon: '🔮', label: 'Predice la salida', description: 'Adivina qué imprimirá el código.' },
+  find_bug: { icon: '🐞', label: 'Encuentra el bug', description: 'Marca las líneas con errores.' },
+  order_code: { icon: '🔀', label: 'Ordena el código', description: 'Reordena las líneas del programa.' },
+  ludo: { icon: '🎲', label: 'Ludo multijugador', description: 'Juega con la clase y suma puntos.' },
+};
 
-async function chooseMethod(next: TaskMethod) {
-  if (!(await dialog.confirm(`Vas a hacer esta tarea con "${METHOD_LABELS[next]}". Si ya tenías una nota, la nueva la reemplazará. ¿Continuar?`))) {
+const progress = ref<TaskProgress | null>(null);
+const choosingModes = ref(true);
+const selectionDraft = ref<TaskMethod[]>([]);
+const savingModes = ref(false);
+const progressLoaded = ref(false);
+
+const availableModes = computed<TaskMethod[]>(() => (progress.value?.enabled_modes ?? []) as TaskMethod[]);
+const selectedModes = computed<TaskMethod[]>(() => (progress.value?.selected_modes ?? []) as TaskMethod[]);
+const progressPercent = computed(() => {
+  const current = progress.value;
+  if (!current) return 0;
+  return Math.min(100, Math.round((current.completed_count / Math.max(1, current.required)) * 100));
+});
+
+function taskModeMeta(mode: TaskMethod) {
+  return TASK_MODE_META[mode] ?? { icon: '📝', label: METHOD_LABELS[mode] ?? mode, description: '' };
+}
+
+function isModeDone(mode: TaskMethod): boolean {
+  const result = progress.value?.results?.[mode];
+  return !!result && result.status === 'completed' && result.score !== null;
+}
+
+function modeStatusText(mode: TaskMethod): string {
+  const result = progress.value?.results?.[mode];
+  if (!result) return 'Pendiente';
+  if (result.status === 'pending') return 'En revisión';
+  if (result.score !== null) return `${result.score} / ${result.max_score} pts`;
+  return 'Pendiente';
+}
+
+function toggleModeDraft(mode: TaskMethod) {
+  const index = selectionDraft.value.indexOf(mode);
+  if (index >= 0) {
+    selectionDraft.value.splice(index, 1);
     return;
   }
+  if (selectionDraft.value.length >= 4) {
+    dialog.alert('Ya elegiste 4 modos. Quita uno para cambiarlo.');
+    return;
+  }
+  selectionDraft.value.push(mode);
+}
+
+async function loadProgress() {
+  if (!assignmentId.value) return;
+  try {
+    const { ok, data } = await api.get<TaskProgress>(
+      `/api/task-modes/progress?id=${encodeURIComponent(assignmentId.value)}`,
+    );
+    if (!ok) return;
+    progress.value = data;
+    if (!progressLoaded.value) {
+      const selected = (data.selected_modes ?? []) as TaskMethod[];
+      selectionDraft.value = [...selected];
+      choosingModes.value = selected.length !== 4;
+      progressLoaded.value = true;
+    }
+  } catch {
+    // Sin progreso: la tarea puede seguir en el flujo anterior.
+  }
+}
+
+async function confirmModes() {
+  if (selectionDraft.value.length !== 4) return;
+  savingModes.value = true;
+  try {
+    const { ok, status, data } = await api.post<{ progress?: TaskProgress; error?: string }>(
+      '/api/task-modes/select',
+      { assignment_id: assignmentId.value, modes: selectionDraft.value },
+    );
+    if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
+    if (data.progress) progress.value = data.progress;
+    choosingModes.value = false;
+    method.value = null;
+    await loadProgress();
+  } catch (err) {
+    dialog.alert(err instanceof Error ? err.message : String(err));
+  } finally {
+    savingModes.value = false;
+  }
+}
+
+function startChangeModes() {
+  selectionDraft.value = [...selectedModes.value];
+  choosingModes.value = true;
+  method.value = null;
+}
+
+async function chooseMethod(next: TaskMethod) {
   method.value = next;
   showMethods.value = false;
-  try {
-    localStorage.setItem(`${METHOD_STORAGE_PREFIX}${assignmentId.value}`, next);
-  } catch {
-    // Sin almacenamiento local: la elección dura solo esta visita.
+  if (next === 'ludo') {
+    openLudo();
+    return;
   }
   if (isActivityMethod(next)) {
     openActivity(next);
@@ -613,6 +745,7 @@ function openActivity(next: TaskMethod | null = method.value) {
 }
 
 function openLudo(): void {
+  method.value = 'ludo';
   goToPage(router, 'game', `assignment_id=${encodeURIComponent(assignmentId.value)}`);
 }
 
@@ -751,6 +884,7 @@ async function saveQuizResult() {
     retryUsed.value = data.retry_used === true;
     quizState.value = 'done';
     void load();
+    void loadProgress();
   } catch (err) {
     quizError.value = err instanceof Error ? err.message : String(err);
     quizState.value = 'error';
@@ -804,13 +938,12 @@ async function disagreeWithGrade() {
     });
     if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
     retryUsed.value = true;
-    if (isActivityMethod(method.value)) {
-      openActivity(method.value);
-    } else if (method.value === 'quiz4' || method.value === 'quiz_free') {
-      await startQuiz(method.value);
-    } else {
-      await load();
-    }
+    progress.value = null;
+    progressLoaded.value = false;
+    selectionDraft.value = [];
+    choosingModes.value = true;
+    method.value = null;
+    await load();
   } catch (err) {
     dialog.alert(err instanceof Error ? err.message : String(err));
   }
@@ -832,7 +965,8 @@ async function load() {
     }
     assignment.value = data;
     state.value = 'ready';
-    syncMethodFromSubmission();
+    retryUsed.value = Number(data.submission?.retry_used) === 1;
+    await loadProgress();
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
     state.value = 'error';
@@ -866,46 +1000,6 @@ const canDisagree = computed(() => {
   const s = submission.value;
   return !!s && s.status !== 'reset' && (s.status === 'evaluated' || s.status === 'completed');
 });
-
-function syncMethodFromSubmission() {
-  const s = submission.value;
-  if (!s) {
-    try {
-      const stored = localStorage.getItem(`${METHOD_STORAGE_PREFIX}${assignmentId.value}`);
-      const allowed: TaskMethod[] = ['document', 'quiz4', 'quiz_free', ...ACTIVITY_METHODS];
-      if (stored && allowed.includes(stored as TaskMethod)) {
-        method.value = stored as TaskMethod;
-        showMethods.value = false;
-        activeTab.value = 'do';
-      }
-    } catch {
-      // Sin almacenamiento local.
-    }
-    return;
-  }
-  retryUsed.value = Number(s.retry_used) === 1;
-  const activity = activitySubmission.value;
-  if (activity) {
-    method.value = activity;
-    showMethods.value = false;
-    activeTab.value = 'do';
-    return;
-  }
-  const quiz = quizSubmission.value;
-  const type = quiz ? (s.attempt_type || s.file_url?.slice('quiz://'.length)) : '';
-  if (type === 'quiz4' || type === 'quiz_free') {
-    method.value = type;
-    showMethods.value = false;
-    activeTab.value = 'do';
-    if (s.status === 'reset') void startQuiz(type);
-    return;
-  }
-  if (s.file_url && !s.file_url.startsWith('quiz://') && !s.file_url.startsWith('activity://')) {
-    method.value = 'document';
-    showMethods.value = false;
-    activeTab.value = 'do';
-  }
-}
 
 const dueDate = computed(() =>
   assignment.value?.due_date
@@ -1538,5 +1632,92 @@ async function confirmEvaluation() {
   font-size: .8rem;
   color: var(--text-secondary);
   font-style: italic;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-card {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: .9rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-track {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .22);
+  overflow: hidden;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  transition: width .35s ease;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: .9rem;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-meta strong {
+  color: var(--accent-primary, #6c63ff);
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-pending,
+:where(body[data-page="classroom_details"]) .task-progress-legacy {
+  color: var(--text-secondary);
+  font-size: .8rem;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-legacy {
+  margin: 8px 0 0;
+  font-style: italic;
+}
+
+:where(body[data-page="classroom_details"]) .task-modes-warning {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, .1);
+  color: var(--error-color, #dc2626);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .task-modes-count {
+  margin: 14px 0 10px;
+  font-size: .88rem;
+  font-weight: 700;
+}
+
+:where(body[data-page="classroom_details"]) .method-card.selected {
+  border-color: var(--accent-primary, #6c63ff);
+  background: rgba(108, 99, 255, .14);
+}
+
+:where(body[data-page="classroom_details"]) .method-card.done {
+  border-color: #16a34a;
+}
+
+:where(body[data-page="classroom_details"]) .method-check {
+  margin-top: 6px;
+  font-size: .8rem;
+  font-weight: 800;
+  color: #16a34a;
 }
 </style>

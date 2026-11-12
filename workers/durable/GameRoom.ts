@@ -20,6 +20,7 @@
    ============================================ */
 import { DurableObject } from 'cloudflare:workers';
 import { recordConceptErrors } from '../lib/concept-errors';
+import { recordTaskModeResult } from '../lib/task-progress';
 
 export const LUDO_PATH_LEN = 56;
 export const TOKENS_PER_PLAYER = 4;
@@ -1120,6 +1121,20 @@ export class GameRoom extends DurableObject<Env> {
     for (const player of players) {
       const percent = Math.max(0, Math.min(100, player.points));
       const score = Math.round((state.maxScore * percent) / 100);
+
+      // Ludo cuenta como uno de los cuatro modos de la tarea.
+      if (state.assignmentId) {
+        await recordTaskModeResult(
+          this.env,
+          state.assignmentId,
+          player.dni,
+          'ludo',
+          formative ? 0 : score,
+          state.maxScore,
+          'game://ludo',
+          { general: `Ludo completado: ${percent}% de aciertos.` },
+        );
+      }
 
       const existing = await this.env.MIRAI_AI_DB.prepare(
         'SELECT id, score, file_url FROM submissions WHERE assignment_id = ? AND user_dni = ?'
