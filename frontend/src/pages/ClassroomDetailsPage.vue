@@ -163,19 +163,22 @@
           <p v-if="progress && progress.enabled_modes.length < 4" class="task-modes-warning">
             Tu profesor debe activar al menos 4 modos de evaluación para que puedas hacer esta tarea.
           </p>
-          <div class="task-methods-grid">
-            <button
-              v-for="mode in availableModes"
-              :key="mode"
-              class="method-card"
-              :class="{ selected: selectionDraft.includes(mode) }"
-              @click="toggleModeDraft(mode)"
-            >
-              <span class="method-icon">{{ taskModeMeta(mode).icon }}</span>
-              <span class="method-name">{{ taskModeMeta(mode).label }}</span>
-              <span class="method-desc">{{ taskModeMeta(mode).description }}</span>
-              <span v-if="selectionDraft.includes(mode)" class="method-check">✓</span>
-            </button>
+          <div v-for="group in availableGroups" :key="group.id" class="task-mode-group">
+            <h3 class="task-mode-group-title">{{ group.icon }} {{ group.label }}</h3>
+            <div class="task-methods-grid">
+              <button
+                v-for="mode in group.modes"
+                :key="mode"
+                class="method-card"
+                :class="{ selected: selectionDraft.includes(mode) }"
+                @click="toggleModeDraft(mode)"
+              >
+                <span class="method-icon">{{ taskModeMeta(mode).icon }}</span>
+                <span class="method-name">{{ taskModeMeta(mode).label }}</span>
+                <span class="method-desc">{{ taskModeMeta(mode).description }}</span>
+                <span v-if="selectionDraft.includes(mode)" class="method-check">✓</span>
+              </button>
+            </div>
           </div>
           <p class="task-modes-count">{{ selectionDraft.length }} de 4 seleccionados</p>
           <button
@@ -194,19 +197,22 @@
         <div v-else class="task-methods" style="margin: 0 20px 24px; animation: cardFadeIn 0.5s cubic-bezier(0.05,0.7,0.1,1) 0.3s both;">
           <h2 class="section-title">Tus 4 modos de hacer la tarea</h2>
           <p class="section-subtitle">Completa cada modo para promediar tu nota final.</p>
-          <div class="task-methods-grid">
-            <button
-              v-for="mode in selectedModes"
-              :key="mode"
-              class="method-card"
-              :class="{ active: method === mode, done: isModeDone(mode) }"
-              @click="chooseMethod(mode)"
-            >
-              <span class="method-icon">{{ taskModeMeta(mode).icon }}</span>
-              <span class="method-name">{{ taskModeMeta(mode).label }}</span>
-              <span class="method-desc">{{ modeStatusText(mode) }}</span>
-              <span v-if="isModeDone(mode)" class="method-check">✓</span>
-            </button>
+          <div v-for="group in selectedGroups" :key="group.id" class="task-mode-group">
+            <h3 class="task-mode-group-title">{{ group.icon }} {{ group.label }}</h3>
+            <div class="task-methods-grid">
+              <button
+                v-for="mode in group.modes"
+                :key="mode"
+                class="method-card"
+                :class="{ active: method === mode, done: isModeDone(mode) }"
+                @click="chooseMethod(mode)"
+              >
+                <span class="method-icon">{{ taskModeMeta(mode).icon }}</span>
+                <span class="method-name">{{ taskModeMeta(mode).label }}</span>
+                <span class="method-desc">{{ modeStatusText(mode) }}</span>
+                <span v-if="isModeDone(mode)" class="method-check">✓</span>
+              </button>
+            </div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
             <button class="ludo-link" type="button" @click="startChangeModes">🔁 Cambiar modos</button>
@@ -636,6 +642,27 @@ const TASK_MODE_META: Record<string, { icon: string; label: string; description:
   ludo: { icon: '🎲', label: 'Ludo multijugador', description: 'Juega con la clase y suma puntos.' },
 };
 
+const TASK_MODE_GROUPS: { id: string; label: string; icon: string; modes: TaskMethod[] }[] = [
+  {
+    id: 'conceptos',
+    label: 'Conceptos',
+    icon: '🧠',
+    modes: ['document', 'quiz4', 'quiz_free', 'flashcards', 'find_error', 'recall', 'summary', 'concept_map'],
+  },
+  {
+    id: 'programacion',
+    label: 'Programación',
+    icon: '💻',
+    modes: ['predict_output', 'find_bug', 'order_code'],
+  },
+  {
+    id: 'multijugador',
+    label: 'Multijugador',
+    icon: '🎮',
+    modes: ['ludo'],
+  },
+];
+
 const progress = ref<TaskProgress | null>(null);
 const choosingModes = ref(true);
 const selectionDraft = ref<TaskMethod[]>([]);
@@ -644,6 +671,16 @@ const progressLoaded = ref(false);
 
 const availableModes = computed<TaskMethod[]>(() => (progress.value?.enabled_modes ?? []) as TaskMethod[]);
 const selectedModes = computed<TaskMethod[]>(() => (progress.value?.selected_modes ?? []) as TaskMethod[]);
+const availableGroups = computed(() =>
+  TASK_MODE_GROUPS
+    .map((group) => ({ ...group, modes: group.modes.filter((mode) => availableModes.value.includes(mode)) }))
+    .filter((group) => group.modes.length > 0),
+);
+const selectedGroups = computed(() =>
+  TASK_MODE_GROUPS
+    .map((group) => ({ ...group, modes: group.modes.filter((mode) => selectedModes.value.includes(mode)) }))
+    .filter((group) => group.modes.length > 0),
+);
 const progressPercent = computed(() => {
   const current = progress.value;
   if (!current) return 0;
@@ -1719,5 +1756,19 @@ async function confirmEvaluation() {
   font-size: .8rem;
   font-weight: 800;
   color: #16a34a;
+}
+
+:where(body[data-page="classroom_details"]) .task-mode-group {
+  margin-bottom: 20px;
+}
+
+:where(body[data-page="classroom_details"]) .task-mode-group-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+:where(body[data-page="classroom_details"]) .task-mode-group-title + .task-methods-grid {
+  margin-top: 0;
 }
 </style>

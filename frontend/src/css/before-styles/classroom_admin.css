@@ -226,3 +226,14 @@
   font-size: .85rem;
   font-weight: 600;
 }
+
+.task-mode-group {
+  margin-top: 18px;
+}
+
+.task-mode-group-title {
+  margin: 0 0 10px;
+  font-size: .92rem;
+  font-weight: 800;
+  letter-spacing: .01em;
+}

@@ -408,15 +408,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794444456.1514876,
-    "seen": 1794445178.2529745,
-    "ast_hash": "51947a7c120ecbac5a213dddb3a0cfde",
+    "mtime": 1794446117.0452642,
+    "seen": 1794446215.2059793,
+    "ast_hash": "8e4e880528c2dee38d869f4150b49abe",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1794445088.8864737,
-    "seen": 1794445178.2529848,
-    "ast_hash": "9d1aa7ac153d0ba47e8dbcf679c1f1bb",
+    "mtime": 1794446160.1008794,
+    "seen": 1794446215.2059917,
+    "ast_hash": "132c549155b853f25c397566cc2fa191",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {

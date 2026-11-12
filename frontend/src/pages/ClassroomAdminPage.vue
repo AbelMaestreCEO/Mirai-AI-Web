@@ -769,15 +769,18 @@
         <p class="modal-subtitle">Elige qué modos de hacer la tarea estarán disponibles para el estudiante. Debe dejar activos al menos 4.</p>
       </div>
       <p v-if="modesModal.task" style="font-weight:600;margin-bottom:12px;">{{ modesModal.task.title }}</p>
-      <div class="task-modes-grid">
-        <label v-for="option in TASK_MODE_OPTIONS" :key="option.value" class="task-mode-option" :class="{ selected: modesModal.selected.includes(option.value) }">
-          <input type="checkbox" :checked="modesModal.selected.includes(option.value)" @change="toggleTaskMode(option.value)">
-          <span class="task-mode-icon">{{ option.icon }}</span>
-          <span class="task-mode-text">
-            <strong>{{ option.label }}</strong>
-            <small>{{ option.description }}</small>
-          </span>
-        </label>
+      <div v-for="group in TASK_MODE_GROUPS" :key="group.id" class="task-mode-group">
+        <h3 class="task-mode-group-title">{{ group.icon }} {{ group.label }}</h3>
+        <div class="task-modes-grid">
+          <label v-for="option in group.options" :key="option.value" class="task-mode-option" :class="{ selected: modesModal.selected.includes(option.value) }">
+            <input type="checkbox" :checked="modesModal.selected.includes(option.value)" @change="toggleTaskMode(option.value)">
+            <span class="task-mode-icon">{{ option.icon }}</span>
+            <span class="task-mode-text">
+              <strong>{{ option.label }}</strong>
+              <small>{{ option.description }}</small>
+            </span>
+          </label>
+        </div>
       </div>
       <p class="task-modes-count" :style="{ color: modesModal.selected.length < 4 ? 'var(--error-color, #dc2626)' : 'var(--text-secondary)' }">
         {{ modesModal.selected.length }} seleccionados · mínimo 4
@@ -1104,20 +1107,57 @@ const tasks = reactive({ state: 'loading' as 'loading' | 'ready' | 'error', item
 const filteredTasks = computed(() => classTasks.value);
 const studentCounts = reactive<Record<string, number>>({});
 
-const TASK_MODE_OPTIONS = [
-  { value: 'document', label: 'Documento o imagen', icon: '📄', description: 'Sube PDF, DOCX o imagen.' },
-  { value: 'quiz4', label: 'Quiz 4', icon: '🅰️', description: '10 preguntas con 4 opciones.' },
-  { value: 'quiz_free', label: 'Quiz libre', icon: '✍️', description: '10 preguntas de respuesta abierta.' },
-  { value: 'flashcards', label: 'Flashcards', icon: '🃏', description: 'Memoriza con repetición espaciada.' },
-  { value: 'find_error', label: 'Detecta el error', icon: '🔍', description: 'Encuentra las oraciones incorrectas.' },
-  { value: 'recall', label: 'Recuerdo libre', icon: '🧠', description: 'Explica el tema de memoria.' },
-  { value: 'summary', label: 'Resumen con límite', icon: '📝', description: 'Sintetiza el texto en pocas palabras.' },
-  { value: 'concept_map', label: 'Mapa conceptual', icon: '🗺️', description: 'Conecta los conceptos clave.' },
-  { value: 'predict_output', label: 'Predice la salida', icon: '🔮', description: 'Adivina qué imprimirá el código.' },
-  { value: 'find_bug', label: 'Encuentra el bug', icon: '🐞', description: 'Marca las líneas con errores.' },
-  { value: 'order_code', label: 'Ordena el código', icon: '🔀', description: 'Reordena las líneas del programa.' },
-  { value: 'ludo', label: 'Ludo multijugador', icon: '🎲', description: 'Juega con la clase y suma puntos.' },
-] as const;
+interface TaskModeOption {
+  value: string;
+  label: string;
+  icon: string;
+  description: string;
+}
+
+interface TaskModeGroup {
+  id: string;
+  label: string;
+  icon: string;
+  options: TaskModeOption[];
+}
+
+const TASK_MODE_GROUPS: TaskModeGroup[] = [
+  {
+    id: 'conceptos',
+    label: 'Conceptos',
+    icon: '🧠',
+    options: [
+      { value: 'document', label: 'Documento o imagen', icon: '📄', description: 'Sube PDF, DOCX o imagen.' },
+      { value: 'quiz4', label: 'Quiz 4', icon: '🅰️', description: '10 preguntas con 4 opciones.' },
+      { value: 'quiz_free', label: 'Quiz libre', icon: '✍️', description: '10 preguntas de respuesta abierta.' },
+      { value: 'flashcards', label: 'Flashcards', icon: '🃏', description: 'Memoriza con repetición espaciada.' },
+      { value: 'find_error', label: 'Detecta el error', icon: '🔍', description: 'Encuentra las oraciones incorrectas.' },
+      { value: 'recall', label: 'Recuerdo libre', icon: '🧠', description: 'Explica el tema de memoria.' },
+      { value: 'summary', label: 'Resumen con límite', icon: '📝', description: 'Sintetiza el texto en pocas palabras.' },
+      { value: 'concept_map', label: 'Mapa conceptual', icon: '🗺️', description: 'Conecta los conceptos clave.' },
+    ],
+  },
+  {
+    id: 'programacion',
+    label: 'Programación',
+    icon: '💻',
+    options: [
+      { value: 'predict_output', label: 'Predice la salida', icon: '🔮', description: 'Adivina qué imprimirá el código.' },
+      { value: 'find_bug', label: 'Encuentra el bug', icon: '🐞', description: 'Marca las líneas con errores.' },
+      { value: 'order_code', label: 'Ordena el código', icon: '🔀', description: 'Reordena las líneas del programa.' },
+    ],
+  },
+  {
+    id: 'multijugador',
+    label: 'Multijugador',
+    icon: '🎮',
+    options: [
+      { value: 'ludo', label: 'Ludo multijugador', icon: '🎲', description: 'Juega con la clase y suma puntos.' },
+    ],
+  },
+];
+
+const TASK_MODE_OPTIONS = TASK_MODE_GROUPS.flatMap((group) => group.options);
 
 const ALL_TASK_MODES: string[] = TASK_MODE_OPTIONS.map((option) => option.value);
 
