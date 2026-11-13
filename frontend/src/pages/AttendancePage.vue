@@ -374,7 +374,7 @@ async function record(raw: string) {
     // No es JSON: es el token.
   }
   try {
-    const { ok, data } = await api.post<{ success?: boolean; type?: string; time?: string; date?: string; section_name?: string; error?: string }>('/api/attendance/record', {
+    const { ok, data } = await api.post<{ success?: boolean; type?: string; time?: string; date?: string; section_name?: string; error?: string; cooldown?: boolean; retry_after?: number }>('/api/attendance/record', {
       qr_token: token,
     });
     if (ok && data.success) {
@@ -382,6 +382,12 @@ async function record(raw: string) {
       const detail = [data.time, data.date, data.section_name].filter(Boolean).join(' · ');
       result.value = { icon: data.type === 'entrada' ? '✅' : '✔️', title: `${tipo} registrada`, sub: detail };
       void loadHistory();
+    } else if (data.cooldown) {
+      result.value = {
+        icon: '⏳',
+        title: 'Escaneo reciente',
+        sub: data.error || 'Espera unos minutos antes de volver a escanear.',
+      };
     } else {
       const notStaff = !!data.error?.includes('no estás registrado');
       result.value = notStaff

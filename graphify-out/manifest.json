@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/AttendancePage.vue": {
-    "mtime": 1794582500.5322616,
-    "seen": 1794582613.9044063,
-    "ast_hash": "37fea3f846e1e9afdd016d4a3145d1f6",
+    "mtime": 1794600963.374074,
+    "seen": 1794600996.914772,
+    "ast_hash": "cce81a9dcee233f558914eb22eab53ef",
     "semantic_hash": ""
   },
   "frontend/src/pages/ChatPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794582659.9788265,
-    "seen": 1794582681.6390743,
+    "mtime": 1794595002.0602975,
+    "seen": 1794600996.9180698,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794572092.3090289,
-    "seen": 1794572123.689144,
-    "ast_hash": "3d49abd3874f0f8850a1bb44fd95d070",
+    "mtime": 1794600958.9698083,
+    "seen": 1794600996.9207797,
+    "ast_hash": "0cca08eea8edf37cf609d0bc1dac9fed",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {

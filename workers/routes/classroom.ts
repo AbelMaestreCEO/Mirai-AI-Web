@@ -2726,6 +2726,9 @@ async function canReadSubmissionKey(r2Key: string, userDni: string, env: Env) {
 // constante.
 const ATT_UTC_OFFSET_HOURS = -5;
 
+/** Segundos que deben pasar antes de aceptar otro escaneo del mismo estudiante. */
+const ATT_RESCAN_COOLDOWN_SECONDS = 10 * 60;
+
 /** Fecha local (YYYY-MM-DD) del instante dado. */
 function attLocalDate(date = new Date()) {
   const shifted = new Date(date.getTime() + ATT_UTC_OFFSET_HOURS * 3600 * 1000);
@@ -2919,14 +2922,35 @@ async function handleAttRecord(request: Request, env: Env, corsHeaders: Record<s
       if (!enrolled) return jsonResponse({ error: 'No estás inscrito en esta clase' }, 403, corsHeaders);
     }
 
-    // 5. Determinar si es entrada o salida (independiente por clase y día)
+    // 5. Determinar si es entrada o salida (independiente por clase y día).
+    //    Se trae también el instante real del último registro para aplicar el
+    //    temporizador antifraude de 10 minutos (evita doble escaneo accidental
+    //    que marcaría entrada y salida casi seguidas).
     const lastRecord = await env.MIRAI_AI_DB.prepare(`
-            SELECT r.type FROM att_records r
+            SELECT r.type,
+                   CAST(strftime('%s', 'now') - strftime('%s', r.created_at) AS INTEGER) AS elapsed_seconds
+            FROM att_records r
             LEFT JOIN att_qr_sessions q ON q.id = r.session_id
             WHERE r.staff_id = ? AND r.date = ?
               AND ((? IS NULL AND q.class_id IS NULL) OR q.class_id = ?)
-            ORDER BY r.time DESC LIMIT 1
+            ORDER BY r.created_at DESC LIMIT 1
         `).bind(staff.id, session.date, session.class_id ?? null, session.class_id ?? null).first<any>();
+
+    // Temporizador del lado del servidor: durante los 10 minutos posteriores a
+    // una marcación se rechaza otro escaneo para el mismo estudiante y clase.
+    if (lastRecord && typeof lastRecord.elapsed_seconds === 'number') {
+      const remaining = ATT_RESCAN_COOLDOWN_SECONDS - Math.max(0, lastRecord.elapsed_seconds);
+      if (remaining > 0) {
+        const mm = Math.floor(remaining / 60);
+        const ss = String(remaining % 60).padStart(2, '0');
+        return jsonResponse({
+          error: `Espera ${mm}:${ss} antes de volver a escanear. Evita marcar entrada y salida en el mismo periodo.`,
+          cooldown: true,
+          retry_after: remaining,
+        }, 429, corsHeaders);
+      }
+    }
+
     const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
 
     const time = attLocalTime();
