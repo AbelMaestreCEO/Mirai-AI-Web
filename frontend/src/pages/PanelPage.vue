@@ -132,38 +132,28 @@
             <p class="user-email">{{ censorEmail(u.email || '') }}</p>
             <span class="user-role-badge" :class="roleBadgeClass(u.role)">{{ roleLabel(u.role) }}</span>
             <span class="user-plan-badge" :class="`plan-${u.plan || 'basic'}`">{{ planLabel(u.plan) }}</span>
-            <div class="role-select-wrapper">
+            <div class="select-wrapper">
               <select v-model="edits[u.dni]!.role" class="role-select" :data-dni="u.dni" :aria-label="`Cambiar rol de ${fullName(u)}`">
                 <option value="student">🎓 Estudiante</option>
                 <option value="teacher">🏫 Profesor</option>
                 <option value="admin">🛡️ Admin</option>
               </select>
-              <button
-                class="role-save-btn"
-                :class="{ saved: saving[`${u.dni}:role`] === 'saved' }"
-                :data-dni="u.dni"
-                :disabled="!!saving[`${u.dni}:role`]"
-                :aria-label="`Guardar rol de ${fullName(u)}`"
-                @click="save(u, 'role')"
-              >
-                {{ buttonLabel(u, 'role') }}
-              </button>
             </div>
-            <div class="role-select-wrapper">
+            <div class="select-wrapper">
               <select v-model="edits[u.dni]!.plan" class="plan-select" :data-dni="u.dni" :aria-label="`Cambiar plan de ${fullName(u)}`">
                 <option v-for="(label, id) in PLAN_LABELS" :key="id" :value="id">{{ label }}</option>
               </select>
-              <button
-                class="plan-save-btn"
-                :class="{ saved: saving[`${u.dni}:plan`] === 'saved' }"
-                :data-dni="u.dni"
-                :disabled="!!saving[`${u.dni}:plan`]"
-                :aria-label="`Guardar plan de ${fullName(u)}`"
-                @click="save(u, 'plan')"
-              >
-                {{ buttonLabel(u, 'plan') }}
-              </button>
             </div>
+            <button
+              class="user-save-btn"
+              :class="{ saved: saving[u.dni] === 'saved' }"
+              :data-dni="u.dni"
+              :disabled="!!saving[u.dni]"
+              :aria-label="`Guardar cambios de ${fullName(u)}`"
+              @click="save(u)"
+            >
+              {{ saveLabel(u) }}
+            </button>
           </div>
         </template>
       </div>
@@ -372,40 +362,47 @@ const countLabel = computed(() => {
   return n === 0 ? 'No se encontraron usuarios' : `Mostrando ${n} usuario${n !== 1 ? 's' : ''}`;
 });
 
-// ── Guardar rol / plan ────────────────────────────────────────────────────
+// ── Guardar rol y plan ────────────────────────────────────────────────────
 const saving = reactive<Record<string, 'saving' | 'saved' | undefined>>({});
 const savedTimers: number[] = [];
 
-function buttonLabel(u: AdminUser, field: Field): string {
-  const s = saving[`${u.dni}:${field}`];
+function saveLabel(u: AdminUser): string {
+  const s = saving[u.dni];
   if (s === 'saving') return 'Guardando...';
   if (s === 'saved') return '✓ Guardado';
-  return field === 'role' ? 'Guardar rol' : 'Guardar plan';
+  return '💾 Guardar cambios';
 }
 
-async function save(u: AdminUser, field: Field) {
-  const key = `${u.dni}:${field}`;
-  const value = edits[u.dni]![field];
-  const current = field === 'role' ? u.role || 'student' : u.plan || 'basic';
-  if (value === current) {
-    showToast(field === 'role' ? 'El rol ya es el mismo, no hay cambios.' : 'El plan ya es el mismo, no hay cambios.');
+async function save(u: AdminUser) {
+  const edit = edits[u.dni]!;
+  const pending: Field[] = [];
+  if (edit.role !== (u.role || 'student')) pending.push('role');
+  if (edit.plan !== (u.plan || 'basic')) pending.push('plan');
+  if (!pending.length) {
+    showToast('No hay cambios que guardar.');
     return;
   }
-  saving[key] = 'saving';
-  const { ok, status, data } = await api.post(field === 'role' ? '/api/admin/set-role' : '/api/admin/set-plan', { dni: u.dni, [field]: value });
-  if (!ok) {
-    const message = errorMessage(data, `HTTP ${status}`);
-    console.error(`[Panel] Error actualizando ${field}:`, message);
-    showToast(`Error: ${message}`);
-    saving[key] = undefined;
-    return;
+  saving[u.dni] = 'saving';
+  const changed: Field[] = [];
+  for (const field of pending) {
+    const value = edit[field];
+    const { ok, status, data } = await api.post(field === 'role' ? '/api/admin/set-role' : '/api/admin/set-plan', { dni: u.dni, [field]: value });
+    if (!ok) {
+      const message = errorMessage(data, `HTTP ${status}`);
+      console.error(`[Panel] Error actualizando ${field}:`, message);
+      showToast(`Error: ${message}`);
+      saving[u.dni] = undefined;
+      return;
+    }
+    u[field] = value;
+    changed.push(field);
   }
-  u[field] = value;
-  saving[key] = 'saved';
-  showToast(
-    field === 'role' ? `Rol de ${fullName(u)} actualizado a "${roleLabel(value)}"` : `Plan de ${fullName(u)} actualizado a "${planLabel(value)}"`,
-  );
-  savedTimers.push(window.setTimeout(() => (saving[key] = undefined), 2500));
+  saving[u.dni] = 'saved';
+  const parts: string[] = [];
+  if (changed.includes('role')) parts.push(`rol "${roleLabel(u.role)}"`);
+  if (changed.includes('plan')) parts.push(`plan "${planLabel(u.plan)}"`);
+  showToast(`${fullName(u)} actualizado: ${parts.join(' y ')}`);
+  savedTimers.push(window.setTimeout(() => (saving[u.dni] = undefined), 2500));
 }
 
 onMounted(async () => {
@@ -792,48 +789,15 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.12));
 }
 
-:where(body[data-page="panel"]) .plan-save-btn {
-  width: 100%;
-  padding: 0.5rem;
-  border-radius: 10px;
-  border: 1.5px solid var(--accent-color, #6750A4);
-  background: transparent;
-  color: var(--accent-color, #6750A4);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 0.2rem;
-}
-
-:where(body[data-page="panel"]) .plan-save-btn:hover:not(:disabled) {
-  background: var(--accent-gradient);
-  color: #fff;
-  border-color: transparent;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--accent-glow, rgba(103,80,164,0.18));
-}
-
-:where(body[data-page="panel"]) .plan-save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-:where(body[data-page="panel"]) .plan-save-btn.saved {
-  background: linear-gradient(135deg, #2E7D32, #66BB6A);
-  color: #fff;
-  border-color: transparent;
-}
-
 /* Separador visual entre rol y plan */
-:where(body[data-page="panel"]) .role-select-wrapper + .role-select-wrapper {
+:where(body[data-page="panel"]) .select-wrapper + .select-wrapper {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid var(--glass-border, rgba(103, 80, 164, 0.08));
 }
 
-/* Selector de rol */
-:where(body[data-page="panel"]) .role-select-wrapper {
+/* Selectores de rol y plan */
+:where(body[data-page="panel"]) .select-wrapper {
   width: 100%;
   margin-top: 0.3rem;
 }
@@ -861,9 +825,10 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.12));
 }
 
-:where(body[data-page="panel"]) .role-save-btn {
+/* Botón único para guardar rol y plan */
+:where(body[data-page="panel"]) .user-save-btn {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.6rem;
   border-radius: 10px;
   border: none;
   background: var(--accent-gradient);
@@ -871,21 +836,21 @@ onBeforeUnmount(() => {
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.15s;
-  margin-top: 0.2rem;
+  transition: opacity 0.15s, transform 0.15s, background 0.2s;
+  margin-top: 0.7rem;
 }
 
-:where(body[data-page="panel"]) .role-save-btn:hover:not(:disabled) {
+:where(body[data-page="panel"]) .user-save-btn:hover:not(:disabled) {
   opacity: 0.88;
   transform: translateY(-1px);
 }
 
-:where(body[data-page="panel"]) .role-save-btn:disabled {
+:where(body[data-page="panel"]) .user-save-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-:where(body[data-page="panel"]) .role-save-btn.saved {
+:where(body[data-page="panel"]) .user-save-btn.saved {
   background: linear-gradient(135deg, #2E7D32, #66BB6A);
 }
 

@@ -522,9 +522,9 @@
     "semantic_hash": "430a8c3a0bbdaafce77c7410827c71b4"
   },
   "frontend/src/pages/PanelPage.vue": {
-    "mtime": 1794601734.2983274,
-    "seen": 1794601756.3251057,
-    "ast_hash": "c08d747b577a5d0f4ac982a7fd5c9e89",
+    "mtime": 1794601912.456935,
+    "seen": 1794601936.7513375,
+    "ast_hash": "2ffda77150f2042a3c836395a6f15f45",
     "semantic_hash": ""
   },
   "frontend/src/pages/ProjectsPage.vue": {
