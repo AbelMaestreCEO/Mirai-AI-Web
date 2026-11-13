@@ -290,6 +290,8 @@
         </template>
       </div>
     </div>
+  </div>
+
   <!-- MODAL: Estadísticas por sección -->
   <div id="class-stats-modal" class="modal" :style="{ display: statsModal.open ? 'flex' : 'none' }">
     <div class="modal-overlay" @click="statsModal.open = false"></div>
