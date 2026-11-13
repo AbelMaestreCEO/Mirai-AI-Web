@@ -37,7 +37,7 @@
           <p id="scan-status" style="font-size:0.78rem;color:var(--text-tertiary);margin-top:12px;">{{ scanStatus }}</p>
         </div>
 
-        <div id="att-result-card" class="att-result-card" :style="result ? { display: 'block' } : undefined">
+        <div id="att-result-card" class="att-result-card" :style="{ display: result ? 'flex' : 'none' }">
           <div id="att-result-icon" class="att-result-icon">{{ result?.icon ?? '✅' }}</div>
           <div id="att-result-title" class="att-result-title">{{ result?.title ?? '¡Asistencia registrada!' }}</div>
           <div id="att-result-sub" class="att-result-sub">{{ result?.sub ?? '—' }}</div>

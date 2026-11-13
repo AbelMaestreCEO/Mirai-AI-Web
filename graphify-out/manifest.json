@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/AttendancePage.vue": {
-    "mtime": 1794580553.862429,
-    "seen": 1794580600.7489052,
-    "ast_hash": "684e9a3e79f235ed6804ace9434487f9",
+    "mtime": 1794582500.5322616,
+    "seen": 1794582613.9044063,
+    "ast_hash": "37fea3f846e1e9afdd016d4a3145d1f6",
     "semantic_hash": ""
   },
   "frontend/src/pages/ChatPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794581979.4799166,
-    "seen": 1794582006.8356695,
+    "mtime": 1794582659.9788265,
+    "seen": 1794582681.6390743,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
