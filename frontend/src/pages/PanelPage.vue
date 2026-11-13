@@ -40,34 +40,68 @@
           >
         </div>
 
-        <div class="panel-filters" role="group" aria-label="Filtrar por rol">
+        <div class="panel-filter" role="group" aria-label="Filtrar por rol">
           <span class="panel-filters-label">Rol</span>
-          <div class="filter-chips">
-            <button
-              v-for="opt in ROLE_FILTERS"
-              :key="opt.id"
-              type="button"
-              class="filter-chip"
-              :class="{ active: roleFilter === opt.id }"
-              :aria-pressed="roleFilter === opt.id"
-              @click="roleFilter = opt.id"
-            >{{ opt.label }}</button>
-          </div>
+          <button
+            type="button"
+            class="filter-trigger"
+            :class="{ active: roleFilter !== '', open: openMenu === 'role' }"
+            :aria-expanded="openMenu === 'role'"
+            aria-haspopup="listbox"
+            @click="toggleMenu('role')"
+          >
+            <span class="filter-trigger-text">{{ roleFilterLabel }}</span>
+            <svg class="filter-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z" /></svg>
+          </button>
+          <Transition name="filter-drop">
+            <ul v-if="openMenu === 'role'" class="filter-menu" role="listbox" aria-label="Rol">
+              <li v-for="opt in ROLE_FILTERS" :key="opt.id" role="none">
+                <button
+                  type="button"
+                  role="option"
+                  :aria-selected="roleFilter === opt.id"
+                  class="filter-option"
+                  :class="{ selected: roleFilter === opt.id }"
+                  @click="selectRole(opt.id)"
+                >
+                  <span>{{ opt.label }}</span>
+                  <svg v-if="roleFilter === opt.id" class="filter-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                </button>
+              </li>
+            </ul>
+          </Transition>
         </div>
 
-        <div class="panel-filters" role="group" aria-label="Filtrar por plan">
+        <div class="panel-filter" role="group" aria-label="Filtrar por plan">
           <span class="panel-filters-label">Plan</span>
-          <div class="filter-chips">
-            <button
-              v-for="opt in PLAN_FILTERS"
-              :key="opt.id"
-              type="button"
-              class="filter-chip"
-              :class="{ active: planFilter === opt.id }"
-              :aria-pressed="planFilter === opt.id"
-              @click="planFilter = opt.id"
-            >{{ opt.label }}</button>
-          </div>
+          <button
+            type="button"
+            class="filter-trigger"
+            :class="{ active: planFilter !== '', open: openMenu === 'plan' }"
+            :aria-expanded="openMenu === 'plan'"
+            aria-haspopup="listbox"
+            @click="toggleMenu('plan')"
+          >
+            <span class="filter-trigger-text">{{ planFilterLabel }}</span>
+            <svg class="filter-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z" /></svg>
+          </button>
+          <Transition name="filter-drop">
+            <ul v-if="openMenu === 'plan'" class="filter-menu" role="listbox" aria-label="Plan">
+              <li v-for="opt in PLAN_FILTERS" :key="opt.id" role="none">
+                <button
+                  type="button"
+                  role="option"
+                  :aria-selected="planFilter === opt.id"
+                  class="filter-option"
+                  :class="{ selected: planFilter === opt.id }"
+                  @click="selectPlan(opt.id)"
+                >
+                  <span>{{ opt.label }}</span>
+                  <svg v-if="planFilter === opt.id" class="filter-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+                </button>
+              </li>
+            </ul>
+          </Transition>
         </div>
       </div>
 
@@ -292,6 +326,29 @@ const searchInput = ref('');
 const search = ref('');
 const roleFilter = ref('');
 const planFilter = ref('');
+const openMenu = ref<'role' | 'plan' | null>(null);
+
+const roleFilterLabel = computed(() => ROLE_FILTERS.find((o) => o.id === roleFilter.value)?.label || 'Todos');
+const planFilterLabel = computed(() => PLAN_FILTERS.find((o) => o.id === planFilter.value)?.label || 'Todos');
+
+function toggleMenu(menu: 'role' | 'plan') {
+  openMenu.value = openMenu.value === menu ? null : menu;
+}
+
+function selectRole(id: string) {
+  roleFilter.value = id;
+  openMenu.value = null;
+}
+
+function selectPlan(id: string) {
+  planFilter.value = id;
+  openMenu.value = null;
+}
+
+function closeMenus(event: MouseEvent) {
+  const target = event.target as HTMLElement | null;
+  if (target && !target.closest('.panel-filter')) openMenu.value = null;
+}
 let searchTimer: number | undefined;
 watch(searchInput, (v) => {
   clearTimeout(searchTimer);
@@ -352,6 +409,7 @@ async function save(u: AdminUser, field: Field) {
 }
 
 onMounted(async () => {
+  document.addEventListener('click', closeMenus);
   try {
     const { ok, data } = await api.get<{ is_admin?: boolean }>('/api/check-admin-role');
     access.value = ok && data.is_admin === true ? 'admin' : 'denied';
@@ -362,6 +420,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', closeMenus);
   clearTimeout(toastTimer);
   clearTimeout(searchTimer);
   savedTimers.forEach(clearTimeout);
@@ -438,54 +497,138 @@ onBeforeUnmount(() => {
   color: var(--text-secondary, #aaa);
 }
 
-/* Filtros por rol y plan */
-:where(body[data-page="panel"]) .panel-filters {
+/* Filtros desplegables por rol y plan */
+:where(body[data-page="panel"]) .panel-filter {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 :where(body[data-page="panel"]) .panel-filters-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-secondary, #888);
+  padding-left: 0.2rem;
 }
 
-:where(body[data-page="panel"]) .filter-chips {
+:where(body[data-page="panel"]) .filter-trigger {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  background: var(--glass-bg, rgba(255, 255, 255, 0.9));
-  border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 130px;
+  min-height: 52px;
+  padding: 0 0.9rem;
   border-radius: 12px;
-  padding: 0.3rem;
-}
-
-:where(body[data-page="panel"]) .filter-chip {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary, #666);
-  padding: 0.42rem 0.7rem;
-  border-radius: 9px;
-  font-size: 0.82rem;
+  border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+  background: var(--glass-bg, rgba(255, 255, 255, 0.9));
+  color: var(--text-primary, #1a1a1a);
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
-:where(body[data-page="panel"]) .filter-chip:hover {
+:where(body[data-page="panel"]) .filter-trigger:hover {
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="panel"]) .filter-trigger.open {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(103, 80, 164, 0.12));
+}
+
+:where(body[data-page="panel"]) .filter-trigger.active {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="panel"]) .filter-trigger-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:where(body[data-page="panel"]) .filter-caret {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: currentColor;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:where(body[data-page="panel"]) .filter-trigger.open .filter-caret {
+  transform: rotate(180deg);
+}
+
+:where(body[data-page="panel"]) .filter-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 50;
+  min-width: 180px;
+  margin: 0;
+  padding: 0.4rem;
+  list-style: none;
+  border-radius: 14px;
+  border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+  background: var(--glass-bg, #fff);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(16px);
+  transform-origin: top right;
+}
+
+:where(body[data-page="panel"]) .filter-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-primary, #1a1a1a);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+:where(body[data-page="panel"]) .filter-option:hover {
   background: var(--secondary-container, rgba(103, 80, 164, 0.1));
   color: var(--accent-color);
 }
 
-:where(body[data-page="panel"]) .filter-chip.active {
-  background: var(--accent-gradient);
-  color: #fff;
-  box-shadow: 0 2px 8px var(--accent-glow, rgba(103, 80, 164, 0.22));
+:where(body[data-page="panel"]) .filter-option.selected {
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+:where(body[data-page="panel"]) .filter-check {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: var(--accent-color);
+}
+
+/* Animación del desplegable */
+.filter-drop-enter-active {
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.filter-drop-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.filter-drop-enter-from,
+.filter-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.94);
 }
 
 :where(body[data-page="panel"]) .panel-count {
