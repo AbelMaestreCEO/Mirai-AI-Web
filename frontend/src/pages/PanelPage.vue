@@ -130,8 +130,6 @@
             </div>
             <p class="user-name">{{ fullName(u) }}</p>
             <p class="user-email">{{ censorEmail(u.email || '') }}</p>
-            <span class="user-role-badge" :class="roleBadgeClass(u.role)">{{ roleLabel(u.role) }}</span>
-            <span class="user-plan-badge" :class="`plan-${u.plan || 'basic'}`">{{ planLabel(u.plan) }}</span>
             <div class="select-wrapper">
               <select v-model="edits[u.dni]!.role" class="role-select" :data-dni="u.dni" :aria-label="`Cambiar rol de ${fullName(u)}`">
                 <option value="student">🎓 Estudiante</option>
@@ -226,14 +224,6 @@ function censorEmail(email: string): string {
   if (dot <= 0) return `${cLocal}@${domain}`;
   const name = domain.substring(0, dot);
   return `${cLocal}@${name[0]}${'*'.repeat(Math.min(name.length - 1, 3))}.${domain.substring(dot + 1)}`;
-}
-
-function roleBadgeClass(role?: string | null): string {
-  const r = (role || '').toLowerCase();
-  if (!r) return 'role-usuario';
-  if (r === 'admin') return 'role-admin';
-  if (r === 'teacher' || r === 'profesor' || r === 'professor') return 'role-profesor';
-  return 'role-student';
 }
 
 function roleLabel(role?: string | null): string {
@@ -718,52 +708,7 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-/* Badge de rol */
-:where(body[data-page="panel"]) .user-role-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: capitalize;
-}
 
-:where(body[data-page="panel"]) .user-role-badge.role-admin {
-  background: linear-gradient(135deg, #6750A4, #7F67BE);
-  color: #fff;
-}
-
-:where(body[data-page="panel"]) .user-role-badge.role-profesor {
-  background: linear-gradient(135deg, #1565C0, #2196F3);
-  color: #fff;
-}
-
-:where(body[data-page="panel"]) .user-role-badge.role-student,
-:where(body[data-page="panel"]) .user-role-badge.role-usuario {
-  background: var(--secondary-container, #E8DEF8);
-  color: var(--accent-color);
-}
-
-/* Plan badge */
-:where(body[data-page="panel"]) .user-plan-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-:where(body[data-page="panel"]) .user-plan-badge.plan-basic { background: #E8E8E8; color: #555; }
-:where(body[data-page="panel"]) .user-plan-badge.plan-students { background: #E3F2FD; color: #1565C0; }
-:where(body[data-page="panel"]) .user-plan-badge.plan-development { background: #E8F5E9; color: #2E7D32; }
-:where(body[data-page="panel"]) .user-plan-badge.plan-designer { background: #FFF3E0; color: #E65100; }
-:where(body[data-page="panel"]) .user-plan-badge.plan-max { background: linear-gradient(135deg, #6750A4, #9A82DB); color: #fff; box-shadow: 0 2px 8px rgba(103,80,164,0.25); }
 
 /* Plan selector */
 :where(body[data-page="panel"]) .plan-select {
