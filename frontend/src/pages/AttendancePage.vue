@@ -570,6 +570,31 @@ onBeforeUnmount(stopScan);
   color: var(--text-secondary);
 }
 
+/* Mismo aspecto que el sistema de tarjetas compartido (styles.css): fondo con
+   retícula, borde y sombra de acento, como las tarjetas de Cursos. */
+:where(body[data-page="attendance"]) :is(.att-user-card, .qr-scan-card, .att-result-card) {
+  background:
+    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box;
+  border: 1px solid rgba(103, 80, 164, 0.18);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(24, 16, 48, 0.06);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.25s ease;
+}
+
+[data-theme="dark"] :where(body[data-page="attendance"]) :is(.att-user-card, .qr-scan-card, .att-result-card) {
+  border-color: rgba(208, 188, 255, 0.18);
+  background:
+    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+}
+
 :where(body[data-page="attendance"]) .att-history-list {
   list-style: none;
   padding: 0;

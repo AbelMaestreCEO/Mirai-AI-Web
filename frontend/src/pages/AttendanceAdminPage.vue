@@ -1427,6 +1427,43 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
 }
 
+/* Mismo aspecto que el sistema de tarjetas compartido (styles.css): fondo con
+   retícula, borde y sombra de acento, como las tarjetas de Cursos. */
+:where(body[data-page="attendance_admin"]) :is(.stat-card, .stats-summary-item) {
+  background:
+    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box;
+  border: 1px solid rgba(103, 80, 164, 0.18);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(24, 16, 48, 0.06);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1),
+    border-color 0.25s ease;
+}
+
+:where(body[data-page="attendance_admin"]) .stat-card:hover,
+:where(body[data-page="attendance_admin"]) .stats-summary-item:hover {
+  transform: translateY(-4px);
+  border-color: rgba(103, 80, 164, 0.32);
+  box-shadow: 0 18px 44px rgba(103, 80, 164, 0.18), 0 0 0 1px rgba(103, 80, 164, 0.16);
+}
+
+[data-theme="dark"] :where(body[data-page="attendance_admin"]) :is(.stat-card, .stats-summary-item) {
+  border-color: rgba(208, 188, 255, 0.18);
+  background:
+    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="dark"] :where(body[data-page="attendance_admin"]) .stat-card:hover,
+[data-theme="dark"] :where(body[data-page="attendance_admin"]) .stats-summary-item:hover {
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(208, 188, 255, 0.16);
+}
+
 :where(body[data-page="attendance_admin"]) .stats-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--glass-border);
