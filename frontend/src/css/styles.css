@@ -8425,8 +8425,8 @@ html[data-theme="dark"] body[data-page] :is(
     .sales-container,
     .settings-container
   ) {
-    padding-left: 20px;
-    padding-right: 20px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
 
@@ -8470,8 +8470,7 @@ body[data-page] :is(
 }
 
 /* Todos los grids de contenido reservan el mismo margen lateral que
-   .courses-grid (20px), para que las tarjetas no queden más pegadas al borde
-   que en Cursos. */
+   .courses-grid, y en móvil lo ceden al contenedor para no duplicarlo. */
 body[data-page] :is(
   .courses-grid,
   .categories-grid,
@@ -8497,6 +8496,42 @@ body[data-page] :is(
 ) {
   padding-left: 20px;
   padding-right: 20px;
+}
+
+/* En móvil el margen lateral ya lo aporta el contenedor (16px): se anula el
+   relleno lateral de los grids para no duplicarlo y ganar ancho útil. */
+@media (max-width: 768px) {
+  body[data-page] :is(
+    .courses-grid,
+    .categories-grid,
+    .dashboard-grid,
+    .task-list,
+    .gen-history-grid,
+    .reports-grid,
+    .doc-grid,
+    .plans-grid,
+    .users-grid,
+    .classes-grid,
+    .usage-grid,
+    .steps-grid,
+    .apa-rules-grid,
+    .inv-sources-grid,
+    .lessons-grid,
+    .mode-cards-grid,
+    .class-grid,
+    .admin-class-grid,
+    .stats-grid,
+    .inventory-stats,
+    .att-stats
+  ) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  body[data-page="attendance"] .att-layout {
+    padding-left: 0;
+    padding-right: 0;
+  }
 }
 
 /* Separación entre los bloques de la página de Asistencia (misma que Cursos). */
