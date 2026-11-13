@@ -37,20 +37,20 @@
     <!-- ══════════ TAB: REGISTROS ══════════ -->
     <div v-show="tab === 'records'" id="tab-pane-records">
       <div class="att-filters">
-        <div style="display:flex;gap:12px;flex:1;min-width:0;flex-wrap:wrap;">
-          <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+        <div class="att-filter-grid">
+          <div class="form-group att-filter-field">
             <label for="f-date">Fecha exacta</label>
             <input id="f-date" v-model="filters.date" type="date" @change="onDateChange">
           </div>
-          <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+          <div class="form-group att-filter-field">
             <label for="f-date-from">Desde</label>
             <input id="f-date-from" v-model="filters.from" type="date" @change="onRangeChange">
           </div>
-          <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+          <div class="form-group att-filter-field">
             <label for="f-date-to">Hasta</label>
             <input id="f-date-to" v-model="filters.to" type="date" @change="onRangeChange">
           </div>
-          <div class="form-group" style="flex:1;min-width:110px;margin-bottom:0;">
+          <div class="form-group att-filter-field">
             <label for="f-type">Tipo</label>
             <select id="f-type" v-model="filters.type">
               <option value="todos">Todos</option>
@@ -58,7 +58,7 @@
               <option value="salida">Salidas</option>
             </select>
           </div>
-          <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0;">
+          <div class="form-group att-filter-field">
             <label for="f-class">Clase</label>
             <select id="f-class" v-model="filters.classId" @change="loadRecords">
               <option value="">{{ classes.length ? 'Todas las clases' : 'Todas' }}</option>
@@ -66,7 +66,7 @@
             </select>
           </div>
         </div>
-        <div class="form-group" style="flex:2;min-width:200px;margin-bottom:0;">
+        <div class="form-group att-filter-search">
           <label for="f-search">Buscar personal</label>
           <div class="courses-search" style="min-width:unset;">
             <svg viewBox="0 0 24 24">
@@ -98,25 +98,27 @@
               <th>Fecha</th>
               <th>Departamento</th>
               <th>Clase</th>
+              <th>Sección</th>
               <th>QR sesión</th>
             </tr>
           </thead>
           <tbody id="att-tbody">
             <tr v-for="(r, i) in visibleRecords" :key="i">
-              <td style="color:var(--text-tertiary);font-size:0.8rem;">{{ i + 1 }}</td>
-              <td>
+              <td data-label="#" class="att-cell-index">{{ i + 1 }}</td>
+              <td data-label="Personal">
                 <div class="tbl-avatar">
                   <div class="tbl-av-circle">{{ initials(r.staff_name || r.staff_dni) }}</div>
                   <span>{{ r.staff_name || '—' }}</span>
                 </div>
               </td>
-              <td style="color:var(--text-secondary);font-size:0.83rem;">{{ r.staff_dni || '—' }}</td>
-              <td><span class="type-badge" :class="r.type">{{ r.type === 'entrada' ? '⬆️ Entrada' : '⬇️ Salida' }}</span></td>
-              <td style="font-size:0.83rem;">{{ r.time || '—' }}</td>
-              <td style="font-size:0.83rem;color:var(--text-secondary);">{{ r.date || '—' }}</td>
-              <td style="font-size:0.83rem;color:var(--text-secondary);">{{ r.department || '—' }}</td>
-              <td style="font-size:0.83rem;color:var(--text-secondary);">{{ r.class_name || '—' }}</td>
-              <td style="font-size:0.75rem;color:var(--text-tertiary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="r.session_id || ''">
+              <td data-label="DNI" class="att-cell-muted">{{ r.staff_dni || '—' }}</td>
+              <td data-label="Tipo"><span class="type-badge" :class="r.type">{{ r.type === 'entrada' ? '⬆️ Entrada' : '⬇️ Salida' }}</span></td>
+              <td data-label="Hora">{{ r.time || '—' }}</td>
+              <td data-label="Fecha" class="att-cell-muted">{{ r.date || '—' }}</td>
+              <td data-label="Departamento" class="att-cell-muted">{{ r.department || '—' }}</td>
+              <td data-label="Clase" class="att-cell-muted">{{ r.class_name || '—' }}</td>
+              <td data-label="Sección" class="att-cell-muted">{{ r.section_name || '—' }}</td>
+              <td data-label="QR sesión" class="att-session" :title="r.session_id || ''">
                 {{ (r.session_id || '').slice(0, 12) }}...
               </td>
             </tr>
@@ -131,8 +133,9 @@
 
     <!-- ══════════ TAB: CLASES ══════════ -->
     <div v-show="tab === 'classes'" id="tab-pane-classes">
-      <div style="padding:0 20px 16px;max-width:1200px;margin:0 auto;display:flex;justify-content:flex-end;">
-        <button id="btn-new-class" class="course-start-btn" style="max-width:200px;" @click="openClassModal(null)">🏫 Nueva Clase</button>
+      <div class="classes-toolbar">
+        <p class="classes-hint">Tus clases se sincronizan automáticamente desde tu cuenta. Un QR por clase identifica la sección del estudiante al escanear.</p>
+        <button id="btn-new-class" class="course-start-btn" @click="openClassModal(null)">🏫 Nueva Clase</button>
       </div>
       <div id="classes-grid" class="classes-grid">
         <div v-if="classesState === 'loading'" class="att-empty">
@@ -151,16 +154,19 @@
               <div style="flex:1;min-width:0;">
                 <div class="class-name">{{ c.name }}</div>
                 <div v-if="c.description" class="class-desc">{{ c.description }}</div>
+                <span v-if="c.course_id" class="auto-badge">Sincronizada</span>
               </div>
             </div>
             <div class="class-meta">
               <span>👤 {{ c.student_count ?? 0 }} estudiantes</span>
+              <span v-if="c.course_id"> · 📚 {{ c.section_count ?? 0 }} secciones</span>
             </div>
             <div class="class-actions">
               <button class="btn-export" @click="openClassQr(c)">📷 QR</button>
+              <button class="btn-export" @click="openClassStats(c)">📊 Estadísticas</button>
               <button class="btn-export" @click="openClassStudents(c)">👥 Estudiantes</button>
-              <button class="btn-export" @click="openClassModal(c)">✏️</button>
-              <button class="btn-export" style="color:#D00000;" @click="deleteClass(c)">🗑️</button>
+              <button v-if="!c.course_id" class="btn-export" @click="openClassModal(c)">✏️</button>
+              <button v-if="!c.course_id" class="btn-export" style="color:#D00000;" @click="deleteClass(c)">🗑️</button>
             </div>
           </div>
         </template>
@@ -229,26 +235,29 @@
       <div class="modal-header">
         <h2 id="class-students-title">👥 Estudiantes — {{ studentsModal.className }}</h2>
       </div>
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <p v-if="studentsModal.auto" class="classes-hint" style="margin-bottom:14px;">
+        Los estudiantes se toman automáticamente de las secciones de tu clase.
+      </p>
+      <div v-if="!studentsModal.auto" style="display:flex;gap:6px;margin-bottom:14px;">
         <button id="add-mode-btn-dni" class="att-tab-btn" :class="{ active: studentsModal.mode === 'dni' }" style="font-size:0.8rem;padding:7px 16px;" @click="setAddMode('dni')">👤
           Por DNI</button>
         <button id="add-mode-btn-section" class="att-tab-btn" :class="{ active: studentsModal.mode === 'section' }" style="font-size:0.8rem;padding:7px 16px;" @click="setAddMode('section')">📚 Por
           Sección</button>
       </div>
-      <div v-show="studentsModal.mode === 'dni'" id="add-mode-pane-dni">
+      <div v-if="!studentsModal.auto" v-show="studentsModal.mode === 'dni'" id="add-mode-pane-dni">
         <div class="form-group" style="margin-bottom:8px;">
           <label for="add-student-dni">Agregar por DNI</label>
           <div style="display:flex;gap:10px;">
-            <input id="add-student-dni" v-model="studentsModal.dni" type="text" placeholder="DNI del personal" style="flex:1;" @keydown.enter="addStudent">
+            <input id="add-student-dni" v-model="studentsModal.dni" type="text" placeholder="DNI del personal" style="flex:1;min-width:0;" @keydown.enter="addStudent">
             <button id="add-student-btn" class="btn-primary" style="white-space:nowrap;padding:12px 18px;" :disabled="studentsModal.busy" @click="addStudent">Agregar</button>
           </div>
         </div>
       </div>
-      <div v-show="studentsModal.mode === 'section'" id="add-mode-pane-section">
+      <div v-if="!studentsModal.auto" v-show="studentsModal.mode === 'section'" id="add-mode-pane-section">
         <div class="form-group" style="margin-bottom:8px;">
           <label for="add-section-select">Seleccionar Sección del Aula</label>
           <div style="display:flex;gap:10px;">
-            <select id="add-section-select" v-model="studentsModal.sectionId" style="flex:1;">
+            <select id="add-section-select" v-model="studentsModal.sectionId" style="flex:1;min-width:0;">
               <option v-if="studentsModal.sections === null" value="">Cargando secciones...</option>
               <option v-else-if="studentsModal.sectionsError" value="">Error al cargar</option>
               <option v-else-if="!studentsModal.sections.length" value="">Sin secciones disponibles</option>
@@ -271,12 +280,69 @@
             <div class="tbl-av-circle" style="width:36px;height:36px;font-size:0.82rem;">{{ initials(s.name) }}</div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:0.88rem;font-weight:600;color:var(--text-primary);">{{ s.name }}</div>
-              <div style="font-size:0.78rem;color:var(--text-secondary);">{{ s.dni }} · {{ s.department || '—' }}</div>
+              <div style="font-size:0.78rem;color:var(--text-secondary);">
+                {{ s.dni }} · {{ s.department || '—' }}
+                <template v-if="s.section_name"> · <span style="color:var(--accent-color);">{{ s.section_name }}</span></template>
+              </div>
             </div>
-            <button class="btn-export" style="color:#D00000;padding:6px 12px;font-size:0.78rem;" @click="removeStudent(s.dni)">✕</button>
+            <button v-if="!studentsModal.auto" class="btn-export" style="color:#D00000;padding:6px 12px;font-size:0.78rem;" @click="removeStudent(s.dni)">✕</button>
           </div>
         </template>
       </div>
+    </div>
+  <!-- MODAL: Estadísticas por sección -->
+  <div id="class-stats-modal" class="modal" :style="{ display: statsModal.open ? 'flex' : 'none' }">
+    <div class="modal-overlay" @click="statsModal.open = false"></div>
+    <div class="modal-content slide-up">
+      <button id="class-stats-modal-close" class="modal-close" @click="statsModal.open = false">&times;</button>
+      <div class="modal-header">
+        <h2 id="class-stats-modal-title">📊 Estadísticas — {{ statsModal.className }}</h2>
+        <p class="modal-subtitle">Un solo QR por clase. La sección se identifica al escanear.</p>
+      </div>
+      <div class="form-group" style="max-width:220px;margin:0 auto 18px;">
+        <label for="stats-date">Fecha</label>
+        <input id="stats-date" v-model="statsModal.date" type="date" @change="loadClassStats">
+      </div>
+      <div v-if="statsModal.state === 'loading'" class="att-empty" style="padding:24px 0;">
+        <div class="att-spinner"></div>
+        <p>Cargando estadísticas...</p>
+      </div>
+      <p v-else-if="statsModal.state === 'error'" style="text-align:center;color:#D00000;font-size:0.85rem;padding:20px 0;">No se pudieron cargar las estadísticas.</p>
+      <template v-else-if="statsModal.data">
+        <div class="stats-summary">
+          <div class="stats-summary-item"><span>Estudiantes</span><strong>{{ statsModal.data.totals.students }}</strong></div>
+          <div class="stats-summary-item"><span>Presentes</span><strong>{{ statsModal.data.totals.present }}</strong></div>
+          <div class="stats-summary-item"><span>Asistencia</span><strong>{{ statsModal.data.totals.attendance_rate }}%</strong></div>
+          <div class="stats-summary-item"><span>Escaneos</span><strong>{{ statsModal.data.totals.scans }}</strong></div>
+        </div>
+        <div class="stats-table-wrap">
+          <table class="att-table stats-table">
+            <thead>
+              <tr>
+                <th>Sección</th>
+                <th>Estudiantes</th>
+                <th>Presentes</th>
+                <th>Entradas</th>
+                <th>Salidas</th>
+                <th>Asistencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(s, i) in statsModal.data.sections" :key="s.id || i">
+                <td data-label="Sección">{{ s.name }}</td>
+                <td data-label="Estudiantes">{{ s.students }}</td>
+                <td data-label="Presentes">{{ s.present }}</td>
+                <td data-label="Entradas">{{ s.entries }}</td>
+                <td data-label="Salidas">{{ s.exits }}</td>
+                <td data-label="Asistencia"><strong>{{ s.attendance_rate }}%</strong></td>
+              </tr>
+              <tr v-if="!statsModal.data.sections.length">
+                <td colspan="6" style="text-align:center;color:var(--text-tertiary);">Esta clase no tiene secciones.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -303,6 +369,7 @@ interface AttRecord {
   department?: string;
   position?: string;
   class_name?: string;
+  section_name?: string;
   session_id?: string;
 }
 
@@ -311,6 +378,8 @@ interface AttClass {
   name: string;
   description?: string;
   student_count?: number;
+  section_count?: number;
+  course_id?: string | null;
 }
 
 interface QrData {
@@ -626,17 +695,71 @@ function downloadClassQr() {
   link.click();
 }
 
+// ── Estadísticas por sección ──────────────────────────────────────────────
+interface SectionStats {
+  id: string | null;
+  name: string;
+  students: number;
+  present: number;
+  entries: number;
+  exits: number;
+  scans: number;
+  attendance_rate: number;
+}
+
+interface ClassStatsData {
+  class: { id: Id; name: string; course_id?: string | null };
+  period: { date?: string; from?: string; to?: string };
+  totals: { students: number; present: number; entries: number; exits: number; scans: number; attendance_rate: number };
+  sections: SectionStats[];
+}
+
+const statsModal = reactive({
+  open: false,
+  classId: null as Id | null,
+  className: '',
+  date: todayISO(),
+  state: 'loading' as 'loading' | 'ready' | 'error',
+  data: null as ClassStatsData | null,
+});
+
+function openClassStats(c: AttClass) {
+  Object.assign(statsModal, { open: true, classId: c.id, className: c.name, date: filters.date, state: 'loading', data: null });
+  void loadClassStats();
+}
+
+async function loadClassStats() {
+  if (!statsModal.classId) return;
+  statsModal.state = 'loading';
+  try {
+    const { ok, data } = await api.get<ClassStatsData & { error?: string }>(
+      `${API_CLASSES}/${statsModal.classId}/stats?date=${encodeURIComponent(statsModal.date)}`,
+    );
+    if (ok && data.sections) {
+      statsModal.data = data;
+      statsModal.state = 'ready';
+    } else {
+      statsModal.state = 'error';
+    }
+  } catch {
+    statsModal.state = 'error';
+  }
+}
+
 // ── Estudiantes de clase ──────────────────────────────────────────────────
 interface ClassStudent {
   dni: string;
   name: string;
   department?: string;
+  section_id?: string | null;
+  section_name?: string;
 }
 
 const studentsModal = reactive({
   open: false,
   classId: null as Id | null,
   className: '',
+  auto: false,
   mode: 'dni' as 'dni' | 'section',
   dni: '',
   sectionId: '',
@@ -660,8 +783,9 @@ function setAddMode(mode: 'dni' | 'section') {
 async function loadClassStudents() {
   studentsModal.state = 'loading';
   try {
-    const { data } = await api.get<{ students?: ClassStudent[] }>(`${API_CLASSES}/${studentsModal.classId}/students`);
+    const { data } = await api.get<{ students?: ClassStudent[]; auto?: boolean }>(`${API_CLASSES}/${studentsModal.classId}/students`);
     studentsModal.students = data.students || [];
+    studentsModal.auto = !!data.auto;
     studentsModal.state = 'ready';
   } catch {
     studentsModal.state = 'error';
@@ -682,7 +806,7 @@ async function loadSections() {
 }
 
 async function openClassStudents(c: AttClass) {
-  Object.assign(studentsModal, { open: true, classId: c.id, className: c.name, dni: '', sectionId: '', students: [] });
+  Object.assign(studentsModal, { open: true, classId: c.id, className: c.name, dni: '', sectionId: '', students: [], auto: false });
   setAddMode('dni');
   await loadClassStudents();
   await loadSections();
@@ -965,7 +1089,7 @@ onBeforeUnmount(() => {
 
 :where(body[data-page="attendance_admin"]) .qr-info {
   flex: 1;
-  min-width: 220px;
+  min-width: 0;
 }
 
 :where(body[data-page="attendance_admin"]) .qr-info h3 {
@@ -1187,5 +1311,301 @@ onBeforeUnmount(() => {
 
 :where(body[data-page="attendance_admin"]) .student-item:last-child {
   border-bottom: none;
+}
+
+/* ── Filtros y barra de clases ── */
+:where(body[data-page="attendance_admin"]) .att-filter-grid {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+:where(body[data-page="attendance_admin"]) .att-filter-field {
+  flex: 1;
+  min-width: 110px;
+  margin-bottom: 0;
+}
+
+:where(body[data-page="attendance_admin"]) .att-filter-search {
+  flex: 2;
+  min-width: 200px;
+  margin-bottom: 0;
+}
+
+:where(body[data-page="attendance_admin"]) .classes-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 16px;
+}
+
+:where(body[data-page="attendance_admin"]) .classes-toolbar .course-start-btn {
+  max-width: 200px;
+}
+
+:where(body[data-page="attendance_admin"]) .classes-hint {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+:where(body[data-page="attendance_admin"]) .auto-badge {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: var(--border-radius-pill);
+  background: rgba(56, 106, 32, 0.14);
+  color: #386A20;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="dark"] :where(body[data-page="attendance_admin"]) .auto-badge {
+  background: rgba(168, 216, 140, 0.16);
+  color: #A8D88C;
+}
+
+:where(body[data-page="attendance_admin"]) .att-cell-index {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+:where(body[data-page="attendance_admin"]) .att-cell-muted {
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+}
+
+:where(body[data-page="attendance_admin"]) .att-session {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Estadísticas ── */
+:where(body[data-page="attendance_admin"]) .stats-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+:where(body[data-page="attendance_admin"]) .stats-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+  background: var(--secondary-container);
+  text-align: center;
+}
+
+:where(body[data-page="attendance_admin"]) .stats-summary-item span {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+:where(body[data-page="attendance_admin"]) .stats-summary-item strong {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+:where(body[data-page="attendance_admin"]) .stats-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius-md);
+}
+
+:where(body[data-page="attendance_admin"]) .stats-table {
+  min-width: 520px;
+}
+
+/* ── Responsive móvil ── */
+@media (max-width: 768px) {
+  :where(body[data-page="attendance_admin"]) .courses-container {
+    padding: 20px 12px 40px;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-stats,
+  :where(body[data-page="attendance_admin"]) .att-filters,
+  :where(body[data-page="attendance_admin"]) .att-actions,
+  :where(body[data-page="attendance_admin"]) .att-tabs,
+  :where(body[data-page="attendance_admin"]) .classes-toolbar,
+  :where(body[data-page="attendance_admin"]) .classes-grid {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table-wrap {
+    margin: 0 0 40px;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-tabs {
+    gap: 6px;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-tab-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 10px;
+    font-size: 0.8rem;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-actions {
+    gap: 8px;
+  }
+
+  :where(body[data-page="attendance_admin"]) .btn-export {
+    padding: 9px 14px;
+    font-size: 0.8rem;
+  }
+
+  :where(body[data-page="attendance_admin"]) .classes-toolbar {
+    align-items: stretch;
+  }
+
+  :where(body[data-page="attendance_admin"]) .classes-toolbar .course-start-btn {
+    max-width: none;
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  :where(body[data-page="attendance_admin"]) .att-filter-grid {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-filter-field,
+  :where(body[data-page="attendance_admin"]) .att-filter-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* La tabla de registros pasa a tarjetas apiladas para no desbordar. */
+  :where(body[data-page="attendance_admin"]) .att-table-wrap {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table {
+    display: block;
+    background: transparent;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table thead {
+    display: none;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table tbody,
+  :where(body[data-page="attendance_admin"]) .att-table tr,
+  :where(body[data-page="attendance_admin"]) .att-table td {
+    display: block;
+    width: 100%;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table tr {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-lg);
+    background: var(--glass-bg);
+    box-shadow: var(--glass-shadow);
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 5px 0;
+    border: none;
+    text-align: right;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    text-align: left;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-table td[data-label="#"] {
+    display: none;
+  }
+
+  :where(body[data-page="attendance_admin"]) .att-session {
+    max-width: none;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table,
+  :where(body[data-page="attendance_admin"]) .stats-table tbody,
+  :where(body[data-page="attendance_admin"]) .stats-table tr,
+  :where(body[data-page="attendance_admin"]) .stats-table td {
+    display: block;
+    width: 100%;
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table thead {
+    display: none;
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table tr {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-md);
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 4px 0;
+    border: none;
+    text-align: right;
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+  }
+
+  :where(body[data-page="attendance_admin"]) .stats-table td[colspan]::before {
+    content: none;
+  }
 }
 </style>

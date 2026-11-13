@@ -281,6 +281,10 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     if (request.method === 'POST')
       return handleAttClassGenerateQr(request, env, corsHeaders, classId);
   }
+  const attClassStatsMatch = path.match(/^\/api\/attendance\/admin\/classes\/([^/]+)\/stats$/);
+  if (attClassStatsMatch && request.method === 'GET') {
+    return handleAttClassStats(request, env, corsHeaders, attClassStatsMatch[1]);
+  }
 
   if (path === '/api/user-courses' && request.method === 'GET') {
     const userDni = url.searchParams.get('user_dni');
@@ -2805,10 +2809,12 @@ async function handleAttMyHistory(request: Request, env: Env, corsHeaders: Recor
     if (!staff) return jsonResponse({ records: [] }, 200, corsHeaders);
 
     let query = `
-      SELECT r.type, r.date, r.time, COALESCE(c.name, 'General') AS class_name
+      SELECT r.type, r.date, r.time, COALESCE(c.name, 'General') AS class_name,
+             COALESCE(sec.name, '') AS section_name
       FROM att_records r
       LEFT JOIN att_qr_sessions q ON r.session_id = q.id
       LEFT JOIN att_classes c ON q.class_id = c.id
+      LEFT JOIN sections sec ON r.section_id = sec.id
       WHERE r.staff_id = ?`;
     const bindings = [staff.id];
 
@@ -2862,6 +2868,7 @@ async function handleAttRecord(request: Request, env: Env, corsHeaders: Record<s
   if (!qr_token) return jsonResponse({ error: 'Token QR requerido' }, 400, corsHeaders);
 
   try {
+    await ensureAttClassSchema(env);
     // 1. Validar sesión QR (no expirada)
     const session = await env.MIRAI_AI_DB.prepare(`
             SELECT id, date, class_id FROM att_qr_sessions
@@ -2869,42 +2876,73 @@ async function handleAttRecord(request: Request, env: Env, corsHeaders: Record<s
         `).bind(qr_token).first<any>();
     if (!session) return jsonResponse({ error: 'QR inválido o expirado' }, 400, corsHeaders);
 
-    // 2. Buscar al empleado
-    const staff = await env.MIRAI_AI_DB.prepare(
+    // 2. Si el QR es de una clase, resolver la sección del estudiante.
+    //    Un mismo QR sirve para todas las secciones de la clase.
+    let sectionId: string | null = null;
+    let sectionName: string | null = null;
+    let isAutoClass = false;
+    if (session.class_id) {
+      const cls = await env.MIRAI_AI_DB.prepare(
+        'SELECT id, course_id, created_by FROM att_classes WHERE id = ?'
+      ).bind(session.class_id).first<any>();
+
+      isAutoClass = Boolean(cls?.course_id);
+      if (isAutoClass) {
+        const section = await env.MIRAI_AI_DB.prepare(`
+          SELECT sec.id, sec.name
+          FROM sections sec
+          JOIN section_students ss ON ss.section_id = sec.id
+          WHERE sec.course_id = ? AND UPPER(sec.professor_dni) = UPPER(?)
+            AND UPPER(ss.user_dni) = UPPER(?)
+          LIMIT 1
+        `).bind(cls.course_id, cls.created_by, userDni).first<any>();
+        if (!section) return jsonResponse({ error: 'No estás inscrito en esta clase' }, 403, corsHeaders);
+        sectionId = section.id;
+        sectionName = section.name;
+      }
+    }
+
+    // 3. Buscar al empleado. En clases automáticas se registra si pertenece a la sección.
+    let staff = await env.MIRAI_AI_DB.prepare(
       'SELECT id FROM att_staff WHERE dni = ? AND is_active = 1'
     ).bind(userDni.toUpperCase()).first<any>();
+    if (!staff && isAutoClass) {
+      staff = await ensureAttStaff(env, userDni);
+    }
     if (!staff) return jsonResponse({ error: 'No estás registrado como personal activo' }, 403, corsHeaders);
 
-    // 2b. Si el QR es de una clase, verificar que el empleado esté inscrito
-    if (session.class_id) {
+    // 4. Clases manuales: el estudiante debe estar en la lista de la clase.
+    if (session.class_id && !isAutoClass) {
       const enrolled = await env.MIRAI_AI_DB.prepare(
         'SELECT 1 FROM att_class_students WHERE class_id = ? AND staff_id = ?'
       ).bind(session.class_id, staff.id).first<any>();
       if (!enrolled) return jsonResponse({ error: 'No estás inscrito en esta clase' }, 403, corsHeaders);
     }
 
-    // 3. Determinar si es entrada o salida
+    // 5. Determinar si es entrada o salida (independiente por clase y día)
     const lastRecord = await env.MIRAI_AI_DB.prepare(`
-            SELECT type FROM att_records
-            WHERE staff_id = ? AND date = ?
-            ORDER BY time DESC LIMIT 1
-        `).bind(staff.id, session.date).first<any>();
+            SELECT r.type FROM att_records r
+            LEFT JOIN att_qr_sessions q ON q.id = r.session_id
+            WHERE r.staff_id = ? AND r.date = ?
+              AND ((? IS NULL AND q.class_id IS NULL) OR q.class_id = ?)
+            ORDER BY r.time DESC LIMIT 1
+        `).bind(staff.id, session.date, session.class_id ?? null, session.class_id ?? null).first<any>();
     const type = (!lastRecord || lastRecord.type === 'salida') ? 'entrada' : 'salida';
 
     const time = attLocalTime();
 
-    // 4. Insertar registro
+    // 6. Insertar registro
     await env.MIRAI_AI_DB.prepare(`
-            INSERT INTO att_records (id, session_id, staff_id, type, date, time)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(crypto.randomUUID(), session.id, staff.id, type, session.date, time).run();
+            INSERT INTO att_records (id, session_id, staff_id, type, date, time, section_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(crypto.randomUUID(), session.id, staff.id, type, session.date, time, sectionId).run();
 
-    // 5. Incrementar scan_count
+    // 7. Incrementar scan_count
     await env.MIRAI_AI_DB.prepare(
       'UPDATE att_qr_sessions SET scan_count = scan_count + 1 WHERE id = ?'
     ).bind(session.id).run();
 
-    return jsonResponse({ success: true, type, date: session.date, time }, 200, corsHeaders);
+    return jsonResponse({ success: true, type, date: session.date, time, section_id: sectionId, section_name: sectionName }, 200, corsHeaders);
   } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
@@ -2974,15 +3012,18 @@ async function handleAttAdminRecords(request: Request, env: Env, corsHeaders: Re
   const dateTo = url.searchParams.get('date_to');
 
   try {
+    await ensureAttClassSchema(env);
     let query = `
             SELECT r.id, r.type, r.date, r.time, r.session_id,
                    s.name AS staff_name, s.dni AS staff_dni,
                    s.department, s.position,
-                   COALESCE(c.name, '—') AS class_name
+                   COALESCE(c.name, '—') AS class_name,
+                   COALESCE(sec.name, '—') AS section_name
             FROM att_records r
             JOIN att_staff s ON r.staff_id = s.id
             LEFT JOIN att_qr_sessions q ON r.session_id = q.id
             LEFT JOIN att_classes c ON q.class_id = c.id
+            LEFT JOIN sections sec ON r.section_id = sec.id
             WHERE 1=1`;
     const bindings: any[] = [];
 
@@ -3073,34 +3114,109 @@ async function handleAttSectionList(request: Request, env: Env, corsHeaders: Rec
     return jsonResponse({ error: e.message }, 500, corsHeaders);
   }
 }
+async function ensureAttClassSchema(env: Env) {
+  await env.MIRAI_AI_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS att_classes (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      is_active INTEGER DEFAULT 1,
+      course_id TEXT
+    )
+  `).run();
+  await env.MIRAI_AI_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS att_class_students (
+      id TEXT PRIMARY KEY,
+      class_id TEXT NOT NULL,
+      staff_id TEXT NOT NULL,
+      added_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(class_id, staff_id)
+    )
+  `).run();
+  // Migraciones tolerantes para bases creadas antes de vincular clases y secciones.
+  for (const migration of [
+    'ALTER TABLE att_classes ADD COLUMN course_id TEXT',
+    'ALTER TABLE att_records ADD COLUMN section_id TEXT',
+  ]) {
+    try { await env.MIRAI_AI_DB.prepare(migration).run(); } catch { /* la columna ya existe */ }
+  }
+  await env.MIRAI_AI_DB.prepare('CREATE INDEX IF NOT EXISTS idx_att_classes_course ON att_classes(course_id)').run();
+  await env.MIRAI_AI_DB.prepare('CREATE INDEX IF NOT EXISTS idx_att_records_section ON att_records(section_id)').run();
+}
+
+/**
+ * Crea (o reactiva) una clase de asistencia por cada clase que el profesor
+ * tiene registrada en user_courses. Así el panel administrativo no arranca
+ * vacío ni obliga a duplicar las clases a mano.
+ */
+async function syncAttClassesForProfessor(env: Env, professorDni: string) {
+  await ensureAttClassSchema(env);
+  const { results: courses } = await env.MIRAI_AI_DB.prepare(
+    'SELECT id, title, description FROM user_courses WHERE UPPER(user_dni) = UPPER(?) ORDER BY title'
+  ).bind(professorDni).all<any>();
+
+  for (const course of courses || []) {
+    const linked = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM att_classes WHERE course_id = ?'
+    ).bind(course.id).first<any>();
+
+    if (linked) {
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE att_classes SET name = ?, description = ?, is_active = 1 WHERE id = ?"
+      ).bind(String(course.title || '').trim(), course.description || null, linked.id).run();
+      continue;
+    }
+
+    const legacy = await env.MIRAI_AI_DB.prepare(`
+      SELECT id FROM att_classes
+      WHERE course_id IS NULL AND UPPER(created_by) = UPPER(?)
+        AND LOWER(TRIM(name)) = LOWER(TRIM(?))
+      LIMIT 1
+    `).bind(professorDni, String(course.title || '').trim()).first<any>();
+
+    if (legacy) {
+      await env.MIRAI_AI_DB.prepare(
+        "UPDATE att_classes SET course_id = ?, description = COALESCE(description, ?), is_active = 1 WHERE id = ?"
+      ).bind(course.id, course.description || null, legacy.id).run();
+      continue;
+    }
+
+    await env.MIRAI_AI_DB.prepare(`
+      INSERT INTO att_classes (id, name, description, created_by, course_id)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      crypto.randomUUID(),
+      String(course.title || '').trim(),
+      course.description || null,
+      professorDni,
+      course.id,
+    ).run();
+  }
+}
+
 async function handleAttClassList(request: Request, env: Env, corsHeaders: Record<string, string>) {
   const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
-    await env.MIRAI_AI_DB.prepare(`
-      CREATE TABLE IF NOT EXISTS att_classes (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_by TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        is_active INTEGER DEFAULT 1
-      )
-    `).run();
-    await env.MIRAI_AI_DB.prepare(`
-      CREATE TABLE IF NOT EXISTS att_class_students (
-        id TEXT PRIMARY KEY,
-        class_id TEXT NOT NULL,
-        staff_id TEXT NOT NULL,
-        added_at TEXT DEFAULT (datetime('now')),
-        UNIQUE(class_id, staff_id)
-      )
-    `).run();
-    const { results } = await env.MIRAI_AI_DB.prepare(
-      `SELECT c.id, c.name, c.description, c.created_at,
-              (SELECT COUNT(*) FROM att_class_students cs WHERE cs.class_id = c.id) AS student_count
-       FROM att_classes c WHERE c.is_active = 1 ORDER BY c.name`
-    ).all<any>();
+    await syncAttClassesForProfessor(env, dni);
+    const { results } = await env.MIRAI_AI_DB.prepare(`
+      SELECT c.id, c.name, c.description, c.created_at, c.course_id,
+             (SELECT COUNT(*) FROM sections s WHERE s.course_id = c.course_id) AS section_count,
+             CASE
+               WHEN c.course_id IS NOT NULL THEN (
+                 SELECT COUNT(DISTINCT ss.user_dni)
+                 FROM sections s
+                 JOIN section_students ss ON ss.section_id = s.id
+                 WHERE s.course_id = c.course_id AND UPPER(s.professor_dni) = UPPER(c.created_by)
+               )
+               ELSE (SELECT COUNT(*) FROM att_class_students cs WHERE cs.class_id = c.id)
+             END AS student_count
+      FROM att_classes c
+      WHERE c.is_active = 1 AND UPPER(c.created_by) = UPPER(?)
+      ORDER BY c.name
+    `).bind(dni).all<any>();
     return jsonResponse({ classes: results }, 200, corsHeaders);
   } catch (e: any) {
     return jsonResponse({ error: e.message }, 500, corsHeaders);
@@ -3114,18 +3230,7 @@ async function handleAttClassCreate(request: Request, env: Env, corsHeaders: Rec
   const { name, description } = body;
   if (!name || !name.trim()) return jsonResponse({ error: 'Nombre de clase requerido' }, 400, corsHeaders);
   try {
-    await env.MIRAI_AI_DB.prepare(`
-      CREATE TABLE IF NOT EXISTS att_classes (
-        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
-        created_by TEXT, created_at TEXT DEFAULT (datetime('now')), is_active INTEGER DEFAULT 1
-      )
-    `).run();
-    await env.MIRAI_AI_DB.prepare(`
-      CREATE TABLE IF NOT EXISTS att_class_students (
-        id TEXT PRIMARY KEY, class_id TEXT NOT NULL, staff_id TEXT NOT NULL,
-        added_at TEXT DEFAULT (datetime('now')), UNIQUE(class_id, staff_id)
-      )
-    `).run();
+    await ensureAttClassSchema(env);
     const id = crypto.randomUUID();
     await env.MIRAI_AI_DB.prepare(
       'INSERT INTO att_classes (id, name, description, created_by) VALUES (?,?,?,?)'
@@ -3162,6 +3267,30 @@ async function handleAttClassStudents(request: Request, env: Env, corsHeaders: R
   const { errorResponse } = await attRequireAdmin(request, env, corsHeaders);
   if (errorResponse) return errorResponse;
   try {
+    await ensureAttClassSchema(env);
+    const cls = await env.MIRAI_AI_DB.prepare(
+      'SELECT id, course_id, created_by FROM att_classes WHERE id = ?'
+    ).bind(classId).first<any>();
+    if (!cls) return jsonResponse({ error: 'Clase no encontrada' }, 404, corsHeaders);
+
+    // Clase vinculada a una clase real: sus estudiantes salen de las secciones.
+    if (cls.course_id) {
+      const { results } = await env.MIRAI_AI_DB.prepare(`
+        SELECT ss.user_dni AS dni,
+               COALESCE(st.name, TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, ''))) AS name,
+               st.department, st.position,
+               sec.id AS section_id, sec.name AS section_name
+        FROM sections sec
+        JOIN section_students ss ON ss.section_id = sec.id
+        LEFT JOIN att_staff st ON UPPER(st.dni) = UPPER(ss.user_dni)
+        LEFT JOIN users u ON UPPER(u.dni) = UPPER(ss.user_dni)
+        WHERE sec.course_id = ? AND UPPER(sec.professor_dni) = UPPER(?)
+        GROUP BY ss.user_dni
+        ORDER BY COALESCE(st.name, u.last_name, ss.user_dni)
+      `).bind(cls.course_id, cls.created_by).all<any>();
+      return jsonResponse({ students: results, auto: true }, 200, corsHeaders);
+    }
+
     const { results } = await env.MIRAI_AI_DB.prepare(`
       SELECT s.id, s.name, s.dni, s.department, s.position
       FROM att_class_students cs
@@ -3169,7 +3298,7 @@ async function handleAttClassStudents(request: Request, env: Env, corsHeaders: R
       WHERE cs.class_id = ? AND s.is_active = 1
       ORDER BY s.name
     `).bind(classId).all<any>();
-    return jsonResponse({ students: results }, 200, corsHeaders);
+    return jsonResponse({ students: results, auto: false }, 200, corsHeaders);
   } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
 }
 
@@ -3278,6 +3407,106 @@ async function handleAttClassGenerateQr(request: Request, env: Env, corsHeaders:
     `).bind(crypto.randomUUID(), token, targetDate, expiresAt, dni, classId).run();
     return jsonResponse({ success: true, token, date: targetDate, expires_at: expiresAt, scan_count: 0, class_id: classId }, 200, corsHeaders);
   } catch (e: any) { return jsonResponse({ error: e.message }, 500, corsHeaders); }
+}
+
+async function handleAttClassStats(request: Request, env: Env, corsHeaders: Record<string, string>, classId: string) {
+  const { dni, errorResponse } = await attRequireAdmin(request, env, corsHeaders);
+  if (errorResponse) return errorResponse;
+
+  const url = new URL(request.url);
+  const date = url.searchParams.get('date') || attLocalDate();
+  const dateFrom = url.searchParams.get('date_from');
+  const dateTo = url.searchParams.get('date_to');
+  const useRange = Boolean(dateFrom && dateTo);
+  const dateClause = useRange ? 'r.date BETWEEN ? AND ?' : 'r.date = ?';
+  const dateBindings = useRange ? [dateFrom, dateTo] : [date];
+
+  try {
+    await ensureAttClassSchema(env);
+    const cls = await env.MIRAI_AI_DB.prepare(
+      "SELECT id, name, course_id, created_by FROM att_classes WHERE id = ? AND is_active = 1 AND UPPER(created_by) = UPPER(?)"
+    ).bind(classId, dni).first<any>();
+    if (!cls) return jsonResponse({ error: 'Clase no encontrada' }, 404, corsHeaders);
+
+    let sections: any[] = [];
+
+    if (cls.course_id) {
+      const { results } = await env.MIRAI_AI_DB.prepare(`
+        SELECT sec.id, sec.name,
+               COUNT(DISTINCT ss.user_dni) AS student_count,
+               COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN r.staff_id END) AS present,
+               SUM(CASE WHEN r.type = 'entrada' THEN 1 ELSE 0 END) AS entries,
+               SUM(CASE WHEN r.type = 'salida' THEN 1 ELSE 0 END) AS exits,
+               COUNT(r.id) AS scans
+        FROM sections sec
+        LEFT JOIN section_students ss ON ss.section_id = sec.id
+        LEFT JOIN att_staff st ON UPPER(st.dni) = UPPER(ss.user_dni)
+        LEFT JOIN att_records r ON r.staff_id = st.id AND r.section_id = sec.id AND ${dateClause}
+        WHERE sec.course_id = ? AND UPPER(sec.professor_dni) = UPPER(?)
+        GROUP BY sec.id, sec.name
+        ORDER BY sec.name
+      `).bind(...dateBindings, cls.course_id, cls.created_by).all<any>();
+      sections = (results || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        students: Number(row.student_count) || 0,
+        present: Number(row.present) || 0,
+        entries: Number(row.entries) || 0,
+        exits: Number(row.exits) || 0,
+        scans: Number(row.scans) || 0,
+      }));
+    } else {
+      const total = await env.MIRAI_AI_DB.prepare(
+        'SELECT COUNT(*) AS c FROM att_class_students WHERE class_id = ?'
+      ).bind(classId).first<any>();
+      const summary = await env.MIRAI_AI_DB.prepare(`
+        SELECT COUNT(DISTINCT r.staff_id) AS present,
+               SUM(CASE WHEN r.type = 'entrada' THEN 1 ELSE 0 END) AS entries,
+               SUM(CASE WHEN r.type = 'salida' THEN 1 ELSE 0 END) AS exits,
+               COUNT(r.id) AS scans
+        FROM att_records r
+        JOIN att_qr_sessions q ON q.id = r.session_id
+        WHERE q.class_id = ? AND ${dateClause}
+      `).bind(classId, ...dateBindings).first<any>();
+      sections = [{
+        id: null,
+        name: 'General',
+        students: Number(total?.c) || 0,
+        present: Number(summary?.present) || 0,
+        entries: Number(summary?.entries) || 0,
+        exits: Number(summary?.exits) || 0,
+        scans: Number(summary?.scans) || 0,
+      }];
+    }
+
+    for (const section of sections) {
+      section.attendance_rate = section.students > 0
+        ? Math.min(100, Math.round((section.present / section.students) * 100))
+        : 0;
+    }
+
+    const totals = sections.reduce((acc, section) => ({
+      students: acc.students + section.students,
+      present: acc.present + section.present,
+      entries: acc.entries + section.entries,
+      exits: acc.exits + section.exits,
+      scans: acc.scans + section.scans,
+    }), { students: 0, present: 0, entries: 0, exits: 0, scans: 0 });
+
+    return jsonResponse({
+      class: { id: cls.id, name: cls.name, course_id: cls.course_id },
+      period: useRange ? { from: dateFrom, to: dateTo } : { date },
+      totals: {
+        ...totals,
+        attendance_rate: totals.students > 0
+          ? Math.min(100, Math.round((totals.present / totals.students) * 100))
+          : 0,
+      },
+      sections,
+    }, 200, corsHeaders);
+  } catch (e: any) {
+    return jsonResponse({ error: e.message }, 500, corsHeaders);
+  }
 }
 
 async function handleAttLookupUser(request: Request, env: Env, corsHeaders: Record<string, string>) {
