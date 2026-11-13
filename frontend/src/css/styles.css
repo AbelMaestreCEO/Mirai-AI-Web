@@ -8385,6 +8385,70 @@ html[data-theme="dark"] body[data-page] :is(
 }
 
 /* ============================================
+   UNIFICACIÓN DE MÁRGENES Y SEPARACIONES
+   Referencia: módulo de Cursos (.courses-container/.courses-grid).
+   Solo ajusta el padding horizontal de los contenedores de página y el hueco
+   (gap) de los grids de tarjetas; no fuerza el alto ni el padding interno de
+   cada tarjeta.
+   ============================================ */
+body[data-page] :is(
+  .courses-container,
+  .classroom-container,
+  .tasks-container,
+  .purchase-container,
+  .doc-container,
+  .dashboard-container,
+  .report-student-container,
+  .categories-container,
+  .course-details-container,
+  .about-container,
+  .activity-container,
+  .sales-container,
+  .settings-container
+) {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* Grids de tarjetas que aún no seguían el gap de Cursos (20/24/18). */
+body[data-page] :is(
+  .class-grid,
+  .admin-class-grid,
+  .stats-grid,
+  .inventory-stats,
+  .att-stats,
+  .att-layout
+) {
+  gap: 20px;
+}
+
+@media (min-width: 769px) {
+  body[data-page] :is(
+    .class-grid,
+    .admin-class-grid,
+    .stats-grid,
+    .inventory-stats,
+    .att-stats,
+    .att-layout
+  ) {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  body[data-page] :is(
+    .class-grid,
+    .admin-class-grid,
+    .stats-grid,
+    .inventory-stats,
+    .att-stats,
+    .att-layout
+  ) {
+    gap: 18px;
+  }
+}
+
+/* ============================================
    APARICIÓN SUAVE DEL PANEL LATERAL
    ============================================ */
 /* Sólo opacidad y translate: se compone en GPU, sin recalcular layout. Se usa

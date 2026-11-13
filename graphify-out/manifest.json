@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794573293.2938964,
-    "seen": 1794580600.751533,
+    "mtime": 1794581979.4799166,
+    "seen": 1794582006.8356695,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
