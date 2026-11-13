@@ -22,23 +22,52 @@
         </p>
       </div>
 
-      <!-- Barra de búsqueda -->
+      <!-- Barra de búsqueda y filtros -->
       <div class="panel-toolbar">
         <div class="panel-search">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path
               d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
             />
           </svg>
-          <textarea
+          <input
             id="user-search"
             v-model="searchInput"
+            type="text"
             placeholder="Buscar por nombre, apellido o DNI..."
-            rows="1"
             autocomplete="off"
             spellcheck="false"
-            style="resize:none; overflow:hidden; line-height:1.5;"
-          ></textarea>
+          >
+        </div>
+
+        <div class="panel-filters" role="group" aria-label="Filtrar por rol">
+          <span class="panel-filters-label">Rol</span>
+          <div class="filter-chips">
+            <button
+              v-for="opt in ROLE_FILTERS"
+              :key="opt.id"
+              type="button"
+              class="filter-chip"
+              :class="{ active: roleFilter === opt.id }"
+              :aria-pressed="roleFilter === opt.id"
+              @click="roleFilter = opt.id"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div class="panel-filters" role="group" aria-label="Filtrar por plan">
+          <span class="panel-filters-label">Plan</span>
+          <div class="filter-chips">
+            <button
+              v-for="opt in PLAN_FILTERS"
+              :key="opt.id"
+              type="button"
+              class="filter-chip"
+              :class="{ active: planFilter === opt.id }"
+              :aria-pressed="planFilter === opt.id"
+              @click="planFilter = opt.id"
+            >{{ opt.label }}</button>
+          </div>
         </div>
       </div>
 
@@ -141,6 +170,29 @@ const PLAN_LABELS: Record<string, string> = {
 };
 const ROLE_LABELS: Record<string, string> = { admin: 'Admin', teacher: 'Profesor', profesor: 'Profesor', professor: 'Profesor', student: 'Estudiante' };
 
+const ROLE_FILTERS: { id: string; label: string }[] = [
+  { id: '', label: 'Todos' },
+  { id: 'student', label: 'Estudiante' },
+  { id: 'teacher', label: 'Profesor' },
+  { id: 'admin', label: 'Admin' },
+];
+const PLAN_FILTERS: { id: string; label: string }[] = [
+  { id: '', label: 'Todos' },
+  { id: 'basic', label: '⭐ Basic' },
+  { id: 'students', label: '🎓 Students' },
+  { id: 'development', label: '💻 Development' },
+  { id: 'designer', label: '🎨 Designer' },
+  { id: 'max', label: '🚀 Max' },
+];
+
+/** Normaliza profesor/professor/profesor → teacher. */
+function normalizeRole(role?: string | null): string {
+  const r = (role || '').toLowerCase();
+  if (r === 'teacher' || r === 'profesor' || r === 'professor') return 'teacher';
+  if (r === 'admin') return 'admin';
+  return 'student';
+}
+
 /** a*****e@g***.com */
 function censorEmail(email: string): string {
   if (!email.includes('@')) return '***@***.***';
@@ -238,6 +290,8 @@ async function loadUsers() {
 // ── Búsqueda ──────────────────────────────────────────────────────────────
 const searchInput = ref('');
 const search = ref('');
+const roleFilter = ref('');
+const planFilter = ref('');
 let searchTimer: number | undefined;
 watch(searchInput, (v) => {
   clearTimeout(searchTimer);
@@ -246,8 +300,12 @@ watch(searchInput, (v) => {
 
 const filtered = computed(() => {
   const q = search.value;
-  if (!q) return users.value;
-  return users.value.filter((u) => [u.first_name, u.last_name, u.name, u.email, u.dni, u.role].filter(Boolean).join(' ').toLowerCase().includes(q));
+  return users.value.filter((u) => {
+    if (roleFilter.value && normalizeRole(u.role) !== roleFilter.value) return false;
+    if (planFilter.value && (u.plan || 'basic') !== planFilter.value) return false;
+    if (!q) return true;
+    return [u.first_name, u.last_name, u.name, u.email, u.dni, u.role].filter(Boolean).join(' ').toLowerCase().includes(q);
+  });
 });
 
 const countLabel = computed(() => {
@@ -378,6 +436,56 @@ onBeforeUnmount(() => {
 
 :where(body[data-page="panel"]) .panel-search input::placeholder {
   color: var(--text-secondary, #aaa);
+}
+
+/* Filtros por rol y plan */
+:where(body[data-page="panel"]) .panel-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+:where(body[data-page="panel"]) .panel-filters-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #888);
+}
+
+:where(body[data-page="panel"]) .filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.9));
+  border: 1.5px solid var(--glass-border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  padding: 0.3rem;
+}
+
+:where(body[data-page="panel"]) .filter-chip {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #666);
+  padding: 0.42rem 0.7rem;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+:where(body[data-page="panel"]) .filter-chip:hover {
+  background: var(--secondary-container, rgba(103, 80, 164, 0.1));
+  color: var(--accent-color);
+}
+
+:where(body[data-page="panel"]) .filter-chip.active {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 2px 8px var(--accent-glow, rgba(103, 80, 164, 0.22));
 }
 
 :where(body[data-page="panel"]) .panel-count {
