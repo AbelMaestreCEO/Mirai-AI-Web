@@ -228,9 +228,9 @@
     "semantic_hash": "61832bb97bfc3651664ea8ba4c220a32"
   },
   "frontend/src/layouts/MainLayout.vue": {
-    "mtime": 1794080939.4897945,
-    "seen": 1794080960.9680796,
-    "ast_hash": "84de6798d21ab41f1c2cfebfaeeeb2d8",
+    "mtime": 1794601590.4247754,
+    "seen": 1794601643.8916824,
+    "ast_hash": "4b2729951a3b9c68d526b51ad412ece4",
     "semantic_hash": ""
   },
   "frontend/src/lib/apa-docx.ts": {
@@ -324,9 +324,9 @@
     "semantic_hash": "3f23478416aaccdd8e6b9562bddcb464"
   },
   "frontend/src/lib/nav.ts": {
-    "mtime": 1794254872.5562503,
-    "seen": 1794255025.978983,
-    "ast_hash": "7ba3dc29afd40efbfeda2b39403d2423",
+    "mtime": 1794601589.6876986,
+    "seen": 1794601643.89345,
+    "ast_hash": "9f660299324297d9442bea4e822d16bd",
     "semantic_hash": ""
   },
   "frontend/src/lib/pages.ts": {
@@ -480,9 +480,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/HomePage.vue": {
-    "mtime": 1794254881.7750795,
-    "seen": 1794255025.9835339,
-    "ast_hash": "c2e45f15864dca9523d4fe4e77a6e8e4",
+    "mtime": 1794601595.7282543,
+    "seen": 1794601643.896598,
+    "ast_hash": "a9a5747f8fee71f2a26a33a40029b8bb",
     "semantic_hash": ""
   },
   "frontend/src/pages/InventoryPage.vue": {
@@ -582,15 +582,15 @@
     "semantic_hash": "f131a19f6ddecef1cc82687613b89c86"
   },
   "frontend/src/router/index.ts": {
-    "mtime": 1794022306.643884,
-    "seen": 1794022395.4562452,
-    "ast_hash": "4ea36114f5c8317a4d8b036d1447460a",
+    "mtime": 1794601585.921408,
+    "seen": 1794601643.8983154,
+    "ast_hash": "a41b7b4d99db2649d5df20599df31f42",
     "semantic_hash": ""
   },
   "frontend/src/router/routes.ts": {
-    "mtime": 1793562201.1400025,
-    "seen": 1793562475.881239,
-    "ast_hash": "190940c6d111c70e9ed0fc750bccfbab",
+    "mtime": 1794601584.3818054,
+    "seen": 1794601643.898317,
+    "ast_hash": "c8ba5a5e9bd20abd2a20d903f95c9d3f",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {

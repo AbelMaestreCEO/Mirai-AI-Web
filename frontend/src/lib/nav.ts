@@ -9,6 +9,8 @@ export interface NavItem {
   /** Nombre del icono en /icons/ui/<icon>-48.png y -96.png. */
   icon: string;
   alt: string;
+  /** Rol necesario para ver el acceso (p. ej. 'admin'). */
+  requiresRole?: string;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -25,6 +27,8 @@ export const NAV_ITEMS: NavItem[] = [
   { slug: 'investigation', label: 'Investigar', tooltip: 'Investigador', icon: 'investigation', alt: 'Investigar' },
   { slug: 'report', label: 'Reportes', tooltip: 'Reportes', icon: 'reports', alt: 'Reportes' },
   { slug: 'task', label: 'Tareas', tooltip: 'Tareas', icon: 'tasks', alt: 'Tareas' },
+  { slug: 'inventory', label: 'Inventario', tooltip: 'Inventario', icon: 'inventory', alt: 'Inventario', requiresRole: 'admin' },
+  { slug: 'sales', label: 'Ventas', tooltip: 'Ventas', icon: 'sales', alt: 'Ventas', requiresRole: 'admin' },
   { slug: 'diet', label: 'Dieta', tooltip: 'Dieta', icon: 'diet', alt: 'Dieta' },
   { slug: 'location', label: 'Ubicación', tooltip: 'Ubicación', icon: 'location', alt: 'Ubicación' },
   { slug: 'panel', label: 'Panel', tooltip: 'Panel', icon: 'panel', alt: 'Panel' },

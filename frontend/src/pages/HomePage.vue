@@ -81,6 +81,14 @@
         <img class="shortcut-icon" src="/icons/ui/tasks-48.png" srcset="/icons/ui/tasks-48.png 1x, /icons/ui/tasks-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
         <span class="shortcut-label">Tareas</span>
       </AppLink>
+      <AppLink v-if="isAdmin()" to="inventory" class="shortcut-card">
+        <img class="shortcut-icon" src="/icons/ui/inventory-48.png" srcset="/icons/ui/inventory-48.png 1x, /icons/ui/inventory-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
+        <span class="shortcut-label">Inventario</span>
+      </AppLink>
+      <AppLink v-if="isAdmin()" to="sales" class="shortcut-card">
+        <img class="shortcut-icon" src="/icons/ui/sales-48.png" srcset="/icons/ui/sales-48.png 1x, /icons/ui/sales-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
+        <span class="shortcut-label">Ventas</span>
+      </AppLink>
       <AppLink to="diet" class="shortcut-card">
         <img class="shortcut-icon" src="/icons/ui/diet-48.png" srcset="/icons/ui/diet-48.png 1x, /icons/ui/diet-96.png 2x" alt="" width="26" height="26" loading="lazy" decoding="async">
         <span class="shortcut-label">Dieta</span>
@@ -304,6 +312,7 @@ import AppLink from '@/components/AppLink.vue';
 import { api } from '@/lib/api';
 import { useRouter } from 'vue-router';
 import { goToPage } from '@/lib/pages';
+import { isAdmin } from '@/lib/session';
 
 const router = useRouter();
 const year = new Date().getFullYear();

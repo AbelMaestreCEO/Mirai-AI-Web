@@ -9,11 +9,14 @@ import {
 import routes from './routes';
 import { ensureSession } from '@/lib/session';
 import { applySeo } from '@/lib/seo';
+import { dialog } from '@/lib/dialog';
 
 declare module 'vue-router' {
   interface RouteMeta {
     /** Requiere sesión (lo que hacía auth-guard.js en las páginas protegidas). */
     requiresAuth?: boolean;
+    /** Rol mínimo para entrar (p. ej. 'admin'). */
+    requiresRole?: string;
     /** Título de la pestaña (el <title> de la página antigua). */
     title?: string;
     /**
@@ -56,6 +59,14 @@ export default defineRouter(() => {
     // y cada llamada a la API dirá lo que haga falta (igual que auth-guard.js).
     if (session.status === 'anonymous') {
       return { name: 'login', query: { redirect: to.fullPath } };
+    }
+    const requiredRole = to.matched.find((r) => r.meta.requiresRole)?.meta.requiresRole;
+    if (requiredRole && session.status === 'authenticated' && session.user.role !== requiredRole) {
+      await dialog.alert('No tienes permisos para acceder a este módulo. Solo los administradores pueden entrar.', {
+        title: 'Acceso restringido',
+        tone: 'warning',
+      });
+      return { name: 'index' };
     }
     return true;
   });

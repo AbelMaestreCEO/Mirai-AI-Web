@@ -110,7 +110,7 @@ import { useRoute } from 'vue-router';
 import AppLink from '@/components/AppLink.vue';
 import { NAV_ITEMS } from '@/lib/nav';
 import { pageHref } from '@/lib/pages';
-import { resetSession } from '@/lib/session';
+import { isAdmin, resetSession } from '@/lib/session';
 import { dialog } from '@/lib/dialog';
 import { closeMenu, shell, toggleCollapsed } from '@/lib/shell';
 
@@ -120,7 +120,9 @@ const year = new Date().getFullYear();
 /** Accesos visibles: los tres base y los extra solo con "Ver más", así el
  *  TransitionGroup puede animar su entrada y su salida (no desaparecen de golpe). */
 const visibleNavItems = computed(() =>
-  NAV_ITEMS.map((item, i) => ({ item, i })).filter(({ i }) => shell.navExpanded || i < 3),
+  NAV_ITEMS.map((item, i) => ({ item, i })).filter(
+    ({ item, i }) => (shell.navExpanded || i < 3) && (!item.requiresRole || isAdmin()),
+  ),
 );
 
 /** Página actual: el primer segmento de la ruta es el slug antiguo. */
