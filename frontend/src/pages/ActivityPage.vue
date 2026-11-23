@@ -240,9 +240,10 @@
           <div v-for="item in result.details.results" :key="item.index" class="detail-row" :class="{ ok: item.correct, bad: !item.correct }">
             <span class="detail-icon">{{ item.correct ? '✅' : '❌' }}</span>
             <div>
-              <p class="detail-question">{{ payload.cards[item.index]?.front }}</p>
-              <p class="detail-answer">Respuesta: {{ item.back }}</p>
+              <p class="detail-question">{{ item.front || payload?.cards?.[item.index]?.front }}</p>
+              <p class="detail-answer">Respuesta esperada: {{ item.back }}</p>
               <p v-if="!item.correct" class="detail-note">Tu respuesta: {{ item.answer || 'Sin respuesta' }}</p>
+              <p v-if="item.feedback" class="detail-note">{{ item.feedback }}</p>
             </div>
           </div>
         </div>
@@ -544,12 +545,10 @@ function addEdge() {
 
 function buildAnswers(): any {
   if (type.value === 'flashcards') {
-    return {
-      answers: (payload.value?.cards || []).map((card: any, index: number) => ({
-        card_index: index,
-        answer: cardAnswers.value[index] || '',
-      })),
-    };
+    return (payload.value?.cards || []).map((card: any, index: number) => ({
+      card_index: index,
+      answer: cardAnswers.value[index] || '',
+    }));
   }
   if (type.value === 'find_error') {
     return { selected: selectedSentences.value, corrections: corrections.value };

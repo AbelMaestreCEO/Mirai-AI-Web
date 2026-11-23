@@ -539,17 +539,75 @@ function nextSchedule(previous: any, correct: boolean) {
   return { repetitions, ease, intervalDays, dueAt, quality };
 }
 
+async function evaluateFlashcardAnswers(
+  cards: any[],
+  submitted: Map<number, string>,
+  env: Env,
+): Promise<Map<number, { correct: boolean; feedback: string }>> {
+  const verdicts = new Map<number, { correct: boolean; feedback: string }>();
+  for (let index = 0; index < cards.length; index++) {
+    const answer = submitted.get(index) || '';
+    verdicts.set(index, { correct: textMatches(answer, cards[index]?.back || ''), feedback: '' });
+  }
+  const items = cards
+    .map((card: any, index: number) => ({
+      index,
+      question: String(card?.front || ''),
+      expected: String(card?.back || ''),
+      answer: String(submitted.get(index) || '').trim(),
+    }))
+    .filter((item) => item.answer);
+  if (!items.length) return verdicts;
+
+  try {
+    const raw = await callAI(AI_MODEL_NORMAL, [
+      {
+        role: 'system',
+        content: `Eres un profesor evaluando respuestas de flashcards escritas por un estudiante.
+Para cada tarjeta compara la respuesta del estudiante con la respuesta esperada.
+Reglas:
+- Marca "correct": true si la respuesta es esencialmente correcta aunque use otras palabras, sinónimos o esté incompleta pero con el concepto clave bien expresado.
+- Marca "correct": false si la respuesta está vacía, es incorrecta o contradice el concepto esperado.
+- "feedback" es una frase breve (máximo 20 palabras) en español que explica el veredicto.
+- Devuelve SOLO JSON: {"results":[{"index":0,"correct":true,"feedback":"..."}]}`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify(items),
+      },
+    ], { temperature: 0.1, max_tokens: 1800 }, env);
+    const parsed = parseJsonObject(raw);
+    const list = Array.isArray(parsed?.results) ? parsed.results : [];
+    for (const item of list) {
+      const index = Number(item?.index);
+      if (!Number.isInteger(index) || !verdicts.has(index)) continue;
+      const base = verdicts.get(index)!;
+      verdicts.set(index, {
+        correct: item?.correct === true,
+        feedback: String(item?.feedback || '').trim() || base.feedback,
+      });
+    }
+  } catch (error) {
+    console.warn('Calificación IA de flashcards falló, usando coincidencia simple:', (error as Error)?.message);
+  }
+  return verdicts;
+}
+
 async function gradeFlashcards(set: any, answers: any, env: Env, assignmentId: string, userDni: string) {
+  const cards = Array.isArray(set.cards) ? set.cards : [];
+  const source = Array.isArray(answers) ? answers : (Array.isArray(answers?.answers) ? answers.answers : []);
   const submitted = new Map<number, string>();
-  for (const item of Array.isArray(answers) ? answers : []) {
+  for (const item of source) {
     submitted.set(Number(item?.card_index), String(item?.answer || ''));
   }
+  const verdicts = await evaluateFlashcardAnswers(cards, submitted, env);
   const results = [];
   let correct = 0;
-  for (let index = 0; index < (set.cards || []).length; index++) {
-    const card = set.cards[index];
+  for (let index = 0; index < cards.length; index++) {
+    const card = cards[index];
     const answer = submitted.get(index) || '';
-    const ok = textMatches(answer, card.back);
+    const verdict = verdicts.get(index) || { correct: textMatches(answer, card.back), feedback: '' };
+    const ok = verdict.correct;
     if (ok) correct++;
     const previous = await env.MIRAI_AI_DB.prepare(
       'SELECT repetitions, ease, interval_days FROM flashcard_reviews WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?) AND card_index = ?'
@@ -570,17 +628,18 @@ async function gradeFlashcards(set: any, answers: any, env: Env, assignmentId: s
       answer,
       front: card.front,
       back: card.back,
+      feedback: verdict.feedback,
       next_review_days: schedule.intervalDays,
     });
   }
-  const total = (set.cards || []).length || 1;
+  const total = cards.length || 1;
   const ratio = correct / total;
   return {
     ratio,
     feedback: {
       memoria: `${correct} de ${total} tarjetas recordadas correctamente.`,
       constancia: correct === total ? 'Dominio completo en esta sesión.' : 'Repasa las tarjetas falladas en los próximos días.',
-      general: `Sesión de flashcards completada: ${correct}/${total}. La repetición espaciada ya programó tus próximos repasos.`,
+      general: `Sesión de flashcards evaluada por la IA: ${correct}/${total}. La repetición espaciada ya programó tus próximos repasos.`,
     },
     details: { results, correct, total },
   };
