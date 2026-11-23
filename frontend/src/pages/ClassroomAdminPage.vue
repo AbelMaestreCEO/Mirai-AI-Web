@@ -367,6 +367,7 @@
                 <td>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     <button class="action-btn btn-edit" @click="openTaskModes(t)">🧩 Evaluación</button>
+                    <button class="action-btn btn-edit" @click="openResetTask(t)">🔁 Reiniciar</button>
                     <template v-if="!t.published_at">
                       <button class="action-btn btn-edit" @click="editTask(t)">✏️ Editar</button>
                       <button class="action-btn btn-edit" @click="publishTask(t)">📢 Publicar</button>
@@ -790,6 +791,58 @@
         <button type="button" class="btn-secondary" @click="modesModal.open = false">Cancelar</button>
         <button type="button" class="btn-primary" :disabled="modesModal.selected.length < 4 || modesModal.saving" @click="saveTaskModes">
           {{ modesModal.saving ? 'Guardando…' : 'Guardar evaluación' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Reiniciar tarea -->
+  <div id="modal-reset-task" class="modal" :class="{ show: resetModal.open }" :style="{ display: resetModal.open ? 'flex' : 'none' }" @click.self="resetModal.open = false">
+    <div class="modal-overlay" @click="resetModal.open = false"></div>
+    <div class="modal-content">
+      <button class="modal-close" @click="resetModal.open = false">&times;</button>
+      <div class="modal-header">
+        <h2>Reiniciar tarea</h2>
+        <p class="modal-subtitle">Los estudiantes seleccionados tendrán que volver a elegir sus 4 actividades y empezar la tarea desde cero.</p>
+      </div>
+      <p v-if="resetModal.task" style="font-weight:600;margin-bottom:12px;">{{ resetModal.task.title }}</p>
+
+      <p v-if="resetModal.loading" style="color:var(--text-secondary);">Cargando estudiantes...</p>
+      <p v-else-if="!resetModal.students.length" style="color:var(--text-secondary);">Esta tarea no tiene estudiantes asignados.</p>
+      <template v-else>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+          <span style="font-size:.85rem;color:var(--text-secondary);">{{ resetModal.selected.length }} de {{ resetModal.students.length }} seleccionados</span>
+          <button type="button" class="btn-secondary" style="font-size:.8rem;padding:4px 10px;" @click="toggleAllReset">
+            {{ allResetSelected ? 'Quitar todos' : 'Seleccionar todos' }}
+          </button>
+        </div>
+        <div style="max-height:320px;overflow-y:auto;border:1px solid var(--glass-border);border-radius:8px;">
+          <table class="data-table" style="margin:0;">
+            <thead>
+              <tr>
+                <th style="width:36px;"></th>
+                <th>Apellidos</th>
+                <th>Nombres</th>
+                <th>Cédula</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in resetModal.students" :key="s.user_dni">
+                <td><input v-model="resetModal.selected" type="checkbox" :value="s.user_dni"></td>
+                <td>{{ s.last_name || '—' }}</td>
+                <td>{{ s.first_name || '—' }}</td>
+                <td>{{ s.user_dni }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <p v-if="resetModal.error" style="color: var(--error-color, #dc2626); font-size: .85rem; margin-top:10px;">{{ resetModal.error }}</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button type="button" class="btn-secondary" @click="resetModal.open = false">Cancelar</button>
+        <button type="button" class="btn-primary" :disabled="!resetModal.selected.length || resetModal.saving || resetModal.loading" @click="confirmResetTask">
+          {{ resetModal.saving ? 'Reiniciando…' : 'Reiniciar seleccionados' }}
         </button>
       </div>
     </div>
@@ -1225,6 +1278,69 @@ async function saveTaskModes() {
     modesModal.error = 'Error de conexión. Inténtalo de nuevo.';
   } finally {
     modesModal.saving = false;
+  }
+}
+
+// Reinicio de una tarea para estudiantes seleccionados.
+const resetModal = reactive({
+  open: false,
+  task: null as Task | null,
+  students: [] as SectionStudent[],
+  selected: [] as string[],
+  loading: false,
+  saving: false,
+  error: '',
+});
+
+const allResetSelected = computed(() =>
+  resetModal.students.length > 0 && resetModal.selected.length === resetModal.students.length,
+);
+
+function toggleAllReset() {
+  resetModal.selected = allResetSelected.value
+    ? []
+    : resetModal.students.map((s) => s.user_dni);
+}
+
+async function openResetTask(task: Task) {
+  resetModal.task = task;
+  resetModal.open = true;
+  resetModal.error = '';
+  resetModal.selected = [];
+  resetModal.students = [];
+  resetModal.loading = true;
+  try {
+    const { ok, data } = await api.get<SectionStudent[]>(
+      `/api/task-students?assignment_id=${encodeURIComponent(String(task.id))}`,
+    );
+    if (ok && Array.isArray(data)) resetModal.students = data;
+    else resetModal.error = 'No se pudieron cargar los estudiantes.';
+  } catch {
+    resetModal.error = 'Error de conexión. Inténtalo de nuevo.';
+  } finally {
+    resetModal.loading = false;
+  }
+}
+
+async function confirmResetTask() {
+  if (!resetModal.task || !resetModal.selected.length) return;
+  resetModal.saving = true;
+  resetModal.error = '';
+  try {
+    const { ok, data } = await api.post<{ success?: boolean; error?: string }>('/api/reset-task-progress', {
+      assignment_id: resetModal.task.id,
+      user_dnis: resetModal.selected,
+    });
+    if (!ok) {
+      resetModal.error = errorMessage(data, 'No se pudo reiniciar la tarea.');
+      return;
+    }
+    resetModal.open = false;
+    await loadTasks();
+  } catch {
+    resetModal.error = 'Error de conexión. Inténtalo de nuevo.';
+  } finally {
+    resetModal.saving = false;
   }
 }
 

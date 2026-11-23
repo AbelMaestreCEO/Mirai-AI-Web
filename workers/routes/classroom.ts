@@ -760,12 +760,64 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
 
     try {
       const { results } = await env.MIRAI_AI_DB.prepare(`
-            SELECT * FROM assignment_students WHERE assignment_id = ?
+            SELECT a.user_dni, u.first_name, u.last_name
+              FROM assignment_students a
+              LEFT JOIN users u ON UPPER(u.dni) = UPPER(a.user_dni)
+             WHERE a.assignment_id = ?
+             ORDER BY u.last_name, u.first_name, a.user_dni
         `).bind(assignmentId).all<any>();
       return jsonResponse(results, 200, corsHeaders);
     } catch (error) {
       console.error('Error listando estudiantes:', error);
       return jsonResponse({ error: 'Error al obtener estudiantes' }, 500, corsHeaders);
+    }
+  }
+
+  // 6b. Reiniciar una tarea para uno o varios estudiantes: POST /api/reset-task-progress
+  // Borra su selección de modos, resultados y entregas para que vuelva a elegir
+  // sus 4 actividades y empiece la tarea desde cero.
+  if (path === '/api/reset-task-progress' && request.method === 'POST') {
+    const userDni = await requireProfessorAuth(request, env, corsHeaders);
+    if (!userDni || userDni instanceof Response) return userDni;
+
+    const body = await request.json<any>().catch(() => ({}));
+    const assignmentId = String(body?.assignment_id || '').trim();
+    const rawDnis = Array.isArray(body?.user_dnis) ? body.user_dnis : [];
+    if (!assignmentId) return jsonResponse({ error: 'Falta ID de tarea' }, 400, corsHeaders);
+    if (!rawDnis.length) return jsonResponse({ error: 'Selecciona al menos un estudiante' }, 400, corsHeaders);
+
+    if (!await canManageAssignment(assignmentId, userDni, env)) {
+      return jsonResponse({ error: 'Tarea no encontrada o no autorizada' }, 403, corsHeaders);
+    }
+
+    const dnis = rawDnis.map((raw: any) => normalizeDni(raw)).filter(Boolean) as string[];
+    if (!dnis.length) return jsonResponse({ error: 'DNI inválido' }, 400, corsHeaders);
+
+    await ensureTaskModeTables(env);
+
+    const deletes = [
+      'DELETE FROM task_mode_results WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+      'DELETE FROM task_mode_selections WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+      'DELETE FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+      'DELETE FROM activity_attempts WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+      'DELETE FROM flashcard_reviews WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+      'DELETE FROM concept_errors WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+    ];
+
+    try {
+      for (const dni of dnis) {
+        for (const sql of deletes) {
+          try {
+            await env.MIRAI_AI_DB.prepare(sql).bind(assignmentId, dni).run();
+          } catch {
+            // La tabla puede no existir en bases antiguas; se ignora.
+          }
+        }
+      }
+      return jsonResponse({ success: true, reset: dnis.length }, 200, corsHeaders);
+    } catch (error) {
+      console.error('Error reiniciando tarea:', error);
+      return jsonResponse({ error: 'Error al reiniciar la tarea' }, 500, corsHeaders);
     }
   }
 
