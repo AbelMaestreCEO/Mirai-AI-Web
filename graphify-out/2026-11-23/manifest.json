@@ -1380,15 +1380,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1795448298.1755073,
-    "seen": 1795448350.5781708,
-    "ast_hash": "8962da945b67635a4f875c0d312a411a",
+    "mtime": 1795448984.968789,
+    "seen": 1795449027.9454453,
+    "ast_hash": "6df7b37fa71349f3cb0fb97eb280f481",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
-    "mtime": 1795442816.752046,
-    "seen": 1795442862.8971546,
-    "ast_hash": "b2ec6ba4b6d939e4f25b67f093768c9f",
+    "mtime": 1795448495.3630693,
+    "seen": 1795449027.9534674,
+    "ast_hash": "d4bb9342ce86d0d6fad0cb5fefb7b55e",
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {

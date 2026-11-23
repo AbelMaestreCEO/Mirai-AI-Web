@@ -1753,11 +1753,21 @@ Formato exacto:
             SELECT DISTINCT
                    p.id, p.title, p.strategy, p.max_score,
                    p.points_per_evaluation, p.evaluation_count, p.course_id,
-                   COALESCE(p.section_id, (
-                     SELECT a.section_id FROM assignments a
-                      WHERE a.plan_id = p.id AND a.section_id IS NOT NULL
-                      LIMIT 1
-                   )) AS section_id,
+                   COALESCE(
+                     p.section_id,
+                     (
+                       SELECT a.section_id FROM assignments a
+                         JOIN section_students ss ON ss.section_id = a.section_id
+                        WHERE a.plan_id = p.id AND a.section_id IS NOT NULL
+                          AND UPPER(ss.user_dni) = UPPER(?)
+                        LIMIT 1
+                     ),
+                     (
+                       SELECT a.section_id FROM assignments a
+                        WHERE a.plan_id = p.id AND a.section_id IS NOT NULL
+                        LIMIT 1
+                     )
+                   ) AS section_id,
                    c.title AS course_title
               FROM evaluation_plans p
               LEFT JOIN user_courses c ON c.id = p.course_id
@@ -1771,7 +1781,7 @@ Formato exacto:
                       WHERE UPPER(ast.user_dni) = UPPER(?) AND a.plan_id IS NOT NULL
                    )
              ORDER BY p.created_at DESC
-        `).bind(userDni.toUpperCase(), userDni.toUpperCase()).all<any>();
+        `).bind(userDni.toUpperCase(), userDni.toUpperCase(), userDni.toUpperCase()).all<any>();
 
       const detailedPlans: any[] = [];
       for (const plan of plans || []) {
@@ -1779,8 +1789,18 @@ Formato exacto:
               SELECT id, title, description, due_date, max_score, created_at
                 FROM assignments
                WHERE plan_id = ?
+                 AND (
+                   section_id IN (
+                     SELECT section_id FROM section_students
+                      WHERE UPPER(user_dni) = UPPER(?)
+                   )
+                   OR id IN (
+                     SELECT assignment_id FROM assignment_students
+                      WHERE UPPER(user_dni) = UPPER(?)
+                   )
+                 )
                ORDER BY created_at ASC, title ASC
-          `).bind(plan.id).all<any>();
+          `).bind(plan.id, userDni.toUpperCase(), userDni.toUpperCase()).all<any>();
         detailedPlans.push({ ...plan, assignments: planAssignments || [] });
       }
 
