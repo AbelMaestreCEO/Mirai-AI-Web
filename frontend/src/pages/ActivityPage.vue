@@ -216,6 +216,12 @@
       <section v-else-if="type === 'find_bug'" class="activity-card">
         <p class="activity-instruction">{{ payload.instructions }}</p>
         <p class="activity-note">Lenguaje: {{ payload.language }}</p>
+        <div class="bug-toolbar">
+          <span class="bug-hint">Toca las líneas que contengan el error.</span>
+          <span class="bug-count" :class="{ active: bugSelected.length > 0 }">
+            {{ bugSelected.length }} marcada{{ bugSelected.length === 1 ? '' : 's' }}
+          </span>
+        </div>
         <div class="code-block code-lines">
           <label
             v-for="(line, index) in codeLines"
@@ -224,6 +230,7 @@
             :class="{ selected: bugSelected.includes(index + 1) }"
           >
             <input v-model="bugSelected" type="checkbox" :value="index + 1">
+            <span class="code-line-check" aria-hidden="true"></span>
             <span class="code-line-number">{{ index + 1 }}</span>
             <code class="code-line-text">{{ line || ' ' }}</code>
           </label>
@@ -1298,8 +1305,8 @@ onBeforeUnmount(() => {
 }
 
 :where(body[data-page="activity"]) .code-block {
-  background: rgba(0, 0, 0, .35);
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, .14));
+  background: color-mix(in srgb, var(--accent-color) 5%, var(--glass-bg));
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
   padding: .8rem .9rem;
   margin: 0 0 1rem;
@@ -1354,32 +1361,129 @@ onBeforeUnmount(() => {
   word-break: break-word;
 }
 
+:where(body[data-page="activity"]) .bug-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin: 0 0 .6rem;
+}
+
+:where(body[data-page="activity"]) .bug-hint {
+  font-size: .82rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="activity"]) .bug-count {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .2rem .7rem;
+  border-radius: var(--border-radius-pill, 999px);
+  color: var(--text-secondary);
+  background: var(--secondary-container);
+  border: 1px solid var(--glass-border);
+  transition: var(--transition-fast);
+}
+
+:where(body[data-page="activity"]) .bug-count.active {
+  color: #fff;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
 :where(body[data-page="activity"]) .code-lines {
-  padding: .4rem 0;
+  padding: .4rem;
+  background: color-mix(in srgb, var(--accent-color) 4%, var(--glass-bg));
+  border-color: color-mix(in srgb, var(--accent-color) 22%, var(--glass-border));
 }
 
 :where(body[data-page="activity"]) .code-line {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: .5rem;
-  padding: .12rem .6rem;
+  gap: .55rem;
+  padding: .28rem .6rem;
+  border-radius: var(--border-radius-sm, 12px);
+  border: 1px solid transparent;
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+:where(body[data-page="activity"]) .code-line:hover {
+  background: color-mix(in srgb, var(--accent-color) 8%, transparent);
 }
 
 :where(body[data-page="activity"]) .code-line.selected {
-  background: rgba(108, 99, 255, .16);
+  background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 45%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent-color);
 }
 
 :where(body[data-page="activity"]) .code-line input {
-  margin-top: .35rem;
-  accent-color: var(--accent-primary, #6c63ff);
+  position: absolute;
+  width: 0;
+  height: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:where(body[data-page="activity"]) .code-line-check {
+  flex: none;
+  position: relative;
+  margin-top: .28rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.5px solid color-mix(in srgb, var(--accent-color) 45%, var(--glass-border));
+  background: var(--glass-bg);
+  transition: var(--transition-fast);
+}
+
+:where(body[data-page="activity"]) .code-line-check::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  opacity: 0;
+  transition: var(--transition-fast);
+}
+
+:where(body[data-page="activity"]) .code-line.selected .code-line-check {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+:where(body[data-page="activity"]) .code-line.selected .code-line-check::after {
+  transform: rotate(45deg) scale(1);
+  opacity: 1;
+}
+
+:where(body[data-page="activity"]) .code-line input:focus-visible + .code-line-check {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
 }
 
 :where(body[data-page="activity"]) .code-line-number {
   min-width: 1.6rem;
   text-align: right;
-  color: var(--text-secondary, #888);
+  color: var(--text-tertiary, var(--text-secondary));
   user-select: none;
+  font-variant-numeric: tabular-nums;
+  transition: color var(--transition-fast);
+}
+
+:where(body[data-page="activity"]) .code-line.selected .code-line-number {
+  color: var(--accent-color);
+  font-weight: 700;
 }
 
 :where(body[data-page="activity"]) .code-line-text {
