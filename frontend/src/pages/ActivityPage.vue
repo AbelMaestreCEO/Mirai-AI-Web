@@ -4,7 +4,7 @@
     <div class="header-title">Actividad de la tarea</div>
   </header>
 
-  <div class="activity-container">
+  <div class="activity-container" :class="{ 'map-wide': type === 'concept_map' && !result }">
     <div v-if="state === 'loading'" class="loading-state">
       <div class="loading-spinner"></div>
       <p>Preparando tu actividad con IA...</p>
@@ -20,7 +20,7 @@
     <template v-else-if="payload || result">
       <div v-if="payload" class="activity-hero">
         <span class="activity-badge">{{ TYPE_LABELS[type] }}</span>
-        <p class="activity-hint">{{ payload.instructions || TYPE_HINTS[type] }}</p>
+        <p v-if="type !== 'concept_map'" class="activity-hint">{{ payload.instructions || TYPE_HINTS[type] }}</p>
       </div>
 
       <!-- FLASHCARDS -->
@@ -117,13 +117,12 @@
 
       <!-- MAPA CONCEPTUAL -->
       <section v-else-if="type === 'concept_map'" class="activity-card">
-        <p class="activity-instruction">{{ payload.instructions }}</p>
         <p class="activity-note map-help">
           Arrastra los conceptos para acomodarlos en el lienzo. Para unirlos, arrastra desde un punto de un concepto hasta otro concepto y escribe la relación sobre la línea.
         </p>
-        <div class="map-scroll">
-          <div ref="boardRef" class="map-board" :style="{ width: BOARD_W + 'px', height: BOARD_H + 'px' }">
-            <svg class="map-lines" :width="BOARD_W" :height="BOARD_H">
+        <div ref="scrollRef" class="map-scroll">
+          <div ref="boardRef" class="map-board" :style="{ width: boardW + 'px', height: boardH + 'px' }">
+            <svg class="map-lines" :width="boardW" :height="boardH">
               <line
                 v-for="line in edgeLines"
                 :key="`line-${line.id}`"
@@ -381,7 +380,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
@@ -458,10 +457,13 @@ const predictSelected = ref<number | null>(null);
 const bugSelected = ref<number[]>([]);
 const codeOrder = ref<{ id: string; text: string }[]>([]);
 
-const BOARD_W = 760;
-const BOARD_H = 560;
+const boardW = ref(760);
+const boardH = ref(560);
 const NODE_W = 156;
 const NODE_H = 72;
+const MAP_MARGIN = 28;
+const COL_GAP = 48;
+const ROW_GAP = 72;
 const SIDES = ['top', 'right', 'bottom', 'left'] as const;
 type Side = (typeof SIDES)[number];
 const SIDE_OFFSETS: Record<Side, { x: number; y: number }> = {
@@ -488,6 +490,7 @@ interface MapEdge {
 }
 
 const boardRef = ref<HTMLElement | null>(null);
+const scrollRef = ref<HTMLElement | null>(null);
 const nodes = ref<MapNode[]>([]);
 const edges = ref<MapEdge[]>([]);
 const linkSource = ref<{ nodeId: string; side: Side } | null>(null);
@@ -556,18 +559,65 @@ function boardPoint(event: PointerEvent) {
   return { x: event.clientX - (rect?.left || 0), y: event.clientY - (rect?.top || 0) };
 }
 
+function layoutNodes() {
+  const count = nodes.value.length;
+  if (!count) return;
+  const cols = clamp(
+    Math.floor((boardW.value - MAP_MARGIN) / (NODE_W + COL_GAP)),
+    1,
+    4,
+  );
+  const rows = Math.max(1, Math.ceil(count / cols));
+  const gridW = cols * NODE_W + (cols - 1) * COL_GAP;
+  const startX = Math.max(MAP_MARGIN, (boardW.value - gridW) / 2);
+  boardH.value = Math.max(560, MAP_MARGIN * 2 + rows * NODE_H + (rows - 1) * ROW_GAP);
+  nodes.value.forEach((node, index) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    node.x = Math.round(startX + col * (NODE_W + COL_GAP));
+    node.y = Math.round(MAP_MARGIN + row * (NODE_H + ROW_GAP));
+  });
+}
+
+function clampNodes() {
+  for (const node of nodes.value) {
+    node.x = clamp(node.x, 0, Math.max(0, boardW.value - NODE_W));
+    node.y = clamp(node.y, 0, Math.max(0, boardH.value - NODE_H));
+  }
+}
+
+function measureBoard() {
+  const available = scrollRef.value?.clientWidth;
+  if (!available) return;
+  const next = Math.max(300, available - 2);
+  if (next === boardW.value) return;
+  boardW.value = next;
+  if (edges.value.length) clampNodes();
+  else layoutNodes();
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
+function observeBoard() {
+  if (typeof ResizeObserver === 'undefined' || !scrollRef.value) return;
+  resizeObserver?.disconnect();
+  resizeObserver = new ResizeObserver(() => measureBoard());
+  resizeObserver.observe(scrollRef.value);
+}
+
 function initMap(concepts: string[]) {
   nodes.value = concepts.map((concept, index) => ({
     id: `n${index}`,
     concept: String(concept),
-    x: 40 + (index % 3) * 250,
-    y: 40 + Math.floor(index / 3) * 175,
+    x: 0,
+    y: 0,
   }));
   edges.value = [];
   edgeSeq = 0;
   linkSource.value = null;
   linkPointer.value = null;
   linkTargetId.value = null;
+  layoutNodes();
 }
 
 function startDrag(node: MapNode, event: PointerEvent) {
@@ -583,8 +633,8 @@ function onDragMove(event: PointerEvent) {
   const node = nodes.value.find((item) => item.id === dragState?.id);
   if (!node) return;
   const point = boardPoint(event);
-  node.x = clamp(point.x - dragState.offsetX, 0, BOARD_W - NODE_W);
-  node.y = clamp(point.y - dragState.offsetY, 0, BOARD_H - NODE_H);
+  node.x = clamp(point.x - dragState.offsetX, 0, boardW.value - NODE_W);
+  node.y = clamp(point.y - dragState.offsetY, 0, boardH.value - NODE_H);
 }
 
 function onDragEnd() {
@@ -743,10 +793,14 @@ async function load() {
     if (type.value === 'order_code') {
       codeOrder.value = (data.lines || []).map((line: any) => ({ id: String(line.id), text: String(line.text ?? '') }));
     }
-    if (type.value === 'concept_map') {
-      initMap(Array.isArray(data.concepts) ? data.concepts : []);
-    }
+    const concepts = Array.isArray(data.concepts) ? data.concepts : [];
     state.value = 'ready';
+    await nextTick();
+    if (type.value === 'concept_map') {
+      measureBoard();
+      initMap(concepts);
+      observeBoard();
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
     state.value = 'error';
@@ -840,6 +894,11 @@ function backToTask() {
 onMounted(() => {
   void load();
 });
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+});
 </script>
 
 <style>
@@ -847,6 +906,12 @@ onMounted(() => {
   max-width: 820px;
   margin: 0 auto;
   padding: 1.25rem 1rem 3rem;
+}
+
+:where(body[data-page="activity"]) .activity-container.map-wide {
+  max-width: min(1400px, 100vw - 2rem);
+  padding-left: .75rem;
+  padding-right: .75rem;
 }
 
 :where(body[data-page="activity"]) .activity-hero {
@@ -1025,6 +1090,7 @@ onMounted(() => {
 }
 
 :where(body[data-page="activity"]) .map-scroll {
+  width: 100%;
   overflow: auto;
   border: 1px solid var(--glass-border, rgba(255, 255, 255, .12));
   border-radius: 14px;

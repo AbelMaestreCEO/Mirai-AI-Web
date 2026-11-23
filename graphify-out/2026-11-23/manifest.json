@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
-    "mtime": 1794446160.1008794,
-    "seen": 1794446215.2059917,
-    "ast_hash": "132c549155b853f25c397566cc2fa191",
+    "mtime": 1795445625.0517323,
+    "seen": 1795445675.611827,
+    "ast_hash": "f5d20e2e0afa8d4aff30f01542558912",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomPage.vue": {
@@ -612,8 +612,8 @@
     "semantic_hash": ""
   },
   "public/sw.js": {
-    "mtime": 1794595002.0602975,
-    "seen": 1794600996.9180698,
+    "mtime": 1795445660.7565475,
+    "seen": 1795445675.6145272,
     "ast_hash": "7e26575ca482ae0aa2600fe056e9ee1e",
     "semantic_hash": "7e26575ca482ae0aa2600fe056e9ee1e"
   },
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1795445055.81577,
-    "seen": 1795445088.997569,
-    "ast_hash": "b529045ab5715abbeb94a8c852805406",
+    "mtime": 1795445630.9356372,
+    "seen": 1795445675.611356,
+    "ast_hash": "83ea64053c3f4cb2a5fd47f2be7614cf",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
