@@ -1033,7 +1033,7 @@ onMounted(() => {
 
 :where(body[data-page="activity"]) .map-board {
   position: relative;
-  background-image: radial-gradient(rgba(255, 255, 255, .12) 1px, transparent 1px);
+  background-image: radial-gradient(var(--glass-border, rgba(103, 80, 164, .12)) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 
@@ -1044,7 +1044,7 @@ onMounted(() => {
 }
 
 :where(body[data-page="activity"]) .map-line {
-  stroke: var(--accent-primary, #6c63ff);
+  stroke: var(--accent-color, #6c63ff);
   stroke-width: 2.5;
   stroke-linecap: round;
 }
@@ -1064,7 +1064,7 @@ onMounted(() => {
   padding: .35rem .6rem;
   box-sizing: border-box;
   border-radius: 14px;
-  background: var(--surface-strong, rgba(30, 30, 44, .96));
+  background: var(--secondary-container, rgba(30, 30, 44, .96));
   border: 2px solid var(--glass-border, rgba(255, 255, 255, .28));
   color: var(--text-primary, #eee);
   font-size: .85rem;
@@ -1081,8 +1081,8 @@ onMounted(() => {
 }
 
 :where(body[data-page="activity"]) .map-node.source {
-  border-color: var(--accent-primary, #6c63ff);
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, .25);
+  border-color: var(--accent-color, #6c63ff);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(108, 99, 255, .25));
 }
 
 :where(body[data-page="activity"]) .map-node.target {
@@ -1100,8 +1100,8 @@ onMounted(() => {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--accent-primary, #6c63ff);
-  border: 2px solid var(--surface-strong, #1e1e2c);
+  background: var(--accent-color, #6c63ff);
+  border: 2px solid var(--glass-bg, #1e1e2c);
   cursor: crosshair;
   touch-action: none;
   transform: translate(-50%, -50%);
@@ -1132,14 +1132,14 @@ onMounted(() => {
   font-family: inherit;
   text-align: center;
   color: var(--text-primary, #eee);
-  background: var(--surface-strong, #1e1e2c);
+  background: var(--glass-bg, #1e1e2c);
   border: 1px solid var(--glass-border, rgba(255, 255, 255, .28));
   border-radius: 8px;
 }
 
 :where(body[data-page="activity"]) .map-edge-input:focus {
   outline: none;
-  border-color: var(--accent-primary, #6c63ff);
+  border-color: var(--accent-color, #6c63ff);
 }
 
 :where(body[data-page="activity"]) .map-edge-remove {
