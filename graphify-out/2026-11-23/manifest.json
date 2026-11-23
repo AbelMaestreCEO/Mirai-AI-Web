@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1794446117.0452642,
-    "seen": 1794446215.2059793,
-    "ast_hash": "8e4e880528c2dee38d869f4150b49abe",
+    "mtime": 1795443278.122489,
+    "seen": 1795443316.9003458,
+    "ast_hash": "c5a836419d8ca97484ff34c3b5786e86",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "workers/routes/classroom.ts": {
-    "mtime": 1794600958.9698083,
-    "seen": 1794600996.9207797,
-    "ast_hash": "0cca08eea8edf37cf609d0bc1dac9fed",
+    "mtime": 1795443252.6453207,
+    "seen": 1795443316.9095545,
+    "ast_hash": "6d10e62832829feb476b3fb0967056d8",
     "semantic_hash": ""
   },
   "workers/routes/code-chat.ts": {

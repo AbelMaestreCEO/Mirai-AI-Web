@@ -118,30 +118,72 @@
       <!-- MAPA CONCEPTUAL -->
       <section v-else-if="type === 'concept_map'" class="activity-card">
         <p class="activity-instruction">{{ payload.instructions }}</p>
-        <div class="concepts-grid">
-          <span v-for="concept in payload.concepts" :key="concept" class="concept-chip">{{ concept }}</span>
-        </div>
-        <div class="edge-form">
-          <select v-model="edgeFrom" class="edge-select">
-            <option value="" disabled>Desde...</option>
-            <option v-for="concept in payload.concepts" :key="`from-${concept}`" :value="concept">{{ concept }}</option>
-          </select>
-          <select v-model="edgeTo" class="edge-select">
-            <option value="" disabled>Hacia...</option>
-            <option v-for="concept in payload.concepts" :key="`to-${concept}`" :value="concept">{{ concept }}</option>
-          </select>
-          <input v-model="edgeLabel" class="edge-input" type="text" placeholder="Relación (ej: causa)">
-          <button class="activity-btn small" :disabled="!canAddEdge" @click="addEdge">Añadir</button>
-        </div>
-        <p class="activity-note">{{ edges.length }} / {{ payload.max_edges }} relaciones añadidas</p>
-        <div v-if="edges.length" class="edge-list">
-          <div v-for="(edge, index) in edges" :key="`${edge.from}-${edge.to}-${index}`" class="edge-item">
-            <span>{{ edge.from }} → {{ edge.to }} <em>({{ edge.label }})</em></span>
-            <button class="edge-remove" @click="edges.splice(index, 1)">✕</button>
+        <p class="activity-note map-help">
+          Arrastra los conceptos para acomodarlos en el lienzo. Para unirlos, arrastra desde un punto de un concepto hasta otro concepto y escribe la relación sobre la línea.
+        </p>
+        <div class="map-scroll">
+          <div ref="boardRef" class="map-board" :style="{ width: BOARD_W + 'px', height: BOARD_H + 'px' }">
+            <svg class="map-lines" :width="BOARD_W" :height="BOARD_H">
+              <line
+                v-for="line in edgeLines"
+                :key="`line-${line.id}`"
+                :x1="line.x1"
+                :y1="line.y1"
+                :x2="line.x2"
+                :y2="line.y2"
+                class="map-line"
+              />
+              <line
+                v-if="linkPreview"
+                :x1="linkPreview.x1"
+                :y1="linkPreview.y1"
+                :x2="linkPreview.x2"
+                :y2="linkPreview.y2"
+                class="map-line preview"
+              />
+            </svg>
+
+            <div
+              v-for="node in nodes"
+              :key="node.id"
+              class="map-node"
+              :class="{ source: linkSource?.nodeId === node.id, target: linkTargetId === node.id }"
+              :style="{ left: node.x + 'px', top: node.y + 'px', width: NODE_W + 'px', height: NODE_H + 'px' }"
+              @pointerdown.stop="startDrag(node, $event)"
+            >
+              <span class="map-node-text">{{ node.concept }}</span>
+              <span
+                v-for="side in SIDES"
+                :key="side"
+                class="map-point"
+                :class="`point-${side}`"
+                @pointerdown.stop="startLink(node, side, $event)"
+              ></span>
+            </div>
+
+            <div
+              v-for="edge in edges"
+              :key="`label-${edge.id}`"
+              class="map-edge-label"
+              :style="edgeLabelStyle(edge)"
+            >
+              <input
+                v-model="edge.label"
+                class="map-edge-input"
+                :data-edge-id="edge.id"
+                type="text"
+                placeholder="relación"
+                @pointerdown.stop
+              >
+              <button class="map-edge-remove" title="Eliminar relación" @pointerdown.stop @click="removeEdge(edge.id)">✕</button>
+            </div>
           </div>
         </div>
+        <p class="activity-note">
+          {{ labeledEdgeCount }} relación(es) con texto · {{ edges.length }} enlace(s) trazado(s)
+        </p>
         <div class="activity-actions">
-          <button class="activity-btn" :disabled="grading || edges.length < 3" @click="submitActivity">
+          <button class="activity-btn" :disabled="grading || labeledEdgeCount < 3" @click="submitActivity">
             {{ grading ? 'Evaluando...' : 'Entregar mapa' }}
           </button>
         </div>
@@ -339,7 +381,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MenuToggle from '@/components/MenuToggle.vue';
 import { api, errorMessage } from '@/lib/api';
@@ -412,13 +454,48 @@ const selectedSentences = ref<number[]>([]);
 const corrections = ref<Record<number, string>>({});
 const recallText = ref('');
 const summaryText = ref('');
-const edgeFrom = ref('');
-const edgeTo = ref('');
-const edgeLabel = ref('');
-const edges = ref<{ from: string; to: string; label: string }[]>([]);
 const predictSelected = ref<number | null>(null);
 const bugSelected = ref<number[]>([]);
 const codeOrder = ref<{ id: string; text: string }[]>([]);
+
+const BOARD_W = 760;
+const BOARD_H = 560;
+const NODE_W = 156;
+const NODE_H = 72;
+const SIDES = ['top', 'right', 'bottom', 'left'] as const;
+type Side = (typeof SIDES)[number];
+const SIDE_OFFSETS: Record<Side, { x: number; y: number }> = {
+  top: { x: NODE_W / 2, y: 0 },
+  bottom: { x: NODE_W / 2, y: NODE_H },
+  left: { x: 0, y: NODE_H / 2 },
+  right: { x: NODE_W, y: NODE_H / 2 },
+};
+
+interface MapNode {
+  id: string;
+  concept: string;
+  x: number;
+  y: number;
+}
+
+interface MapEdge {
+  id: string;
+  fromId: string;
+  toId: string;
+  fromSide: Side;
+  toSide: Side;
+  label: string;
+}
+
+const boardRef = ref<HTMLElement | null>(null);
+const nodes = ref<MapNode[]>([]);
+const edges = ref<MapEdge[]>([]);
+const linkSource = ref<{ nodeId: string; side: Side } | null>(null);
+const linkPointer = ref<{ x: number; y: number } | null>(null);
+const linkTargetId = ref<string | null>(null);
+let edgeSeq = 0;
+let dragState: { id: string; offsetX: number; offsetY: number } | null = null;
+let linkState: { nodeId: string; side: Side } | null = null;
 
 const summaryWords = computed(() => summaryText.value.trim().split(/\s+/).filter(Boolean).length);
 
@@ -442,15 +519,168 @@ const hasReview = computed(() => {
   return Boolean(details.missing?.length || details.extra?.length || details.misconceptions?.length);
 });
 
-const canAddEdge = computed(() => {
-  if (!edgeFrom.value || !edgeTo.value || !edgeLabel.value.trim()) return false;
-  if (edgeFrom.value === edgeTo.value) return false;
-  if (edges.value.length >= (payload.value?.max_edges || 10)) return false;
-  const exists = edges.value.some((edge) =>
-    (edge.from === edgeFrom.value && edge.to === edgeTo.value)
-    || (edge.from === edgeTo.value && edge.to === edgeFrom.value));
-  return !exists;
+const labeledEdgeCount = computed(() => edges.value.filter((edge) => edge.label.trim().length > 0).length);
+
+const linkPreview = computed(() => {
+  if (!linkSource.value || !linkPointer.value) return null;
+  const node = nodes.value.find((item) => item.id === linkSource.value?.nodeId);
+  if (!node) return null;
+  const start = pointOf(node, linkSource.value.side);
+  return { x1: start.x, y1: start.y, x2: linkPointer.value.x, y2: linkPointer.value.y };
 });
+
+const edgeLines = computed(() => {
+  return edges.value
+    .map((edge) => {
+      const from = nodes.value.find((item) => item.id === edge.fromId);
+      const to = nodes.value.find((item) => item.id === edge.toId);
+      if (!from || !to) return null;
+      const a = pointOf(from, edge.fromSide);
+      const b = pointOf(to, edge.toSide);
+      return { id: edge.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+    })
+    .filter((line): line is { id: string; x1: number; y1: number; x2: number; y2: number } => line !== null);
+});
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function pointOf(node: MapNode, side: Side) {
+  const offset = SIDE_OFFSETS[side];
+  return { x: node.x + offset.x, y: node.y + offset.y };
+}
+
+function boardPoint(event: PointerEvent) {
+  const rect = boardRef.value?.getBoundingClientRect();
+  return { x: event.clientX - (rect?.left || 0), y: event.clientY - (rect?.top || 0) };
+}
+
+function initMap(concepts: string[]) {
+  nodes.value = concepts.map((concept, index) => ({
+    id: `n${index}`,
+    concept: String(concept),
+    x: 40 + (index % 3) * 250,
+    y: 40 + Math.floor(index / 3) * 175,
+  }));
+  edges.value = [];
+  edgeSeq = 0;
+  linkSource.value = null;
+  linkPointer.value = null;
+  linkTargetId.value = null;
+}
+
+function startDrag(node: MapNode, event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const point = boardPoint(event);
+  dragState = { id: node.id, offsetX: point.x - node.x, offsetY: point.y - node.y };
+  window.addEventListener('pointermove', onDragMove);
+  window.addEventListener('pointerup', onDragEnd);
+}
+
+function onDragMove(event: PointerEvent) {
+  if (!dragState) return;
+  const node = nodes.value.find((item) => item.id === dragState?.id);
+  if (!node) return;
+  const point = boardPoint(event);
+  node.x = clamp(point.x - dragState.offsetX, 0, BOARD_W - NODE_W);
+  node.y = clamp(point.y - dragState.offsetY, 0, BOARD_H - NODE_H);
+}
+
+function onDragEnd() {
+  dragState = null;
+  window.removeEventListener('pointermove', onDragMove);
+  window.removeEventListener('pointerup', onDragEnd);
+}
+
+function startLink(node: MapNode, side: Side, event: PointerEvent) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  linkSource.value = { nodeId: node.id, side };
+  linkPointer.value = boardPoint(event);
+  linkState = { nodeId: node.id, side };
+  window.addEventListener('pointermove', onLinkMove);
+  window.addEventListener('pointerup', onLinkEnd);
+}
+
+function onLinkMove(event: PointerEvent) {
+  const point = boardPoint(event);
+  linkPointer.value = point;
+  const target = hitTestNode(point, linkState?.nodeId);
+  linkTargetId.value = target?.id || null;
+}
+
+function onLinkEnd(event: PointerEvent) {
+  window.removeEventListener('pointermove', onLinkMove);
+  window.removeEventListener('pointerup', onLinkEnd);
+  const point = boardPoint(event);
+  const source = linkState;
+  linkSource.value = null;
+  linkPointer.value = null;
+  linkTargetId.value = null;
+  linkState = null;
+  if (!source) return;
+  const target = hitTestNode(point, source.nodeId);
+  if (!target) return;
+  addEdge(source.nodeId, target.id, source.side, nearestSide(target, point));
+}
+
+function hitTestNode(point: { x: number; y: number }, excludeId?: string): MapNode | null {
+  for (const node of nodes.value) {
+    if (node.id === excludeId) continue;
+    for (const side of SIDES) {
+      const sp = pointOf(node, side);
+      if (Math.hypot(sp.x - point.x, sp.y - point.y) <= 18) return node;
+    }
+  }
+  for (const node of nodes.value) {
+    if (node.id === excludeId) continue;
+    if (point.x >= node.x && point.x <= node.x + NODE_W && point.y >= node.y && point.y <= node.y + NODE_H) {
+      return node;
+    }
+  }
+  return null;
+}
+
+function nearestSide(node: MapNode, point: { x: number; y: number }): Side {
+  let best: Side = 'left';
+  let bestDistance = Infinity;
+  for (const side of SIDES) {
+    const sp = pointOf(node, side);
+    const distance = Math.hypot(sp.x - point.x, sp.y - point.y);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = side;
+    }
+  }
+  return best;
+}
+
+function addEdge(fromId: string, toId: string, fromSide: Side, toSide: Side) {
+  if (fromId === toId) return;
+  const exists = edges.value.some(
+    (edge) => (edge.fromId === fromId && edge.toId === toId) || (edge.fromId === toId && edge.toId === fromId),
+  );
+  if (exists || edges.value.length >= Math.max(6, nodes.value.length)) return;
+  const id = `e${edgeSeq++}`;
+  edges.value.push({ id, fromId, toId, fromSide, toSide, label: '' });
+  void nextTick(() => {
+    const input = boardRef.value?.querySelector<HTMLInputElement>(`input[data-edge-id="${id}"]`);
+    input?.focus();
+  });
+}
+
+function removeEdge(id: string) {
+  edges.value = edges.value.filter((edge) => edge.id !== id);
+}
+
+function edgeLabelStyle(edge: MapEdge) {
+  const from = nodes.value.find((item) => item.id === edge.fromId);
+  const to = nodes.value.find((item) => item.id === edge.toId);
+  if (!from || !to) return {};
+  const a = pointOf(from, edge.fromSide);
+  const b = pointOf(to, edge.toSide);
+  return { left: `${(a.x + b.x) / 2}px`, top: `${(a.y + b.y) / 2}px` };
+}
 
 const feedbackItems = computed<FeedbackItem[]>(() => {
   const feedback = result.value?.feedback || {};
@@ -480,10 +710,11 @@ function resetLocalState() {
   corrections.value = {};
   recallText.value = '';
   summaryText.value = '';
-  edgeFrom.value = '';
-  edgeTo.value = '';
-  edgeLabel.value = '';
+  nodes.value = [];
   edges.value = [];
+  linkSource.value = null;
+  linkPointer.value = null;
+  linkTargetId.value = null;
   predictSelected.value = null;
   bugSelected.value = [];
   codeOrder.value = [];
@@ -523,6 +754,9 @@ async function load() {
     if (type.value === 'order_code') {
       codeOrder.value = (data.lines || []).map((line: any) => ({ id: String(line.id), text: String(line.text ?? '') }));
     }
+    if (type.value === 'concept_map') {
+      initMap(Array.isArray(data.concepts) ? data.concepts : []);
+    }
     state.value = 'ready';
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -533,14 +767,6 @@ async function load() {
 async function repeatActivity() {
   if (!(await dialog.confirm('Puedes repetir esta actividad. La nueva nota reemplazará a la anterior. ¿Continuar?'))) return;
   void load();
-}
-
-function addEdge() {
-  if (!canAddEdge.value) return;
-  edges.value.push({ from: edgeFrom.value, to: edgeTo.value, label: edgeLabel.value.trim() });
-  edgeFrom.value = '';
-  edgeTo.value = '';
-  edgeLabel.value = '';
 }
 
 function buildAnswers(): any {
@@ -558,7 +784,19 @@ function buildAnswers(): any {
   if (type.value === 'predict_output') return { selected: predictSelected.value };
   if (type.value === 'find_bug') return { selected: bugSelected.value };
   if (type.value === 'order_code') return { order: codeOrder.value.map((line) => line.id) };
-  return { edges: edges.value };
+  if (type.value === 'concept_map') {
+    return {
+      edges: edges.value
+        .filter((edge) => edge.label.trim())
+        .map((edge) => {
+          const from = nodes.value.find((node) => node.id === edge.fromId);
+          const to = nodes.value.find((node) => node.id === edge.toId);
+          return { from: from?.concept || '', to: to?.concept || '', label: edge.label.trim() };
+        })
+        .filter((edge) => edge.from && edge.to),
+    };
+  }
+  return {};
 }
 
 function optionLetter(index: number): string {
@@ -793,52 +1031,142 @@ onMounted(() => {
   font-weight: 600;
 }
 
-:where(body[data-page="activity"]) .concepts-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .5rem;
-  margin-bottom: 1rem;
+:where(body[data-page="activity"]) .map-help {
+  margin: 0 0 .8rem;
 }
 
-:where(body[data-page="activity"]) .concept-chip {
-  background: var(--secondary-container, rgba(108, 99, 255, .12));
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, .14));
-  border-radius: 999px;
-  padding: .35rem .75rem;
+:where(body[data-page="activity"]) .map-scroll {
+  overflow: auto;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, .12));
+  border-radius: 14px;
+  background: var(--secondary-container, rgba(108, 99, 255, .06));
+}
+
+:where(body[data-page="activity"]) .map-board {
+  position: relative;
+  background-image: radial-gradient(rgba(255, 255, 255, .12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+:where(body[data-page="activity"]) .map-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+:where(body[data-page="activity"]) .map-line {
+  stroke: var(--accent-primary, #6c63ff);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+:where(body[data-page="activity"]) .map-line.preview {
+  stroke: var(--text-secondary, #8a8a8a);
+  stroke-dasharray: 6 5;
+}
+
+:where(body[data-page="activity"]) .map-node {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: .35rem .6rem;
+  box-sizing: border-box;
+  border-radius: 14px;
+  background: var(--surface-strong, rgba(30, 30, 44, .96));
+  border: 2px solid var(--glass-border, rgba(255, 255, 255, .28));
+  color: var(--text-primary, #eee);
   font-size: .85rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  overflow: visible;
 }
 
-:where(body[data-page="activity"]) .edge-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.4fr auto;
-  gap: .5rem;
-  align-items: center;
+:where(body[data-page="activity"]) .map-node:active {
+  cursor: grabbing;
 }
 
-:where(body[data-page="activity"]) .edge-list {
-  margin-top: .8rem;
+:where(body[data-page="activity"]) .map-node.source {
+  border-color: var(--accent-primary, #6c63ff);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, .25);
+}
+
+:where(body[data-page="activity"]) .map-node.target {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .25);
+}
+
+:where(body[data-page="activity"]) .map-node-text {
+  pointer-events: none;
+  word-break: break-word;
+}
+
+:where(body[data-page="activity"]) .map-point {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-primary, #6c63ff);
+  border: 2px solid var(--surface-strong, #1e1e2c);
+  cursor: crosshair;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+}
+
+:where(body[data-page="activity"]) .map-point:hover {
+  transform: translate(-50%, -50%) scale(1.25);
+}
+
+:where(body[data-page="activity"]) .map-point.point-top { left: 50%; top: 0; }
+:where(body[data-page="activity"]) .map-point.point-bottom { left: 50%; top: 100%; }
+:where(body[data-page="activity"]) .map-point.point-left { left: 0; top: 50%; }
+:where(body[data-page="activity"]) .map-point.point-right { left: 100%; top: 50%; }
+
+:where(body[data-page="activity"]) .map-edge-label {
+  position: absolute;
+  z-index: 3;
   display: flex;
-  flex-direction: column;
-  gap: .4rem;
+  align-items: center;
+  gap: .2rem;
+  transform: translate(-50%, -50%);
 }
 
-:where(body[data-page="activity"]) .edge-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: .5rem;
-  font-size: .88rem;
-  background: var(--surface, rgba(255, 255, 255, .04));
+:where(body[data-page="activity"]) .map-edge-input {
+  width: 96px;
+  padding: .2rem .4rem;
+  font-size: .74rem;
+  font-family: inherit;
+  text-align: center;
+  color: var(--text-primary, #eee);
+  background: var(--surface-strong, #1e1e2c);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, .28));
   border-radius: 8px;
-  padding: .45rem .6rem;
 }
 
-:where(body[data-page="activity"]) .edge-remove {
-  background: transparent;
+:where(body[data-page="activity"]) .map-edge-input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #6c63ff);
+}
+
+:where(body[data-page="activity"]) .map-edge-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
   border: none;
-  color: var(--text-secondary, #888);
+  background: rgba(239, 68, 68, .9);
+  color: #fff;
+  font-size: .62rem;
+  line-height: 1;
   cursor: pointer;
-  font-size: .9rem;
 }
 
 :where(body[data-page="activity"]) .result-card {
@@ -1048,9 +1376,6 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-  :where(body[data-page="activity"]) .edge-form {
-    grid-template-columns: 1fr;
-  }
   :where(body[data-page="activity"]) .order-compare {
     grid-template-columns: 1fr;
   }
