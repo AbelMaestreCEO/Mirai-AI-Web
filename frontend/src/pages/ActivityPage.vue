@@ -736,17 +736,6 @@ async function load() {
       type: type.value,
     });
     if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
-    if (data.already_graded) {
-      result.value = {
-        success: true,
-        score: Number(data.score) || 0,
-        max_score: Number(data.max_score) || 0,
-        formative: data.formative === true,
-        feedback: data.feedback || {},
-      };
-      state.value = 'ready';
-      return;
-    }
     payload.value = data;
     if (type.value === 'flashcards') {
       cardAnswers.value = Array((data.cards || []).length).fill('');

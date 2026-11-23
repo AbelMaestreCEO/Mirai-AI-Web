@@ -458,10 +458,6 @@
             </div>
             <p v-else class="disagree-used">Aún no hay una entrega calificada para volver a hacer.</p>
           </div>
-          <div v-else class="quiz-result">
-            <p class="quiz-result-sub">Tu actividad está lista. Vuelve a abrirla para continuar.</p>
-            <button class="course-start-btn" @click="openActivity()">Abrir actividad</button>
-          </div>
         </section>
       </div>
       </template>
@@ -763,20 +759,22 @@ function startChangeModes() {
 }
 
 async function chooseMethod(next: TaskMethod) {
+  // Las actividades se abren siempre desde cero en su propia página: no se
+  // guarda el modo aquí para no mostrar un estado de "reanudar" al volver.
+  if (isActivityMethod(next)) {
+    openActivity(next);
+    return;
+  }
   method.value = next;
   showMethods.value = false;
   if (next === 'ludo') {
     openLudo();
     return;
   }
-  if (isActivityMethod(next)) {
-    openActivity(next);
-    return;
-  }
   if (next !== 'document') void startQuiz(next);
 }
 
-function openActivity(next: TaskMethod | null = method.value) {
+function openActivity(next: TaskMethod | null) {
   if (!isActivityMethod(next)) return;
   goToPage(router, 'activity', `id=${encodeURIComponent(assignmentId.value)}&type=${encodeURIComponent(next)}`);
 }
