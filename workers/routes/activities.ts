@@ -339,9 +339,12 @@ async function generateFindBug(assignment: any, env: Env): Promise<any> {
   const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de depuración sobre una tarea de programación.
 Reglas:
 - Elige el lenguaje más adecuado según el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
-- Escribe un fragmento de código coherente de 8 a 18 líneas con EXACTAMENTE 1 a 3 errores reales (sintaxis o lógica).
-- El resto del código debe ser correcto; no introduzcas errores ambiguos ni de estilo.
+- Escribe un fragmento de código coherente de 8 a 18 líneas con EXACTAMENTE 1 a 3 errores reales.
+- Un "error real" solo cuenta si impide que el programa funcione o produce un resultado incorrecto (error de sintaxis que no compila/ejecuta, o error de lógica que da una salida equivocada).
+- NUNCA marques como error una decisión de estilo o preferencia personal válida: comillas simples vs dobles, tabulaciones vs espacios, nombre de variables, orden de imports, comentarios, formato, indentación válida ni formas alternativas de escribir lo mismo. Esas variantes son correctas y cada programador las elige a su manera.
+- El resto del código debe ser correcto y ejecutable; no introduzcas errores ambiguos, de estilo ni discutibles.
 - Numera las líneas desde 1. Cada error debe estar contenido en una sola línea.
+- Antes de responder, verifica mentalmente que cada línea marcada falla de forma objetiva y que quitarla/corregirla cambia el comportamiento del programa.
 - Para cada error indica "line", "explanation" (por qué está mal, máximo 30 palabras) y "fix" (la línea corregida).
 - "instructions": una frase que indique al estudiante que marque las líneas con error.
 - Español neutro.
