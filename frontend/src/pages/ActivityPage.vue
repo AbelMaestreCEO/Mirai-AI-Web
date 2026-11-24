@@ -310,13 +310,27 @@
                 v-for="(line, index) in currentOrderLines"
                 :key="line.id"
                 class="order-line"
-                :class="{ moved: line.id !== currentOriginalIds[index] }"
+                :class="orderAnim && orderAnim.id === line.id ? `move-${orderAnim.dir}` : ''"
+                @mouseleave="orderHover = null"
               >
+                <Transition name="arrow-pop">
+                  <span
+                    v-if="orderHover && orderHover.index === index"
+                    class="order-arrow"
+                    :class="`dir-${orderHover.dir}`"
+                    aria-hidden="true"
+                  >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 18c0-6.5 5-11 13-11" />
+                      <path d="M14 3.5L18 7l-4 3.5" />
+                    </svg>
+                  </span>
+                </Transition>
                 <span class="code-line-number">{{ index + 1 }}</span>
                 <pre class="code-line-text">{{ line.text }}</pre>
                 <span class="order-actions">
-                  <button class="order-btn" :disabled="index === 0" @click="moveLine(index, -1)">↑</button>
-                  <button class="order-btn" :disabled="index === currentOrderLines.length - 1" @click="moveLine(index, 1)">↓</button>
+                  <button class="order-btn up" :disabled="index === 0" @mouseenter="orderHover = { index, dir: 'up' }" @click="moveLine(index, -1)">↑</button>
+                  <button class="order-btn down" :disabled="index === currentOrderLines.length - 1" @mouseenter="orderHover = { index, dir: 'down' }" @click="moveLine(index, 1)">↓</button>
                 </span>
               </div>
             </div>
@@ -566,8 +580,10 @@ const questionIndex = ref(0);
 const predictAnswers = ref<(number | null)[]>([]);
 const bugAnswers = ref<number[][]>([]);
 const orderAnswers = ref<{ id: string; text: string }[][]>([]);
-const orderOriginal = ref<string[][]>([]);
 const orderTouched = ref<boolean[]>([]);
+const orderHover = ref<{ index: number; dir: 'up' | 'down' } | null>(null);
+const orderAnim = ref<{ id: string; dir: 'up' | 'down' } | null>(null);
+let orderAnimTimer: ReturnType<typeof setTimeout> | null = null;
 
 const boardW = ref(760);
 const boardH = ref(560);
@@ -625,7 +641,6 @@ function splitLines(code: string): string[] {
 const currentBugLines = computed<string[]>(() => splitLines(currentQuestion.value?.code));
 const currentBugSelected = computed<number[]>(() => bugAnswers.value[questionIndex.value] || []);
 const currentOrderLines = computed<{ id: string; text: string }[]>(() => orderAnswers.value[questionIndex.value] || []);
-const currentOriginalIds = computed<string[]>(() => orderOriginal.value[questionIndex.value] || []);
 
 const allPredictAnswered = computed(() =>
   questions.value.length > 0 && questions.value.every((_, index) => {
@@ -923,8 +938,10 @@ function resetLocalState() {
   predictAnswers.value = [];
   bugAnswers.value = [];
   orderAnswers.value = [];
-  orderOriginal.value = [];
   orderTouched.value = [];
+  orderHover.value = null;
+  orderAnim.value = null;
+  if (orderAnimTimer) { clearTimeout(orderAnimTimer); orderAnimTimer = null; }
   result.value = null;
 }
 
@@ -958,7 +975,6 @@ async function load() {
       orderAnswers.value = loadedQuestions.map((question: any) =>
         (Array.isArray(question.lines) ? question.lines : []).map((line: any) => ({ id: String(line.id), text: String(line.text ?? '') })),
       );
-      orderOriginal.value = orderAnswers.value.map((lines) => lines.map((line) => line.id));
       orderTouched.value = loadedQuestions.map(() => false);
     }
     const concepts = Array.isArray(data.concepts) ? data.concepts : [];
@@ -1025,6 +1041,10 @@ function moveLine(index: number, delta: number) {
   copy.splice(target, 0, item);
   orderAnswers.value[questionIndex.value] = copy;
   orderTouched.value[questionIndex.value] = true;
+  const dir: 'up' | 'down' = delta < 0 ? 'up' : 'down';
+  orderAnim.value = { id: item.id, dir };
+  if (orderAnimTimer) clearTimeout(orderAnimTimer);
+  orderAnimTimer = setTimeout(() => { orderAnim.value = null; orderAnimTimer = null; }, 320);
 }
 
 async function submitActivity() {
@@ -1069,6 +1089,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
+  if (orderAnimTimer) { clearTimeout(orderAnimTimer); orderAnimTimer = null; }
 });
 </script>
 
@@ -1662,10 +1683,11 @@ onBeforeUnmount(() => {
 }
 
 :where(body[data-page="activity"]) .order-line {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: .5rem;
-  padding: .2rem .6rem;
+  padding: .25rem .6rem .25rem 1.9rem;
 }
 
 :where(body[data-page="activity"]) .order-line .code-line-text {
@@ -1869,13 +1891,56 @@ onBeforeUnmount(() => {
 }
 
 :where(body[data-page="activity"]) .order-line {
-  transition: background .2s ease, box-shadow .2s ease;
+  transition: background .18s ease;
   border-radius: 8px;
 }
 
-:where(body[data-page="activity"]) .order-line.moved {
-  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-  box-shadow: inset 3px 0 0 var(--accent-color);
+:where(body[data-page="activity"]) .order-line:hover {
+  background: color-mix(in srgb, var(--accent-color) 9%, transparent);
+}
+
+:where(body[data-page="activity"]) .order-arrow {
+  position: absolute;
+  left: .4rem;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-color);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+:where(body[data-page="activity"]) .order-arrow.dir-down {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.arrow-pop-enter-active,
+.arrow-pop-leave-active {
+  transition: opacity .16s ease;
+}
+
+.arrow-pop-enter-from,
+.arrow-pop-leave-to {
+  opacity: 0;
+}
+
+@keyframes order-move-up {
+  from { opacity: .35; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes order-move-down {
+  from { opacity: .35; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+:where(body[data-page="activity"]) .order-line.move-up {
+  animation: order-move-up .3s ease;
+}
+
+:where(body[data-page="activity"]) .order-line.move-down {
+  animation: order-move-down .3s ease;
 }
 
 :where(body[data-page="activity"]) .order-btn {
@@ -1939,6 +2004,8 @@ onBeforeUnmount(() => {
   :where(body[data-page="activity"]) .activity-card,
   :where(body[data-page="activity"]) .question-body,
   :where(body[data-page="activity"]) .question-result,
+  :where(body[data-page="activity"]) .order-line.move-up,
+  :where(body[data-page="activity"]) .order-line.move-down,
   :where(body[data-page="activity"]) .result-number {
     animation: none;
   }

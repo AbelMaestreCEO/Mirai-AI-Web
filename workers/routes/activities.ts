@@ -98,9 +98,29 @@ function parseJsonObject(raw: string): any {
     .replace(/```/g, '')
     .trim();
   const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('La IA no devolviÃ³ un JSON vÃ¡lido');
-  return JSON.parse(cleaned.slice(start, end + 1));
+  if (start === -1) throw new Error('La IA no devolvió un JSON válido');
+  // Extrae el primer objeto JSON balanceado, ignorando llaves dentro de cadenas.
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < cleaned.length; index++) {
+    const char = cleaned[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === '{') depth++;
+    else if (char === '}') {
+      depth--;
+      if (depth === 0) {
+        return JSON.parse(cleaned.slice(start, index + 1));
+      }
+    }
+  }
+  throw new Error('La IA no devolvió un JSON válido');
 }
 
 function normalizeText(text: string): string {
@@ -299,26 +319,70 @@ function normalizeLanguage(value: unknown): string {
   return allowed.includes(language) ? language : 'python';
 }
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  html: 'HTML',
+  css: 'CSS',
+  javascript: 'JavaScript',
+  python: 'Python',
+  cpp: 'C++',
+  java: 'Java',
+  sql: 'SQL',
+  pseudocodigo: 'pseudocódigo',
+};
+
+// Detecta el lenguaje real de la tarea leyendo su título y enunciado. Así una
+// tarea de HTML nunca se evalúa con código Python.
+function detectLanguage(assignment: any): string | null {
+  const title = String(assignment?.title || '').toLowerCase();
+  const description = String(assignment?.description || '').toLowerCase();
+  const patterns: Array<[string, RegExp]> = [
+    ['html', /\bhtml5?\b|hipertexto|<!doctype|<html\b|<div\b|p[aá]gina web|maquet/],
+    ['css', /\bcss3?\b|hojas? de estilos?|estilos?\s+css|selector(es)? css/],
+    ['javascript', /\bjavascript\b|\bjs\b|node\.?js|console\.log|\bdom\b/],
+    ['python', /\bpython\b|pandas|numpy|flask|django/],
+    ['cpp', /\bc\+\+|cpp\b|iostream|std::/],
+    ['sql', /\bsql\b|consulta sql|base de datos|\bselect\b[\s\S]*\bfrom\b/],
+    ['java', /\bjava\b|public static void main/],
+    ['pseudocodigo', /pseudoc[oó]digo|diagrama de flujo|seudoc[oó]digo/],
+  ];
+  for (const [language, pattern] of patterns) {
+    if (pattern.test(title)) return language;
+  }
+  for (const [language, pattern] of patterns) {
+    if (pattern.test(description)) return language;
+  }
+  return null;
+}
+
+function languageRule(forcedLanguage: string | null): string {
+  if (!forcedLanguage) {
+    return '- Elige el lenguaje más adecuado según el enunciado (html, css, javascript, python, cpp, java, sql o pseudocodigo). Si no se especifica, usa python.';
+  }
+  const label = LANGUAGE_LABELS[forcedLanguage] || forcedLanguage;
+  return `- El lenguaje OBLIGATORIO es ${label}. TODO el código debe estar escrito en ${label}; está terminantemente prohibido usar otro lenguaje (por ejemplo, NO uses Python si el lenguaje obligatorio es HTML).`;
+}
+
 const QUESTION_COUNT = 4;
 
-async function generatePredictOutput(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de "predice la salida" sobre una tarea de programaciÃ³n.
+async function generatePredictOutput(assignment: any, env: Env, forcedLanguage: string | null): Promise<any> {
+  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de "predice la salida" sobre una tarea de programación.
 Reglas:
-- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el mÃ¡s simple y el reto 4 el mÃ¡s complejo.
-- Cada reto puede usar el lenguaje mÃ¡s adecuado segÃºn el enunciado (html, css, javascript, python, cpp, java, sql o pseudocodigo). Si no se especifica, usa python.
-- Cada reto es un fragmento de cÃ³digo corto (5-18 lÃ­neas), autocontenido y determinista.
-- No uses entrada de usuario, aleatoriedad, tiempo, red, archivos ni librerÃ­as externas.
-- Cada fragmento debe tener una Ãºnica salida correcta y observable (print, console.log, render o valor de retorno).
-- Sube la dificultad de forma progresiva (mÃ¡s operaciones, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
-- Genera EXACTAMENTE 4 opciones de salida distintas entre sÃ­ por reto; solo una debe ser correcta.
-- "instructions": una frase que indique al estudiante quÃ© debe predecir.
-- "explanation": por quÃ© la salida correcta es esa (mÃ¡ximo 40 palabras).
-- EspaÃ±ol neutro.
+- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el más simple y el reto 4 el más complejo.
+${languageRule(forcedLanguage)}
+- Cada reto es un fragmento de código corto (5-18 líneas), autocontenido y determinista.
+- No uses entrada de usuario, aleatoriedad, tiempo, red, archivos ni librerías externas.
+- Cada fragmento debe tener una única salida correcta y observable (print, console.log, render o valor de retorno).
+- Sube la dificultad de forma progresiva (más operaciones, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
+- Genera EXACTAMENTE 4 opciones de salida distintas entre sí por reto; solo una debe ser correcta.
+- "instructions": una frase que indique al estudiante qué debe predecir.
+- "explanation": por qué la salida correcta es esa (máximo 40 palabras).
+- Español neutro.
 - Devuelve SOLO JSON: {"instructions":"...","questions":[{"language":"python","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}]}`;
+  const forcedNote = forcedLanguage ? `\nLenguaje obligatorio: ${LANGUAGE_LABELS[forcedLanguage] || forcedLanguage}. Escribe los 4 retos en ese lenguaje.` : '';
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
-    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}]} (incluye 4 objetos en "questions")` },
-  ], { temperature: 0.5, max_tokens: 6000 }, env);
+    { role: 'user', content: `${buildContext(assignment)}${forcedNote}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}]} (incluye 4 objetos en "questions")` },
+  ], { temperature: 0.5, max_tokens: 7000 }, env);
   const parsed = parseJsonObject(raw);
   const source = Array.isArray(parsed?.questions) ? parsed.questions : [];
   const questions = source
@@ -332,7 +396,7 @@ Reglas:
       let correctIndex = Number(item?.correct_index);
       if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) correctIndex = 0;
       return {
-        language: normalizeLanguage(item?.language),
+        language: forcedLanguage || normalizeLanguage(item?.language),
         code,
         options,
         correct_index: correctIndex,
@@ -348,26 +412,27 @@ Reglas:
   };
 }
 
-async function generateFindBug(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de depuraciÃ³n sobre una tarea de programaciÃ³n.
+async function generateFindBug(assignment: any, env: Env, forcedLanguage: string | null): Promise<any> {
+  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de depuración sobre una tarea de programación.
 Reglas:
-- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el mÃ¡s simple y el reto 4 el mÃ¡s complejo.
-- Cada reto puede usar el lenguaje mÃ¡s adecuado segÃºn el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
-- Cada reto es un fragmento coherente de 8 a 20 lÃ­neas con entre 1 y 3 errores reales.
-- Un "error real" solo cuenta si impide que el programa funcione o produce un resultado incorrecto (error de sintaxis que no compila/ejecuta, o error de lÃ³gica que da una salida equivocada).
-- NUNCA marques como error una decisiÃ³n de estilo o preferencia personal vÃ¡lida: comillas simples vs dobles, tabulaciones vs espacios, nombre de variables, orden de imports, comentarios, formato, indentaciÃ³n vÃ¡lida ni formas alternativas de escribir lo mismo. Esas variantes son correctas y cada programador las elige a su manera.
-- El resto del cÃ³digo debe ser correcto y ejecutable; no introduzcas errores ambiguos, de estilo ni discutibles.
-- Sube la dificultad de forma progresiva (mÃ¡s lÃ­neas, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
-- Numera las lÃ­neas desde 1. Cada error debe estar contenido en una sola lÃ­nea.
-- Antes de responder, verifica mentalmente que cada lÃ­nea marcada falla de forma objetiva y que quitarla/corregirla cambia el comportamiento del programa.
-- Para cada error indica "line", "explanation" (por quÃ© estÃ¡ mal, mÃ¡ximo 30 palabras) y "fix" (la lÃ­nea corregida).
-- "instructions": una frase que indique al estudiante que marque las lÃ­neas con error.
-- EspaÃ±ol neutro.
+- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el más simple y el reto 4 el más complejo.
+${languageRule(forcedLanguage)}
+- Cada reto es un fragmento coherente de 6 a 16 líneas con entre 1 y 3 errores reales.
+- Un "error real" solo cuenta si impide que el programa funcione o produce un resultado incorrecto (error de sintaxis que no compila/ejecuta, o error de lógica que da una salida equivocada).
+- NUNCA marques como error una decisión de estilo o preferencia personal válida: comillas simples vs dobles, tabulaciones vs espacios, nombre de variables, orden de imports, comentarios, formato, indentación válida ni formas alternativas de escribir lo mismo. Esas variantes son correctas y cada programador las elige a su manera.
+- El resto del código debe ser correcto y ejecutable; no introduzcas errores ambiguos, de estilo ni discutibles.
+- Sube la dificultad de forma progresiva (más líneas, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
+- Numera las líneas desde 1. Cada error debe estar contenido en una sola línea.
+- Antes de responder, verifica mentalmente que cada línea marcada falla de forma objetiva y que quitarla/corregirla cambia el comportamiento del programa.
+- Para cada error indica "line", "explanation" (por qué está mal, máximo 30 palabras) y "fix" (la línea corregida).
+- "instructions": una frase que indique al estudiante que marque las líneas con error.
+- Español neutro.
 - Devuelve SOLO JSON: {"instructions":"...","questions":[{"language":"python","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}]}`;
+  const forcedNote = forcedLanguage ? `\nLenguaje obligatorio: ${LANGUAGE_LABELS[forcedLanguage] || forcedLanguage}. Escribe los 4 retos en ese lenguaje.` : '';
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
-    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}]} (incluye 4 objetos en "questions")` },
-  ], { temperature: 0.5, max_tokens: 7000 }, env);
+    { role: 'user', content: `${buildContext(assignment)}${forcedNote}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}]} (incluye 4 objetos en "questions")` },
+  ], { temperature: 0.5, max_tokens: 8000 }, env);
   const parsed = parseJsonObject(raw);
   const source = Array.isArray(parsed?.questions) ? parsed.questions : [];
   const questions = source
@@ -384,12 +449,12 @@ Reglas:
         .filter((bug: any) => Number.isInteger(bug.line) && bug.line >= 1 && bug.line <= totalLines && !seen.has(bug.line) && seen.add(bug.line))
         .slice(0, 3);
       return {
-        language: normalizeLanguage(item?.language),
+        language: forcedLanguage || normalizeLanguage(item?.language),
         code,
         bugs,
       };
     })
-    .filter((item: any) => item.code.split('\n').filter((line: string) => line.trim()).length >= 8 && item.bugs.length > 0)
+    .filter((item: any) => item.code.split('\n').filter((line: string) => line.trim()).length >= 6 && item.bugs.length > 0)
     .slice(0, QUESTION_COUNT);
   if (questions.length < QUESTION_COUNT) throw new Error('La IA no generÃ³ los 4 retos de depuraciÃ³n esperados');
   return {
@@ -409,23 +474,24 @@ function shuffleItems<T>(items: T[]): T[] {
   return copy;
 }
 
-async function generateOrderCode(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de ordenar cÃ³digo sobre una tarea de programaciÃ³n.
+async function generateOrderCode(assignment: any, env: Env, forcedLanguage: string | null): Promise<any> {
+  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de ordenar código sobre una tarea de programación.
 Reglas:
-- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el mÃ¡s simple y el reto 4 el mÃ¡s complejo.
-- Cada reto puede usar el lenguaje mÃ¡s adecuado segÃºn el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
-- Cada reto es un fragmento coherente de 6 a 14 lÃ­neas; cada elemento del arreglo "lines" es una lÃ­nea completa, incluida su indentaciÃ³n.
-- No incluyas lÃ­neas en blanco ni comentarios.
+- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el más simple y el reto 4 el más complejo.
+${languageRule(forcedLanguage)}
+- Cada reto es un fragmento coherente de 6 a 14 líneas; cada elemento del arreglo "lines" es una línea completa, incluida su indentación.
+- No incluyas líneas en blanco ni comentarios.
 - En cada reto, "lines" debe venir en el ORDEN CORRECTO.
-- Sube la dificultad de forma progresiva (mÃ¡s lÃ­neas, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
-- "instructions": una frase que indique ordenar las lÃ­neas para que el programa funcione.
-- "explanation": quÃ© hace el programa de cada reto (mÃ¡ximo 40 palabras).
-- EspaÃ±ol neutro.
+- Sube la dificultad de forma progresiva (más líneas, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
+- "instructions": una frase que indique ordenar las líneas para que el programa funcione.
+- "explanation": qué hace el programa de cada reto (máximo 40 palabras).
+- Español neutro.
 - Devuelve SOLO JSON: {"instructions":"...","questions":[{"language":"python","lines":["...","..."],"explanation":"..."}]}`;
+  const forcedNote = forcedLanguage ? `\nLenguaje obligatorio: ${LANGUAGE_LABELS[forcedLanguage] || forcedLanguage}. Escribe los 4 retos en ese lenguaje.` : '';
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
-    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","lines":["...","..."],"explanation":"..."}]} (incluye 4 objetos en "questions")` },
-  ], { temperature: 0.5, max_tokens: 6000 }, env);
+    { role: 'user', content: `${buildContext(assignment)}${forcedNote}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","lines":["...","..."],"explanation":"..."}]} (incluye 4 objetos en "questions")` },
+  ], { temperature: 0.5, max_tokens: 7000 }, env);
   const parsed = parseJsonObject(raw);
   const source = Array.isArray(parsed?.questions) ? parsed.questions : [];
   const questions = source
@@ -442,7 +508,7 @@ Reglas:
         shuffled = shuffleItems(items);
       }
       return {
-        language: normalizeLanguage(item?.language),
+        language: forcedLanguage || normalizeLanguage(item?.language),
         lines: shuffled,
         correct_order: correctOrder,
         explanation: String(item?.explanation || '').trim(),
@@ -458,16 +524,33 @@ Reglas:
 }
 
 async function generateSet(assignment: any, type: ActivityType, env: Env): Promise<any> {
+  const forcedLanguage = detectLanguage(assignment);
   switch (type) {
     case 'flashcards': return generateFlashcards(assignment, env);
     case 'find_error': return generateFindError(assignment, env);
     case 'recall': return generateRecall(assignment, env);
     case 'summary': return generateSummary(assignment, env);
     case 'concept_map': return generateConceptMap(assignment, env);
-    case 'predict_output': return generatePredictOutput(assignment, env);
-    case 'find_bug': return generateFindBug(assignment, env);
-    case 'order_code': return generateOrderCode(assignment, env);
+    case 'predict_output': return generatePredictOutput(assignment, env, forcedLanguage);
+    case 'find_bug': return generateFindBug(assignment, env, forcedLanguage);
+    case 'order_code': return generateOrderCode(assignment, env, forcedLanguage);
   }
+}
+
+// Los retos de código son más frágiles de generar (4 fragmentos válidos). Se
+// reintenta un par de veces antes de rendirse para evitar errores 502.
+async function generateSetWithRetry(assignment: any, type: ActivityType, env: Env): Promise<any> {
+  const attempts = type === 'predict_output' || type === 'find_bug' || type === 'order_code' ? 3 : 1;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await generateSet(assignment, type, env);
+    } catch (error) {
+      lastError = error;
+      console.warn(`Generación de ${type} falló (intento ${attempt + 1}/${attempts}):`, (error as Error)?.message);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('No se pudo generar la actividad');
 }
 
 function sanitizeSet(type: ActivityType, set: any, dueMap?: Map<number, string>): any {
@@ -1061,7 +1144,7 @@ export async function handleActivityApi(
       const multiQuestion = type === 'predict_output' || type === 'find_bug' || type === 'order_code';
       const missingQuestions = multiQuestion && !Array.isArray(set?.questions);
       if (!set || missingQuestions) {
-        set = await generateSet(assignment, type, env);
+        set = await generateSetWithRetry(assignment, type, env);
         await saveSet(env, assignmentId, type, set);
       }
 
