@@ -16,7 +16,8 @@ const ROOM_ACTION_RE = /^\/api\/game\/rooms\/([A-Za-z0-9]{1,32})\/(join|leave|st
 const MATCH_RE = /^\/api\/game\/matches\/([A-Za-z0-9-]{8,64})$/;
 const CODE_RE = /^[A-Z0-9]{4,12}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const GAME_TYPES = new Set(['ludo']);
+const GAME_TYPES = new Set(['ludo', 'uno']);
+const ROOM_INFO_RE = /^\/api\/game\/rooms\/([A-Za-z0-9]{1,32})\/info$/;
 
 interface RoomRow {
   id: string;
@@ -26,9 +27,11 @@ interface RoomRow {
   created_by: string | null;
   topic: string | null;
   professor_dni: string;
+  game_type: string;
   status: string;
   max_players: number;
   turn_seconds: number;
+  config: string | null;
   expires_at: string | null;
 }
 
@@ -44,6 +47,7 @@ const GAME_DDL = [
     assignment_id TEXT, created_by TEXT, topic TEXT,
     professor_dni TEXT NOT NULL, game_type TEXT NOT NULL DEFAULT 'ludo',
     max_players INTEGER NOT NULL DEFAULT 4, turn_seconds INTEGER NOT NULL DEFAULT 40,
+    config TEXT,
     status TEXT NOT NULL DEFAULT 'lobby', created_at TEXT NOT NULL DEFAULT (datetime('now')),
     expires_at TEXT)`,
   `CREATE INDEX IF NOT EXISTS idx_game_rooms_section ON game_rooms(section_id)`,
@@ -90,6 +94,7 @@ async function ensureGameTables(env: Env) {
     'ALTER TABLE game_rooms ADD COLUMN assignment_id TEXT',
     'ALTER TABLE game_rooms ADD COLUMN created_by TEXT',
     'ALTER TABLE game_rooms ADD COLUMN topic TEXT',
+    'ALTER TABLE game_rooms ADD COLUMN config TEXT',
     'ALTER TABLE game_question_bank ADD COLUMN difficulty TEXT',
     'ALTER TABLE game_question_bank ADD COLUMN qhash TEXT',
     'ALTER TABLE submissions ADD COLUMN attempt_type TEXT',
@@ -136,6 +141,11 @@ export async function handleGameApi(
     return methodNotAllowed(corsHeaders);
   }
 
+  const infoMatch = path.match(ROOM_INFO_RE);
+  if (infoMatch && request.method === 'GET') {
+    return roomInfo(request, env, infoMatch[1], corsHeaders);
+  }
+
   const actionMatch = path.match(ROOM_ACTION_RE);
   if (actionMatch && request.method === 'POST') {
     const [, code, action] = actionMatch;
@@ -176,11 +186,13 @@ async function createRoom(request: Request, env: Env, corsHeaders: Record<string
     return jsonResponse({ error: 'Tipo de juego no soportado' }, 400, corsHeaders);
   }
 
+  const isUno = gameType === 'uno';
   const maxPlayers = clampInt(body?.max_players, 2, 4, 4);
-  const turnSeconds = clampInt(body?.turn_seconds, 15, 120, 40);
+  const turnSeconds = clampInt(body?.turn_seconds, 15, 120, isUno ? 30 : 40);
   const expiresMinutes = clampInt(body?.expires_in_minutes, 10, 240, 120);
   const assignmentId = body?.assignment_id ? String(body.assignment_id) : null;
   const sectionInput = body?.section_id ? String(body.section_id) : null;
+  const config = normalizeRoomConfig(isUno, body?.config);
 
   const scope = await resolveRoomScope(dni, env, { assignmentId, sectionId: sectionInput, professor, admin });
   if ('error' in scope) {
@@ -222,8 +234,8 @@ async function createRoom(request: Request, env: Env, corsHeaders: Record<string
       await env.MIRAI_AI_DB.prepare(
         `INSERT INTO game_rooms
            (id, code, section_id, assignment_id, created_by, topic, professor_dni,
-            game_type, max_players, turn_seconds, status, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lobby', ?)`
+            game_type, max_players, turn_seconds, config, status, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'lobby', ?)`
       )
         .bind(
           id,
@@ -236,6 +248,7 @@ async function createRoom(request: Request, env: Env, corsHeaders: Record<string
           gameType,
           maxPlayers,
           turnSeconds,
+          JSON.stringify(config),
           expiresAt
         )
         .run();
@@ -267,6 +280,7 @@ async function createRoom(request: Request, env: Env, corsHeaders: Record<string
       game_type: gameType,
       max_players: maxPlayers,
       turn_seconds: turnSeconds,
+      config,
       status: 'lobby',
       expires_at: expiresAt,
     },
@@ -351,6 +365,40 @@ async function listRooms(request: Request, env: Env, url: URL, corsHeaders: Reco
   return jsonResponse(rooms, 200, corsHeaders);
 }
 
+async function roomInfo(
+  request: Request,
+  env: Env,
+  code: string,
+  corsHeaders: Record<string, string>
+) {
+  const dni = await requireAuth(request, env);
+  if (!dni) return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
+
+  const room = await getRoom(code, env);
+  if (!room) return jsonResponse({ error: 'Sala no encontrada' }, 404, corsHeaders);
+
+  const manager = await canManageRoom(room, dni, env);
+  if (!manager) {
+    const role = await resolveRole(room, dni, env);
+    if (!role) return jsonResponse({ error: 'No perteneces a esta sección' }, 403, corsHeaders);
+  }
+
+  return jsonResponse(
+    {
+      id: room.id,
+      code: room.code,
+      game_type: room.game_type,
+      status: room.status,
+      max_players: room.max_players,
+      turn_seconds: room.turn_seconds,
+      config: parseRoomConfig(room.config),
+      expires_at: room.expires_at,
+    },
+    200,
+    corsHeaders
+  );
+}
+
 async function joinRoom(request: Request, env: Env, code: string, corsHeaders: Record<string, string>) {
   const dni = await requireAuth(request, env);
   if (!dni) return jsonResponse({ error: 'No autorizado. Inicia sesión.' }, 401, corsHeaders);
@@ -419,7 +467,16 @@ async function leaveRoom(
     .bind(room.id, target)
     .run();
 
-  await callRoomAction(env, room.code, 'remove', dni, roleForDo(manager ? 'teacher' : 'student'), target);
+  await callRoomAction(
+    env,
+    room.code,
+    'remove',
+    dni,
+    roleForDo(manager ? 'teacher' : 'student'),
+    target,
+    undefined,
+    room.game_type
+  );
 
   return jsonResponse({ ok: true }, 200, corsHeaders);
 }
@@ -455,7 +512,7 @@ async function startRoom(request: Request, env: Env, code: string, corsHeaders: 
       room.assignment_id,
       room.topic || 'tema de la tarea'
     );
-    if (bank.easy + bank.hard === 0) {
+    if (bank.easy + bank.medium + bank.hard === 0) {
       return jsonResponse(
         { error: 'No se pudieron generar preguntas para esta tarea. Inténtalo de nuevo.' },
         503,
@@ -477,10 +534,20 @@ async function startRoom(request: Request, env: Env, code: string, corsHeaders: 
     'X-Game-Match': matchId,
     'X-Game-Max-Score': String(maxScore),
     'X-Game-Grading-Mode': gradingMode,
+    'X-Game-Config': encodeURIComponent(JSON.stringify(parseRoomConfig(room.config))),
   };
   if (room.assignment_id) extra['X-Game-Assignment'] = room.assignment_id;
 
-  const result = await callRoomAction(env, room.code, 'start', dni, 'teacher', undefined, extra);
+  const result = await callRoomAction(
+    env,
+    room.code,
+    'start',
+    dni,
+    'teacher',
+    undefined,
+    extra,
+    room.game_type
+  );
   if (!result.ok) {
     await env.MIRAI_AI_DB.batch([
       env.MIRAI_AI_DB.prepare("UPDATE game_rooms SET status = 'lobby' WHERE id = ?").bind(room.id),
@@ -516,7 +583,16 @@ async function cancelRoom(request: Request, env: Env, code: string, corsHeaders:
     );
   }
 
-  const outcome = await callRoomAction(env, room.code, 'cancel', dni, 'teacher');
+  const outcome = await callRoomAction(
+    env,
+    room.code,
+    'cancel',
+    dni,
+    'teacher',
+    undefined,
+    undefined,
+    room.game_type
+  );
   // "Sin conexiones" (sala vacía) no impide cerrarla.
   const noConnections = outcome.status === 409 && /conexiones/i.test(outcome.error ?? '');
   if (!outcome.ok && !noConnections) {
@@ -654,7 +730,8 @@ async function handleWebSocket(
   forward.headers.set('X-Game-CanManage', manager ? '1' : '0');
   if (room.section_id) forward.headers.set('X-Game-Section', room.section_id);
 
-  const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(room.code));
+  const namespace = room.game_type === 'uno' ? env.UNO_ROOM : env.GAME_ROOM;
+  const stub = namespace.get(namespace.idFromName(room.code));
   try {
     return await stub.fetch(forward);
   } catch (error: any) {
@@ -679,6 +756,40 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   return Math.min(max, Math.max(min, n));
 }
 
+const UNO_CONFIG_DEFAULTS = {
+  roundsToWin: 1,
+  roundMaxMinutes: 15,
+  plusScope: 'others' as const,
+  teams: false,
+  teamGrade: 'same' as const,
+  weights: { easy: 1, medium: 2, hard: 3 },
+  grading: 'quiz_placement' as const,
+};
+
+function normalizeRoomConfig(isUno: boolean, raw: unknown): Record<string, unknown> {
+  if (!isUno) return {};
+  const input = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    roundsToWin: clampInt(input.roundsToWin, 1, 3, UNO_CONFIG_DEFAULTS.roundsToWin),
+    roundMaxMinutes: clampInt(input.roundMaxMinutes, 1, 60, UNO_CONFIG_DEFAULTS.roundMaxMinutes),
+    plusScope: input.plusScope === 'next' ? 'next' : 'others',
+    teams: false,
+    teamGrade: input.teamGrade === 'individual' ? 'individual' : 'same',
+    weights: { ...UNO_CONFIG_DEFAULTS.weights },
+    grading: 'quiz_placement',
+  };
+}
+
+function parseRoomConfig(raw: string | null): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 async function readJson(request: Request): Promise<any> {
   try {
     return await request.json();
@@ -690,7 +801,7 @@ async function readJson(request: Request): Promise<any> {
 async function getRoom(code: string, env: Env): Promise<RoomRow | null> {
   return env.MIRAI_AI_DB.prepare(
     `SELECT id, code, section_id, assignment_id, created_by, topic, professor_dni,
-            status, max_players, turn_seconds, expires_at
+            game_type, status, max_players, turn_seconds, config, expires_at
        FROM game_rooms WHERE code = ?`
   )
     .bind(code.toUpperCase())
@@ -930,7 +1041,8 @@ async function callRoomAction(
   dni: string,
   role: string,
   target?: string,
-  extra?: Record<string, string>
+  extra?: Record<string, string>,
+  gameType: string = 'ludo'
 ): Promise<ActionOutcome> {
   try {
     const headers = new Headers({
@@ -945,7 +1057,8 @@ async function callRoomAction(
     if (target) headers.set('X-Game-Target', target);
     for (const [key, value] of Object.entries(extra ?? {})) headers.set(key, value);
 
-    const stub = env.GAME_ROOM.get(env.GAME_ROOM.idFromName(code));
+    const namespace = gameType === 'uno' ? env.UNO_ROOM : env.GAME_ROOM;
+    const stub = namespace.get(namespace.idFromName(code));
     const response = await stub.fetch(
       new Request(`https://game.internal/${code}`, { method: 'POST', headers })
     );

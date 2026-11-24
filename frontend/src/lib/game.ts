@@ -7,7 +7,7 @@
 
 export type GameStatus = 'lobby' | 'playing' | 'question' | 'finished';
 export type GameColor = 'red' | 'green' | 'yellow' | 'blue';
-export type Difficulty = 'easy' | 'hard';
+export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface GamePlayer {
   /** Identificador público (p0, p1...); nunca el DNI. */
@@ -99,7 +99,105 @@ export interface GameMessage {
   total?: number;
   timeout?: boolean;
   review?: ReviewItem[];
+  // Uno
+  hand?: UnoCard[];
+  card?: UnoCard | null;
+  cardId?: string;
+  activeColor?: UnoColor;
+  handCount?: number;
+  direction?: 1 | -1;
+  kind?: 'plus2' | 'plus4' | 'periodic';
+  sourceDni?: string | null;
+  drawCount?: number;
+  round?: number;
+  stats?: UnoFinalStats | null;
+  standings?: { id: string; rank: number; finalPercent: number }[];
   [key: string]: unknown;
+}
+
+/* ─────────────── Uno educativo (beta) ─────────────── */
+
+export type UnoColor = 'red' | 'green' | 'blue' | 'yellow';
+export type UnoValue =
+  | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+  | 'skip' | 'reverse' | 'plus2' | 'plus4';
+
+export interface UnoCard {
+  id: string;
+  color: UnoColor | null;
+  value: UnoValue;
+}
+
+export interface UnoPlayer {
+  id: string;
+  nickname: string;
+  role: 'player' | 'spectator';
+  teamId: string | null;
+  seat: number;
+  ready: boolean;
+  connected: boolean;
+  handCount: number;
+  points: number;
+  answered: boolean;
+  roundWins: number;
+}
+
+export interface UnoState {
+  roomId: string;
+  code: string;
+  sectionId: string | null;
+  gameType: 'uno';
+  maxPlayers: number;
+  turnSeconds: number;
+  answerSeconds: number;
+  gradingMode?: 'formative' | 'summative';
+  status: GameStatus;
+  turnIndex: number;
+  direction: 1 | -1;
+  activeColor: UnoColor;
+  discardTop: UnoCard | null;
+  deckCount: number;
+  round: number;
+  actionsThisRound: number;
+  roundsToWin: number;
+  roundMaxMinutes: number;
+  seq: number;
+  version: number;
+  turnDeadline: number | null;
+  questionDeadline: number | null;
+  questionKind: 'plus2' | 'plus4' | 'periodic' | null;
+  canDraw: boolean;
+  winnerId: string | null;
+  players: UnoPlayer[];
+}
+
+export interface UnoQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  difficulty: Difficulty;
+  drawCount: number;
+  deadline: number | null;
+  answered?: boolean;
+}
+
+export interface UnoQuestionResult {
+  correct: boolean;
+  correctIndex: number;
+  correctOption?: string;
+  explanation?: string;
+  concept?: string;
+  timeout?: boolean;
+  drawCount?: number;
+}
+
+export interface UnoFinalStats {
+  rank: number;
+  handCount: number;
+  quizPercent: number;
+  placementPercent: number;
+  finalPercent: number;
+  score: number;
 }
 
 export type SocketStatus = 'connecting' | 'open' | 'closed' | 'reconnecting' | 'error';

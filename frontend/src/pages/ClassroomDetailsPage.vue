@@ -269,6 +269,7 @@
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
             <button class="ludo-link" type="button" @click="startChangeModes">🔁 Cambiar modos</button>
             <button v-if="selectedModes.includes('ludo')" class="ludo-link" type="button" @click="openLudo">🎲 Jugar Ludo multijugador</button>
+            <button v-if="selectedModes.includes('uno')" class="ludo-link" type="button" @click="openUno">🃏 Jugar Uno educativo (BETA)</button>
           </div>
         </div>
 
@@ -613,7 +614,7 @@ const fatal = ref('');
 const isImageName = (name: string) => /\.(png|jpg|jpeg|webp)$/i.test(name);
 
 // ── Módulos Aprender / Hacer ──────────────────────────────────────────────
-type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' | 'predict_output' | 'find_bug' | 'order_code' | 'ludo';
+type TaskMethod = 'document' | 'quiz4' | 'quiz_free' | 'flashcards' | 'find_error' | 'recall' | 'summary' | 'concept_map' | 'predict_output' | 'find_bug' | 'order_code' | 'ludo' | 'uno';
 
 const ACTIVITY_METHODS: TaskMethod[] = ['flashcards', 'find_error', 'recall', 'summary', 'concept_map', 'predict_output', 'find_bug', 'order_code'];
 
@@ -690,6 +691,7 @@ const METHOD_LABELS: Record<TaskMethod, string> = {
   find_bug: 'Encuentra el bug',
   order_code: 'Ordena el código',
   ludo: 'Ludo multijugador',
+  uno: 'Uno educativo (beta)',
 };
 
 const TASK_MODE_META: Record<string, { icon: string; label: string; description: string }> = {
@@ -705,6 +707,7 @@ const TASK_MODE_META: Record<string, { icon: string; label: string; description:
   find_bug: { icon: '🐞', label: 'Encuentra el bug', description: 'Marca las líneas con errores.' },
   order_code: { icon: '🔀', label: 'Ordena el código', description: 'Reordena las líneas del programa.' },
   ludo: { icon: '🎲', label: 'Ludo multijugador', description: 'Juega con la clase y suma puntos.' },
+  uno: { icon: '🃏', label: 'Uno educativo (beta)', description: 'Cartas y preguntas en pruebas.' },
 };
 
 const TASK_MODE_GROUPS: { id: string; label: string; icon: string; modes: TaskMethod[] }[] = [
@@ -724,7 +727,7 @@ const TASK_MODE_GROUPS: { id: string; label: string; icon: string; modes: TaskMe
     id: 'multijugador',
     label: 'Multijugador',
     icon: '🎮',
-    modes: ['ludo'],
+    modes: ['ludo', 'uno'],
   },
 ];
 
@@ -897,6 +900,10 @@ async function chooseMethod(next: TaskMethod) {
     openLudo();
     return;
   }
+  if (next === 'uno') {
+    openUno();
+    return;
+  }
   if (next !== 'document') void startQuiz(next);
 }
 
@@ -907,6 +914,11 @@ function openActivity(next: TaskMethod | null) {
 
 function openLudo(): void {
   method.value = 'ludo';
+  goToPage(router, 'game', `assignment_id=${encodeURIComponent(assignmentId.value)}`);
+}
+
+function openUno(): void {
+  method.value = 'uno';
   goToPage(router, 'game', `assignment_id=${encodeURIComponent(assignmentId.value)}`);
 }
 

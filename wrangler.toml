@@ -54,9 +54,18 @@ bucket_name = 'mirai-photos'
 name = "GAME_ROOM"
 class_name = "GameRoom"
 
+# Uno educativo: un DO por partida, misma estrategia que GameRoom.
+[[durable_objects.bindings]]
+name = "UNO_ROOM"
+class_name = "UnoRoom"
+
 [[migrations]]
 tag = "v1-game-room"
 new_sqlite_classes = ["GameRoom"]
+
+[[migrations]]
+tag = "v2-uno-room"
+new_sqlite_classes = ["UnoRoom"]
 
 # --- CONFIGURACIÓN DE DOMINIO (Opcional pero recomendado) ---
 # Si quieres que el Worker responda directamente en aberumirai.com

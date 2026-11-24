@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS game_rooms (
     game_type     TEXT NOT NULL DEFAULT 'ludo',
     max_players   INTEGER NOT NULL DEFAULT 4,
     turn_seconds  INTEGER NOT NULL DEFAULT 40,
+    config        TEXT,
     status        TEXT NOT NULL DEFAULT 'lobby',
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     expires_at    TEXT
@@ -94,5 +95,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_game_questions_hash
 --   ALTER TABLE game_rooms ADD COLUMN assignment_id TEXT;
 --   ALTER TABLE game_rooms ADD COLUMN created_by TEXT;
 --   ALTER TABLE game_rooms ADD COLUMN topic TEXT;
+--   ALTER TABLE game_rooms ADD COLUMN config TEXT;
 --   ALTER TABLE game_question_bank ADD COLUMN difficulty TEXT;
 --   ALTER TABLE game_question_bank ADD COLUMN qhash TEXT;

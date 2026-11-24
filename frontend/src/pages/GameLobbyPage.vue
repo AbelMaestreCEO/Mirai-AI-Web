@@ -6,9 +6,15 @@
 
   <div class="game-page">
     <div class="game-hero">
-      <h1>{{ assignmentId ? 'Ludo de la tarea' : 'Ludo del aula' }}</h1>
+      <h1>
+        {{ assignmentId ? `${gameLabel} de la tarea` : `${gameLabel} del aula` }}
+        <span v-if="gameType === 'uno'" class="beta-badge">BETA</span>
+      </h1>
       <p v-if="assignmentId">
         Entra a una sala con espacio o crea la tuya. Los puntos de la partida cuentan para la nota de la tarea.
+      </p>
+      <p v-else-if="gameType === 'uno'">
+        Uno educativo en pruebas: crea una sala y responde preguntas para evitar los +2 y +4.
       </p>
       <p v-else>Salas por turnos con resultados e historial. Entra con un código o crea una sala para tu sección.</p>
     </div>
@@ -42,6 +48,17 @@
       <section v-if="canCreate" class="game-card">
         <h2>Crear sala</h2>
         <p class="muted small">Solo puedes tener una sala activa a la vez. Expira sola en 2 horas.</p>
+        <label class="field">
+          <span>Juego</span>
+          <select v-model="gameType" class="select" @change="onGameTypeChange">
+            <option value="ludo">Ludo multijugador</option>
+            <option value="uno">Uno educativo (BETA)</option>
+          </select>
+        </label>
+        <p v-if="gameType === 'uno'" class="beta-note">
+          <span class="beta-badge">BETA</span>
+          Estás probando el Uno educativo. Las reglas y la interfaz pueden cambiar.
+        </p>
         <div class="create-grid">
           <label class="field">
             <span>Jugadores</span>
@@ -116,6 +133,9 @@
             <div class="room-main">
               <div class="room-code">
                 {{ room.code }}
+                <span class="chip" :class="{ 'chip-beta': room.game_type === 'uno' }">
+                  {{ room.game_type === 'uno' ? 'Uno BETA' : 'Ludo' }}
+                </span>
                 <span class="chip">{{ room.status === 'playing' ? 'En partida' : 'Lobby' }}</span>
               </div>
               <div class="muted small">
@@ -188,6 +208,7 @@ interface RoomSummary {
   id: string;
   code: string;
   status: string;
+  game_type: string;
   max_players: number;
   turn_seconds: number;
   player_count: number;
@@ -214,8 +235,14 @@ const createdCode = ref('');
 const joinCode = ref('');
 const busyCode = ref('');
 const form = reactive({ max_players: 4, turn_seconds: 40 });
+const gameType = ref<'ludo' | 'uno'>('ludo');
 
 const canCreate = computed(() => !!assignmentId || isProfessor.value);
+const gameLabel = computed(() => (gameType.value === 'uno' ? 'Uno educativo' : 'Ludo'));
+
+function onGameTypeChange(): void {
+  form.turn_seconds = gameType.value === 'uno' ? 30 : 40;
+}
 
 onMounted(load);
 
@@ -315,7 +342,7 @@ async function createRoom(): Promise<void> {
     const res = await api.post<{ code?: string; error?: string }>('/api/game/rooms', {
       assignment_id: assignmentId || undefined,
       section_id: assignmentId ? undefined : selectedSection.value || undefined,
-      game_type: 'ludo',
+      game_type: gameType.value,
       max_players: form.max_players,
       turn_seconds: form.turn_seconds,
     });
@@ -712,6 +739,35 @@ async function copy(code: string): Promise<void> {
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--glass-bg);
+}
+
+.chip-beta {
+  background: linear-gradient(120deg, #ff9800, #ff5722);
+  color: #fff;
+}
+
+.beta-badge {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #ff9800, #ff5722);
+  color: #fff;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.beta-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: var(--secondary-container);
+  border-radius: 12px;
+  padding: 10px 12px;
 }
 
 .players-line {

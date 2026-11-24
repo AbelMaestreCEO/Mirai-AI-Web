@@ -13,6 +13,7 @@ export const TASK_MODES = [
   'find_bug',
   'order_code',
   'ludo',
+  'uno',
 ] as const;
 
 export type TaskMode = (typeof TASK_MODES)[number];
@@ -61,4 +62,5 @@ export const TASK_MODE_LABELS: Record<TaskMode, string> = {
   find_bug: 'Encuentra el bug',
   order_code: 'Ordena el código',
   ludo: 'Ludo multijugador',
+  uno: 'Uno educativo (beta)',
 };

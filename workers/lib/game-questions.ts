@@ -12,7 +12,7 @@
 import { callAI } from './ai';
 import { AI_MODEL_NORMAL } from './ai-models';
 
-export type Difficulty = 'easy' | 'hard';
+export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface BankQuestion {
   id: string;
@@ -25,8 +25,10 @@ export interface BankQuestion {
 }
 
 const EASY_TARGET = 24;
+const MEDIUM_TARGET = 18;
 const HARD_TARGET = 12;
 const EASY_BATCH = 20;
+const MEDIUM_BATCH = 12;
 const HARD_BATCH = 10;
 
 interface GeneratedQuestion {
@@ -54,7 +56,9 @@ function userPrompt(topic: string, difficulty: Difficulty, count: number): strin
   const level =
     difficulty === 'easy'
       ? 'fáciles: conceptos básicos del tema, respuesta directa'
-      : 'difíciles: requieren razonar o aplicar el concepto, con distractores cercanos';
+      : difficulty === 'medium'
+        ? 'de nivel medio: comprensión y aplicación directa, con distractores plausibles'
+        : 'difíciles: requieren razonar o aplicar el concepto, con distractores cercanos';
   return [
     `Tema: ${topic}`,
     `Genera exactamente ${count} preguntas ${level}.`,
@@ -120,7 +124,10 @@ async function generateBatch(
       { role: 'system', content: systemPrompt() },
       { role: 'user', content: userPrompt(topic, difficulty, count) + avoid },
     ],
-    { temperature: 0.8, max_tokens: difficulty === 'easy' ? 3200 : 2200 },
+    {
+      temperature: 0.8,
+      max_tokens: difficulty === 'easy' ? 3200 : difficulty === 'medium' ? 2600 : 2200,
+    },
     env
   );
 
@@ -184,11 +191,14 @@ export async function ensureQuestionBank(
   env: Env,
   assignmentId: string,
   topic: string
-): Promise<{ easy: number; hard: number }> {
+): Promise<{ easy: number; medium: number; hard: number }> {
   let easy = await countQuestions(env, assignmentId, 'easy');
+  let medium = await countQuestions(env, assignmentId, 'medium');
   let hard = await countQuestions(env, assignmentId, 'hard');
 
-  if (easy >= EASY_TARGET && hard >= HARD_TARGET) return { easy, hard };
+  if (easy >= EASY_TARGET && medium >= MEDIUM_TARGET && hard >= HARD_TARGET) {
+    return { easy, medium, hard };
+  }
 
   const stems = await existingStems(env, assignmentId);
 
@@ -201,6 +211,15 @@ export async function ensureQuestionBank(
     }
   }
 
+  if (medium < MEDIUM_TARGET) {
+    try {
+      const batch = await generateBatch(env, topic, 'medium', MEDIUM_BATCH, stems);
+      medium += await storeQuestions(env, assignmentId, topic, 'medium', batch);
+    } catch (error: any) {
+      console.warn('Banco de preguntas medias no generado —', error.message);
+    }
+  }
+
   if (hard < HARD_TARGET) {
     try {
       const batch = await generateBatch(env, topic, 'hard', HARD_BATCH, stems);
@@ -210,5 +229,5 @@ export async function ensureQuestionBank(
     }
   }
 
-  return { easy, hard };
+  return { easy, medium, hard };
 }
