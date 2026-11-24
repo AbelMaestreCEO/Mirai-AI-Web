@@ -127,8 +127,19 @@
 
             <div class="pile">
               <span class="pile-label">Descarte</span>
-              <div v-if="state.discardTop" class="uno-card discard" :class="colorClass(state.discardTop.color ?? state.activeColor)">
-                <span class="card-value">{{ cardLabel(state.discardTop) }}</span>
+              <div
+                v-if="state.discardTop"
+                class="uno-card discard"
+                :class="[colorClass(state.discardTop.color ?? state.activeColor), { 'has-face': !!cardFaceUrl(state.discardTop) }]"
+              >
+                <img
+                  v-if="cardFaceUrl(state.discardTop)"
+                  class="card-face"
+                  :src="cardFaceUrl(state.discardTop) ?? ''"
+                  alt=""
+                  draggable="false"
+                />
+                <span v-else class="card-value">{{ cardLabel(state.discardTop) }}</span>
               </div>
               <div v-else class="uno-card discard empty">—</div>
               <span class="active-color" :class="colorClass(state.activeColor)">
@@ -149,14 +160,23 @@
               v-for="card in myHand"
               :key="card.id"
               class="uno-card hand-card"
-              :class="[colorClass(card.color ?? 'wild'), { legal: isLegal(card), dim: isMyTurn && !isLegal(card) }]"
+              :class="[colorClass(card.color ?? 'wild'), { legal: isLegal(card), dim: isMyTurn && !isLegal(card), 'has-face': !!cardFaceUrl(card) }]"
               type="button"
               :disabled="!isMyTurn || state.status !== 'playing' || !isLegal(card)"
               :aria-label="`Jugar ${cardLabel(card)} ${colorName(card.color ?? 'wild')}`"
               @click="tryPlay(card)"
             >
-              <span class="card-value">{{ cardLabel(card) }}</span>
-              <span class="card-color-name">{{ colorName(card.color ?? 'wild') }}</span>
+              <img
+                v-if="cardFaceUrl(card)"
+                class="card-face"
+                :src="cardFaceUrl(card) ?? ''"
+                alt=""
+                draggable="false"
+              />
+              <template v-else>
+                <span class="card-value">{{ cardLabel(card) }}</span>
+                <span class="card-color-name">{{ colorName(card.color ?? 'wild') }}</span>
+              </template>
             </button>
             <span v-if="myHand.length === 0" class="muted small">Sin cartas.</span>
           </div>
@@ -654,6 +674,12 @@ function cardLabel(card: UnoCard): string {
   }
 }
 
+function cardFaceUrl(card: UnoCard): string | null {
+  if (card.color !== 'green') return null;
+  if (!/^[1-9]$/.test(card.value)) return null;
+  return `/cards/green-${card.value}.jpg`;
+}
+
 function colorClass(color: UnoColor | 'wild'): string {
   return `uno-${color}`;
 }
@@ -937,6 +963,21 @@ void UNO_COLORS;
   border: 2px solid rgba(255, 255, 255, 0.55);
   border-radius: 8px;
   pointer-events: none;
+}
+
+/* Cartas con arte propio (de momento los números verdes 1-9): la imagen ya
+   trae el marco, así que se oculta el borde interior dibujado por CSS. */
+.uno-card.has-face::before {
+  display: none;
+}
+
+.uno-card .card-face {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  user-select: none;
 }
 
 .card-value {
