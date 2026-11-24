@@ -17,6 +17,7 @@ import {
   ensureTaskModeTables,
   getTaskProgress,
   recordTaskModeResult,
+  saveTaskGradeClaim,
   saveTaskModeSelection,
 } from '../lib/task-progress';
 import {
@@ -24,6 +25,7 @@ import {
   isTaskMode,
   parseTaskModes,
   REQUIRED_TASK_MODES,
+  TASK_MODE_LABELS,
   TaskMode,
 } from '../lib/task-modes';
 import { getAssignmentForStudent } from './chat-context';
@@ -677,6 +679,190 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     return jsonResponse({ success: true, progress }, 200, corsHeaders);
   }
 
+  // ── Reclamar la nota final ───────────────────────────────────────────────
+  // Tras las 4 actividades la nota queda pendiente. El estudiante explica qué
+  // aprendió y la IA decide si esa reflexión confirma el aprendizaje logrado.
+  if (path === '/api/task-modes/claim-grade' && request.method === 'POST') {
+    const userDni = await requireAuth(request, env);
+    if (!userDni) return jsonResponse({ error: 'No autorizado' }, 401, corsHeaders);
+
+    const body = await request.json<any>().catch(() => ({}));
+    const id = String(body?.assignment_id || '').trim();
+    const reflection = String(body?.reflection || '').trim();
+    if (!id) return jsonResponse({ error: 'Falta assignment_id' }, 400, corsHeaders);
+    if (!reflection) return jsonResponse({ error: 'Escribe qué aprendiste.' }, 400, corsHeaders);
+    if (reflection.length > 1000) {
+      return jsonResponse({ error: 'La respuesta no puede superar los 1000 caracteres.' }, 400, corsHeaders);
+    }
+
+    const assignment = await getAssignmentForStudent(id, userDni, env);
+    if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
+
+    const progress = await getTaskProgress(env, id, userDni, assignment);
+    if (progress.formative) {
+      return jsonResponse({ error: 'Esta tarea es de práctica formativa y no lleva nota.' }, 400, corsHeaders);
+    }
+    if (progress.finalized) {
+      return jsonResponse({ approved: true, already: true, final_score: progress.final_score, progress }, 200, corsHeaders);
+    }
+    if (!progress.complete) {
+      return jsonResponse({ error: 'Completa tus 4 actividades antes de reclamar la nota.' }, 409, corsHeaders);
+    }
+
+    const owner = userDni.toUpperCase();
+    const { results: modeRows } = await env.MIRAI_AI_DB.prepare(
+      'SELECT mode, score, max_score, feedback FROM task_mode_results WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+    ).bind(id, owner).all<any>();
+    const modeByKey = new Map<string, any>();
+    for (const row of modeRows || []) modeByKey.set(String(row.mode), row);
+
+    const { results: attemptRows } = await env.MIRAI_AI_DB.prepare(
+      'SELECT type, result FROM activity_attempts WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?) ORDER BY created_at DESC LIMIT 12',
+    ).bind(id, owner).all<any>();
+    const detailByType = new Map<string, string>();
+    for (const row of attemptRows || []) {
+      const type = String(row.type || '');
+      if (!type || detailByType.has(type)) continue;
+      const raw = String(row.result || '');
+      if (!raw) continue;
+      let text = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        text = JSON.stringify(parsed?.details ?? parsed ?? {});
+      } catch {
+        text = raw;
+      }
+      detailByType.set(type, text.slice(0, 600));
+    }
+
+    const documentRow = await env.MIRAI_AI_DB.prepare(
+      'SELECT extracted_text FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+    ).bind(id, owner).first<any>();
+
+    const feedbackText = (raw: unknown) => {
+      if (!raw) return '';
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return String(parsed?.general ?? parsed?.resumen ?? JSON.stringify(parsed)).slice(0, 500);
+      } catch {
+        return String(raw).slice(0, 500);
+      }
+    };
+
+    const activityLines = progress.selected_modes.map((mode) => {
+      const row = modeByKey.get(mode);
+      const label = TASK_MODE_LABELS[mode] || mode;
+      const score = row?.score != null ? `${Math.round(Number(row.score))}/${Math.round(Number(row.max_score) || progress.max_score)}` : 'sin puntaje';
+      const general = feedbackText(row?.feedback);
+      const detail = detailByType.get(mode);
+      const parts = [`- ${label} (${score})`];
+      if (general) parts.push(`  Feedback: ${general}`);
+      if (detail) parts.push(`  Detalle: ${detail}`);
+      if (mode === 'document' && documentRow?.extracted_text) {
+        parts.push(`  Texto entregado: ${String(documentRow.extracted_text).slice(0, 1500)}`);
+      }
+      return parts.join('\n');
+    });
+
+    const systemPrompt = `Eres un profesor que confirma la nota final de una tarea del aula virtual.
+El estudiante completó 4 actividades y ahora debe demostrar, en una reflexión breve, que realmente aprendió.
+Evalúa SOLO la reflexión escrita por el estudiante, usando como contexto la tarea y los resultados de sus 4 actividades.
+Considera correcta la reflexión cuando muestre una comprensión genuina de los conceptos clave trabajados y sea coherente con las actividades. No exijas tecnicismos ni una redacción perfecta.
+Si es correcta responde "approved": true con un feedback breve y positivo.
+Si es incorrecta o insuficiente responde "approved": false, explica con claridad las fallas y recuérdale los puntos más importantes de sus 4 actividades para que pueda intentarlo de nuevo.
+Responde SOLO un JSON válido con este formato:
+{"approved": true o false, "feedback": "explicación breve", "key_points": ["punto clave 1", "punto clave 2"]}
+No agregues texto fuera del JSON.`;
+
+    const userPrompt = `Tarea: ${String(assignment.title || '').slice(0, 200)}
+Enunciado: ${String(assignment.description || 'Sin descripción').slice(0, 1500)}
+
+Resultados de sus 4 actividades:
+${activityLines.join('\n')}
+
+Reflexión del estudiante ("¿Qué aprendiste?"):
+${reflection}`;
+
+    let approved = false;
+    let feedback = '';
+    let keyPoints: string[] = [];
+    try {
+      const raw = await callAI(
+        AI_MODEL_NORMAL,
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        { temperature: 0.3, max_tokens: 900 },
+        env,
+      );
+      const parsed = parseQuizJson(raw);
+      approved = parsed?.approved === true;
+      feedback = String(parsed?.feedback || '').trim().slice(0, 1500);
+      keyPoints = Array.isArray(parsed?.key_points)
+        ? parsed.key_points.map((p: any) => String(p).trim()).filter(Boolean).slice(0, 8)
+        : [];
+    } catch (error) {
+      console.error('Error evaluando reclamo de nota:', error);
+      return jsonResponse({ error: 'No se pudo evaluar tu respuesta. Inténtalo de nuevo.' }, 502, corsHeaders);
+    }
+
+    if (approved && !feedback) {
+      feedback = 'La IA validó tu reflexión: demostraste lo que aprendiste en las actividades.';
+    }
+
+    if (!approved) {
+      const reminder = keyPoints.length
+        ? `\nPuntos clave para repasar:\n${keyPoints.map((p) => `• ${p}`).join('\n')}`
+        : '';
+      const fullFeedback = `${feedback || 'La respuesta aún no demuestra lo que aprendiste.'}${reminder}`.slice(0, 2000);
+      await saveTaskGradeClaim(env, id, owner, false, null, fullFeedback);
+      const updated = await getTaskProgress(env, id, owner, assignment);
+      return jsonResponse({
+        approved: false,
+        feedback: feedback || 'La respuesta aún no demuestra lo que aprendiste.',
+        key_points: keyPoints,
+        progress: updated,
+      }, 200, corsHeaders);
+    }
+
+    const finalScore = progress.current_average;
+    const fullFeedback = `Reclamaste tu nota y la IA confirmó tu aprendizaje. Nota final: ${finalScore}/${progress.max_score}. ${feedback}`.slice(0, 2000);
+    await saveTaskGradeClaim(env, id, owner, true, finalScore, fullFeedback);
+
+    const feedbackJson = JSON.stringify({
+      general: fullFeedback,
+      claim_feedback: feedback,
+      modes: progress.results,
+    });
+    const existing = await env.MIRAI_AI_DB.prepare(
+      'SELECT id FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+    ).bind(id, owner).first<any>();
+    if (existing) {
+      await env.MIRAI_AI_DB.prepare(
+        `UPDATE submissions
+            SET status = 'evaluated', score = ?, feedback = ?, graded_at = datetime('now')
+          WHERE id = ?`,
+      ).bind(finalScore, feedbackJson, existing.id).run();
+    } else {
+      await env.MIRAI_AI_DB.prepare(
+        `INSERT INTO submissions
+           (id, assignment_id, user_dni, file_url, status, score, feedback, graded_at,
+            submitted_at, attempt_type, retry_used)
+         VALUES (?, ?, ?, 'composite://task', 'evaluated', ?, ?, datetime('now'), datetime('now'), 'mixed', 0)`,
+      ).bind(crypto.randomUUID(), id, owner, finalScore, feedbackJson).run();
+    }
+
+    const updated = await getTaskProgress(env, id, owner, assignment);
+    return jsonResponse({
+      approved: true,
+      feedback,
+      key_points: keyPoints,
+      final_score: finalScore,
+      progress: updated,
+    }, 200, corsHeaders);
+  }
+
   if (path === '/api/courses' && request.method === 'GET') {
     return await handleGetCourses(env, corsHeaders);
   }
@@ -798,6 +984,7 @@ export async function handleClassroomApi(request: Request, env: Env, url: URL, p
     const deletes = [
       'DELETE FROM task_mode_results WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
       'DELETE FROM task_mode_selections WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+      'DELETE FROM task_grade_claims WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
       'DELETE FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
       'DELETE FROM activity_attempts WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
       'DELETE FROM flashcard_reviews WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',

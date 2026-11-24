@@ -144,6 +144,7 @@
             <span v-else-if="!progress.complete">
               Nota actual: <strong>{{ progress.current_average }}</strong> / {{ progress.max_score }}
             </span>
+            <span v-else-if="progress.pending_final" class="task-progress-pending-final">Nota pendiente</span>
             <span v-else>
               Nota final: <strong>{{ progress.final_score }}</strong> / {{ progress.max_score }}
             </span>
@@ -154,6 +155,57 @@
           <p v-if="progress.legacy_score != null && !progress.complete" class="task-progress-legacy">
             Nota anterior registrada: {{ progress.legacy_score }} / {{ progress.max_score }}. Se actualizará al completar las 4 actividades.
           </p>
+
+          <div v-if="progress.pending_final" class="task-claim-cta">
+            <p>
+              Completaste tus 4 actividades. Tu nota todavía es <strong>pendiente</strong>:
+              explica qué aprendiste para confirmarla.
+            </p>
+            <button v-if="!claimOpen" class="course-start-btn" type="button" @click="openClaim">
+              Reclamar nota
+            </button>
+          </div>
+
+          <div v-if="claimOpen" class="task-claim-card">
+            <template v-if="claimResult?.approved">
+              <div class="task-claim-feedback ok">
+                <strong>¡Nota confirmada!</strong>
+                <p>{{ claimResult.feedback }}</p>
+              </div>
+              <div class="task-claim-actions">
+                <button class="course-start-btn" type="button" @click="closeClaim">Entendido</button>
+              </div>
+            </template>
+            <template v-else>
+              <h3 class="section-title">¿Qué aprendiste?</h3>
+              <p class="section-subtitle">
+                Resume lo más importante que aprendiste al hacer tus 4 actividades. La IA revisará tu respuesta.
+              </p>
+              <textarea
+                v-model="claimText"
+                class="task-claim-input"
+                maxlength="1000"
+                rows="6"
+                placeholder="Escribe aquí lo que aprendiste..."
+              ></textarea>
+              <div class="task-claim-counter">{{ claimText.length }} / 1000</div>
+              <div v-if="claimError" class="task-claim-error">{{ claimError }}</div>
+              <div v-if="claimResult && !claimResult.approved" class="task-claim-feedback wrong">
+                <strong>La IA todavía no confirma tu nota.</strong>
+                <p>{{ claimResult.feedback }}</p>
+                <ul v-if="claimResult.key_points?.length">
+                  <li v-for="point in claimResult.key_points" :key="point">{{ point }}</li>
+                </ul>
+                <p class="task-claim-hint">Corrige tu respuesta e inténtalo de nuevo.</p>
+              </div>
+              <div class="task-claim-actions">
+                <button class="btn btn-secondary" type="button" :disabled="claimBusy" @click="closeClaim">Cancelar</button>
+                <button class="course-start-btn" type="button" :disabled="claimBusy || !claimText.trim()" @click="submitClaim">
+                  {{ claimBusy ? 'Evaluando...' : 'Calificar' }}
+                </button>
+              </div>
+            </template>
+          </div>
         </div>
 
         <!-- Elegir los 4 modos -->
@@ -599,8 +651,25 @@ interface TaskProgress {
   current_average: number;
   final_score: number | null;
   complete: boolean;
+  finalized: boolean;
+  pending_final: boolean;
+  claim_attempts: number;
+  claim_feedback: string | null;
   results: Record<string, TaskModeResultInfo>;
   legacy_score: number | null;
+}
+
+interface ClaimResult {
+  approved: boolean;
+  feedback: string;
+  key_points?: string[];
+  final_score?: number | null;
+}
+
+interface ClaimResponse extends ClaimResult {
+  error?: string;
+  already?: boolean;
+  progress?: TaskProgress;
 }
 
 const activeTab = ref<'learn' | 'do'>('learn');
@@ -756,6 +825,63 @@ function startChangeModes() {
   selectionDraft.value = [...selectedModes.value];
   choosingModes.value = true;
   method.value = null;
+}
+
+// ── Reclamar nota: formulario "¿Qué aprendiste?" ──────────────────────────
+const claimOpen = ref(false);
+const claimText = ref('');
+const claimBusy = ref(false);
+const claimError = ref('');
+const claimResult = ref<ClaimResult | null>(null);
+
+function openClaim() {
+  claimError.value = '';
+  claimResult.value = progress.value?.claim_feedback
+    ? { approved: false, feedback: progress.value.claim_feedback, key_points: [] }
+    : null;
+  claimOpen.value = true;
+}
+
+function closeClaim() {
+  if (claimBusy.value) return;
+  claimOpen.value = false;
+  claimError.value = '';
+  claimResult.value = null;
+}
+
+async function submitClaim() {
+  const reflection = claimText.value.trim();
+  if (!reflection) {
+    dialog.alert('Escribe qué aprendiste.');
+    return;
+  }
+  if (reflection.length > 1000) {
+    dialog.alert('La respuesta no puede superar los 1000 caracteres.');
+    return;
+  }
+  claimBusy.value = true;
+  claimError.value = '';
+  try {
+    const { ok, status, data } = await api.post<ClaimResponse>('/api/task-modes/claim-grade', {
+      assignment_id: assignmentId.value,
+      reflection,
+    });
+    if (!ok) throw new Error(errorMessage(data, `Error ${status}`));
+    claimResult.value = {
+      approved: data.approved === true,
+      feedback: data.feedback || '',
+      key_points: data.key_points ?? [],
+    };
+    if (data.progress) progress.value = data.progress;
+    if (claimResult.value.approved) {
+      claimText.value = '';
+      await load();
+    }
+  } catch (err) {
+    claimError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    claimBusy.value = false;
+  }
 }
 
 async function chooseMethod(next: TaskMethod) {
@@ -1053,6 +1179,7 @@ const phase = computed<'pending' | 'review' | 'evaluated' | 'none'>(() => {
 });
 
 const status = computed(() => {
+  if (progress.value?.pending_final) return { cls: 'status-submitted', text: 'Nota pendiente' };
   switch (phase.value) {
     case 'evaluated':
       return isFormative.value
@@ -1722,6 +1849,127 @@ async function confirmEvaluation() {
 :where(body[data-page="classroom_details"]) .task-progress-legacy {
   margin: 8px 0 0;
   font-style: italic;
+}
+
+:where(body[data-page="classroom_details"]) .task-progress-pending-final {
+  font-weight: 800;
+  color: var(--accent-color, #6c63ff);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-cta {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--secondary-container);
+  border: 1px dashed var(--accent-color, #6c63ff);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-cta p {
+  margin: 0;
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-cta p strong {
+  color: var(--accent-color, #6c63ff);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-card {
+  margin-top: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--surface, var(--glass-bg));
+  border: 1px solid var(--glass-border);
+  animation: cardFadeIn 0.35s ease both;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: .92rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-input:focus {
+  border-color: var(--accent-color, #6c63ff);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-counter {
+  margin-top: 6px;
+  text-align: right;
+  font-size: .75rem;
+  color: var(--text-secondary);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, .1);
+  color: var(--error-color, #dc2626);
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-feedback {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-feedback.ok {
+  background: rgba(22, 163, 74, .12);
+  border: 1px solid rgba(22, 163, 74, .4);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-feedback.wrong {
+  background: rgba(239, 68, 68, .1);
+  border: 1px solid rgba(239, 68, 68, .35);
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-feedback strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-feedback p {
+  margin: 0 0 6px;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-feedback ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-hint {
+  margin: 8px 0 0;
+  font-size: .8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+:where(body[data-page="classroom_details"]) .task-claim-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 :where(body[data-page="classroom_details"]) .task-modes-warning {

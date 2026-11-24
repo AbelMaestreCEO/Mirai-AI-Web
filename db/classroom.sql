@@ -152,3 +152,16 @@ CREATE TABLE IF NOT EXISTS task_mode_results (
 
 CREATE INDEX IF NOT EXISTS idx_task_mode_results_user
     ON task_mode_results (assignment_id, user_dni);
+
+-- Reclamo de la nota final: completar las 4 actividades deja la nota pendiente.
+-- El estudiante explica "qué aprendió" y la IA confirma o rechaza el reclamo.
+CREATE TABLE IF NOT EXISTS task_grade_claims (
+    assignment_id TEXT NOT NULL,
+    user_dni      TEXT NOT NULL,
+    attempts      INTEGER DEFAULT 0,
+    status        TEXT DEFAULT 'pending',
+    final_score   REAL,
+    last_feedback TEXT,
+    updated_at    TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (assignment_id, user_dni)
+);

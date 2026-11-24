@@ -242,6 +242,7 @@ interface Submission {
   assignment_id: number | string;
   score: number | null;
   status?: string | null;
+  attempt_type?: string | null;
 }
 
 interface StudentClass {
@@ -468,11 +469,14 @@ const cards = computed(() => {
     const submission = byAssignment.get(String(assignment.id));
     const late = !!assignment.due_date && new Date(assignment.due_date) < new Date();
     const graded = !!submission && submission.score !== null;
+    const pendingFinal = !!submission && !graded && submission.attempt_type === 'mixed';
     return {
       assignment,
       done: !!submission,
       score: submission?.score ?? null,
-      statusText: submission ? (graded ? `Calificado: ${submission.score}` : 'Entregado') : late ? 'Atrasada' : 'Pendiente',
+      statusText: submission
+        ? (graded ? `Calificado: ${submission.score}` : pendingFinal ? 'Nota pendiente' : 'Entregado')
+        : late ? 'Atrasada' : 'Pendiente',
       statusClass: submission ? 'status-completed' : late ? 'status-late' : 'status-pending',
       accent: submission
         ? 'linear-gradient(135deg, #4caf50, #81c784)'

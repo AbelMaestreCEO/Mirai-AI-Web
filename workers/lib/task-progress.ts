@@ -33,6 +33,16 @@ export async function ensureTaskModeTables(env: Env) {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_task_mode_results_user
       ON task_mode_results (assignment_id, user_dni)`,
+    `CREATE TABLE IF NOT EXISTS task_grade_claims (
+      assignment_id TEXT NOT NULL,
+      user_dni      TEXT NOT NULL,
+      attempts      INTEGER DEFAULT 0,
+      status        TEXT DEFAULT 'pending',
+      final_score   REAL,
+      last_feedback TEXT,
+      updated_at    TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (assignment_id, user_dni)
+    )`,
     'ALTER TABLE assignments ADD COLUMN activity_modes TEXT',
   ];
   for (const sql of statements) {
@@ -63,8 +73,62 @@ export interface TaskProgress {
   current_average: number;
   final_score: number | null;
   complete: boolean;
+  finalized: boolean;
+  pending_final: boolean;
+  claim_attempts: number;
+  claim_feedback: string | null;
   results: Record<string, TaskModeResult>;
   legacy_score: number | null;
+}
+
+export interface TaskGradeClaim {
+  attempts: number;
+  status: string;
+  final_score: number | null;
+  last_feedback: string | null;
+}
+
+export async function getTaskGradeClaim(
+  env: Env,
+  assignmentId: string,
+  userDni: string,
+): Promise<TaskGradeClaim | null> {
+  await ensureTaskModeTables(env);
+  const row = await env.MIRAI_AI_DB.prepare(
+    `SELECT attempts, status, final_score, last_feedback
+       FROM task_grade_claims WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)`,
+  ).bind(assignmentId, userDni).first<any>();
+  if (!row) return null;
+  return {
+    attempts: Number(row.attempts) || 0,
+    status: String(row.status || 'pending'),
+    final_score: row.final_score === null || row.final_score === undefined ? null : Number(row.final_score),
+    last_feedback: row.last_feedback === null || row.last_feedback === undefined ? null : String(row.last_feedback),
+  };
+}
+
+export async function saveTaskGradeClaim(
+  env: Env,
+  assignmentId: string,
+  userDni: string,
+  approved: boolean,
+  finalScore: number | null,
+  feedback: string,
+): Promise<TaskGradeClaim> {
+  await ensureTaskModeTables(env);
+  const owner = userDni.toUpperCase();
+  await env.MIRAI_AI_DB.prepare(
+    `INSERT INTO task_grade_claims
+       (assignment_id, user_dni, attempts, status, final_score, last_feedback, updated_at)
+     VALUES (?, ?, 1, ?, ?, ?, datetime('now'))
+     ON CONFLICT (assignment_id, user_dni) DO UPDATE SET
+       attempts = attempts + 1,
+       status = CASE WHEN excluded.status = 'approved' THEN 'approved' ELSE status END,
+       final_score = COALESCE(excluded.final_score, final_score),
+       last_feedback = excluded.last_feedback,
+       updated_at = datetime('now')`,
+  ).bind(assignmentId, owner, approved ? 'approved' : 'pending', finalScore, feedback).run();
+  return (await getTaskGradeClaim(env, assignmentId, owner)) as TaskGradeClaim;
 }
 
 interface AssignmentRow {
@@ -117,6 +181,9 @@ export async function deleteTaskModeProgress(env: Env, assignmentId: string, use
   await env.MIRAI_AI_DB.prepare(
     'DELETE FROM task_mode_selections WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
   ).bind(assignmentId, owner).run();
+  await env.MIRAI_AI_DB.prepare(
+    'DELETE FROM task_grade_claims WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+  ).bind(assignmentId, owner).run();
 }
 
 export async function getTaskProgress(
@@ -156,16 +223,25 @@ export async function getTaskProgress(
   const completedCount = completedModes.length;
   const currentAverage = completedCount ? Math.round(totalPoints / completedCount) : 0;
   const complete = selected.length === REQUIRED_TASK_MODES && completedCount === REQUIRED_TASK_MODES;
-  const finalScore = complete ? Math.round(totalPoints / REQUIRED_TASK_MODES) : null;
+  const formative = row?.grading_mode === 'formative';
+
+  // Completar las 4 actividades no cierra la nota: el estudiante debe
+  // "reclamarla" explicando qué aprendió. Solo entonces queda final.
+  const claim = await getTaskGradeClaim(env, assignmentId, userDni);
 
   const submission = await env.MIRAI_AI_DB.prepare(
-    'SELECT score FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
+    'SELECT score, status FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
   ).bind(assignmentId, userDni).first<any>();
+
+  const finalized = !formative && !!claim && claim.status === 'approved';
+  const claimedScore = claim?.final_score ?? currentAverage;
+  const finalScore = complete ? (finalized ? claimedScore : null) : null;
+  const pendingFinal = complete && !finalized && !formative;
 
   return {
     assignment_id: assignmentId,
     max_score: maxScore,
-    formative: row?.grading_mode === 'formative',
+    formative,
     enabled_modes: enabled,
     selected_modes: selected,
     required: REQUIRED_TASK_MODES,
@@ -174,6 +250,10 @@ export async function getTaskProgress(
     current_average: currentAverage,
     final_score: finalScore,
     complete,
+    finalized,
+    pending_final: pendingFinal,
+    claim_attempts: claim?.attempts ?? 0,
+    claim_feedback: claim?.last_feedback ?? null,
     results,
     legacy_score: selected.length
       ? null
@@ -217,7 +297,7 @@ export async function recordTaskModeResult(
   return recomputeTaskSubmission(env, assignmentId, owner);
 }
 
-/** Cuando los 4 modos están completos, escribe la nota final en `submissions`. */
+/** Con los 4 modos completos deja la nota "pendiente" (o final si ya se reclamó). */
 export async function recomputeTaskSubmission(
   env: Env,
   assignmentId: string,
@@ -231,37 +311,43 @@ export async function recomputeTaskSubmission(
     'SELECT id, file_url FROM submissions WHERE assignment_id = ? AND UPPER(user_dni) = UPPER(?)',
   ).bind(assignmentId, owner).first<any>();
 
-  const total = progress.final_score ?? Math.round(progress.total_points / REQUIRED_TASK_MODES);
-  const storedScore = progress.formative ? null : total;
+  const achieved = progress.finalized
+    ? (progress.final_score ?? progress.current_average)
+    : progress.current_average;
+  const storedScore = progress.formative || !progress.finalized ? null : achieved;
   const keepFile = String(existing?.file_url || '').startsWith('/api/file/');
   const fileUrl = keepFile ? existing.file_url : 'composite://task';
+  const general = progress.formative
+    ? `Tarea completada con ${progress.completed_count} de ${REQUIRED_TASK_MODES} actividades. Práctica formativa: no afecta tu nota.`
+    : progress.finalized
+      ? `Tarea completada y reclamada. Nota final: ${achieved}/${progress.max_score}.`
+      : `Tarea completada con ${progress.completed_count} de ${REQUIRED_TASK_MODES} actividades. Nota pendiente: usa "Reclamar nota" y explica qué aprendiste para confirmarla.`;
   const feedback = JSON.stringify({
-    general: progress.formative
-      ? `Tarea completada con ${progress.completed_count} de ${REQUIRED_TASK_MODES} actividades. Práctica formativa: no afecta tu nota.`
-      : `Tarea completada con ${progress.completed_count} de ${REQUIRED_TASK_MODES} actividades. Nota final: ${total}/${progress.max_score}.`,
+    general,
     modes: progress.results,
     formative: progress.formative,
+    pending_final: progress.pending_final,
   });
 
   if (existing) {
     await env.MIRAI_AI_DB.prepare(
       `UPDATE submissions
-          SET file_url = ?, status = 'evaluated', score = ?, feedback = ?,
-              graded_at = datetime('now'), submitted_at = datetime('now'), attempt_type = 'mixed'
+          SET file_url = ?, status = ?, score = ?, feedback = ?, graded_at = datetime('now'),
+              submitted_at = datetime('now'), attempt_type = 'mixed'
         WHERE id = ?`,
-    ).bind(fileUrl, storedScore, feedback, existing.id).run();
+    ).bind(fileUrl, progress.finalized ? 'evaluated' : 'pending', storedScore, feedback, existing.id).run();
   } else {
     await env.MIRAI_AI_DB.prepare(
       `INSERT INTO submissions
          (id, assignment_id, user_dni, file_url, status, score, feedback, graded_at,
           submitted_at, attempt_type, retry_used)
-       VALUES (?, ?, ?, ?, 'evaluated', ?, ?, datetime('now'), datetime('now'), 'mixed', 0)`,
-    ).bind(crypto.randomUUID(), assignmentId, owner, fileUrl, storedScore, feedback).run();
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'mixed', 0)`,
+    ).bind(crypto.randomUUID(), assignmentId, owner, fileUrl, progress.finalized ? 'evaluated' : 'pending', storedScore, feedback).run();
   }
 
   return {
     ...progress,
-    final_score: total,
+    final_score: progress.finalized ? achieved : null,
     legacy_score: storedScore,
   };
 }
