@@ -188,77 +188,145 @@
         </div>
       </section>
 
-      <!-- PREDICE LA SALIDA -->
-      <section v-else-if="type === 'predict_output'" class="activity-card">
+      <!-- PREDICE LA SALIDA (4 retos) -->
+      <section v-else-if="type === 'predict_output'" class="activity-card multistep">
         <p class="activity-instruction">{{ payload.instructions }}</p>
-        <pre class="code-block"><code>{{ payload.code }}</code></pre>
-        <p class="activity-note">Lenguaje: {{ payload.language }}</p>
-        <div class="predict-options">
-          <label
-            v-for="(option, index) in payload.options"
-            :key="index"
-            class="predict-option"
-            :class="{ selected: predictSelected === index }"
-          >
-            <input v-model="predictSelected" type="radio" :value="index">
-            <span class="predict-letter">{{ optionLetter(Number(index)) }}</span>
-            <pre class="predict-output">{{ option }}</pre>
-          </label>
+        <div class="question-stepper">
+          <button
+            v-for="qIndex in questionCount"
+            :key="`pdot-${qIndex}`"
+            class="stepper-dot"
+            :class="{ active: qIndex - 1 === questionIndex, done: predictAnswers[qIndex - 1] !== null && predictAnswers[qIndex - 1] !== undefined }"
+            :title="`Reto ${qIndex}`"
+            @click="goToQuestion(qIndex - 1)"
+          >{{ qIndex }}</button>
+          <span class="stepper-progress"><span class="stepper-fill" :style="{ width: progressPercent }"></span></span>
         </div>
-        <div class="activity-actions">
-          <button class="activity-btn" :disabled="grading || predictSelected === null" @click="submitActivity">
-            {{ grading ? 'Evaluando...' : 'Entregar predicción' }}
-          </button>
-        </div>
-      </section>
-
-      <!-- ENCUENTRA EL BUG EN EL CÓDIGO -->
-      <section v-else-if="type === 'find_bug'" class="activity-card">
-        <p class="activity-instruction">{{ payload.instructions }}</p>
-        <p class="activity-note">Lenguaje: {{ payload.language }}</p>
-        <div class="bug-toolbar">
-          <span class="bug-hint">Toca las líneas que contengan el error.</span>
-          <span class="bug-count" :class="{ active: bugSelected.length > 0 }">
-            {{ bugSelected.length }} marcada{{ bugSelected.length === 1 ? '' : 's' }}
-          </span>
-        </div>
-        <div class="code-block code-lines">
-          <label
-            v-for="(line, index) in codeLines"
-            :key="index"
-            class="code-line"
-            :class="{ selected: bugSelected.includes(index + 1) }"
-          >
-            <input v-model="bugSelected" type="checkbox" :value="index + 1">
-            <span class="code-line-check" aria-hidden="true"></span>
-            <span class="code-line-number">{{ index + 1 }}</span>
-            <code class="code-line-text">{{ line || ' ' }}</code>
-          </label>
-        </div>
-        <div class="activity-actions">
-          <button class="activity-btn" :disabled="grading || bugSelected.length === 0" @click="submitActivity">
-            {{ grading ? 'Evaluando...' : 'Entregar depuración' }}
-          </button>
-        </div>
-      </section>
-
-      <!-- ORDENA EL CÓDIGO -->
-      <section v-else-if="type === 'order_code'" class="activity-card">
-        <p class="activity-instruction">{{ payload.instructions }}</p>
-        <p class="activity-note">Lenguaje: {{ payload.language }}</p>
-        <div class="code-block order-list">
-          <div v-for="(line, index) in codeOrder" :key="line.id" class="order-line">
-            <span class="code-line-number">{{ index + 1 }}</span>
-            <pre class="code-line-text">{{ line.text }}</pre>
-            <span class="order-actions">
-              <button class="order-btn" :disabled="index === 0" @click="moveLine(index, -1)">↑</button>
-              <button class="order-btn" :disabled="index === codeOrder.length - 1" @click="moveLine(index, 1)">↓</button>
-            </span>
+        <Transition name="q-slide" mode="out-in">
+          <div :key="`pq-${questionIndex}`" class="question-body">
+            <div class="question-meta">
+              <span class="question-count">Reto {{ questionIndex + 1 }} / {{ questionCount }}</span>
+              <span class="difficulty-chip" :class="`diff-${questionIndex}`">{{ difficultyLabel(questionIndex) }}</span>
+              <span class="activity-note">Lenguaje: {{ currentQuestion?.language }}</span>
+            </div>
+            <pre class="code-block"><code>{{ currentQuestion?.code }}</code></pre>
+            <div class="predict-options">
+              <label
+                v-for="(option, index) in currentQuestion?.options || []"
+                :key="index"
+                class="predict-option"
+                :class="{ selected: predictAnswers[questionIndex] === index }"
+              >
+                <input v-model="predictAnswers[questionIndex]" type="radio" :value="index">
+                <span class="predict-letter">{{ optionLetter(Number(index)) }}</span>
+                <pre class="predict-output">{{ option }}</pre>
+              </label>
+            </div>
           </div>
+        </Transition>
+        <div class="activity-actions q-nav">
+          <button class="activity-btn secondary" :disabled="questionIndex === 0" @click="prevQuestion">Anterior</button>
+          <button v-if="questionIndex < questionCount - 1" class="activity-btn" @click="nextQuestion">Siguiente</button>
+          <button v-else class="activity-btn" :disabled="grading || !allPredictAnswered" @click="submitActivity">
+            {{ grading ? 'Evaluando...' : 'Entregar 4 retos' }}
+          </button>
         </div>
-        <div class="activity-actions">
-          <button class="activity-btn" :disabled="grading" @click="submitActivity">
-            {{ grading ? 'Evaluando...' : 'Entregar orden' }}
+      </section>
+
+      <!-- ENCUENTRA EL BUG EN EL CÓDIGO (4 retos) -->
+      <section v-else-if="type === 'find_bug'" class="activity-card multistep">
+        <p class="activity-instruction">{{ payload.instructions }}</p>
+        <div class="question-stepper">
+          <button
+            v-for="qIndex in questionCount"
+            :key="`bdot-${qIndex}`"
+            class="stepper-dot"
+            :class="{ active: qIndex - 1 === questionIndex, done: (bugAnswers[qIndex - 1]?.length || 0) > 0 }"
+            :title="`Reto ${qIndex}`"
+            @click="goToQuestion(qIndex - 1)"
+          >{{ qIndex }}</button>
+          <span class="stepper-progress"><span class="stepper-fill" :style="{ width: progressPercent }"></span></span>
+        </div>
+        <Transition name="q-slide" mode="out-in">
+          <div :key="`bq-${questionIndex}`" class="question-body">
+            <div class="question-meta">
+              <span class="question-count">Reto {{ questionIndex + 1 }} / {{ questionCount }}</span>
+              <span class="difficulty-chip" :class="`diff-${questionIndex}`">{{ difficultyLabel(questionIndex) }}</span>
+              <span class="activity-note">Lenguaje: {{ currentQuestion?.language }}</span>
+            </div>
+            <div class="bug-toolbar">
+              <span class="bug-hint">Toca las líneas que contengan el error.</span>
+              <span class="bug-count" :class="{ active: currentBugSelected.length > 0 }">
+                {{ currentBugSelected.length }} marcada{{ currentBugSelected.length === 1 ? '' : 's' }}
+              </span>
+            </div>
+            <div class="code-block code-lines">
+              <label
+                v-for="(line, index) in currentBugLines"
+                :key="index"
+                class="code-line"
+                :class="{ selected: currentBugSelected.includes(index + 1) }"
+              >
+                <input v-model="bugAnswers[questionIndex]" type="checkbox" :value="index + 1">
+                <span class="code-line-check" aria-hidden="true"></span>
+                <span class="code-line-number">{{ index + 1 }}</span>
+                <code class="code-line-text">{{ line || ' ' }}</code>
+              </label>
+            </div>
+          </div>
+        </Transition>
+        <div class="activity-actions q-nav">
+          <button class="activity-btn secondary" :disabled="questionIndex === 0" @click="prevQuestion">Anterior</button>
+          <button v-if="questionIndex < questionCount - 1" class="activity-btn" @click="nextQuestion">Siguiente</button>
+          <button v-else class="activity-btn" :disabled="grading || !allBugAnswered" @click="submitActivity">
+            {{ grading ? 'Evaluando...' : 'Entregar 4 retos' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- ORDENA EL CÓDIGO (4 retos) -->
+      <section v-else-if="type === 'order_code'" class="activity-card multistep">
+        <p class="activity-instruction">{{ payload.instructions }}</p>
+        <div class="question-stepper">
+          <button
+            v-for="qIndex in questionCount"
+            :key="`odot-${qIndex}`"
+            class="stepper-dot"
+            :class="{ active: qIndex - 1 === questionIndex, done: orderTouched[qIndex - 1] }"
+            :title="`Reto ${qIndex}`"
+            @click="goToQuestion(qIndex - 1)"
+          >{{ qIndex }}</button>
+          <span class="stepper-progress"><span class="stepper-fill" :style="{ width: progressPercent }"></span></span>
+        </div>
+        <Transition name="q-slide" mode="out-in">
+          <div :key="`oq-${questionIndex}`" class="question-body">
+            <div class="question-meta">
+              <span class="question-count">Reto {{ questionIndex + 1 }} / {{ questionCount }}</span>
+              <span class="difficulty-chip" :class="`diff-${questionIndex}`">{{ difficultyLabel(questionIndex) }}</span>
+              <span class="activity-note">Lenguaje: {{ currentQuestion?.language }}</span>
+            </div>
+            <div class="code-block order-list">
+              <div
+                v-for="(line, index) in currentOrderLines"
+                :key="line.id"
+                class="order-line"
+                :class="{ moved: line.id !== currentOriginalIds[index] }"
+              >
+                <span class="code-line-number">{{ index + 1 }}</span>
+                <pre class="code-line-text">{{ line.text }}</pre>
+                <span class="order-actions">
+                  <button class="order-btn" :disabled="index === 0" @click="moveLine(index, -1)">↑</button>
+                  <button class="order-btn" :disabled="index === currentOrderLines.length - 1" @click="moveLine(index, 1)">↓</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </Transition>
+        <div class="activity-actions q-nav">
+          <button class="activity-btn secondary" :disabled="questionIndex === 0" @click="prevQuestion">Anterior</button>
+          <button v-if="questionIndex < questionCount - 1" class="activity-btn" @click="nextQuestion">Siguiente</button>
+          <button v-else class="activity-btn" :disabled="grading" @click="submitActivity">
+            {{ grading ? 'Evaluando...' : 'Entregar 4 retos' }}
           </button>
         </div>
       </section>
@@ -322,59 +390,93 @@
           </p>
         </div>
 
-        <div v-else-if="type === 'predict_output' && result.details" class="result-details">
-          <pre class="code-block"><code>{{ result.details.code }}</code></pre>
+        <div v-else-if="type === 'predict_output' && result.details?.results" class="result-details">
           <div
-            v-for="(option, index) in result.details.options"
-            :key="index"
-            class="detail-row"
-            :class="{
-              ok: index === result.details.correct_index,
-              bad: index === result.details.selected && index !== result.details.correct_index,
-            }"
+            v-for="item in result.details.results"
+            :key="`pr-${item.index}`"
+            class="question-result"
+            :class="item.correct ? 'ok' : 'bad'"
           >
-            <strong>{{ optionLetter(Number(index)) }}.</strong>
-            <pre class="predict-output">{{ option }}</pre>
-            <span v-if="index === result.details.correct_index" class="detail-note">Correcta</span>
-            <span v-else-if="index === result.details.selected" class="detail-note">Tu elección</span>
+            <div class="question-result-head">
+              <span class="detail-icon">{{ item.correct ? '✅' : '❌' }}</span>
+              <strong>Reto {{ item.index + 1 }} · {{ item.language }}</strong>
+            </div>
+            <pre class="code-block"><code>{{ item.code }}</code></pre>
+            <div
+              v-for="(option, index) in item.options"
+              :key="index"
+              class="detail-row"
+              :class="{
+                ok: index === item.correct_index,
+                bad: index === item.selected && index !== item.correct_index,
+              }"
+            >
+              <strong>{{ optionLetter(Number(index)) }}.</strong>
+              <pre class="predict-output">{{ option }}</pre>
+              <span v-if="index === item.correct_index" class="detail-note">Correcta</span>
+              <span v-else-if="index === item.selected" class="detail-note">Tu elección</span>
+            </div>
+            <p v-if="item.explanation" class="detail-note"><strong>Por qué:</strong> {{ item.explanation }}</p>
           </div>
-          <p v-if="result.details.explanation" class="detail-note"><strong>Por qué:</strong> {{ result.details.explanation }}</p>
         </div>
 
-        <div v-else-if="type === 'find_bug' && result.details" class="result-details">
+        <div v-else-if="type === 'find_bug' && result.details?.results" class="result-details">
           <div
-            v-for="bug in result.details.bugs"
-            :key="bug.line"
-            class="detail-row"
-            :class="result.details.selected?.includes(bug.line) ? 'ok' : 'bad'"
+            v-for="item in result.details.results"
+            :key="`br-${item.index}`"
+            class="question-result"
+            :class="item.correct ? 'ok' : 'bad'"
           >
-            <div>
-              <p class="detail-question">Línea {{ bug.line }}</p>
-              <p class="detail-answer"><strong>Corrección:</strong> {{ bug.fix }}</p>
-              <p class="detail-note">{{ bug.explanation }}</p>
-              <p v-if="!result.details.selected?.includes(bug.line)" class="detail-note">No marcaste esta línea.</p>
+            <div class="question-result-head">
+              <span class="detail-icon">{{ item.correct ? '✅' : '❌' }}</span>
+              <strong>Reto {{ item.index + 1 }} · {{ item.language }}</strong>
             </div>
+            <pre class="code-block"><code>{{ item.code }}</code></pre>
+            <div
+              v-for="bug in item.bugs"
+              :key="bug.line"
+              class="detail-row"
+              :class="item.selected?.includes(bug.line) ? 'ok' : 'bad'"
+            >
+              <div>
+                <p class="detail-question">Línea {{ bug.line }}</p>
+                <p class="detail-answer"><strong>Corrección:</strong> {{ bug.fix }}</p>
+                <p class="detail-note">{{ bug.explanation }}</p>
+                <p v-if="!item.selected?.includes(bug.line)" class="detail-note">No marcaste esta línea.</p>
+              </div>
+            </div>
+            <p v-if="item.falsePositives" class="detail-note">
+              <strong>Líneas marcadas que eran correctas:</strong> {{ falsePositiveLinesOf(item) }}
+            </p>
           </div>
-          <p v-if="result.details.falsePositives" class="detail-note">
-            <strong>Líneas marcadas que eran correctas:</strong> {{ falsePositiveLines }}
-          </p>
         </div>
 
-        <div v-else-if="type === 'order_code' && result.details" class="result-details">
-          <p class="detail-note">
-            <strong>Coincidencias:</strong> {{ result.details.matches }} / {{ result.details.total }}
-          </p>
-          <div class="order-compare">
-            <div>
-              <p class="activity-label">Orden correcto</p>
-              <pre class="code-block"><code>{{ result.details.expected.join('\n') }}</code></pre>
+        <div v-else-if="type === 'order_code' && result.details?.results" class="result-details">
+          <div
+            v-for="item in result.details.results"
+            :key="`or-${item.index}`"
+            class="question-result"
+            :class="item.correct ? 'ok' : 'bad'"
+          >
+            <div class="question-result-head">
+              <span class="detail-icon">{{ item.correct ? '✅' : '❌' }}</span>
+              <strong>Reto {{ item.index + 1 }} · {{ item.language }}</strong>
             </div>
-            <div>
-              <p class="activity-label">Tu orden</p>
-              <pre class="code-block"><code>{{ result.details.student.join('\n') }}</code></pre>
+            <p class="detail-note">
+              <strong>Coincidencias:</strong> {{ item.matches }} / {{ item.total }}
+            </p>
+            <div class="order-compare">
+              <div>
+                <p class="activity-label">Orden correcto</p>
+                <pre class="code-block"><code>{{ item.expected.join('\n') }}</code></pre>
+              </div>
+              <div>
+                <p class="activity-label">Tu orden</p>
+                <pre class="code-block"><code>{{ item.student.join('\n') }}</code></pre>
+              </div>
             </div>
+            <p v-if="item.explanation" class="detail-note"><strong>Qué hace:</strong> {{ item.explanation }}</p>
           </div>
-          <p v-if="result.details.explanation" class="detail-note"><strong>Qué hace:</strong> {{ result.details.explanation }}</p>
         </div>
 
         <div class="activity-actions">
@@ -421,9 +523,9 @@ const TYPE_HINTS: Record<ActivityType, string> = {
   recall: 'Escribe todo lo que recuerdes sin consultar el material.',
   summary: 'Resume el texto respetando el límite de palabras.',
   concept_map: 'Conecta los conceptos con relaciones breves y correctas.',
-  predict_output: 'Lee el código y elige la salida que producirá.',
-  find_bug: 'Marca las líneas de código que contienen un error.',
-  order_code: 'Reordena las líneas para que el programa funcione.',
+  predict_output: 'Resuelve 4 retos de predicción de salida, del más fácil al más difícil.',
+  find_bug: 'Encuentra los errores en 4 códigos, cada reto más difícil que el anterior.',
+  order_code: 'Ordena 4 fragmentos de código de dificultad creciente.',
 };
 
 interface FeedbackItem {
@@ -460,9 +562,12 @@ const selectedSentences = ref<number[]>([]);
 const corrections = ref<Record<number, string>>({});
 const recallText = ref('');
 const summaryText = ref('');
-const predictSelected = ref<number | null>(null);
-const bugSelected = ref<number[]>([]);
-const codeOrder = ref<{ id: string; text: string }[]>([]);
+const questionIndex = ref(0);
+const predictAnswers = ref<(number | null)[]>([]);
+const bugAnswers = ref<number[][]>([]);
+const orderAnswers = ref<{ id: string; text: string }[][]>([]);
+const orderOriginal = ref<string[][]>([]);
+const orderTouched = ref<boolean[]>([]);
 
 const boardW = ref(760);
 const boardH = ref(560);
@@ -509,23 +614,65 @@ let linkState: { nodeId: string; side: Side } | null = null;
 
 const summaryWords = computed(() => summaryText.value.trim().split(/\s+/).filter(Boolean).length);
 
-const codeLines = computed<string[]>(() => String(payload.value?.code || '').split('\n'));
+const questions = computed<any[]>(() => (Array.isArray(payload.value?.questions) ? payload.value.questions : []));
+const questionCount = computed(() => questions.value.length);
+const currentQuestion = computed<any>(() => questions.value[questionIndex.value] || {});
 
-const falsePositiveLines = computed<number[]>(() => {
-  const details = result.value?.details;
-  if (!details) return [];
-  const selected: number[] = Array.isArray(details.selected) ? details.selected : [];
-  const bugLines = new Set((details.bugs || []).map((bug: any) => Number(bug.line)));
-  return selected.filter((line) => !bugLines.has(Number(line)));
+function splitLines(code: string): string[] {
+  return String(code || '').split('\n');
+}
+
+const currentBugLines = computed<string[]>(() => splitLines(currentQuestion.value?.code));
+const currentBugSelected = computed<number[]>(() => bugAnswers.value[questionIndex.value] || []);
+const currentOrderLines = computed<{ id: string; text: string }[]>(() => orderAnswers.value[questionIndex.value] || []);
+const currentOriginalIds = computed<string[]>(() => orderOriginal.value[questionIndex.value] || []);
+
+const allPredictAnswered = computed(() =>
+  questions.value.length > 0 && questions.value.every((_, index) => {
+    const value = predictAnswers.value[index];
+    return value !== null && value !== undefined;
+  }),
+);
+const allBugAnswered = computed(() =>
+  questions.value.length > 0 && questions.value.every((_, index) => (bugAnswers.value[index]?.length || 0) > 0),
+);
+const progressPercent = computed(() => {
+  if (questionCount.value <= 1) return '0%';
+  return `${(questionIndex.value / (questionCount.value - 1)) * 100}%`;
 });
+
+const DIFFICULTY_LABELS = ['Fácil', 'Intermedio', 'Difícil', 'Muy difícil'];
+
+function difficultyLabel(index: number): string {
+  return DIFFICULTY_LABELS[Math.min(index, DIFFICULTY_LABELS.length - 1)] || `Reto ${index + 1}`;
+}
+
+function goToQuestion(index: number) {
+  if (index < 0 || index >= questionCount.value) return;
+  questionIndex.value = index;
+}
+
+function prevQuestion() {
+  goToQuestion(questionIndex.value - 1);
+}
+
+function nextQuestion() {
+  goToQuestion(questionIndex.value + 1);
+}
+
+function falsePositiveLinesOf(item: any): string {
+  const selected: number[] = Array.isArray(item?.selected) ? item.selected : [];
+  const bugLines = new Set((item?.bugs || []).map((bug: any) => Number(bug.line)));
+  return selected.filter((line) => !bugLines.has(Number(line))).join(', ');
+}
 
 const hasReview = computed(() => {
   const details = result.value?.details;
   if (!details) return false;
   if (type.value === 'flashcards') return (details.results || []).some((item: any) => !item.correct);
-  if (type.value === 'predict_output') return details.correct === false;
-  if (type.value === 'find_bug') return Number(details.falsePositives) > 0 || Number(details.hits) < Number(details.total_bugs);
-  if (type.value === 'order_code') return Number(details.matches) < Number(details.total);
+  if (type.value === 'predict_output' || type.value === 'find_bug' || type.value === 'order_code') {
+    return (details.results || []).some((item: any) => !item.correct);
+  }
   return Boolean(details.missing?.length || details.extra?.length || details.misconceptions?.length);
 });
 
@@ -772,9 +919,12 @@ function resetLocalState() {
   linkSource.value = null;
   linkPointer.value = null;
   linkTargetId.value = null;
-  predictSelected.value = null;
-  bugSelected.value = [];
-  codeOrder.value = [];
+  questionIndex.value = 0;
+  predictAnswers.value = [];
+  bugAnswers.value = [];
+  orderAnswers.value = [];
+  orderOriginal.value = [];
+  orderTouched.value = [];
   result.value = null;
 }
 
@@ -797,8 +947,19 @@ async function load() {
     if (type.value === 'flashcards') {
       cardAnswers.value = Array((data.cards || []).length).fill('');
     }
+    const loadedQuestions = Array.isArray(data.questions) ? data.questions : [];
+    if (type.value === 'predict_output') {
+      predictAnswers.value = loadedQuestions.map(() => null);
+    }
+    if (type.value === 'find_bug') {
+      bugAnswers.value = loadedQuestions.map(() => []);
+    }
     if (type.value === 'order_code') {
-      codeOrder.value = (data.lines || []).map((line: any) => ({ id: String(line.id), text: String(line.text ?? '') }));
+      orderAnswers.value = loadedQuestions.map((question: any) =>
+        (Array.isArray(question.lines) ? question.lines : []).map((line: any) => ({ id: String(line.id), text: String(line.text ?? '') })),
+      );
+      orderOriginal.value = orderAnswers.value.map((lines) => lines.map((line) => line.id));
+      orderTouched.value = loadedQuestions.map(() => false);
     }
     const concepts = Array.isArray(data.concepts) ? data.concepts : [];
     state.value = 'ready';
@@ -831,9 +992,9 @@ function buildAnswers(): any {
   }
   if (type.value === 'recall') return { text: recallText.value };
   if (type.value === 'summary') return { text: summaryText.value };
-  if (type.value === 'predict_output') return { selected: predictSelected.value };
-  if (type.value === 'find_bug') return { selected: bugSelected.value };
-  if (type.value === 'order_code') return { order: codeOrder.value.map((line) => line.id) };
+  if (type.value === 'predict_output') return { selected: predictAnswers.value };
+  if (type.value === 'find_bug') return { selected: bugAnswers.value };
+  if (type.value === 'order_code') return { orders: orderAnswers.value.map((lines) => lines.map((line) => line.id)) };
   if (type.value === 'concept_map') {
     return {
       edges: edges.value
@@ -854,13 +1015,16 @@ function optionLetter(index: number): string {
 }
 
 function moveLine(index: number, delta: number) {
+  const lines = orderAnswers.value[questionIndex.value];
+  if (!lines) return;
   const target = index + delta;
-  if (target < 0 || target >= codeOrder.value.length) return;
-  const copy = [...codeOrder.value];
+  if (target < 0 || target >= lines.length) return;
+  const copy = [...lines];
   const [item] = copy.splice(index, 1);
   if (!item) return;
   copy.splice(target, 0, item);
-  codeOrder.value = copy;
+  orderAnswers.value[questionIndex.value] = copy;
+  orderTouched.value[questionIndex.value] = true;
 }
 
 async function submitActivity() {
@@ -869,12 +1033,12 @@ async function submitActivity() {
     dialog.alert('Escribe al menos una respuesta antes de calificar.');
     return;
   }
-  if (type.value === 'predict_output' && predictSelected.value === null) {
-    dialog.alert('Elige una de las opciones de salida.');
+  if (type.value === 'predict_output' && !allPredictAnswered.value) {
+    dialog.alert('Selecciona una salida en cada uno de los 4 retos.');
     return;
   }
-  if (type.value === 'find_bug' && bugSelected.value.length === 0) {
-    dialog.alert('Marca al menos una línea con error.');
+  if (type.value === 'find_bug' && !allBugAnswered.value) {
+    dialog.alert('Marca al menos una línea con error en cada uno de los 4 retos.');
     return;
   }
   grading.value = true;
@@ -1534,9 +1698,266 @@ onBeforeUnmount(() => {
   gap: .8rem;
 }
 
+/* ---- Actividades de 4 retos: animaciones y efectos ---- */
+
+@keyframes act-card-in {
+  from { opacity: 0; transform: translateY(16px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes act-pop {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes act-score-in {
+  from { opacity: 0; transform: scale(.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+:where(body[data-page="activity"]) .activity-card {
+  animation: act-card-in .35s cubic-bezier(.22, 1, .36, 1);
+}
+
+:where(body[data-page="activity"]) .multistep {
+  position: relative;
+  overflow: hidden;
+}
+
+:where(body[data-page="activity"]) .multistep::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--accent-gradient);
+  opacity: .85;
+}
+
+:where(body[data-page="activity"]) .question-stepper {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: .2rem 0 1.1rem;
+}
+
+:where(body[data-page="activity"]) .stepper-dot {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent-color) 40%, var(--glass-border));
+  background: var(--glass-bg);
+  color: var(--text-secondary, #888);
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .18s ease, background .25s ease, color .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+
+:where(body[data-page="activity"]) .stepper-dot:hover {
+  transform: translateY(-2px) scale(1.06);
+  border-color: var(--accent-color);
+}
+
+:where(body[data-page="activity"]) .stepper-dot.done {
+  color: #fff;
+  background: color-mix(in srgb, var(--accent-color) 65%, transparent);
+  border-color: transparent;
+}
+
+:where(body[data-page="activity"]) .stepper-dot.active {
+  color: #fff;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--accent-glow);
+  transform: scale(1.08);
+}
+
+:where(body[data-page="activity"]) .stepper-progress {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  overflow: hidden;
+}
+
+:where(body[data-page="activity"]) .stepper-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  transition: width .4s cubic-bezier(.22, 1, .36, 1);
+}
+
+:where(body[data-page="activity"]) .question-body {
+  animation: act-pop .28s cubic-bezier(.22, 1, .36, 1);
+}
+
+:where(body[data-page="activity"]) .question-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-bottom: .7rem;
+}
+
+:where(body[data-page="activity"]) .question-meta .activity-note {
+  margin: 0;
+}
+
+:where(body[data-page="activity"]) .question-count {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+:where(body[data-page="activity"]) .difficulty-chip {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  padding: .15rem .6rem;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--accent-gradient);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+:where(body[data-page="activity"]) .difficulty-chip.diff-2 {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color) 55%, #f59e0b) 0%, #f59e0b 100%);
+}
+
+:where(body[data-page="activity"]) .difficulty-chip.diff-3 {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color) 40%, #ef4444) 0%, #ef4444 100%);
+}
+
+:where(body[data-page="activity"]) .q-nav {
+  justify-content: space-between;
+  align-items: center;
+}
+
+:where(body[data-page="activity"]) .activity-btn {
+  transition: transform .16s ease, box-shadow .22s ease, filter .22s ease, background .22s ease;
+}
+
+:where(body[data-page="activity"]) .activity-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px var(--accent-glow);
+  filter: brightness(1.04);
+}
+
+:where(body[data-page="activity"]) .activity-btn:active:not(:disabled) {
+  transform: translateY(0) scale(.97);
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+:where(body[data-page="activity"]) .predict-option {
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+:where(body[data-page="activity"]) .predict-option:hover {
+  transform: translateX(3px);
+  border-color: color-mix(in srgb, var(--accent-color) 55%, var(--glass-border));
+}
+
+:where(body[data-page="activity"]) .predict-option.selected {
+  box-shadow: 0 4px 16px var(--accent-glow);
+  transform: translateX(3px);
+}
+
+:where(body[data-page="activity"]) .order-line {
+  transition: background .2s ease, box-shadow .2s ease;
+  border-radius: 8px;
+}
+
+:where(body[data-page="activity"]) .order-line.moved {
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent-color);
+}
+
+:where(body[data-page="activity"]) .order-btn {
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+
+:where(body[data-page="activity"]) .order-btn:hover:not(:disabled) {
+  transform: scale(1.12);
+  border-color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+:where(body[data-page="activity"]) .question-result {
+  padding: .9rem;
+  border-radius: 14px;
+  background: var(--surface, rgba(255, 255, 255, .04));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, .12));
+  border-left: 4px solid transparent;
+  animation: act-pop .3s cubic-bezier(.22, 1, .36, 1);
+}
+
+:where(body[data-page="activity"]) .question-result.ok {
+  border-left-color: #22c55e;
+}
+
+:where(body[data-page="activity"]) .question-result.bad {
+  border-left-color: #ef4444;
+}
+
+:where(body[data-page="activity"]) .question-result-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .6rem;
+}
+
+:where(body[data-page="activity"]) .question-result .code-block {
+  margin-bottom: .6rem;
+}
+
+:where(body[data-page="activity"]) .result-number {
+  animation: act-score-in .45s cubic-bezier(.22, 1, .36, 1);
+}
+
+.q-slide-enter-active,
+.q-slide-leave-active {
+  transition: opacity .22s ease, transform .22s ease;
+}
+
+.q-slide-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.q-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(body[data-page="activity"]) .activity-card,
+  :where(body[data-page="activity"]) .question-body,
+  :where(body[data-page="activity"]) .question-result,
+  :where(body[data-page="activity"]) .result-number {
+    animation: none;
+  }
+  .q-slide-enter-active,
+  .q-slide-leave-active {
+    transition: none;
+  }
+}
+
 @media (max-width: 640px) {
   :where(body[data-page="activity"]) .order-compare {
     grid-template-columns: 1fr;
   }
+
+  :where(body[data-page="activity"]) .stepper-dot {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: .76rem;
+  }
 }
+
 </style>

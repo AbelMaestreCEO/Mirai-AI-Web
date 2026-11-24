@@ -1,4 +1,4 @@
-import { callAI } from '../lib/ai';
+﻿import { callAI } from '../lib/ai';
 import { AI_MODEL_NORMAL } from '../lib/ai-models';
 import { requireAuth } from '../lib/auth';
 import { recordConceptErrors } from '../lib/concept-errors';
@@ -70,7 +70,7 @@ async function ensureActivityTables(env: Env) {
     try {
       await env.MIRAI_AI_DB.prepare(ddl).run();
     } catch (error) {
-      console.error('Migración actividades:', (error as Error)?.message);
+      console.error('MigraciÃ³n actividades:', (error as Error)?.message);
     }
   }
   for (const sql of [
@@ -99,7 +99,7 @@ function parseJsonObject(raw: string): any {
     .trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('La IA no devolvió un JSON válido');
+  if (start === -1 || end === -1) throw new Error('La IA no devolviÃ³ un JSON vÃ¡lido');
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
@@ -108,7 +108,7 @@ function normalizeText(text: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9áéíóúüñ\s]/g, ' ')
+    .replace(/[^a-z0-9Ã¡Ã©Ã­Ã³ÃºÃ¼Ã±\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -151,13 +151,13 @@ function buildContext(assignment: any): string {
 }
 
 async function generateFlashcards(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Creas tarjetas de estudio para que un estudiante memorice y comprenda una tarea.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Creas tarjetas de estudio para que un estudiante memorice y comprenda una tarea.
 Reglas:
 - Genera EXACTAMENTE 10 tarjetas.
-- "front" es una pregunta breve o un término (máximo 20 palabras).
-- "back" es la respuesta correcta y precisa (máximo 30 palabras).
-- Cubre los conceptos clave de la tarea, de lo básico a lo profundo.
-- Español neutro, sin ambigüedad.
+- "front" es una pregunta breve o un tÃ©rmino (mÃ¡ximo 20 palabras).
+- "back" es la respuesta correcta y precisa (mÃ¡ximo 30 palabras).
+- Cubre los conceptos clave de la tarea, de lo bÃ¡sico a lo profundo.
+- EspaÃ±ol neutro, sin ambigÃ¼edad.
 - Devuelve SOLO JSON: {"cards":[{"front":"...","back":"..."}]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
@@ -168,18 +168,18 @@ Reglas:
     .map((card: any) => ({ front: String(card?.front || '').trim(), back: String(card?.back || '').trim() }))
     .filter((card: any) => card.front && card.back)
     .slice(0, 10);
-  if (cards.length < 6) throw new Error('La IA no generó suficientes tarjetas');
+  if (cards.length < 6) throw new Error('La IA no generÃ³ suficientes tarjetas');
   return { cards };
 }
 
 async function generateFindError(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de detección de errores sobre una tarea.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de detecciÃ³n de errores sobre una tarea.
 Reglas:
-- Escribe un texto académico breve (120-170 palabras) dividido en EXACTAMENTE 6 oraciones numeradas.
+- Escribe un texto acadÃ©mico breve (120-170 palabras) dividido en EXACTAMENTE 6 oraciones numeradas.
 - EXACTAMENTE 3 de las 6 oraciones contienen un error conceptual o factual.
-- Cada oración debe ser autosuficiente y tener máximo 35 palabras.
-- Para cada oración indica "has_error" (true/false), "correction" (la versión correcta si hay error, si no "") y "explanation" (por qué está mal o bien, máximo 25 palabras).
-- Español neutro.
+- Cada oraciÃ³n debe ser autosuficiente y tener mÃ¡ximo 35 palabras.
+- Para cada oraciÃ³n indica "has_error" (true/false), "correction" (la versiÃ³n correcta si hay error, si no "") y "explanation" (por quÃ© estÃ¡ mal o bien, mÃ¡ximo 25 palabras).
+- EspaÃ±ol neutro.
 - Devuelve SOLO JSON: {"instructions":"...","sentences":[{"text":"...","has_error":true,"correction":"...","explanation":"..."}]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
@@ -196,20 +196,20 @@ Reglas:
     .filter((sentence: any) => sentence.text)
     .slice(0, 8);
   const errors = sentences.filter((sentence: any) => sentence.has_error).length;
-  if (sentences.length < 5 || errors < 2) throw new Error('La IA no generó el ejercicio esperado');
+  if (sentences.length < 5 || errors < 2) throw new Error('La IA no generÃ³ el ejercicio esperado');
   return {
-    instructions: String(parsed?.instructions || 'Marca las oraciones que contienen un error y explica por qué.').trim(),
+    instructions: String(parsed?.instructions || 'Marca las oraciones que contienen un error y explica por quÃ©.').trim(),
     sentences,
   };
 }
 
 async function generateRecall(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de recuerdo libre sobre una tarea.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de recuerdo libre sobre una tarea.
 Reglas:
 - Formula una pregunta abierta que obligue a explicar el tema con sus propias palabras.
-- Define EXACTAMENTE 6 conceptos clave que una respuesta completa debería incluir.
+- Define EXACTAMENTE 6 conceptos clave que una respuesta completa deberÃ­a incluir.
 - Los conceptos deben ser breves (2-6 palabras) y evaluables.
-- Español neutro.
+- EspaÃ±ol neutro.
 - Devuelve SOLO JSON: {"prompt":"...","instructions":"...","key_concepts":["...","..."]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
@@ -220,7 +220,7 @@ Reglas:
     .map((concept: any) => String(concept || '').trim())
     .filter(Boolean)
     .slice(0, 6);
-  if (keyConcepts.length < 4) throw new Error('La IA no generó los conceptos clave');
+  if (keyConcepts.length < 4) throw new Error('La IA no generÃ³ los conceptos clave');
   return {
     prompt: String(parsed?.prompt || 'Explica el tema de la tarea con tus propias palabras.').trim(),
     instructions: String(parsed?.instructions || 'Escribe todo lo que recuerdes, sin consultar el material.').trim(),
@@ -229,13 +229,13 @@ Reglas:
 }
 
 async function generateSummary(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de síntesis sobre una tarea.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de sÃ­ntesis sobre una tarea.
 Reglas:
 - Escribe un texto fuente de 200-260 palabras sobre el tema de la tarea.
-- Define EXACTAMENTE 6 ideas clave que un buen resumen debería conservar.
-- Indica un límite de palabras para el resumen: entre 60 y 90 palabras.
+- Define EXACTAMENTE 6 ideas clave que un buen resumen deberÃ­a conservar.
+- Indica un lÃ­mite de palabras para el resumen: entre 60 y 90 palabras.
 - El texto fuente debe ser claro, informativo y autosuficiente.
-- Español neutro.
+- EspaÃ±ol neutro.
 - Devuelve SOLO JSON: {"source_text":"...","min_words":60,"max_words":90,"key_points":["..."]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
@@ -249,7 +249,7 @@ Reglas:
   const sourceText = String(parsed?.source_text || '').trim();
   const minWords = Math.max(30, Math.min(150, Math.round(Number(parsed?.min_words) || 60)));
   const maxWords = Math.max(minWords + 10, Math.min(200, Math.round(Number(parsed?.max_words) || 90)));
-  if (sourceText.length < 200 || keyPoints.length < 4) throw new Error('La IA no generó el texto fuente');
+  if (sourceText.length < 200 || keyPoints.length < 4) throw new Error('La IA no generÃ³ el texto fuente');
   return {
     source_text: sourceText,
     min_words: minWords,
@@ -260,12 +260,12 @@ Reglas:
 }
 
 async function generateConceptMap(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un mapa conceptual simple sobre una tarea.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un mapa conceptual simple sobre una tarea.
 Reglas:
 - Define EXACTAMENTE 8 conceptos clave (2-5 palabras cada uno).
-- Define entre 8 y 10 relaciones válidas entre pares de conceptos, con una etiqueta breve (1-4 palabras) que describa la relación.
-- Las relaciones deben ser académicamente correctas y no repetir el mismo par.
-- Español neutro.
+- Define entre 8 y 10 relaciones vÃ¡lidas entre pares de conceptos, con una etiqueta breve (1-4 palabras) que describa la relaciÃ³n.
+- Las relaciones deben ser acadÃ©micamente correctas y no repetir el mismo par.
+- EspaÃ±ol neutro.
 - Devuelve SOLO JSON: {"instructions":"...","concepts":["..."],"edges":[{"from":"...","to":"...","label":"..."}]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
@@ -285,9 +285,9 @@ Reglas:
     }))
     .filter((edge: any) => conceptSet.has(normalizeText(edge.from)) && conceptSet.has(normalizeText(edge.to)) && edge.from !== edge.to && edge.label)
     .slice(0, 10);
-  if (concepts.length < 6 || edges.length < 6) throw new Error('La IA no generó el mapa esperado');
+  if (concepts.length < 6 || edges.length < 6) throw new Error('La IA no generÃ³ el mapa esperado');
   return {
-    instructions: String(parsed?.instructions || 'Conecta los conceptos con una relación breve y correcta.').trim(),
+    instructions: String(parsed?.instructions || 'Conecta los conceptos con una relaciÃ³n breve y correcta.').trim(),
     concepts,
     edges,
   };
@@ -299,80 +299,102 @@ function normalizeLanguage(value: unknown): string {
   return allowed.includes(language) ? language : 'python';
 }
 
+const QUESTION_COUNT = 4;
+
 async function generatePredictOutput(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de "predice la salida" sobre una tarea de programación.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de "predice la salida" sobre una tarea de programaciÃ³n.
 Reglas:
-- Elige el lenguaje más adecuado según el enunciado (html, css, javascript, python, cpp, java, sql o pseudocodigo). Si no se especifica, usa python.
-- Escribe un fragmento de código corto (5-15 líneas), autocontenido y determinista.
-- No uses entrada de usuario, aleatoriedad, tiempo, red, archivos ni librerías externas.
-- El fragmento debe tener una única salida correcta y observable (print, console.log, render o valor de retorno).
-- Genera EXACTAMENTE 4 opciones de salida distintas entre sí; solo una debe ser correcta.
-- "instructions": una frase que indique al estudiante qué debe predecir.
-- "explanation": por qué la salida correcta es esa (máximo 40 palabras).
-- Español neutro.
-- Devuelve SOLO JSON: {"language":"python","instructions":"...","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}`;
+- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el mÃ¡s simple y el reto 4 el mÃ¡s complejo.
+- Cada reto puede usar el lenguaje mÃ¡s adecuado segÃºn el enunciado (html, css, javascript, python, cpp, java, sql o pseudocodigo). Si no se especifica, usa python.
+- Cada reto es un fragmento de cÃ³digo corto (5-18 lÃ­neas), autocontenido y determinista.
+- No uses entrada de usuario, aleatoriedad, tiempo, red, archivos ni librerÃ­as externas.
+- Cada fragmento debe tener una Ãºnica salida correcta y observable (print, console.log, render o valor de retorno).
+- Sube la dificultad de forma progresiva (mÃ¡s operaciones, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
+- Genera EXACTAMENTE 4 opciones de salida distintas entre sÃ­ por reto; solo una debe ser correcta.
+- "instructions": una frase que indique al estudiante quÃ© debe predecir.
+- "explanation": por quÃ© la salida correcta es esa (mÃ¡ximo 40 palabras).
+- EspaÃ±ol neutro.
+- Devuelve SOLO JSON: {"instructions":"...","questions":[{"language":"python","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
-    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"language":"python","instructions":"...","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}` },
-  ], { temperature: 0.5, max_tokens: 3000 }, env);
+    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","code":"...","options":["...","...","...","..."],"correct_index":0,"explanation":"..."}]} (incluye 4 objetos en "questions")` },
+  ], { temperature: 0.5, max_tokens: 6000 }, env);
   const parsed = parseJsonObject(raw);
-  const code = String(parsed?.code || '').trim();
-  const options = (Array.isArray(parsed?.options) ? parsed.options : [])
-    .map((option: any) => String(option ?? '').trim())
-    .filter(Boolean)
-    .slice(0, 4);
-  const uniqueOptions = [...new Set(options)];
-  let correctIndex = Number(parsed?.correct_index);
-  if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= uniqueOptions.length) correctIndex = 0;
-  if (code.length < 20 || uniqueOptions.length < 4) throw new Error('La IA no generó el ejercicio de salida esperado');
+  const source = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  const questions = source
+    .map((item: any) => {
+      const code = String(item?.code || '').trim();
+      const options = [...new Set(
+        (Array.isArray(item?.options) ? item.options : [])
+          .map((option: any) => String(option ?? '').trim())
+          .filter(Boolean),
+      )].slice(0, 4);
+      let correctIndex = Number(item?.correct_index);
+      if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) correctIndex = 0;
+      return {
+        language: normalizeLanguage(item?.language),
+        code,
+        options,
+        correct_index: correctIndex,
+        explanation: String(item?.explanation || '').trim(),
+      };
+    })
+    .filter((item: any) => item.code.length >= 20 && item.options.length === 4)
+    .slice(0, QUESTION_COUNT);
+  if (questions.length < QUESTION_COUNT) throw new Error('La IA no generÃ³ los 4 retos de salida esperados');
   return {
-    language: normalizeLanguage(parsed?.language),
-    instructions: String(parsed?.instructions || '¿Cuál será la salida de este código?').trim(),
-    code,
-    options: uniqueOptions,
-    correct_index: correctIndex,
-    explanation: String(parsed?.explanation || '').trim(),
+    instructions: String(parsed?.instructions || 'Â¿CuÃ¡l serÃ¡ la salida de cada cÃ³digo?').trim(),
+    questions,
   };
 }
 
 async function generateFindBug(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de depuración sobre una tarea de programación.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de depuraciÃ³n sobre una tarea de programaciÃ³n.
 Reglas:
-- Elige el lenguaje más adecuado según el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
-- Escribe un fragmento de código coherente de 8 a 18 líneas con EXACTAMENTE 1 a 3 errores reales.
-- Un "error real" solo cuenta si impide que el programa funcione o produce un resultado incorrecto (error de sintaxis que no compila/ejecuta, o error de lógica que da una salida equivocada).
-- NUNCA marques como error una decisión de estilo o preferencia personal válida: comillas simples vs dobles, tabulaciones vs espacios, nombre de variables, orden de imports, comentarios, formato, indentación válida ni formas alternativas de escribir lo mismo. Esas variantes son correctas y cada programador las elige a su manera.
-- El resto del código debe ser correcto y ejecutable; no introduzcas errores ambiguos, de estilo ni discutibles.
-- Numera las líneas desde 1. Cada error debe estar contenido en una sola línea.
-- Antes de responder, verifica mentalmente que cada línea marcada falla de forma objetiva y que quitarla/corregirla cambia el comportamiento del programa.
-- Para cada error indica "line", "explanation" (por qué está mal, máximo 30 palabras) y "fix" (la línea corregida).
-- "instructions": una frase que indique al estudiante que marque las líneas con error.
-- Español neutro.
-- Devuelve SOLO JSON: {"language":"python","instructions":"...","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}`;
+- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el mÃ¡s simple y el reto 4 el mÃ¡s complejo.
+- Cada reto puede usar el lenguaje mÃ¡s adecuado segÃºn el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
+- Cada reto es un fragmento coherente de 8 a 20 lÃ­neas con entre 1 y 3 errores reales.
+- Un "error real" solo cuenta si impide que el programa funcione o produce un resultado incorrecto (error de sintaxis que no compila/ejecuta, o error de lÃ³gica que da una salida equivocada).
+- NUNCA marques como error una decisiÃ³n de estilo o preferencia personal vÃ¡lida: comillas simples vs dobles, tabulaciones vs espacios, nombre de variables, orden de imports, comentarios, formato, indentaciÃ³n vÃ¡lida ni formas alternativas de escribir lo mismo. Esas variantes son correctas y cada programador las elige a su manera.
+- El resto del cÃ³digo debe ser correcto y ejecutable; no introduzcas errores ambiguos, de estilo ni discutibles.
+- Sube la dificultad de forma progresiva (mÃ¡s lÃ­neas, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
+- Numera las lÃ­neas desde 1. Cada error debe estar contenido en una sola lÃ­nea.
+- Antes de responder, verifica mentalmente que cada lÃ­nea marcada falla de forma objetiva y que quitarla/corregirla cambia el comportamiento del programa.
+- Para cada error indica "line", "explanation" (por quÃ© estÃ¡ mal, mÃ¡ximo 30 palabras) y "fix" (la lÃ­nea corregida).
+- "instructions": una frase que indique al estudiante que marque las lÃ­neas con error.
+- EspaÃ±ol neutro.
+- Devuelve SOLO JSON: {"instructions":"...","questions":[{"language":"python","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
-    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"language":"python","instructions":"...","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}` },
-  ], { temperature: 0.5, max_tokens: 3500 }, env);
+    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","code":"...","bugs":[{"line":3,"explanation":"...","fix":"..."}]}]} (incluye 4 objetos en "questions")` },
+  ], { temperature: 0.5, max_tokens: 7000 }, env);
   const parsed = parseJsonObject(raw);
-  const code = String(parsed?.code || '').replace(/\r\n/g, '\n').trim();
-  const totalLines = code.split('\n').length;
-  const seen = new Set<number>();
-  const bugs = (Array.isArray(parsed?.bugs) ? parsed.bugs : [])
-    .map((bug: any) => ({
-      line: Math.round(Number(bug?.line)),
-      explanation: String(bug?.explanation || '').trim(),
-      fix: String(bug?.fix || '').trim(),
-    }))
-    .filter((bug: any) => Number.isInteger(bug.line) && bug.line >= 1 && bug.line <= totalLines && !seen.has(bug.line) && seen.add(bug.line))
-    .slice(0, 3);
-  if (code.split('\n').filter((line: string) => line.trim()).length < 8 || !bugs.length) {
-    throw new Error('La IA no generó el ejercicio de depuración esperado');
-  }
+  const source = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  const questions = source
+    .map((item: any) => {
+      const code = String(item?.code || '').replace(/\r\n/g, '\n').trim();
+      const totalLines = code.split('\n').length;
+      const seen = new Set<number>();
+      const bugs = (Array.isArray(item?.bugs) ? item.bugs : [])
+        .map((bug: any) => ({
+          line: Math.round(Number(bug?.line)),
+          explanation: String(bug?.explanation || '').trim(),
+          fix: String(bug?.fix || '').trim(),
+        }))
+        .filter((bug: any) => Number.isInteger(bug.line) && bug.line >= 1 && bug.line <= totalLines && !seen.has(bug.line) && seen.add(bug.line))
+        .slice(0, 3);
+      return {
+        language: normalizeLanguage(item?.language),
+        code,
+        bugs,
+      };
+    })
+    .filter((item: any) => item.code.split('\n').filter((line: string) => line.trim()).length >= 8 && item.bugs.length > 0)
+    .slice(0, QUESTION_COUNT);
+  if (questions.length < QUESTION_COUNT) throw new Error('La IA no generÃ³ los 4 retos de depuraciÃ³n esperados');
   return {
-    language: normalizeLanguage(parsed?.language),
-    instructions: String(parsed?.instructions || 'Marca las líneas que contienen un error.').trim(),
-    code,
-    bugs,
+    instructions: String(parsed?.instructions || 'Marca las lÃ­neas que contienen un error en cada cÃ³digo.').trim(),
+    questions,
   };
 }
 
@@ -388,38 +410,50 @@ function shuffleItems<T>(items: T[]): T[] {
 }
 
 async function generateOrderCode(assignment: any, env: Env): Promise<any> {
-  const system = `Eres la tutora académica de Mirai. Preparas un ejercicio de ordenar código sobre una tarea de programación.
+  const system = `Eres la tutora acadÃ©mica de Mirai. Preparas un ejercicio de ordenar cÃ³digo sobre una tarea de programaciÃ³n.
 Reglas:
-- Elige el lenguaje más adecuado según el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
-- Escribe un fragmento coherente de 6 a 12 líneas; cada elemento del arreglo "lines" es una línea completa, incluida su indentación.
-- No incluyas líneas en blanco ni comentarios.
-- "lines" debe venir en el ORDEN CORRECTO.
-- "instructions": una frase que indique ordenar las líneas para que el programa funcione.
-- "explanation": qué hace el programa (máximo 40 palabras).
-- Español neutro.
-- Devuelve SOLO JSON: {"language":"python","instructions":"...","lines":["...","..."],"explanation":"..."}`;
+- Genera EXACTAMENTE 4 retos, ordenados de MENOR a MAYOR dificultad: el reto 1 es el mÃ¡s simple y el reto 4 el mÃ¡s complejo.
+- Cada reto puede usar el lenguaje mÃ¡s adecuado segÃºn el enunciado (html, css, javascript, python, cpp, java o sql). Si no se especifica, usa python.
+- Cada reto es un fragmento coherente de 6 a 14 lÃ­neas; cada elemento del arreglo "lines" es una lÃ­nea completa, incluida su indentaciÃ³n.
+- No incluyas lÃ­neas en blanco ni comentarios.
+- En cada reto, "lines" debe venir en el ORDEN CORRECTO.
+- Sube la dificultad de forma progresiva (mÃ¡s lÃ­neas, control de flujo, funciones, estructuras de datos, etc.) sin volverlo ambiguo.
+- "instructions": una frase que indique ordenar las lÃ­neas para que el programa funcione.
+- "explanation": quÃ© hace el programa de cada reto (mÃ¡ximo 40 palabras).
+- EspaÃ±ol neutro.
+- Devuelve SOLO JSON: {"instructions":"...","questions":[{"language":"python","lines":["...","..."],"explanation":"..."}]}`;
   const raw = await callAI(AI_MODEL_NORMAL, [
     { role: 'system', content: system },
-    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"language":"python","instructions":"...","lines":["...","..."],"explanation":"..."}` },
-  ], { temperature: 0.5, max_tokens: 3000 }, env);
+    { role: 'user', content: `${buildContext(assignment)}\n\nFormato exacto: {"instructions":"...","questions":[{"language":"python","lines":["...","..."],"explanation":"..."}]} (incluye 4 objetos en "questions")` },
+  ], { temperature: 0.5, max_tokens: 6000 }, env);
   const parsed = parseJsonObject(raw);
-  const correctLines = (Array.isArray(parsed?.lines) ? parsed.lines : [])
-    .map((line: any) => String(line ?? '').replace(/\r/g, '').replace(/\s+$/g, ''))
-    .filter((line: string) => line.trim())
-    .slice(0, 12);
-  if (correctLines.length < 6) throw new Error('La IA no generó el código para ordenar');
-  const items: { id: string; text: string }[] = correctLines.map((text: string) => ({ id: crypto.randomUUID().slice(0, 8), text }));
-  const correctOrder = items.map((item: { id: string }) => item.id);
-  let shuffled: { id: string; text: string }[] = shuffleItems(items);
-  if (shuffled.every((item: { id: string }, index: number) => item.id === correctOrder[index])) {
-    shuffled = shuffleItems(items);
-  }
+  const source = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  const questions = source
+    .map((item: any) => {
+      const correctLines = (Array.isArray(item?.lines) ? item.lines : [])
+        .map((line: any) => String(line ?? '').replace(/\r/g, '').replace(/\s+$/g, ''))
+        .filter((line: string) => line.trim())
+        .slice(0, 14);
+      if (correctLines.length < 6) return null;
+      const items: { id: string; text: string }[] = correctLines.map((text: string) => ({ id: crypto.randomUUID().slice(0, 8), text }));
+      const correctOrder = items.map((entry: { id: string }) => entry.id);
+      let shuffled: { id: string; text: string }[] = shuffleItems(items);
+      if (shuffled.every((entry: { id: string }, index: number) => entry.id === correctOrder[index])) {
+        shuffled = shuffleItems(items);
+      }
+      return {
+        language: normalizeLanguage(item?.language),
+        lines: shuffled,
+        correct_order: correctOrder,
+        explanation: String(item?.explanation || '').trim(),
+      };
+    })
+    .filter((item: any) => item !== null)
+    .slice(0, QUESTION_COUNT);
+  if (questions.length < QUESTION_COUNT) throw new Error('La IA no generÃ³ los 4 retos para ordenar');
   return {
-    language: normalizeLanguage(parsed?.language),
-    instructions: String(parsed?.instructions || 'Ordena las líneas para que el programa funcione.').trim(),
-    lines: shuffled,
-    correct_order: correctOrder,
-    explanation: String(parsed?.explanation || '').trim(),
+    instructions: String(parsed?.instructions || 'Ordena las lÃ­neas para que cada programa funcione.').trim(),
+    questions,
   };
 }
 
@@ -465,24 +499,30 @@ function sanitizeSet(type: ActivityType, set: any, dueMap?: Map<number, string>)
   }
   if (type === 'predict_output') {
     return {
-      language: set.language,
       instructions: set.instructions,
-      code: set.code,
-      options: set.options,
+      questions: (set.questions || []).map((question: any) => ({
+        language: question.language,
+        code: question.code,
+        options: question.options,
+      })),
     };
   }
   if (type === 'find_bug') {
     return {
-      language: set.language,
       instructions: set.instructions,
-      code: set.code,
+      questions: (set.questions || []).map((question: any) => ({
+        language: question.language,
+        code: question.code,
+      })),
     };
   }
   if (type === 'order_code') {
     return {
-      language: set.language,
       instructions: set.instructions,
-      lines: set.lines,
+      questions: (set.questions || []).map((question: any) => ({
+        language: question.language,
+        lines: question.lines,
+      })),
     };
   }
   return { instructions: set.instructions, concepts: set.concepts, max_edges: (set.edges || []).length };
@@ -569,9 +609,9 @@ async function evaluateFlashcardAnswers(
         content: `Eres un profesor evaluando respuestas de flashcards escritas por un estudiante.
 Para cada tarjeta compara la respuesta del estudiante con la respuesta esperada.
 Reglas:
-- Marca "correct": true si la respuesta es esencialmente correcta aunque use otras palabras, sinónimos o esté incompleta pero con el concepto clave bien expresado.
-- Marca "correct": false si la respuesta está vacía, es incorrecta o contradice el concepto esperado.
-- "feedback" es una frase breve (máximo 20 palabras) en español que explica el veredicto.
+- Marca "correct": true si la respuesta es esencialmente correcta aunque use otras palabras, sinÃ³nimos o estÃ© incompleta pero con el concepto clave bien expresado.
+- Marca "correct": false si la respuesta estÃ¡ vacÃ­a, es incorrecta o contradice el concepto esperado.
+- "feedback" es una frase breve (mÃ¡ximo 20 palabras) en espaÃ±ol que explica el veredicto.
 - Devuelve SOLO JSON: {"results":[{"index":0,"correct":true,"feedback":"..."}]}`,
       },
       {
@@ -591,7 +631,7 @@ Reglas:
       });
     }
   } catch (error) {
-    console.warn('Calificación IA de flashcards falló, usando coincidencia simple:', (error as Error)?.message);
+    console.warn('CalificaciÃ³n IA de flashcards fallÃ³, usando coincidencia simple:', (error as Error)?.message);
   }
   return verdicts;
 }
@@ -641,8 +681,8 @@ async function gradeFlashcards(set: any, answers: any, env: Env, assignmentId: s
     ratio,
     feedback: {
       memoria: `${correct} de ${total} tarjetas recordadas correctamente.`,
-      constancia: correct === total ? 'Dominio completo en esta sesión.' : 'Repasa las tarjetas falladas en los próximos días.',
-      general: `Sesión de flashcards evaluada por la IA: ${correct}/${total}. La repetición espaciada ya programó tus próximos repasos.`,
+      constancia: correct === total ? 'Dominio completo en esta sesiÃ³n.' : 'Repasa las tarjetas falladas en los prÃ³ximos dÃ­as.',
+      general: `SesiÃ³n de flashcards evaluada por la IA: ${correct}/${total}. La repeticiÃ³n espaciada ya programÃ³ tus prÃ³ximos repasos.`,
     },
     details: { results, correct, total },
   };
@@ -661,8 +701,8 @@ async function gradeFindError(set: any, answers: any) {
     ratio,
     feedback: {
       atencion: `Identificaste ${hits} de ${errorIndexes.length} oraciones con error.`,
-      precision: falsePositives ? `Marcaste ${falsePositives} oración(es) correcta(s) como errónea(s).` : 'No marcaste oraciones correctas como erróneas.',
-      general: `Detección de errores completada: ${hits}/${errorIndexes.length} aciertos.`,
+      precision: falsePositives ? `Marcaste ${falsePositives} oraciÃ³n(es) correcta(s) como errÃ³nea(s).` : 'No marcaste oraciones correctas como errÃ³neas.',
+      general: `DetecciÃ³n de errores completada: ${hits}/${errorIndexes.length} aciertos.`,
     },
     details: {
       sentences: sentences.map((sentence: any, index: number) => ({
@@ -695,13 +735,13 @@ async function gradeRecall(set: any, answers: any, maxScore: number, env: Env) {
       const raw = await callAI(AI_MODEL_NORMAL, [
         {
           role: 'system',
-          content: `Eres un profesor que evalúa una respuesta de recuerdo libre.
+          content: `Eres un profesor que evalÃºa una respuesta de recuerdo libre.
 Compara la respuesta del estudiante con los conceptos clave.
 Reglas:
 - "covered": conceptos que la respuesta incluye, aunque use otras palabras.
 - "missing": conceptos clave que faltan.
-- "misconceptions": ideas incorrectas detectadas (vacío si no hay).
-- "ratio": número entre 0 y 1 con la cobertura conceptual (0 = nada, 1 = todos los conceptos correctos).
+- "misconceptions": ideas incorrectas detectadas (vacÃ­o si no hay).
+- "ratio": nÃºmero entre 0 y 1 con la cobertura conceptual (0 = nada, 1 = todos los conceptos correctos).
 - "feedback": una frase breve y alentadora.
 Devuelve SOLO JSON: {"covered":["..."],"missing":["..."],"misconceptions":["..."],"ratio":0.0,"feedback":"..."}`,
         },
@@ -716,7 +756,7 @@ Devuelve SOLO JSON: {"covered":["..."],"missing":["..."],"misconceptions":["..."
       misconceptions = Array.isArray(parsed?.misconceptions) ? parsed.misconceptions.map((item: any) => String(item)) : [];
       ratio = normalizeRatio(parsed?.ratio);
     } catch (error) {
-      console.warn('Calificación IA de recuerdo falló, usando coincidencia simple:', (error as Error)?.message);
+      console.warn('CalificaciÃ³n IA de recuerdo fallÃ³, usando coincidencia simple:', (error as Error)?.message);
       covered = concepts.filter((concept) => textMatches(text, concept));
       missing = concepts.filter((concept) => !textMatches(text, concept));
       ratio = concepts.length ? covered.length / concepts.length : 0;
@@ -727,7 +767,7 @@ Devuelve SOLO JSON: {"covered":["..."],"missing":["..."],"misconceptions":["..."
     ratio,
     feedback: {
       memoria: `Cubriste ${covered.length} de ${concepts.length} conceptos clave.`,
-      cobertura: missing.length ? `Faltó mencionar: ${missing.join(', ')}.` : 'Cobertura conceptual completa.',
+      cobertura: missing.length ? `FaltÃ³ mencionar: ${missing.join(', ')}.` : 'Cobertura conceptual completa.',
       organizacion: misconceptions.length ? `Revisa estas ideas: ${misconceptions.join('; ')}.` : 'Sin ideas incorrectas detectadas.',
       general: `Recuerdo libre evaluado sobre ${maxScore} puntos.`,
     },
@@ -752,10 +792,10 @@ async function gradeSummary(set: any, answers: any, maxScore: number, env: Env) 
       const raw = await callAI(AI_MODEL_NORMAL, [
         {
           role: 'system',
-          content: `Eres un profesor que evalúa un resumen.
+          content: `Eres un profesor que evalÃºa un resumen.
 Criterios (0 a 1 cada uno):
-- "coverage": cuántas ideas clave conserva.
-- "fidelity": si no inventa ni distorsiona la información del texto fuente.
+- "coverage": cuÃ¡ntas ideas clave conserva.
+- "fidelity": si no inventa ni distorsiona la informaciÃ³n del texto fuente.
 - "synthesis": si jerarquiza y condensa en vez de copiar fragmentos.
 - "missing": ideas clave ausentes.
 - "feedback": frase breve.
@@ -773,7 +813,7 @@ Devuelve SOLO JSON: {"coverage":0.0,"fidelity":0.0,"synthesis":0.0,"missing":[".
       missing = Array.isArray(parsed?.missing) ? parsed.missing.map((item: any) => String(item)) : [];
       feedbackText = String(parsed?.feedback || '').trim();
     } catch (error) {
-      console.warn('Calificación IA de resumen falló, usando coincidencia simple:', (error as Error)?.message);
+      console.warn('CalificaciÃ³n IA de resumen fallÃ³, usando coincidencia simple:', (error as Error)?.message);
       const found = keyPoints.filter((point) => textMatches(text, point));
       missing = keyPoints.filter((point) => !textMatches(text, point));
       coverage = keyPoints.length ? found.length / keyPoints.length : 0;
@@ -792,10 +832,10 @@ Devuelve SOLO JSON: {"coverage":0.0,"fidelity":0.0,"synthesis":0.0,"missing":[".
   return {
     ratio,
     feedback: {
-      sintesis: `Resumen de ${words} palabras (límite ${minWords}-${maxWords}).`,
-      cobertura: missing.length ? `Faltó incluir: ${missing.join(', ')}.` : 'Conservaste todas las ideas clave.',
+      sintesis: `Resumen de ${words} palabras (lÃ­mite ${minWords}-${maxWords}).`,
+      cobertura: missing.length ? `FaltÃ³ incluir: ${missing.join(', ')}.` : 'Conservaste todas las ideas clave.',
       fidelidad: feedbackText || (fidelity >= 0.7 ? 'El resumen es fiel al texto fuente.' : 'Revisa si algunas ideas se distorsionaron.'),
-      general: `Síntesis evaluada sobre ${maxScore} puntos.`,
+      general: `SÃ­ntesis evaluada sobre ${maxScore} puntos.`,
     },
     details: { words, min_words: minWords, max_words: maxWords, coverage, fidelity, synthesis, missing },
   };
@@ -841,8 +881,8 @@ async function gradeConceptMap(set: any, answers: any) {
     ratio,
     feedback: {
       relaciones: `Conectaste correctamente ${matches.length} de ${reference.length} relaciones esperadas.`,
-      organizacion: missing.length ? `Faltaron relaciones como: ${missing.slice(0, 3).map((edge: any) => `${edge.from} → ${edge.to}`).join('; ')}.` : 'Mapa completo.',
-      precision: extra.length ? `Hay ${extra.length} relación(es) que no forman parte del mapa de referencia.` : 'Sin relaciones incorrectas.',
+      organizacion: missing.length ? `Faltaron relaciones como: ${missing.slice(0, 3).map((edge: any) => `${edge.from} â†’ ${edge.to}`).join('; ')}.` : 'Mapa completo.',
+      precision: extra.length ? `Hay ${extra.length} relaciÃ³n(es) que no forman parte del mapa de referencia.` : 'Sin relaciones incorrectas.',
       general: `Mapa conceptual evaluado sobre ${reference.length} relaciones.`,
     },
     details: { matches, missing, extra, total_reference: reference.length },
@@ -850,94 +890,117 @@ async function gradeConceptMap(set: any, answers: any) {
 }
 
 async function gradePredictOutput(set: any, answers: any) {
-  const options = Array.isArray(set.options) ? set.options : [];
-  const correctIndex = Number(set.correct_index);
-  const selected = Number(answers?.selected);
-  const correct = Number.isInteger(selected) && selected === correctIndex;
-  const expected = options[correctIndex] ?? '';
-  return {
-    ratio: correct ? 1 : 0,
-    feedback: {
-      prediccion: correct ? 'Predeciste la salida correctamente.' : 'La salida que elegiste no es la correcta.',
-      salida: `Salida esperada: ${expected}`,
-      general: correct ? 'Ejercicio de predicción completado.' : `Repasa la ejecución paso a paso del código en ${set.language || 'el lenguaje'}.`,
-    },
-    details: {
-      code: set.code,
-      language: set.language,
+  const questions = Array.isArray(set.questions) ? set.questions : [];
+  const selections = Array.isArray(answers?.selected) ? answers.selected : [];
+  const results = questions.map((question: any, index: number) => {
+    const options = Array.isArray(question.options) ? question.options : [];
+    const correctIndex = Number(question.correct_index);
+    const rawValue = selections[index];
+    const raw = rawValue === null || rawValue === undefined ? -1 : Number(rawValue);
+    const selected = Number.isInteger(raw) && raw >= 0 ? raw : -1;
+    const correct = selected === correctIndex;
+    return {
+      index,
+      language: question.language,
+      code: question.code,
       options,
-      selected: Number.isInteger(selected) ? selected : -1,
+      selected,
       correct_index: correctIndex,
       correct,
-      explanation: set.explanation || '',
+      explanation: question.explanation || '',
+    };
+  });
+  const total = questions.length || 1;
+  const correctCount = results.filter((item: any) => item.correct).length;
+  const ratio = results.length ? correctCount / total : 0;
+  return {
+    ratio,
+    feedback: {
+      prediccion: `Acertaste ${correctCount} de ${questions.length} salidas.`,
+      general: `PredicciÃ³n de salida: ${correctCount}/${questions.length} retos correctos.`,
     },
+    details: { results, correct: correctCount, total: questions.length },
   };
 }
 
 async function gradeFindBug(set: any, answers: any) {
-  const code = String(set.code || '');
-  const bugs = (Array.isArray(set.bugs) ? set.bugs : [])
-    .map((bug: any) => ({
+  const questions = Array.isArray(set.questions) ? set.questions : [];
+  const submitted = Array.isArray(answers?.selected) ? answers.selected : [];
+  const results = questions.map((question: any, index: number) => {
+    const bugs = (Array.isArray(question.bugs) ? question.bugs : []).map((bug: any) => ({
       line: Number(bug?.line),
       explanation: String(bug?.explanation || ''),
       fix: String(bug?.fix || ''),
-    }))
-    .filter((bug: any) => Number.isInteger(bug.line));
-  const bugLines = new Set(bugs.map((bug: any) => bug.line));
-  const selected = new Set<number>(
-    (Array.isArray(answers?.selected) ? answers.selected : [])
-      .map((line: any) => Number(line))
-      .filter((line: number) => Number.isInteger(line)),
-  );
-  const hits = [...selected].filter((line) => bugLines.has(line)).length;
-  const falsePositives = [...selected].filter((line) => !bugLines.has(line)).length;
-  const ratio = bugLines.size ? Math.max(0, hits - 0.5 * falsePositives) / bugLines.size : 0;
-  return {
-    ratio,
-    feedback: {
-      depuracion: `Marcaste ${hits} de ${bugLines.size} línea(s) con error.`,
-      precision: falsePositives ? `También marcaste ${falsePositives} línea(s) correcta(s).` : 'No marcaste líneas correctas como erróneas.',
-      general: `Depuración completada: ${hits}/${bugLines.size} errores encontrados.`,
-    },
-    details: {
-      code,
-      language: set.language,
+    }));
+    const bugLines = new Set(bugs.map((bug: any) => bug.line));
+    const selectedSet = new Set<number>(
+      (Array.isArray(submitted[index]) ? submitted[index] : [])
+        .map((line: any) => Number(line))
+        .filter((line: number) => Number.isInteger(line)),
+    );
+    const selected = [...selectedSet].sort((a, b) => a - b);
+    const hits = selected.filter((line) => bugLines.has(line)).length;
+    const falsePositives = selected.filter((line) => !bugLines.has(line)).length;
+    const correct = bugLines.size > 0 && hits === bugLines.size && falsePositives === 0;
+    return {
+      index,
+      language: question.language,
+      code: question.code,
       bugs,
-      selected: [...selected].sort((a, b) => a - b),
+      selected,
       hits,
       falsePositives,
       total_bugs: bugLines.size,
+      correct,
+    };
+  });
+  const total = questions.length || 1;
+  const correctCount = results.filter((item: any) => item.correct).length;
+  const ratio = results.length ? correctCount / total : 0;
+  return {
+    ratio,
+    feedback: {
+      depuracion: `Depuraste correctamente ${correctCount} de ${questions.length} cÃ³digos.`,
+      general: `Encuentra el bug: ${correctCount}/${questions.length} retos correctos.`,
     },
+    details: { results, correct: correctCount, total: questions.length },
   };
 }
 
 async function gradeOrderCode(set: any, answers: any) {
-  const lines = Array.isArray(set.lines) ? set.lines : [];
-  const correct = Array.isArray(set.correct_order) ? set.correct_order.map(String) : [];
-  const submitted = (Array.isArray(answers?.order) ? answers.order : []).map(String);
-  const total = correct.length;
-  let matches = 0;
-  for (let index = 0; index < total; index++) {
-    if (submitted[index] === correct[index]) matches++;
-  }
-  const ratio = total ? matches / total : 0;
-  const textById = new Map<string, string>(lines.map((line: any) => [String(line?.id), String(line?.text || '')]));
-  const expectedLines = correct.map((id: string) => textById.get(id) || '');
-  const studentLines = submitted.map((id: string) => textById.get(id) || '');
+  const questions = Array.isArray(set.questions) ? set.questions : [];
+  const orders = Array.isArray(answers?.orders) ? answers.orders : [];
+  const results = questions.map((question: any, index: number) => {
+    const lines = Array.isArray(question.lines) ? question.lines : [];
+    const correct = Array.isArray(question.correct_order) ? question.correct_order.map(String) : [];
+    const submitted = (Array.isArray(orders[index]) ? orders[index] : []).map(String);
+    const total = correct.length;
+    let matches = 0;
+    for (let position = 0; position < total; position++) {
+      if (submitted[position] === correct[position]) matches++;
+    }
+    const textById = new Map<string, string>(lines.map((line: any) => [String(line?.id), String(line?.text || '')]));
+    return {
+      index,
+      language: question.language,
+      matches,
+      total,
+      expected: correct.map((id: string) => textById.get(id) || ''),
+      student: submitted.map((id: string) => textById.get(id) || ''),
+      explanation: question.explanation || '',
+      correct: total > 0 && matches === total,
+    };
+  });
+  const total = questions.length || 1;
+  const correctCount = results.filter((item: any) => item.correct).length;
+  const ratio = results.length ? correctCount / total : 0;
   return {
     ratio,
     feedback: {
-      orden: `Colocaste correctamente ${matches} de ${total} líneas en su posición.`,
-      general: ratio === 1 ? 'Reordenaste el código correctamente.' : 'Revisa el orden lógico y la indentación del fragmento.',
+      orden: `Ordenaste correctamente ${correctCount} de ${questions.length} cÃ³digos.`,
+      general: `Ordena el cÃ³digo: ${correctCount}/${questions.length} retos correctos.`,
     },
-    details: {
-      language: set.language,
-      matches,
-      total,
-      expected: expectedLines,
-      student: studentLines,
-      explanation: set.explanation || '',
-    },
+    details: { results, correct: correctCount, total: questions.length },
   };
 }
 
@@ -989,13 +1052,15 @@ export async function handleActivityApi(
       const body = await request.json<any>().catch(() => ({}));
       const assignmentId = String(body?.assignment_id || '').trim();
       const type = parseActivityType(body?.type);
-      if (!assignmentId || !type) return jsonResponse({ error: 'Faltan assignment_id o type válido' }, 400, corsHeaders);
+      if (!assignmentId || !type) return jsonResponse({ error: 'Faltan assignment_id o type vÃ¡lido' }, 400, corsHeaders);
 
       const assignment = await getAssignment(assignmentId, userDni, env);
       if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
 
       let set = await loadSet(env, assignmentId, type);
-      if (!set) {
+      const multiQuestion = type === 'predict_output' || type === 'find_bug' || type === 'order_code';
+      const missingQuestions = multiQuestion && !Array.isArray(set?.questions);
+      if (!set || missingQuestions) {
         set = await generateSet(assignment, type, env);
         await saveSet(env, assignmentId, type, set);
       }
@@ -1004,7 +1069,7 @@ export async function handleActivityApi(
       return jsonResponse({ type, assignment_id: assignmentId, ...sanitizeSet(type, set, dueMap) }, 200, corsHeaders);
     } catch (error: any) {
       console.error('Error generando actividad:', error);
-      return jsonResponse({ error: 'No se pudo preparar la actividad. Inténtalo de nuevo.' }, 502, corsHeaders);
+      return jsonResponse({ error: 'No se pudo preparar la actividad. IntÃ©ntalo de nuevo.' }, 502, corsHeaders);
     }
   }
 
@@ -1013,23 +1078,23 @@ export async function handleActivityApi(
       const body = await request.json<any>().catch(() => ({}));
       const assignmentId = String(body?.assignment_id || '').trim();
       const type = parseActivityType(body?.type);
-      if (!assignmentId || !type) return jsonResponse({ error: 'Faltan assignment_id o type válido' }, 400, corsHeaders);
+      if (!assignmentId || !type) return jsonResponse({ error: 'Faltan assignment_id o type vÃ¡lido' }, 400, corsHeaders);
 
       const assignment = await getAssignment(assignmentId, userDni, env);
       if (!assignment) return jsonResponse({ error: 'Tarea no encontrada o sin acceso' }, 404, corsHeaders);
 
       const set = await loadSet(env, assignmentId, type);
-      if (!set) return jsonResponse({ error: 'La actividad no está preparada. Vuelve a abrirla.' }, 409, corsHeaders);
+      if (!set) return jsonResponse({ error: 'La actividad no estÃ¡ preparada. Vuelve a abrirla.' }, 409, corsHeaders);
 
       const maxScore = Math.max(1, Math.round(Number(assignment.max_score) || 100));
       const answers = body?.answers || {};
       let graded: { ratio: number; feedback: Record<string, string>; details: any };
 
-      // En el flujo de 4 modos, solo se puede calificar lo que el estudiante eligió.
+      // En el flujo de 4 modos, solo se puede calificar lo que el estudiante eligiÃ³.
       const selectedModes = await getSelectedTaskModes(env, assignmentId, userDni);
       if (selectedModes && selectedModes.length && !selectedModes.includes(type)) {
         return jsonResponse({
-          error: 'Ese modo no está entre las 4 actividades que elegiste para esta tarea.',
+          error: 'Ese modo no estÃ¡ entre las 4 actividades que elegiste para esta tarea.',
         }, 409, corsHeaders);
       }
       const usesModeFlow = !!selectedModes && selectedModes.length > 0;
@@ -1048,10 +1113,10 @@ export async function handleActivityApi(
       const feedback = { ...graded.feedback, general: graded.feedback.general || `Actividad completada: ${score}/${maxScore}.` } as Record<string, any>;
       if (formative) {
         feedback.formative = true;
-        feedback.general = `${graded.feedback.general || 'Actividad completada.'} Práctica formativa: no afecta tu nota.`;
+        feedback.general = `${graded.feedback.general || 'Actividad completada.'} PrÃ¡ctica formativa: no afecta tu nota.`;
       }
       // Con 4 modos elegidos, la nota de la tarea la compone task-progress.
-      // Sin selección (tareas antiguas) se mantiene el guardado directo.
+      // Sin selecciÃ³n (tareas antiguas) se mantiene el guardado directo.
       const submissionId = usesModeFlow
         ? null
         : await saveSubmission(env, assignmentId, userDni, type, score, maxScore, feedback, formative);
@@ -1066,17 +1131,22 @@ export async function handleActivityApi(
         for (const concept of graded.details?.missing ?? []) failedConcepts.push(concept);
       } else if (type === 'concept_map') {
         for (const edge of graded.details?.missing ?? []) {
-          if (edge?.from && edge?.to) failedConcepts.push(`${edge.from} → ${edge.to}`);
+          if (edge?.from && edge?.to) failedConcepts.push(`${edge.from} â†’ ${edge.to}`);
         }
       } else if (type === 'predict_output') {
-        if (!graded.details?.correct) failedConcepts.push(`Predicción de salida (${graded.details?.language || 'código'})`);
+        for (const item of graded.details?.results ?? []) {
+          if (!item.correct) failedConcepts.push(`PredicciÃ³n de salida (${item.language || 'cÃ³digo'})`);
+        }
       } else if (type === 'find_bug') {
-        for (const bug of graded.details?.bugs ?? []) {
-          if (bug?.explanation) failedConcepts.push(bug.explanation);
+        for (const item of graded.details?.results ?? []) {
+          if (item.correct) continue;
+          for (const bug of item.bugs ?? []) {
+            if (bug?.explanation) failedConcepts.push(bug.explanation);
+          }
         }
       } else if (type === 'order_code') {
-        if (Number(graded.details?.matches) < Number(graded.details?.total)) {
-          failedConcepts.push(`Orden del código (${graded.details?.language || 'código'})`);
+        for (const item of graded.details?.results ?? []) {
+          if (!item.correct) failedConcepts.push(`Orden del cÃ³digo (${item.language || 'cÃ³digo'})`);
         }
       }
       if (failedConcepts.length) {
@@ -1116,7 +1186,7 @@ export async function handleActivityApi(
       }, 200, corsHeaders);
     } catch (error: any) {
       console.error('Error calificando actividad:', error);
-      return jsonResponse({ error: 'No se pudo calificar la actividad. Inténtalo de nuevo.' }, 502, corsHeaders);
+      return jsonResponse({ error: 'No se pudo calificar la actividad. IntÃ©ntalo de nuevo.' }, 502, corsHeaders);
     }
   }
 
