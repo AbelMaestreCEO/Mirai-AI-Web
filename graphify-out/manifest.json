@@ -1584,9 +1584,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/UnoRoomPage.vue": {
-    "mtime": 1795487431.7616134,
-    "seen": 1795487560.7585764,
-    "ast_hash": "f150ef38d8ad61ea8c81b4c4f8bf5baa",
+    "mtime": 1795489972.232624,
+    "seen": 1795490001.5248868,
+    "ast_hash": "c1100924cb27316971b177adf4b2e9fe",
     "semantic_hash": ""
   },
   "workers/durable/UnoRoom.ts": {
@@ -1605,6 +1605,18 @@
     "mtime": 1795485084.6407695,
     "seen": 1795487560.7868834,
     "ast_hash": "a31369b49acf2c7b15ae5e73239383e7",
+    "semantic_hash": ""
+  },
+  "carta-uno/atras.jpg": {
+    "mtime": 1795489605.7770207,
+    "seen": 1795490001.5505455,
+    "ast_hash": "6e070e4f34378ba7f2808b26f904dd21",
+    "semantic_hash": ""
+  },
+  "public/cards/atras.jpg": {
+    "mtime": 1795489605.7770207,
+    "seen": 1795490001.551841,
+    "ast_hash": "6e070e4f34378ba7f2808b26f904dd21",
     "semantic_hash": ""
   }
 }

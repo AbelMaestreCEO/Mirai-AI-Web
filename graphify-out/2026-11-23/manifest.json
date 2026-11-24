@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomAdminPage.vue": {
-    "mtime": 1795443278.122489,
-    "seen": 1795443316.9003458,
-    "ast_hash": "c5a836419d8ca97484ff34c3b5786e86",
+    "mtime": 1795489521.299748,
+    "seen": 1795489592.344761,
+    "ast_hash": "ba6494a19ac98cf6201fad9dc05334ce",
     "semantic_hash": ""
   },
   "frontend/src/pages/ClassroomDetailsPage.vue": {

@@ -7925,7 +7925,8 @@ body::before {
   .mobile-sidebar~.sales-container,
   .mobile-sidebar~.tasks-container,
   .mobile-sidebar~.game-page,
-  .mobile-sidebar~.room-page {
+  .mobile-sidebar~.room-page,
+  .mobile-sidebar~.uno-page {
     box-sizing: border-box;
     --sidebar-gap: var(--sidebar-w);
     max-width: calc(var(--page-max, 1200px) + var(--sidebar-gap) + var(--page-pad, 20px) * 2);
@@ -7949,7 +7950,8 @@ body::before {
   .mobile-sidebar.collapsed~.sales-container,
   .mobile-sidebar.collapsed~.tasks-container,
   .mobile-sidebar.collapsed~.game-page,
-  .mobile-sidebar.collapsed~.room-page {
+  .mobile-sidebar.collapsed~.room-page,
+  .mobile-sidebar.collapsed~.uno-page {
     --sidebar-gap: var(--sidebar-w-collapsed);
   }
 
@@ -7993,7 +7995,8 @@ body::before {
   .sales-container,
   .tasks-container,
   .game-page,
-  .room-page {
+  .room-page,
+  .uno-page {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }

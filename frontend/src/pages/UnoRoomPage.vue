@@ -103,7 +103,10 @@
                 {{ p.nickname }}
                 <span v-if="p.id === you" class="you-badge">Tú</span>
               </span>
-              <span class="rival-cards" :aria-label="`${p.handCount} cartas`">{{ p.handCount }} 🂠</span>
+              <span class="rival-cards" :aria-label="`${p.handCount} cartas`">
+                <span class="mini-back" aria-hidden="true" />
+                <span class="mini-count">{{ p.handCount }}</span>
+              </span>
             </div>
           </div>
 
@@ -834,8 +837,24 @@ void UNO_COLORS;
 }
 
 .rival-cards {
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-secondary);
+}
+
+.mini-back {
+  width: 22px;
+  height: 30px;
+  border-radius: 4px;
+  background: url('/cards/atras.jpg') center / cover no-repeat;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+.mini-count {
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .table-center {
@@ -866,15 +885,14 @@ void UNO_COLORS;
   height: 110px;
   border-radius: 12px;
   border: 3px solid var(--accent-color);
-  background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.14) 0 8px, transparent 8px 16px),
-    linear-gradient(135deg, #512da8, #7b1fa2);
+  background: url('/cards/atras.jpg') center / cover no-repeat;
   color: #fff;
   font-size: 1.2rem;
   font-weight: 800;
   cursor: pointer;
   display: grid;
   place-items: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .deck-card:disabled {
@@ -1289,4 +1307,37 @@ void UNO_COLORS;
   .table-center { gap: 16px; }
   .top-actions { width: 100%; }
 }
-</style> 
+</style>
+
+<style>
+/* El hueco del sidebar y el centrado los resuelve la regla compartida del final
+   de styles.css (familia A). Aquí solo se declaran ancho y relleno. */
+:where(body[data-page="game_room"]) .uno-page {
+  --page-max: 980px;
+  --page-pad: 16px;
+  box-sizing: border-box;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 16px 16px 64px;
+}
+
+@media (max-width: 640px) {
+  :where(body[data-page="game_room"]) .uno-page {
+    --page-pad: 10px;
+    padding: 10px 10px 48px;
+  }
+}
+
+/* El modal de preguntas y el selector de color respetan el hueco del sidebar:
+   el fondo cubre toda la pantalla, pero la tarjeta se centra en el área libre. */
+@media (min-width: 769px) {
+  .mobile-sidebar~.uno-page .question-overlay {
+    padding-left: calc(var(--sidebar-w) + 16px);
+  }
+
+  .mobile-sidebar.collapsed~.uno-page .question-overlay {
+    padding-left: calc(var(--sidebar-w-collapsed) + 16px);
+  }
+}
+</style>
+
