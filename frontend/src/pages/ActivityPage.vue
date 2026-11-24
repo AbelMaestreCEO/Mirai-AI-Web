@@ -192,14 +192,13 @@
       <section v-else-if="type === 'predict_output'" class="activity-card multistep">
         <p class="activity-instruction">{{ payload.instructions }}</p>
         <div class="question-stepper">
-          <button
+          <span
             v-for="qIndex in questionCount"
             :key="`pdot-${qIndex}`"
             class="stepper-dot"
             :class="{ active: qIndex - 1 === questionIndex, done: predictAnswers[qIndex - 1] !== null && predictAnswers[qIndex - 1] !== undefined }"
             :title="`Reto ${qIndex}`"
-            @click="goToQuestion(qIndex - 1)"
-          >{{ qIndex }}</button>
+          >{{ qIndex }}</span>
           <span class="stepper-progress"><span class="stepper-fill" :style="{ width: progressPercent }"></span></span>
         </div>
         <Transition name="q-slide" mode="out-in">
@@ -225,8 +224,7 @@
           </div>
         </Transition>
         <div class="activity-actions q-nav">
-          <button class="activity-btn secondary" :disabled="questionIndex === 0" @click="prevQuestion">Anterior</button>
-          <button v-if="questionIndex < questionCount - 1" class="activity-btn" @click="nextQuestion">Siguiente</button>
+          <button v-if="questionIndex < questionCount - 1" class="activity-btn" :disabled="!currentComplete" @click="nextQuestion">Siguiente</button>
           <button v-else class="activity-btn" :disabled="grading || !allPredictAnswered" @click="submitActivity">
             {{ grading ? 'Evaluando...' : 'Entregar 4 retos' }}
           </button>
@@ -237,14 +235,13 @@
       <section v-else-if="type === 'find_bug'" class="activity-card multistep">
         <p class="activity-instruction">{{ payload.instructions }}</p>
         <div class="question-stepper">
-          <button
+          <span
             v-for="qIndex in questionCount"
             :key="`bdot-${qIndex}`"
             class="stepper-dot"
             :class="{ active: qIndex - 1 === questionIndex, done: (bugAnswers[qIndex - 1]?.length || 0) > 0 }"
             :title="`Reto ${qIndex}`"
-            @click="goToQuestion(qIndex - 1)"
-          >{{ qIndex }}</button>
+          >{{ qIndex }}</span>
           <span class="stepper-progress"><span class="stepper-fill" :style="{ width: progressPercent }"></span></span>
         </div>
         <Transition name="q-slide" mode="out-in">
@@ -276,8 +273,7 @@
           </div>
         </Transition>
         <div class="activity-actions q-nav">
-          <button class="activity-btn secondary" :disabled="questionIndex === 0" @click="prevQuestion">Anterior</button>
-          <button v-if="questionIndex < questionCount - 1" class="activity-btn" @click="nextQuestion">Siguiente</button>
+          <button v-if="questionIndex < questionCount - 1" class="activity-btn" :disabled="!currentComplete" @click="nextQuestion">Siguiente</button>
           <button v-else class="activity-btn" :disabled="grading || !allBugAnswered" @click="submitActivity">
             {{ grading ? 'Evaluando...' : 'Entregar 4 retos' }}
           </button>
@@ -288,14 +284,13 @@
       <section v-else-if="type === 'order_code'" class="activity-card multistep">
         <p class="activity-instruction">{{ payload.instructions }}</p>
         <div class="question-stepper">
-          <button
+          <span
             v-for="qIndex in questionCount"
             :key="`odot-${qIndex}`"
             class="stepper-dot"
             :class="{ active: qIndex - 1 === questionIndex, done: orderTouched[qIndex - 1] }"
             :title="`Reto ${qIndex}`"
-            @click="goToQuestion(qIndex - 1)"
-          >{{ qIndex }}</button>
+          >{{ qIndex }}</span>
           <span class="stepper-progress"><span class="stepper-fill" :style="{ width: progressPercent }"></span></span>
         </div>
         <Transition name="q-slide" mode="out-in">
@@ -337,8 +332,7 @@
           </div>
         </Transition>
         <div class="activity-actions q-nav">
-          <button class="activity-btn secondary" :disabled="questionIndex === 0" @click="prevQuestion">Anterior</button>
-          <button v-if="questionIndex < questionCount - 1" class="activity-btn" @click="nextQuestion">Siguiente</button>
+          <button v-if="questionIndex < questionCount - 1" class="activity-btn" :disabled="!currentComplete" @click="nextQuestion">Siguiente</button>
           <button v-else class="activity-btn" :disabled="grading" @click="submitActivity">
             {{ grading ? 'Evaluando...' : 'Entregar 4 retos' }}
           </button>
@@ -651,6 +645,16 @@ const allPredictAnswered = computed(() =>
 const allBugAnswered = computed(() =>
   questions.value.length > 0 && questions.value.every((_, index) => (bugAnswers.value[index]?.length || 0) > 0),
 );
+const currentComplete = computed(() => {
+  if (!currentQuestion.value) return false;
+  if (type.value === 'predict_output') {
+    const value = predictAnswers.value[questionIndex.value];
+    return value !== null && value !== undefined;
+  }
+  if (type.value === 'find_bug') return (bugAnswers.value[questionIndex.value]?.length || 0) > 0;
+  if (type.value === 'order_code') return orderTouched.value[questionIndex.value] === true;
+  return true;
+});
 const progressPercent = computed(() => {
   if (questionCount.value <= 1) return '0%';
   return `${(questionIndex.value / (questionCount.value - 1)) * 100}%`;
@@ -667,11 +671,8 @@ function goToQuestion(index: number) {
   questionIndex.value = index;
 }
 
-function prevQuestion() {
-  goToQuestion(questionIndex.value - 1);
-}
-
 function nextQuestion() {
+  if (!currentComplete.value) return;
   goToQuestion(questionIndex.value + 1);
 }
 
@@ -1764,6 +1765,9 @@ onBeforeUnmount(() => {
 
 :where(body[data-page="activity"]) .stepper-dot {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
@@ -1772,13 +1776,8 @@ onBeforeUnmount(() => {
   color: var(--text-secondary, #888);
   font-size: .82rem;
   font-weight: 700;
-  cursor: pointer;
+  cursor: default;
   transition: transform .18s ease, background .25s ease, color .25s ease, box-shadow .25s ease, border-color .25s ease;
-}
-
-:where(body[data-page="activity"]) .stepper-dot:hover {
-  transform: translateY(-2px) scale(1.06);
-  border-color: var(--accent-color);
 }
 
 :where(body[data-page="activity"]) .stepper-dot.done {
@@ -1857,7 +1856,7 @@ onBeforeUnmount(() => {
 }
 
 :where(body[data-page="activity"]) .q-nav {
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
 }
 

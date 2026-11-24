@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ActivityPage.vue": {
-    "mtime": 1795483113.4018435,
-    "seen": 1795483163.9128067,
-    "ast_hash": "2f28de7660c8d2d2a34ba8e51d7f780e",
+    "mtime": 1795484060.0062814,
+    "seen": 1795484093.0480907,
+    "ast_hash": "e995ec45ee85973e98e0ff9772a2b125",
     "semantic_hash": ""
   },
   "workers/routes/activities.ts": {
