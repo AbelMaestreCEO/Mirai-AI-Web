@@ -1,17 +1,17 @@
 # Graph Report - Mirai-AI-Web  (2026-11-23)
 
 ## Corpus Check
-- 185 files · ~490,269 words
+- 190 files · ~505,288 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 38 file(s) not represented in the graph (top: .css 14, .xml 7, (none) 3)
 
 ## Summary
-- 4947 nodes · 8074 edges · 304 communities (127 shown, 177 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 142 edges (avg confidence: 0.89)
+- 5161 nodes · 8599 edges · 314 communities (133 shown, 181 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 179 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `61f51644`
+- Built from commit: `51631732`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -45,14 +45,14 @@
 - placePending
 - mirror.ts
 - ChatMessageItem.vue
-- seo-data.ts
+- worker.ts
 - activities.ts
 - Format Page
 - PanelPage.vue
 - api.ts
 - ActivityPage.vue
 - Android App Icons
-- vue-router
+- goToPage
 - AttendancePage.vue
 - send
 - RegistrationPage.vue
@@ -60,11 +60,13 @@
 - lib/chat.ts
 - routes/game.ts
 - ClassroomPage.vue
+- UnoRoomPage.vue
 - chat-files.ts
 - GameRoom
 - Console
 - TransformStream
 - URL
+- uno-engine.ts
 - error
 - ArtifactsRepo
 - loadOrCreateConversation
@@ -84,7 +86,7 @@
 - SubtleCrypto
 - ExtendableEvent
 - settings.ts
-- vue
+- routes.ts
 - manifest.json
 - Blob
 - Body
@@ -100,7 +102,7 @@
 - EventTarget
 - ServiceWorkerGlobalScope
 - store
-- task-progress.ts
+- Uno-like educativo — especificación y plan de implementación
 - Misc
 - Module Icon Assets
 - EventSource
@@ -122,7 +124,7 @@
 - WorkflowInstance
 - WritableStreamDefaultWriter
 - loadSections
-- ResetPasswordPage.vue
+- vue
 - switchTab
 - AbortSignal
 - Ai
@@ -135,7 +137,7 @@
 - routes/reports.ts
 - Misc
 - errorMessage
-- pushToast
+- UnoRoom
 - Build Script (Node)
 - exportPdf
 - AiSearchNamespace
@@ -145,7 +147,7 @@
 - 11. Plan de implementación por fases
 - Misc
 - Misc
-- worker.ts
+- format.ts
 - AiSearchItem
 - AiSearchItems
 - Artifacts
@@ -158,7 +160,7 @@
 - TextDecoder
 - Reto con tests
 - 4. Prerrequisitos técnicos (lo que hay que añadir)
-- 1. Enfoque educativo
+- game-questions.ts
 - lib/reports.ts
 - onLinkEnd
 - AiGateway
@@ -300,44 +302,52 @@
 - handleMessage
 - 5. Requisitos funcionales
 - saveAll
-- office-text.ts
+- dialog.ts
+- chooseMethod
 - reportsApi
 - Análisis del tablero Ludo (`ludo 2.jpg`)
 - cellCenterStyle
+- .fetch
+- recipeById
 - audio.ts
 - AutoRAG
 - teams.ts
 - load
 - submitActivity
+- submitForm
 - Queue
-- accentColor
-- recordConceptErrors
+- google-maps.ts
+- .actionStart
 - goToQuestion
 - currentBugLines
-- documents.ts
+- .finishGame
+- .ready
+- selectFile
+- diet-recipes.ts
+- 2. Enfoque dinámico / personalización
 
 ## God Nodes (most connected - your core abstractions)
-1. `jsonResponse()` - 195 edges
-2. `requireAuth()` - 144 edges
+1. `jsonResponse()` - 196 edges
+2. `requireAuth()` - 145 edges
 3. `handleApiRequest()` - 134 edges
 4. `errorMessage()` - 66 edges
 5. `handleClassroomApi()` - 65 edges
-6. `vue` - 49 edges
-7. `GameRoom` - 45 edges
-8. `apiFetch()` - 39 edges
-9. `callAI()` - 34 edges
-10. `api` - 28 edges
+6. `vue` - 51 edges
+7. `UnoRoom` - 51 edges
+8. `GameRoom` - 47 edges
+9. `apiFetch()` - 39 edges
+10. `callAI()` - 34 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `2. Situación actual de la infraestructura` --references--> `requireAuth()`  [INFERRED]
   multijugador.md → workers/lib/auth.ts
 - `4. Notas de riesgo` --references--> `requireProfessorAuth()`  [INFERRED]
   falta-pedagogia.md → workers/routes/classroom.ts
+- `7.2 Página de partida` --references--> `GameSocket`  [INFERRED]
+  uno-like.md → frontend/src/lib/game.ts
+- `6. Modelo de datos (D1)` --references--> `TaskMethod`  [INFERRED]
+  uno-like.md → frontend/src/pages/ClassroomDetailsPage.vue
 - `3.1 Piezas` --references--> `GameRoom`  [INFERRED]
-  multijugador.md → workers/durable/GameRoom.ts
-- `3.2 Flujo` --references--> `GameRoom`  [INFERRED]
-  multijugador.md → workers/durable/GameRoom.ts
-- `4.2 Backend` --references--> `GameRoom`  [INFERRED]
   multijugador.md → workers/durable/GameRoom.ts
 
 ## Import Cycles
@@ -350,7 +360,7 @@
 - **PWA / TWA App Icon Set (any, maskable, monochrome purposes)** — public_icons_icon_192, public_icons_icon_512, public_icons_maskable_192, public_icons_maskable_512, public_icons_monochrome_512 [INFERRED 0.95]
 - **UI Module Navigation Icon Set (Fluent-style colored icons for app modules)** — public_icons_ui_apa_96, public_icons_ui_attendance_96, public_icons_ui_chat_96, public_icons_ui_classroom_96, public_icons_ui_courses_96, public_icons_ui_diet_96, public_icons_ui_docs_96, public_icons_ui_format_96, public_icons_ui_generation_96, public_icons_ui_home_96, public_icons_ui_inventory_96, public_icons_ui_investigation_96, public_icons_ui_location_96, public_icons_ui_panel_96, public_icons_ui_photos_96, public_icons_ui_plans_96, public_icons_ui_projects_96, public_icons_ui_reports_96, public_icons_ui_sales_96, public_icons_ui_tasks_96 [INFERRED 0.95]
 
-## Communities (304 total, 177 thin omitted)
+## Communities (314 total, 181 thin omitted)
 
 ### Community 0 - "Cloudflare Workers API & Types"
 Cohesion: 0.00
@@ -358,7 +368,7 @@ Nodes (931): RFC-2253, RFC-3339, RFC-5246, RFC-9440, AgentMemoryGetSummaryOption
 
 ### Community 1 - "jsonResponse"
 Cohesion: 0.09
-Nodes (86): getTokenFromRequest(), isAdminUser(), normalizeCedula(), requireAdminAuth(), requireAuth(), jsonResponse(), safeJsonParse(), extractPngFromIco() (+78 more)
+Nodes (83): isAdminUser(), normalizeCedula(), requireAuth(), jsonResponse(), safeJsonParse(), extractPngFromIco(), sendPushNotification(), handleApiRequest() (+75 more)
 
 ### Community 2 - "Image Generation Page"
 Cohesion: 0.03
@@ -370,7 +380,7 @@ Nodes (54): activePriority, activeProject, activeView, aiBusy, aiInput, aiInputE
 
 ### Community 4 - "ChatPage.vue"
 Cohesion: 0.04
-Nodes (53): AudioMode, prepareImage(), Attachment, attachments, AUDIO_MODE_UI, audioChunks, audioMode, avatar (+45 more)
+Nodes (50): AudioMode, Attachment, attachments, AUDIO_MODE_UI, audioChunks, audioMode, avatar, canSend (+42 more)
 
 ### Community 5 - "Mirror Batch Page"
 Cohesion: 0.06
@@ -385,12 +395,12 @@ Cohesion: 0.05
 Nodes (47): buildApaDocx(), dataUriBytes(), DocCell, DocContent, DocImage, DocParagraph, DocxCtor, DocxLib (+39 more)
 
 ### Community 8 - "CoursesPage.vue"
-Cohesion: 0.05
-Nodes (55): capitalizeFirst(), Category, CATEGORY_DESCRIPTIONS, Course, CourseDetails, getList(), Lesson, loadCategories() (+47 more)
+Cohesion: 0.07
+Nodes (38): capitalizeFirst(), Category, CATEGORY_DESCRIPTIONS, Course, CourseDetails, getList(), Lesson, loadCategories() (+30 more)
 
 ### Community 9 - "DietPage.vue"
 Cohesion: 0.04
-Nodes (54): Recipe, RECIPE_CARDS, RecipeCard, RECIPES, AI_MODES, AiMode, CAT_LABELS, category (+46 more)
+Nodes (43): AI_MODES, AiMode, CAT_LABELS, category, CATEGORY_FILTERS, CHAT_PROMPTS, ChatMsg, chats (+35 more)
 
 ### Community 10 - "Projects Page"
 Cohesion: 0.05
@@ -398,11 +408,11 @@ Nodes (42): addFiles(), CATEGORY_ICONS, closeModal(), confirmDelete(), countLabe
 
 ### Community 11 - "LocationPage.vue"
 Cohesion: 0.06
-Nodes (43): apiTasks(), circlePin(), clearPending(), DEFAULT_CENTER, deleteFromDetail(), deleteMarker(), detail, el() (+35 more)
+Nodes (42): apiLocations(), apiTasks(), circlePin(), clearPending(), DEFAULT_CENTER, deleteFromDetail(), deleteMarker(), detail (+34 more)
 
 ### Community 12 - "classroom.ts"
-Cohesion: 0.10
-Nodes (52): normalizeDni(), attLocalDate(), attLocalEndOfDayUtc(), attLocalTime(), attRequireAdmin(), buildQuizPoints(), canAccessSubmission(), canManageAssignment() (+44 more)
+Cohesion: 0.06
+Nodes (86): normalizeDni(), CONCEPT_INDEXES, ensureConceptErrorsTable(), recordConceptErrors(), extractTextFromDocx(), extractTextFromParagraphs(), extractTextFromPDF(), cleanText() (+78 more)
 
 ### Community 13 - "Event"
 Cohesion: 0.06
@@ -418,7 +428,7 @@ Nodes (48): addSection(), addStudent(), AttClass, AttRecord, classes, classesSta
 
 ### Community 16 - "InventoryPage.vue"
 Cohesion: 0.05
-Nodes (47): category, CATEGORY_COLORS, CATEGORY_FILTERS, CATEGORY_ICONS, closeModals(), deleteProduct(), described, detail (+39 more)
+Nodes (34): category, CATEGORY_COLORS, CATEGORY_FILTERS, CATEGORY_ICONS, described, detail, dragOver, editingId (+26 more)
 
 ### Community 17 - "InvestigationPage.vue"
 Cohesion: 0.06
@@ -430,7 +440,7 @@ Nodes (38): dependencies, highlight.js, quasar, @quasar/extras, vue, vue-router,
 
 ### Community 19 - "ClassroomDetailsPage.vue"
 Cohesion: 0.02
-Nodes (85): fileExtension(), activeTab, ACTIVITY_METHODS, activitySubmission, addFile(), answers, answersCorrect, assignment (+77 more)
+Nodes (77): fileExtension(), activeTab, ACTIVITY_METHODS, addFile(), answers, answersCorrect, assignment, AssignmentDetails (+69 more)
 
 ### Community 20 - "ClassroomAdminPage.vue"
 Cohesion: 0.02
@@ -457,24 +467,24 @@ Cohesion: 0.09
 Nodes (29): addImages(), anyModalOpen, canManage, closeFill(), completed, dragOver, fill, LISTS (+21 more)
 
 ### Community 26 - "placePending"
-Cohesion: 0.25
-Nodes (13): loadGoogleMaps(), mapColorScheme(), trackMapsUsage(), geocodeKey(), init(), initMap(), initSearchBox(), loadLocMarkers() (+5 more)
+Cohesion: 0.23
+Nodes (14): loadGoogleMaps(), mapColorScheme(), trackMapsUsage(), geocodeKey(), gpsDot(), init(), initMap(), initSearchBox() (+6 more)
 
 ### Community 27 - "mirror.ts"
-Cohesion: 0.16
-Nodes (27): buildCentralHeader(), buildDataDescriptor(), buildEndOfCentralDirectory(), buildLocalHeader(), crc32(), crc32Update(), CRC_TABLES, writeUint64() (+19 more)
+Cohesion: 0.17
+Nodes (25): buildCentralHeader(), buildDataDescriptor(), buildEndOfCentralDirectory(), buildLocalHeader(), crc32(), crc32Update(), CRC_TABLES, writeUint64() (+17 more)
 
 ### Community 28 - "ChatMessageItem.vue"
 Cohesion: 0.08
 Nodes (23): audioCurrent, audioEl, audioTotal, avatarFailed, copyState, emit, formatTime(), html (+15 more)
 
-### Community 29 - "seo-data.ts"
-Cohesion: 0.15
-Nodes (24): applySeo(), buildStructuredData(), getSeo(), MODULE_BY_PATH, normalizeSeoPath(), ROBOTS_INDEX, ROBOTS_NOINDEX_FOLLOW, ROBOTS_NOINDEX_NOFOLLOW (+16 more)
+### Community 29 - "worker.ts"
+Cohesion: 0.13
+Nodes (28): applySeo(), buildStructuredData(), getSeo(), MODULE_BY_PATH, normalizeSeoPath(), ROBOTS_INDEX, ROBOTS_NOINDEX_FOLLOW, ROBOTS_NOINDEX_NOFOLLOW (+20 more)
 
 ### Community 30 - "activities.ts"
 Cohesion: 0.10
-Nodes (52): callAI(), ACTIVITY_DDL, ACTIVITY_TYPES, ActivityType, buildContext(), detectLanguage(), DIFFICULTY_GUIDE, edgeKey() (+44 more)
+Nodes (50): ACTIVITY_DDL, ACTIVITY_TYPES, ActivityType, buildContext(), detectLanguage(), DIFFICULTY_GUIDE, edgeKey(), ensureActivityTables() (+42 more)
 
 ### Community 31 - "Format Page"
 Cohesion: 0.09
@@ -485,8 +495,8 @@ Cohesion: 0.06
 Nodes (31): access, AdminUser, brokenAvatars, countLabel, edits, Field, filtered, fullName() (+23 more)
 
 ### Community 33 - "api.ts"
-Cohesion: 0.07
-Nodes (31): api, ApiErrorBody, ApiResult, isNeedsVerification(), LoginNeedsVerification, LoginResponse, LoginSuccess, afterLoginTarget() (+23 more)
+Cohesion: 0.06
+Nodes (37): ApiErrorBody, ApiResult, isNeedsVerification(), LoginNeedsVerification, LoginResponse, LoginSuccess, fullNavigate(), afterLoginTarget() (+29 more)
 
 ### Community 34 - "ActivityPage.vue"
 Cohesion: 0.03
@@ -496,9 +506,9 @@ Nodes (57): ActivityType, allBugAnswered, allPredictAnswered, assignmentId, boar
 Cohesion: 0.08
 Nodes (26): Mirai AI Android App Icon Set, Notification Icon (hdpi), Splash Screen (hdpi), Notification Icon (mdpi), Splash Screen (mdpi), Notification Icon (xhdpi), Splash Screen (xhdpi), Notification Icon (xxhdpi) (+18 more)
 
-### Community 36 - "vue-router"
-Cohesion: 0.11
-Nodes (21): emit, href, onClick(), props, router, fullNavigate(), pageHref(), route (+13 more)
+### Community 36 - "goToPage"
+Cohesion: 0.09
+Nodes (27): emit, href, onClick(), props, router, goToPage(), pageHref(), backToTask() (+19 more)
 
 ### Community 37 - "AttendancePage.vue"
 Cohesion: 0.10
@@ -521,24 +531,32 @@ Cohesion: 0.10
 Nodes (20): AUDIO_MODE_KEY, AUDIO_MODES, ChatMessage, ChatResponse, ChatStreamDone, clientTimeZone(), consumeChatStream(), Conversation (+12 more)
 
 ### Community 42 - "routes/game.ts"
-Cohesion: 0.10
-Nodes (46): BankQuestion, countQuestions(), Difficulty, ensureQuestionBank(), existingStems(), extractJsonArray(), generateBatch(), GeneratedQuestion (+38 more)
+Cohesion: 0.12
+Nodes (41): 12. Checklist de archivos a tocar, 5.2 Registro del tipo de juego y enrutado, ActionOutcome, AssignmentRow, callRoomAction(), canAccessAssignment(), cancelRoom(), canManageRoom() (+33 more)
 
 ### Community 43 - "ClassroomPage.vue"
 Cohesion: 0.06
 Nodes (31): showToast(), Assignment, assignments, canOpenProfessorPanel, cards, classes, ClassGroup, classGroups (+23 more)
 
+### Community 44 - "UnoRoomPage.vue"
+Cohesion: 0.03
+Nodes (45): activeQuestion, answerBusy, answerLeft, attempt, canDraw, code, colorPickerCard, connectionBanner (+37 more)
+
 ### Community 45 - "chat-files.ts"
-Cohesion: 0.16
-Nodes (16): extractText(), FILE_ACCEPT, fileIcon(), IMAGE_FORMATS, JsZipCtor, JsZipInstance, lib(), Mammoth (+8 more)
+Cohesion: 0.13
+Nodes (19): extractText(), FILE_ACCEPT, fileIcon(), IMAGE_FORMATS, JsZipCtor, JsZipInstance, lib(), Mammoth (+11 more)
 
 ### Community 46 - "GameRoom"
 Cohesion: 0.07
-Nodes (37): 1. Veredicto, 2. Lo que ya se puede reutilizar, 3. Lo que hay que construir (y no se reutiliza), 4. Esfuerzo estimado (1 dev), 5. Riesgos reales, 6. Decisiones necesarias antes de implementar, Juego de cartas multijugador por equipos (análisis de viabilidad), 3.1 Piezas (+29 more)
+Nodes (38): 1. Veredicto, 2. Lo que ya se puede reutilizar, 3. Lo que hay que construir (y no se reutiliza), 4. Esfuerzo estimado (1 dev), 5. Riesgos reales, 6. Decisiones necesarias antes de implementar, Juego de cartas multijugador por equipos (análisis de viabilidad), 3.1 Piezas (+30 more)
 
 ### Community 48 - "TransformStream"
 Cohesion: 0.10
 Nodes (7): CompressionStream, DecompressionStream, FixedLengthStream, IdentityTransformStream, TextDecoderStream, TextEncoderStream, TransformStream
+
+### Community 50 - "uno-engine.ts"
+Cohesion: 0.10
+Nodes (32): QuestionPayload, randomInt(), WsAttachment, activePlayers(), advanceTurn(), ANSWER_SECONDS, beginNextTurn(), createDeck() (+24 more)
 
 ### Community 51 - "error"
 Cohesion: 0.29
@@ -549,8 +567,8 @@ Cohesion: 0.11
 Nodes (5): ArtifactsRepo, Disposable, HyperdriveDynamic, StubBase, WorkflowInstanceSubscription
 
 ### Community 53 - "loadOrCreateConversation"
-Cohesion: 0.23
-Nodes (16): onNavigate(), closeMenu(), clearMessages(), createNewConversation(), deleteConversation(), educationConversation(), init(), loadConversations() (+8 more)
+Cohesion: 0.25
+Nodes (15): closeMenu(), clearMessages(), createNewConversation(), deleteConversation(), educationConversation(), init(), loadConversations(), loadHistory() (+7 more)
 
 ### Community 54 - "ApiUsageAdminPage.vue"
 Cohesion: 0.12
@@ -565,8 +583,8 @@ Cohesion: 0.33
 Nodes (7): cerrarInstalacion(), EventoInstalacion, instalarAplicacion(), ofrecerInstalar, prepararInstalacionLinux(), puedeInstalar, quitarParametroInstalar()
 
 ### Community 57 - "video.ts"
-Cohesion: 0.08
-Nodes (60): createPrunaPrediction(), extractPrunaOutputUrl(), fetchPrunaOutputBuffer(), getPrunaPrediction(), PRUNA_TERMINAL_FAIL, PRUNA_TERMINAL_OK, PrunaInput, PrunaPrediction (+52 more)
+Cohesion: 0.07
+Nodes (62): createPrunaPrediction(), extractPrunaOutputUrl(), fetchPrunaOutputBuffer(), getPrunaPrediction(), PRUNA_TERMINAL_FAIL, PRUNA_TERMINAL_OK, PrunaInput, PrunaPrediction (+54 more)
 
 ### Community 59 - "markdown.ts"
 Cohesion: 0.27
@@ -592,9 +610,9 @@ Nodes (6): EmailEvent, ExtendableEvent, FetchEvent, QueueEvent, ScheduledEvent, 
 Cohesion: 0.15
 Nodes (18): ACCENT_COLORS, AppearanceSettings, applyAppearance(), currentTheme, readSettings(), resolveTheme(), SETTINGS_KEY, storageGet() (+10 more)
 
-### Community 70 - "vue"
-Cohesion: 0.06
-Nodes (29): confirmEl, inputEl, inputValue, logout(), route, visibleNavItems, year, DEFAULTS (+21 more)
+### Community 70 - "routes.ts"
+Cohesion: 0.09
+Nodes (20): logout(), onNavigate(), route, visibleNavItems, year, NAV_ITEMS, NavItem, currentUser (+12 more)
 
 ### Community 71 - "manifest.json"
 Cohesion: 0.15
@@ -605,16 +623,16 @@ Cohesion: 0.15
 Nodes (3): Body, Request, Response
 
 ### Community 76 - "apiFetch"
-Cohesion: 0.18
-Nodes (13): apiFetch(), request(), addRecipeToPlan(), clearLog(), clearPlan(), del(), loadHistory(), loadState() (+5 more)
+Cohesion: 0.20
+Nodes (12): apiFetch(), request(), addRecipeToPlan(), clearLog(), clearPlan(), del(), loadHistory(), loadState() (+4 more)
 
 ### Community 77 - "compilerOptions"
 Cohesion: 0.17
 Nodes (11): compilerOptions, isolatedModules, lib, module, moduleResolution, noEmit, skipLibCheck, strict (+3 more)
 
 ### Community 81 - "GameLobbyPage.vue"
-Cohesion: 0.08
-Nodes (28): actionError, busyCode, cancelRoom(), canCreate, createdCode, createRoom(), creating, error (+20 more)
+Cohesion: 0.07
+Nodes (30): actionError, busyCode, cancelRoom(), canCreate, createdCode, createRoom(), creating, error (+22 more)
 
 ### Community 82 - "StreamError"
 Cohesion: 0.18
@@ -628,9 +646,9 @@ Nodes (3): EventTarget, WebSocket, WorkerGlobalScope
 Cohesion: 0.29
 Nodes (10): deleteAvatar(), loadProfile(), onAvatarFile(), resetSettings(), resizeToBlob(), saveModel(), saveProfile(), setAvatarUrl() (+2 more)
 
-### Community 86 - "task-progress.ts"
-Cohesion: 0.17
-Nodes (21): enabledTaskModes(), isTaskMode(), parseTaskModes(), REQUIRED_TASK_MODES, TASK_MODE_LABELS, TASK_MODES, TaskMode, AssignmentRow (+13 more)
+### Community 86 - "Uno-like educativo — especificación y plan de implementación"
+Cohesion: 0.07
+Nodes (31): 10. Pruebas, 11. Decisiones abiertas (con valor por defecto ya elegido), 13. Relación con los documentos existentes, 2. Decisiones fijadas (interpretación de los requisitos), 3.10 Modo equipos (opcional, fase posterior), 3.1 Baraja, 3.2 Preparación, 3.3 Turno (+23 more)
 
 ### Community 88 - "Misc"
 Cohesion: 0.22
@@ -650,19 +668,19 @@ Nodes (9): addRefImages(), onAvatarAudioFile(), onAvatarFile(), onDropRefImages(
 
 ### Community 96 - "routes/chat.ts"
 Cohesion: 0.05
-Nodes (75): AIDeltaHandler, AIDeltaKind, AIResultMeta, buildAnswerRetryMessages(), callAIEnsuringAnswer(), CallAIOptions, AI_MODEL_NORMAL, AI_MODEL_PRO (+67 more)
+Nodes (77): AIDeltaHandler, AIDeltaKind, AIResultMeta, buildAnswerRetryMessages(), callAI(), callAIEnsuringAnswer(), CallAIOptions, AI_MODEL_NORMAL (+69 more)
 
 ### Community 97 - "AgentMemoryProfile"
 Cohesion: 0.09
 Nodes (13): 1. Formas de evaluar hoy, 2. Qué falta (mapeo con pedagogia.md), 3.1 Explicación tras cada respuesta (mayor impacto, menor costo), 3.2 Repaso final de errores, 3.3 Reporte docente por tema/concepto, 3.4 Decidir formativo vs sumativo, 3.5 Orden de implementación (jerarquía del doc), 3. Cómo lo resolvería (+5 more)
 
 ### Community 98 - "auth.ts"
-Cohesion: 0.18
-Nodes (27): CEDULA_RE, clearSessionCookie(), clientIp(), generateSalt(), hashPassword(), isValidEmail(), makeSessionCookie(), rateLimit() (+19 more)
+Cohesion: 0.16
+Nodes (29): CEDULA_RE, clearSessionCookie(), clientIp(), generateSalt(), getTokenFromRequest(), hashPassword(), isValidEmail(), makeSessionCookie() (+21 more)
 
 ### Community 99 - "Pedagogía del Ludo y las actividades"
 Cohesion: 0.15
-Nodes (12): 0. Regla de oro, 2. Enfoque dinámico / personalización, 3. Jerarquía recomendada, 5. Cómo decidir una funcionalidad nueva, A favor, Crítica: "muchas opciones" escala de forma multiplicativa, Crítica pedagógica concreta: el audio durante el razonamiento, El engaño de la personalización decorativa (+4 more)
+Nodes (12): 0. Regla de oro, 1. Enfoque educativo, 3. Jerarquía recomendada, 5. Cómo decidir una funcionalidad nueva, A favor, Crítica: el ciclo educativo está incompleto, P0 — Sin esto no hay producto educativo, P1 — Personalización con efecto en el aprendizaje (+4 more)
 
 ### Community 100 - "ByteLengthQueuingStrategy"
 Cohesion: 0.22
@@ -672,17 +690,13 @@ Nodes (3): ByteLengthQueuingStrategy, CountQueuingStrategy, QueuingStrategy
 Cohesion: 0.18
 Nodes (3): 7. Modelo de datos propuesto (D1), 4. Reglas de UX para el audio, WorkflowInstance
 
-### Community 107 - "WritableStreamDefaultWriter"
-Cohesion: 0.15
-Nodes (5): roll(), 8.1 REST (lobby y resultados), 8.2 WebSocket, 8. Contratos de API, WritableStreamDefaultWriter
-
 ### Community 108 - "loadSections"
 Cohesion: 0.27
 Nodes (11): addStudentToSection(), confirmBatchImport(), createSection(), deleteSection(), ensureSectionLink(), loadSections(), loadSectionStudents(), refreshCourseSections() (+3 more)
 
-### Community 109 - "ResetPasswordPage.vue"
-Cohesion: 0.17
-Nodes (11): confirmPassword, Message, messageKey, newPassword, onSubmit(), route, router, sending (+3 more)
+### Community 109 - "vue"
+Cohesion: 0.08
+Nodes (22): api, code, error, kind, route, router, loaded, planName (+14 more)
 
 ### Community 110 - "switchTab"
 Cohesion: 0.33
@@ -699,10 +713,6 @@ Nodes (7): addMsg(), callMiraiAI(), fallbackIngredientes(), onChatKey(), removeM
 ### Community 121 - "errorMessage"
 Cohesion: 0.11
 Nodes (29): errorMessage(), confirmResetTask(), countStudents(), createCourse(), createEvaluationPlan(), deletePlan(), deleteTask(), loadCourses() (+21 more)
-
-### Community 122 - "pushToast"
-Cohesion: 0.40
-Nodes (5): dismissToast(), dismissToasts(), handleStatus(), pushToast(), startGame()
 
 ### Community 124 - "exportPdf"
 Cohesion: 0.50
@@ -724,9 +734,9 @@ Nodes (6): Corporate Icon (four colored shapes: star circle, triangle, square, d
 Cohesion: 0.33
 Nodes (6): Attendance Icon (person with check) 48px, Attendance Icon (person with check) 96px, Classroom Icon (teacher at board) 48px, Classroom Icon (teacher at board) 96px, Courses Icon (books) 48px, Courses Icon (books) 96px
 
-### Community 132 - "worker.ts"
-Cohesion: 0.25
-Nodes (11): isValidDocx(), createZipArchive(), generateZipName(), cleanupExpiredFormatFiles(), formatPrefix(), handleFormatDownload(), handleFormatProcess(), handleFormatUpload() (+3 more)
+### Community 132 - "format.ts"
+Cohesion: 0.44
+Nodes (7): isValidDocx(), createZipArchive(), generateZipName(), formatPrefix(), handleFormatDownload(), handleFormatProcess(), handleFormatUpload()
 
 ### Community 143 - "Reto con tests"
 Cohesion: 0.20
@@ -736,9 +746,9 @@ Nodes (9): 1. Modelo de datos, 3. Seguridad del sandbox, 4. Calificación, 5. Fr
 Cohesion: 0.33
 Nodes (5): 4.1 Configuración de Cloudflare, 4.2 Backend, 4.3 Frontend, 4.4 Pruebas y operación, 4. Prerrequisitos técnicos (lo que hay que añadir)
 
-### Community 145 - "1. Enfoque educativo"
-Cohesion: 0.40
-Nodes (5): 1. Enfoque educativo, A favor, Crítica: el ciclo educativo está incompleto, Prioridades que sí mueven la aguja (en orden), Riesgo principal: mezclar formativo con sumativo
+### Community 145 - "game-questions.ts"
+Cohesion: 0.23
+Nodes (14): 5.5 Banco de preguntas con dificultad media, BankQuestion, countQuestions(), Difficulty, ensureQuestionBank(), existingStems(), extractJsonArray(), generateBatch() (+6 more)
 
 ### Community 146 - "lib/reports.ts"
 Cohesion: 0.20
@@ -757,8 +767,8 @@ Cohesion: 0.50
 Nodes (4): APA Icon (document - citation/format docs) 48px, APA Icon (document - citation/format docs) 96px, Format Icon (document with pencil) 48px, Format Icon (document with pencil) 96px
 
 ### Community 174 - "plans.ts"
-Cohesion: 0.26
-Nodes (12): canUseProModel(), ensurePlanColumn(), ensureTokensTable(), getDailyUsage(), getUserPlan(), getUserPlanLimits(), handleGetTokens(), handleGetTokensMonthly() (+4 more)
+Cohesion: 0.27
+Nodes (11): canUseProModel(), checkAndConsumeToken(), ensureTokensTable(), getDailyUsage(), getUserPlanLimits(), handleGetTokens(), handleGetTokensMonthly(), PLAN_LIMITS (+3 more)
 
 ### Community 178 - "markdown-actions.ts"
 Cohesion: 0.38
@@ -781,8 +791,8 @@ Cohesion: 0.67
 Nodes (3): PWA Manifest (/manifest.json), PWA Service Worker (boot/pwa.ts), Android Status Bar Theme Color
 
 ### Community 201 - "lib/game.ts"
-Cohesion: 0.15
-Nodes (11): Difficulty, GameMessage, GamePlayer, GameSocketHandlers, GameState, GameStatus, LUDO_PATH_LEN, PlayerQuestion (+3 more)
+Cohesion: 0.10
+Nodes (19): Difficulty, GameMessage, GamePlayer, GameSocketHandlers, GameState, GameStatus, LUDO_PATH_LEN, PlayerQuestion (+11 more)
 
 ### Community 202 - "Misc"
 Cohesion: 0.67
@@ -809,8 +819,8 @@ Cohesion: 0.17
 Nodes (12): DOC_MODULES, DOC_TOPICS, DocModule, esc(), filtered, Modal, MODULE_ICONS, onCard() (+4 more)
 
 ### Community 288 - "handleMessage"
-Cohesion: 0.33
-Nodes (7): clearPendingQuestion(), errorText(), handleMessage(), presentNextDice(), queueDice(), queueQuestion(), revealQuestionWhenReady()
+Cohesion: 0.18
+Nodes (12): clearPendingQuestion(), dismissToast(), dismissToasts(), errorText(), handleMessage(), handleStatus(), presentNextDice(), pushToast() (+4 more)
 
 ### Community 289 - "5. Requisitos funcionales"
 Cohesion: 0.33
@@ -820,9 +830,13 @@ Nodes (6): 5.1 Lobby y salas, 5.2 Partida de Ludo, 5.3 IA y preguntas, 5.4 Socia
 Cohesion: 0.67
 Nodes (3): saveAll(), stored(), ThemeMode
 
-### Community 291 - "office-text.ts"
-Cohesion: 0.54
-Nodes (7): cleanText(), decodeXml(), extractDocx(), extractLegacyBinary(), extractTextFromOffice(), extractXlsx(), xmlParagraphs()
+### Community 291 - "dialog.ts"
+Cohesion: 0.16
+Nodes (9): confirmEl, inputEl, inputValue, DEFAULTS, dialog, DialogKind, DialogOptions, dialogState (+1 more)
+
+### Community 292 - "chooseMethod"
+Cohesion: 0.24
+Nodes (10): activitySubmission, chooseMethod(), isActivityMethod(), openActivity(), openLudo(), openUno(), resetQuizState(), startQuiz() (+2 more)
 
 ### Community 293 - "reportsApi"
 Cohesion: 0.29
@@ -836,6 +850,14 @@ Nodes (5): Análisis del tablero Ludo (`ludo 2.jpg`), Casillas del recorrido, Eq
 Cohesion: 0.21
 Nodes (12): actionableTokens, arrowStyle(), cellCenterStyle(), cellForColor(), detectBoardEffects(), pieceCell(), pieceStyle(), sameCell() (+4 more)
 
+### Community 296 - ".fetch"
+Cohesion: 0.29
+Nodes (5): publicState(), isLegalPlay(), legalCardIds(), playCard(), topCard()
+
+### Community 297 - "recipeById"
+Cohesion: 0.29
+Nodes (7): generateShoppingList(), openPlanSelector(), openRecipe(), plannedRecipe(), plannerKey(), plannerSummary, recipeById()
+
 ### Community 298 - "audio.ts"
 Cohesion: 0.36
 Nodes (7): arrayBufferToBase64(), cleanTextForTTS(), generateAndStoreTTS(), handleServeAudio(), handleTranscribeAudio(), handleUploadUserAudio(), segmentTextForTTS()
@@ -848,17 +870,29 @@ Nodes (9): GameColor, characterFallbackNumber(), characterUrl(), leaderUrl(), Te
 Cohesion: 0.31
 Nodes (9): clamp(), clampNodes(), initMap(), layoutNodes(), load(), measureBoard(), observeBoard(), repeatActivity() (+1 more)
 
-### Community 305 - "accentColor"
-Cohesion: 0.32
-Nodes (8): accentColor(), pinSvg(), addLocMarker(), dropPendingPin(), flyTo(), openInfo(), placeModalPin(), reverseGeocode()
+### Community 303 - "submitForm"
+Cohesion: 0.33
+Nodes (7): closeModals(), deleteProduct(), loadInventory(), onKeydown(), submitForm(), submitSell(), uniqueSkuError()
 
-### Community 306 - "recordConceptErrors"
-Cohesion: 0.67
-Nodes (3): CONCEPT_INDEXES, ensureConceptErrorsTable(), recordConceptErrors()
+### Community 305 - "google-maps.ts"
+Cohesion: 0.27
+Nodes (9): accentColor(), pinSvg(), addLocMarker(), dropPendingPin(), flyTo(), openInfo(), openModalMap(), placeModalPin() (+1 more)
 
-### Community 309 - "documents.ts"
-Cohesion: 0.67
-Nodes (3): extractTextFromDocx(), extractTextFromParagraphs(), extractTextFromPDF()
+### Community 310 - ".ready"
+Cohesion: 0.33
+Nodes (5): roll(), 8.1 REST (lobby y resultados), 8.2 WebSocket, 8. Contratos de API, 4. Máquina de estados
+
+### Community 311 - "selectFile"
+Cohesion: 0.33
+Nodes (6): onDrop(), onPhotoInput(), openAddModal(), resetForm(), selectFile(), showStatus()
+
+### Community 312 - "diet-recipes.ts"
+Cohesion: 0.40
+Nodes (4): Recipe, RECIPE_CARDS, RecipeCard, RECIPES
+
+### Community 313 - "2. Enfoque dinámico / personalización"
+Cohesion: 0.40
+Nodes (5): 2. Enfoque dinámico / personalización, A favor, Crítica: "muchas opciones" escala de forma multiplicativa, Crítica pedagógica concreta: el audio durante el razonamiento, El engaño de la personalización decorativa
 
 ## Ambiguous Edges - Review These
 - `Web app manifest link (/manifest.json)` → `Android TWA manifest checksum`  [AMBIGUOUS]
@@ -868,22 +902,22 @@ Nodes (3): extractTextFromDocx(), extractTextFromParagraphs(), extractTextFromPD
 
 ## Knowledge Gaps
 - **94 isolated node(s):** `@quasar/extras`, `quasar`, `@quasar/app-vite`, `@types/google.maps`, `@types/node` (+89 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3166 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **177 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3258 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **181 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `ServiceWorkerGlobalScope` connect `ServiceWorkerGlobalScope` to `Cloudflare Workers API & Types`, `EventTarget`?**
-  _High betweenness centrality (0.186) - this node is a cross-community bridge._
+  _High betweenness centrality (0.167) - this node is a cross-community bridge._
 - **What connects `@quasar/extras`, `quasar`, `@quasar/app-vite` to the rest of the system?**
   _94 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Cloudflare Workers API & Types` be split into smaller, more focused modules?**
   _Cohesion score 0.0021390374331550803 - nodes in this community are weakly interconnected._
-- **Why does `vue` connect `vue` to `Image Generation Page`, `TaskPage.vue`, `ChatPage.vue`, `Mirror Batch Page`, `Sales Page`, `ApaPage.vue`, `CoursesPage.vue`, `DietPage.vue`, `Projects Page`, `LocationPage.vue`, `CodePage.vue`, `AttendanceAdminPage.vue`, `InventoryPage.vue`, `InvestigationPage.vue`, `frontend/package.json`, `ClassroomDetailsPage.vue`, `ClassroomAdminPage.vue`, `SettingsPage.vue`, `ReportManage.vue`, `DocumentationPage.vue`, `HomePage.vue`, `Report Page`, `ChatMessageItem.vue`, `Format Page`, `PanelPage.vue`, `api.ts`, `ActivityPage.vue`, `vue-router`, `AttendancePage.vue`, `RegistrationPage.vue`, `realtime.ts`, `ClassroomPage.vue`, `ApiUsageAdminPage.vue`, `instalar.ts`, `GameRoomPage.vue`, `highlight.ts`, `settings.ts`, `GameLobbyPage.vue`, `ResetPasswordPage.vue`?**
-  _High betweenness centrality (0.115) - this node is a cross-community bridge._
+- **Why does `vue` connect `vue` to `Image Generation Page`, `TaskPage.vue`, `ChatPage.vue`, `Mirror Batch Page`, `Sales Page`, `ApaPage.vue`, `CoursesPage.vue`, `DietPage.vue`, `Projects Page`, `LocationPage.vue`, `CodePage.vue`, `AttendanceAdminPage.vue`, `InventoryPage.vue`, `InvestigationPage.vue`, `frontend/package.json`, `ClassroomDetailsPage.vue`, `ClassroomAdminPage.vue`, `SettingsPage.vue`, `ReportManage.vue`, `DocumentationPage.vue`, `HomePage.vue`, `Report Page`, `ChatMessageItem.vue`, `Format Page`, `PanelPage.vue`, `api.ts`, `ActivityPage.vue`, `dialog.ts`, `goToPage`, `AttendancePage.vue`, `RegistrationPage.vue`, `realtime.ts`, `ClassroomPage.vue`, `UnoRoomPage.vue`, `ApiUsageAdminPage.vue`, `instalar.ts`, `GameRoomPage.vue`, `highlight.ts`, `settings.ts`, `routes.ts`, `GameLobbyPage.vue`?**
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
 - **Should `jsonResponse` be split into smaller, more focused modules?**
-  _Cohesion score 0.08565656565656565 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0899914089347079 - nodes in this community are weakly interconnected._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._

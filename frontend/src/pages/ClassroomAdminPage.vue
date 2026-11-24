@@ -1206,6 +1206,7 @@ const TASK_MODE_GROUPS: TaskModeGroup[] = [
     icon: '🎮',
     options: [
       { value: 'ludo', label: 'Ludo multijugador', icon: '🎲', description: 'Juega con la clase y suma puntos.' },
+      { value: 'uno', label: 'Uno educativo (beta)', icon: '🃏', description: 'Cartas y preguntas en pruebas.' },
     ],
   },
 ];
