@@ -7,6 +7,7 @@
    Modificaciones educativas:
      - +2  → pregunta fácil a los demás; correcto evita 2 cartas.
      - +4  → pregunta difícil; correcto evita 4 cartas.
+     - ?   → pregunta media a los demás; fallar resta 5% a la nota.
      - Ronda par → pregunta media a todos; correcto evita 1 carta.
      - 30 s por pregunta, servidor autoritativo con alarm().
    ============================================ */
@@ -17,6 +18,7 @@ import {
   ANSWER_SECONDS,
   DEFAULT_CONFIG,
   HAND_SIZE,
+  QUESTION_CARD_PENALTY,
   activePlayers,
   advanceTurn,
   beginNextTurn,
@@ -124,6 +126,7 @@ export function publicState(state: UnoState) {
       points: p.points,
       answered: p.answered,
       roundWins: p.roundWins,
+      penalty: state.gradePenalty[p.dni] ?? 0,
     })),
   };
 }
@@ -160,6 +163,7 @@ export class UnoRoom extends DurableObject<Env> {
     this.cachedState = JSON.parse(row.state) as UnoState;
     if (!this.cachedState.review) this.cachedState.review = {};
     if (!this.cachedState.quizStats) this.cachedState.quizStats = {};
+    if (!this.cachedState.gradePenalty) this.cachedState.gradePenalty = {};
     if (!this.cachedState.config) this.cachedState.config = { ...DEFAULT_CONFIG };
     return this.cachedState;
   }
@@ -266,6 +270,7 @@ export class UnoRoom extends DurableObject<Env> {
       answers: {},
       quizStats: {},
       review: {},
+      gradePenalty: {},
       winnerDni: null,
       seq: 0,
       version: 0,
@@ -782,6 +787,20 @@ export class UnoRoom extends DurableObject<Env> {
       return;
     }
 
+    if (played.value === 'question') {
+      const targets = activePlayers(state)
+        .filter((p) => p.dni !== dni)
+        .map((p) => p.dni);
+      this.openQuestionEvent(state, {
+        kind: 'question',
+        sourceDni: dni,
+        targets,
+        drawCount: 0,
+        difficulty: 'medium',
+      });
+      return;
+    }
+
     this.advanceAfterCard(state, skip);
   }
 
@@ -846,10 +865,10 @@ export class UnoRoom extends DurableObject<Env> {
   private openQuestionEvent(
     state: UnoState,
     event: {
-      kind: 'plus2' | 'plus4' | 'periodic';
+      kind: 'plus2' | 'plus4' | 'periodic' | 'question';
       sourceDni: string | null;
       targets: string[];
-      drawCount: 1 | 2 | 4;
+      drawCount: 0 | 1 | 2 | 4;
       difficulty: UnoDifficulty;
     }
   ) {
@@ -867,9 +886,12 @@ export class UnoRoom extends DurableObject<Env> {
       const question = this.takeQuestion(event.difficulty);
       if (!question) continue;
       state.pendingQuestions[dni] = question;
-      const stat = (state.quizStats[dni] ??= { earned: 0, possible: 0, correct: 0, total: 0 });
-      stat.possible += weight;
-      stat.total += 1;
+      // La carta "?" no altera el % de quiz: solo aplica la penalización de nota.
+      if (event.kind !== 'question') {
+        const stat = (state.quizStats[dni] ??= { earned: 0, possible: 0, correct: 0, total: 0 });
+        stat.possible += weight;
+        stat.total += 1;
+      }
     }
 
     if (Object.keys(state.pendingQuestions).length === 0) {
@@ -889,6 +911,7 @@ export class UnoRoom extends DurableObject<Env> {
       deadline,
       drawCount: event.drawCount,
       difficulty: event.difficulty,
+      penaltyPercent: event.kind === 'question' ? QUESTION_CARD_PENALTY : 0,
     });
 
     for (const dni of event.targets) {
@@ -901,7 +924,9 @@ export class UnoRoom extends DurableObject<Env> {
         question: question.question,
         options: question.options,
         difficulty: question.difficulty,
+        kind: event.kind,
         drawCount: event.drawCount,
+        penaltyPercent: event.kind === 'question' ? QUESTION_CARD_PENALTY : 0,
         deadline,
       });
     }
@@ -926,7 +951,7 @@ export class UnoRoom extends DurableObject<Env> {
     const correct = choice === question.answer;
     if (player) {
       player.answered = true;
-      if (correct) {
+      if (correct && event.kind !== 'question') {
         const weight = state.config.weights[question.difficulty] ?? 1;
         player.points += weight;
         const stat = (state.quizStats[dni] ??= { earned: 0, possible: 0, correct: 0, total: 0 });
@@ -971,7 +996,22 @@ export class UnoRoom extends DurableObject<Env> {
 
       if (!correct) {
         this.addReviewItem(state, dni, question, choice ?? null);
-        if (player) {
+        if (player && event.kind === 'question') {
+          const totalPenalty = Math.min(
+            100,
+            (state.gradePenalty[dni] ?? 0) + QUESTION_CARD_PENALTY
+          );
+          state.gradePenalty[dni] = totalPenalty;
+          const penaltyMsg = {
+            type: 'grade_penalty_applied',
+            seq: state.seq,
+            dni: this.publicId(state, dni),
+            percent: QUESTION_CARD_PENALTY,
+            totalPenalty,
+          };
+          this.sendTo(dni, penaltyMsg);
+          this.broadcast(penaltyMsg);
+        } else if (player) {
           drawCards(state, player, event.drawCount);
           this.sendTo(dni, {
             type: 'hand_update',
@@ -1023,7 +1063,7 @@ export class UnoRoom extends DurableObject<Env> {
     this.continueAfterEvent(state, kind);
   }
 
-  private continueAfterEvent(state: UnoState, kind: 'plus2' | 'plus4' | 'periodic') {
+  private continueAfterEvent(state: UnoState, kind: 'plus2' | 'plus4' | 'periodic' | 'question') {
     if (kind === 'periodic') {
       beginNextTurn(state);
       this.saveState(state);
@@ -1202,6 +1242,7 @@ export class UnoRoom extends DurableObject<Env> {
               quizPercent: Math.round(mine.quizPercent),
               placementPercent: Math.round(mine.placementPercent),
               finalPercent: mine.finalPercent,
+              penalty: state.gradePenalty[attachment.dni] ?? 0,
               score: mine.score,
             }
           : null,
@@ -1354,7 +1395,9 @@ export class UnoRoom extends DurableObject<Env> {
             question: question.question,
             options: question.options,
             difficulty: question.difficulty,
+            kind: state.questionEvent?.kind ?? null,
             drawCount: state.questionEvent?.drawCount ?? 1,
+            penaltyPercent: state.questionEvent?.kind === 'question' ? QUESTION_CARD_PENALTY : 0,
             deadline: state.questionDeadline,
             answered: state.answers[dni] !== undefined,
           }

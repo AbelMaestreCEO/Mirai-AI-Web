@@ -12,7 +12,7 @@ export type UnoColor = (typeof UNO_COLORS)[number];
 
 export type UnoValue =
   | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-  | 'skip' | 'reverse' | 'plus2' | 'plus4';
+  | 'skip' | 'reverse' | 'plus2' | 'plus4' | 'question';
 
 export type UnoDifficulty = 'easy' | 'medium' | 'hard';
 export type UnoStatus = 'lobby' | 'playing' | 'question' | 'finished';
@@ -51,10 +51,10 @@ export interface PendingQuestion {
 }
 
 export interface QuestionEvent {
-  kind: 'plus2' | 'plus4' | 'periodic';
+  kind: 'plus2' | 'plus4' | 'periodic' | 'question';
   sourceDni: string | null;
   targets: string[];
-  drawCount: 1 | 2 | 4;
+  drawCount: 0 | 1 | 2 | 4;
   difficulty: UnoDifficulty;
   deadline: number;
 }
@@ -117,6 +117,8 @@ export interface UnoState {
   answers: Record<string, number>;
   quizStats: Record<string, QuizStat>;
   review: Record<string, ReviewItem[]>;
+  /** Puntos de porcentaje restados a la nota final por fallar la carta "?". */
+  gradePenalty: Record<string, number>;
   winnerDni: string | null;
   seq: number;
   version: number;
@@ -134,6 +136,8 @@ export const DEFAULT_CONFIG: UnoConfig = {
 
 export const ANSWER_SECONDS = 30;
 export const HAND_SIZE = 7;
+/** Porcentaje de nota que resta fallar la carta "?" (pregunta intermedia). */
+export const QUESTION_CARD_PENALTY = 5;
 
 function randomInt(maxExclusive: number): number {
   const buf = new Uint32Array(1);
@@ -150,7 +154,7 @@ export function shuffle<T>(items: T[]): T[] {
   return out;
 }
 
-/** Baraja completa de 100 cartas (números 1-9, acciones y cuatro +4). */
+/** Baraja completa (números 1-9, acciones, +4 y cartas "?"). */
 export function createDeck(): UnoCard[] {
   const cards: UnoCard[] = [];
   for (const color of UNO_COLORS) {
@@ -168,11 +172,14 @@ export function createDeck(): UnoCard[] {
   for (let i = 0; i < 4; i++) {
     cards.push({ id: `wild-plus4-${i}`, color: null, value: 'plus4' });
   }
+  for (let i = 0; i < 4; i++) {
+    cards.push({ id: `wild-question-${i}`, color: null, value: 'question' });
+  }
   return cards;
 }
 
 export function isNumberCard(card: UnoCard): boolean {
-  return card.value !== 'skip' && card.value !== 'reverse' && card.value !== 'plus2' && card.value !== 'plus4';
+  return card.value !== 'skip' && card.value !== 'reverse' && card.value !== 'plus2' && card.value !== 'plus4' && card.value !== 'question';
 }
 
 export function isActive(player: UnoPlayer): boolean {
@@ -187,9 +194,9 @@ export function topCard(state: UnoState): UnoCard | null {
   return state.discard[state.discard.length - 1] ?? null;
 }
 
-/** Una carta es legal por color, número, acción o por ser +4. */
+/** Una carta es legal por color, número, acción, o si es +4 o "?". */
 export function isLegalPlay(card: UnoCard, top: UnoCard | null, activeColor: UnoColor): boolean {
-  if (card.value === 'plus4') return true;
+  if (card.value === 'plus4' || card.value === 'question') return true;
   if (!top) return true;
   if (card.color && card.color === activeColor) return true;
   if (top.color !== null && card.color === top.color) return true;
@@ -332,7 +339,8 @@ export function computeFinalScores(
     const rank = index + 1;
     const quiz = quizPercent(state, player.dni);
     const placement = n <= 1 ? 100 : (100 * (n - rank)) / (n - 1);
-    const finalPercent = Math.max(0, Math.min(100, Math.round(0.7 * quiz + 0.3 * placement)));
+    const penalty = state.gradePenalty?.[player.dni] ?? 0;
+    const finalPercent = Math.max(0, Math.min(100, Math.round(0.7 * quiz + 0.3 * placement) - penalty));
     return {
       dni: player.dni,
       rank,

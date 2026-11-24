@@ -1410,9 +1410,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1795487138.665725,
-    "seen": 1795487560.7364902,
-    "ast_hash": "048f499829bbcd37844ba28357bc5f78",
+    "mtime": 1795544967.492582,
+    "seen": 1795545060.5873344,
+    "ast_hash": "96b9c798b169f2ac3da5ad089a4beff8",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
@@ -1584,21 +1584,21 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/UnoRoomPage.vue": {
-    "mtime": 1795490525.7353947,
-    "seen": 1795490613.1560335,
-    "ast_hash": "5ac8a806ad894520bc1ba603b6d66b05",
+    "mtime": 1795546421.8648233,
+    "seen": 1795546453.4097803,
+    "ast_hash": "1bf8a4deb12e4ff163e1442a2e6edcc4",
     "semantic_hash": ""
   },
   "workers/durable/UnoRoom.ts": {
-    "mtime": 1795487456.2888494,
-    "seen": 1795487560.7626016,
-    "ast_hash": "69f5d1bf0fe06f8403ababbb624bffdc",
+    "mtime": 1795544967.2056477,
+    "seen": 1795545060.6062756,
+    "ast_hash": "a8a056b5796b7e0319659ec56cd40eac",
     "semantic_hash": ""
   },
   "workers/lib/uno-engine.ts": {
-    "mtime": 1795485435.8687143,
-    "seen": 1795487560.7686965,
-    "ast_hash": "91fe82b4053f0fc813f63b96d78b2e1e",
+    "mtime": 1795544966.7216296,
+    "seen": 1795545060.6096585,
+    "ast_hash": "86c043ba07073fbe4d2ee0d03cc7271c",
     "semantic_hash": ""
   },
   "uno-like.md": {
@@ -1673,58 +1673,526 @@
     "ast_hash": "284c166eef3b80b2f65892b68dd5b1b6",
     "semantic_hash": ""
   },
-  "public/cards/green-1.jpg": {
+  "carta-uno/1 azul.jpg": {
+    "mtime": 1795490491.1869283,
+    "seen": 1795545060.6265812,
+    "ast_hash": "f391440ec2e760d853ad1ed7cf72ff60",
+    "semantic_hash": ""
+  },
+  "carta-uno/1 celeste.jpg": {
+    "mtime": 1795534071.342554,
+    "seen": 1795545060.6265838,
+    "ast_hash": "6843769e29ca5fa3c4d71e5f14171240",
+    "semantic_hash": ""
+  },
+  "carta-uno/1 rosa.jpg": {
+    "mtime": 1795533793.08059,
+    "seen": 1795545060.626586,
+    "ast_hash": "16b33a3df8699a6482668a1227dd8d46",
+    "semantic_hash": ""
+  },
+  "carta-uno/2 azul.jpg": {
+    "mtime": 1795490503.9561212,
+    "seen": 1795545060.6267595,
+    "ast_hash": "751115abc0960d9d3abef2e8f2c2d5ef",
+    "semantic_hash": ""
+  },
+  "carta-uno/2 celeste.jpg": {
+    "mtime": 1795534080.3414247,
+    "seen": 1795545060.6267617,
+    "ast_hash": "0b4b425ae9273c9f03d00a683747936e",
+    "semantic_hash": ""
+  },
+  "carta-uno/2 rosa.jpg": {
+    "mtime": 1795533824.312324,
+    "seen": 1795545060.6267636,
+    "ast_hash": "ce0b0d7dc5ef810b13aadd70973a5521",
+    "semantic_hash": ""
+  },
+  "carta-uno/3 azul.jpg": {
+    "mtime": 1795490516.145613,
+    "seen": 1795545060.6269703,
+    "ast_hash": "2e5fa2543732841ac5dfa4cdb0db0294",
+    "semantic_hash": ""
+  },
+  "carta-uno/3 celeste.jpg": {
+    "mtime": 1795534089.450033,
+    "seen": 1795545060.626973,
+    "ast_hash": "f1e4a66ddea6b42e806377a44b4c0580",
+    "semantic_hash": ""
+  },
+  "carta-uno/3 rosa.jpg": {
+    "mtime": 1795533813.009248,
+    "seen": 1795545060.6269748,
+    "ast_hash": "0301b2083cc7aadd21566399468f5f54",
+    "semantic_hash": ""
+  },
+  "carta-uno/4 azul.jpg": {
+    "mtime": 1795490540.5833223,
+    "seen": 1795545060.627143,
+    "ast_hash": "fe22e772481f16c77b4276fa60f79e9d",
+    "semantic_hash": ""
+  },
+  "carta-uno/4 celeste.jpg": {
+    "mtime": 1795534262.2870774,
+    "seen": 1795545060.6271448,
+    "ast_hash": "be17a02d5b167af330fb111f75f0759d",
+    "semantic_hash": ""
+  },
+  "carta-uno/4 rosa.jpg": {
+    "mtime": 1795533834.3088596,
+    "seen": 1795545060.6271465,
+    "ast_hash": "491ee589ca40aee99e3e6fd06bd36404",
+    "semantic_hash": ""
+  },
+  "carta-uno/5 azul.jpg": {
+    "mtime": 1795490562.7758377,
+    "seen": 1795545060.6273005,
+    "ast_hash": "236c1c1ebab490f73d0797268827808a",
+    "semantic_hash": ""
+  },
+  "carta-uno/5 celeste.jpg": {
+    "mtime": 1795534270.001896,
+    "seen": 1795545060.6273024,
+    "ast_hash": "5beb28a1b985df54c12686810f522b20",
+    "semantic_hash": ""
+  },
+  "carta-uno/5 rosa.jpg": {
+    "mtime": 1795533843.5437975,
+    "seen": 1795545060.6273046,
+    "ast_hash": "4b7766d18c05a46dc51d88b56c525a2f",
+    "semantic_hash": ""
+  },
+  "carta-uno/6 azul.jpg": {
+    "mtime": 1795490573.737089,
+    "seen": 1795545060.6274762,
+    "ast_hash": "6fb9da88fc3247b6f460160abf212e20",
+    "semantic_hash": ""
+  },
+  "carta-uno/6 celeste.jpg": {
+    "mtime": 1795534279.3507507,
+    "seen": 1795545060.6274781,
+    "ast_hash": "9c0383fd3c9ffbc7baada4ce5d4ce9af",
+    "semantic_hash": ""
+  },
+  "carta-uno/6 rosa.jpg": {
+    "mtime": 1795533856.7118883,
+    "seen": 1795545060.6274793,
+    "ast_hash": "a7fb5421d1c386b060b60098d2b6147d",
+    "semantic_hash": ""
+  },
+  "carta-uno/7 azul.jpg": {
+    "mtime": 1795490585.4347432,
+    "seen": 1795545060.627635,
+    "ast_hash": "0766e428757fab001e0af690278860ba",
+    "semantic_hash": ""
+  },
+  "carta-uno/7 celeste.jpg": {
+    "mtime": 1795534287.3139985,
+    "seen": 1795545060.6276362,
+    "ast_hash": "27a6e4e4df6131ef8ea2418b5c62f354",
+    "semantic_hash": ""
+  },
+  "carta-uno/7 rosa.jpg": {
+    "mtime": 1795533870.2606626,
+    "seen": 1795545060.627638,
+    "ast_hash": "e511806d12a1a830a72e55b29e3808b0",
+    "semantic_hash": ""
+  },
+  "carta-uno/8 azul.jpg": {
+    "mtime": 1795490595.570863,
+    "seen": 1795545060.6278024,
+    "ast_hash": "f194fab787a564e7c0ae41199e1957aa",
+    "semantic_hash": ""
+  },
+  "carta-uno/8 celeste.jpg": {
+    "mtime": 1795534297.4717271,
+    "seen": 1795545060.6278038,
+    "ast_hash": "313fc0a252484f58faa683b5ca8f0c0b",
+    "semantic_hash": ""
+  },
+  "carta-uno/8 rosa.jpg": {
+    "mtime": 1795533879.5133874,
+    "seen": 1795545060.627806,
+    "ast_hash": "9e766c6a9b59a1c5fbbd2fe06747335f",
+    "semantic_hash": ""
+  },
+  "carta-uno/9 azul.jpg": {
+    "mtime": 1795490608.2433841,
+    "seen": 1795545060.6279914,
+    "ast_hash": "67597e6e088d9df9e1006a9e6ca0aca3",
+    "semantic_hash": ""
+  },
+  "carta-uno/9 celeste.jpg": {
+    "mtime": 1795534309.137574,
+    "seen": 1795545060.627993,
+    "ast_hash": "bd39756c3f10e8c264f000d84a53d2ea",
+    "semantic_hash": ""
+  },
+  "carta-uno/9 rosa.jpg": {
+    "mtime": 1795533887.675148,
+    "seen": 1795545060.6279948,
+    "ast_hash": "6fd7294f5c511c910f9031664cb7cbbe",
+    "semantic_hash": ""
+  },
+  "carta-uno/bloqueo azul.jpg": {
+    "mtime": 1795546184.0766573,
+    "seen": 1795546453.4320285,
+    "ast_hash": "1e0c6ea39edef7d41ee94de8103de572",
+    "semantic_hash": ""
+  },
+  "carta-uno/bloqueo celeste.jpg": {
+    "mtime": 1795546280.217724,
+    "seen": 1795546453.4320323,
+    "ast_hash": "1ff5feb21c88c42afbff3d0469578d42",
+    "semantic_hash": ""
+  },
+  "carta-uno/bloqueo rosa.jpg": {
+    "mtime": 1795546230.121156,
+    "seen": 1795546453.4320354,
+    "ast_hash": "71f1d633592aa8b405a34017c0f11ad4",
+    "semantic_hash": ""
+  },
+  "carta-uno/bloqueo verde.jpg": {
+    "mtime": 1795546120.1518285,
+    "seen": 1795546453.4320383,
+    "ast_hash": "d5f1629e8521902bdc48ca31da42bcde",
+    "semantic_hash": ""
+  },
+  "carta-uno/reversa azul.jpg": {
+    "mtime": 1795546175.4224162,
+    "seen": 1795546453.4320414,
+    "ast_hash": "aaa42f271279e8c302fd1496d3fd159d",
+    "semantic_hash": ""
+  },
+  "carta-uno/reversa celeste.jpg": {
+    "mtime": 1795546271.2918158,
+    "seen": 1795546453.4320443,
+    "ast_hash": "37664ad9baa90437f3ef9d6928fa3c73",
+    "semantic_hash": ""
+  },
+  "carta-uno/reversa rosa.jpg": {
+    "mtime": 1795546221.683282,
+    "seen": 1795546453.4320467,
+    "ast_hash": "7fbaf04acf97fef8bdf257c84e5f2472",
+    "semantic_hash": ""
+  },
+  "carta-uno/reversa verde.jpg": {
+    "mtime": 1795546140.0482633,
+    "seen": 1795546453.4320488,
+    "ast_hash": "0a337b7af5c31552be33d11c2043aae4",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-1.jpg": {
+    "mtime": 1795490491.1869283,
+    "seen": 1795545060.6291935,
+    "ast_hash": "f391440ec2e760d853ad1ed7cf72ff60",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-2.jpg": {
+    "mtime": 1795490503.9561212,
+    "seen": 1795545060.6291964,
+    "ast_hash": "751115abc0960d9d3abef2e8f2c2d5ef",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-3.jpg": {
+    "mtime": 1795490516.145613,
+    "seen": 1795545060.6292,
+    "ast_hash": "2e5fa2543732841ac5dfa4cdb0db0294",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-4.jpg": {
+    "mtime": 1795490540.5833223,
+    "seen": 1795545060.6292021,
+    "ast_hash": "fe22e772481f16c77b4276fa60f79e9d",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-5.jpg": {
+    "mtime": 1795490562.7758377,
+    "seen": 1795545060.6292045,
+    "ast_hash": "236c1c1ebab490f73d0797268827808a",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-6.jpg": {
+    "mtime": 1795490573.737089,
+    "seen": 1795545060.6292083,
+    "ast_hash": "6fb9da88fc3247b6f460160abf212e20",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-7.jpg": {
+    "mtime": 1795490585.4347432,
+    "seen": 1795545060.6292112,
+    "ast_hash": "0766e428757fab001e0af690278860ba",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-8.jpg": {
+    "mtime": 1795490595.570863,
+    "seen": 1795545060.6292138,
+    "ast_hash": "f194fab787a564e7c0ae41199e1957aa",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-9.jpg": {
+    "mtime": 1795490608.2433841,
+    "seen": 1795545060.6292162,
+    "ast_hash": "67597e6e088d9df9e1006a9e6ca0aca3",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-reverse.jpg": {
+    "mtime": 1795546175.4224162,
+    "seen": 1795546453.4347851,
+    "ast_hash": "aaa42f271279e8c302fd1496d3fd159d",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-skip.jpg": {
+    "mtime": 1795546184.0766573,
+    "seen": 1795546453.4347904,
+    "ast_hash": "1e0c6ea39edef7d41ee94de8103de572",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-1.jpg": {
+    "mtime": 1795534071.342554,
+    "seen": 1795545060.6292243,
+    "ast_hash": "6843769e29ca5fa3c4d71e5f14171240",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-2.jpg": {
+    "mtime": 1795534080.3414247,
+    "seen": 1795545060.6292276,
+    "ast_hash": "0b4b425ae9273c9f03d00a683747936e",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-3.jpg": {
+    "mtime": 1795534089.450033,
+    "seen": 1795545060.6292298,
+    "ast_hash": "f1e4a66ddea6b42e806377a44b4c0580",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-4.jpg": {
+    "mtime": 1795534262.2870774,
+    "seen": 1795545060.6292322,
+    "ast_hash": "be17a02d5b167af330fb111f75f0759d",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-5.jpg": {
+    "mtime": 1795534270.001896,
+    "seen": 1795545060.6292338,
+    "ast_hash": "5beb28a1b985df54c12686810f522b20",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-6.jpg": {
+    "mtime": 1795534279.3507507,
+    "seen": 1795545060.6292372,
+    "ast_hash": "9c0383fd3c9ffbc7baada4ce5d4ce9af",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-7.jpg": {
+    "mtime": 1795534287.3139985,
+    "seen": 1795545060.6292388,
+    "ast_hash": "27a6e4e4df6131ef8ea2418b5c62f354",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-8.jpg": {
+    "mtime": 1795534297.4717271,
+    "seen": 1795545060.6292398,
+    "ast_hash": "313fc0a252484f58faa683b5ca8f0c0b",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-9.jpg": {
+    "mtime": 1795534309.137574,
+    "seen": 1795545060.6292417,
+    "ast_hash": "bd39756c3f10e8c264f000d84a53d2ea",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-reverse.jpg": {
+    "mtime": 1795546271.2918158,
+    "seen": 1795546453.4365504,
+    "ast_hash": "37664ad9baa90437f3ef9d6928fa3c73",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-skip.jpg": {
+    "mtime": 1795546280.217724,
+    "seen": 1795546453.4365532,
+    "ast_hash": "1ff5feb21c88c42afbff3d0469578d42",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-1.jpg": {
+    "mtime": 1795533793.08059,
+    "seen": 1795545060.6292467,
+    "ast_hash": "16b33a3df8699a6482668a1227dd8d46",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-2.jpg": {
+    "mtime": 1795533824.312324,
+    "seen": 1795545060.6292493,
+    "ast_hash": "ce0b0d7dc5ef810b13aadd70973a5521",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-3.jpg": {
+    "mtime": 1795533813.009248,
+    "seen": 1795545060.6292515,
+    "ast_hash": "0301b2083cc7aadd21566399468f5f54",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-4.jpg": {
+    "mtime": 1795533834.3088596,
+    "seen": 1795545060.6292534,
+    "ast_hash": "491ee589ca40aee99e3e6fd06bd36404",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-5.jpg": {
+    "mtime": 1795533843.5437975,
+    "seen": 1795545060.6292562,
+    "ast_hash": "4b7766d18c05a46dc51d88b56c525a2f",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-6.jpg": {
+    "mtime": 1795533856.7118883,
+    "seen": 1795545060.629258,
+    "ast_hash": "a7fb5421d1c386b060b60098d2b6147d",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-7.jpg": {
+    "mtime": 1795533870.2606626,
+    "seen": 1795545060.629298,
+    "ast_hash": "e511806d12a1a830a72e55b29e3808b0",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-8.jpg": {
+    "mtime": 1795533879.5133874,
+    "seen": 1795545060.6293013,
+    "ast_hash": "9e766c6a9b59a1c5fbbd2fe06747335f",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-9.jpg": {
+    "mtime": 1795533887.675148,
+    "seen": 1795545060.6293035,
+    "ast_hash": "6fd7294f5c511c910f9031664cb7cbbe",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-reverse.jpg": {
+    "mtime": 1795546221.683282,
+    "seen": 1795546453.4393935,
+    "ast_hash": "7fbaf04acf97fef8bdf257c84e5f2472",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-skip.jpg": {
+    "mtime": 1795546230.121156,
+    "seen": 1795546453.4393973,
+    "ast_hash": "71f1d633592aa8b405a34017c0f11ad4",
+    "semantic_hash": ""
+  },
+  "public/cards/verde-1.jpg": {
     "mtime": 1795490289.0955322,
-    "seen": 1795490613.2059617,
+    "seen": 1795545060.6293092,
     "ast_hash": "fcd21930217e768f3f65ee3a65879e4d",
     "semantic_hash": ""
   },
-  "public/cards/green-2.jpg": {
+  "public/cards/verde-2.jpg": {
     "mtime": 1795490306.0204966,
-    "seen": 1795490613.205967,
+    "seen": 1795545060.6293123,
     "ast_hash": "be62a3d4cce5224f464e001f7b1aa513",
     "semantic_hash": ""
   },
-  "public/cards/green-3.jpg": {
+  "public/cards/verde-3.jpg": {
     "mtime": 1795490315.9648187,
-    "seen": 1795490613.205972,
+    "seen": 1795545060.6293147,
     "ast_hash": "3e4d126c229b1956731524a69809e155",
     "semantic_hash": ""
   },
-  "public/cards/green-4.jpg": {
+  "public/cards/verde-4.jpg": {
     "mtime": 1795490329.8850641,
-    "seen": 1795490613.2059767,
+    "seen": 1795545060.629317,
     "ast_hash": "06354e9423e3cd5f2a97c25dd2e84f37",
     "semantic_hash": ""
   },
-  "public/cards/green-5.jpg": {
+  "public/cards/verde-5.jpg": {
     "mtime": 1795490341.598734,
-    "seen": 1795490613.2059834,
+    "seen": 1795545060.6293194,
     "ast_hash": "8f036db150f1609230539426d0cffe1e",
     "semantic_hash": ""
   },
-  "public/cards/green-6.jpg": {
+  "public/cards/verde-6.jpg": {
     "mtime": 1795490352.8772154,
-    "seen": 1795490613.205988,
+    "seen": 1795545060.6293223,
     "ast_hash": "6dff7a68fd2e17bbf795c5805af12ba1",
     "semantic_hash": ""
   },
-  "public/cards/green-7.jpg": {
+  "public/cards/verde-7.jpg": {
     "mtime": 1795490371.0145328,
-    "seen": 1795490613.2059932,
+    "seen": 1795545060.6293244,
     "ast_hash": "1c9f1f717065b7bbb0b87afe74c2deb6",
     "semantic_hash": ""
   },
-  "public/cards/green-8.jpg": {
+  "public/cards/verde-8.jpg": {
     "mtime": 1795490382.4831069,
-    "seen": 1795490613.205999,
+    "seen": 1795545060.6293266,
     "ast_hash": "fc9d5d3d94dfd6f1bfedc0f34e176ff6",
     "semantic_hash": ""
   },
-  "public/cards/green-9.jpg": {
+  "public/cards/verde-9.jpg": {
     "mtime": 1795490399.6764407,
-    "seen": 1795490613.2060037,
+    "seen": 1795545060.6293278,
     "ast_hash": "284c166eef3b80b2f65892b68dd5b1b6",
+    "semantic_hash": ""
+  },
+  "public/cards/verde-reverse.jpg": {
+    "mtime": 1795546140.0482633,
+    "seen": 1795546453.4413822,
+    "ast_hash": "0a337b7af5c31552be33d11c2043aae4",
+    "semantic_hash": ""
+  },
+  "public/cards/verde-skip.jpg": {
+    "mtime": 1795546120.1518285,
+    "seen": 1795546453.4413853,
+    "ast_hash": "d5f1629e8521902bdc48ca31da42bcde",
+    "semantic_hash": ""
+  },
+  "carta-uno/+2 azul.jpg": {
+    "mtime": 1795546196.7491584,
+    "seen": 1795546453.4267206,
+    "ast_hash": "0d05ce0dc12ec0f1ad2efa7d048c1790",
+    "semantic_hash": ""
+  },
+  "carta-uno/+2 celeste.jpg": {
+    "mtime": 1795546305.0774827,
+    "seen": 1795546453.4267235,
+    "ast_hash": "3d053a1ec9300cef4c8f00cd1b4b1553",
+    "semantic_hash": ""
+  },
+  "carta-uno/+2 rosa.jpg": {
+    "mtime": 1795546239.549011,
+    "seen": 1795546453.4267254,
+    "ast_hash": "21cfd8ef2123d369e898e31d12210bb4",
+    "semantic_hash": ""
+  },
+  "carta-uno/+2 verde.jpg": {
+    "mtime": 1795546101.6499462,
+    "seen": 1795546453.4267263,
+    "ast_hash": "67491cfbc956cb84348d3ad8f5fd8277",
+    "semantic_hash": ""
+  },
+  "public/cards/azul-plus2.jpg": {
+    "mtime": 1795546196.7491584,
+    "seen": 1795546453.4347796,
+    "ast_hash": "0d05ce0dc12ec0f1ad2efa7d048c1790",
+    "semantic_hash": ""
+  },
+  "public/cards/celeste-plus2.jpg": {
+    "mtime": 1795546305.0774827,
+    "seen": 1795546453.4365454,
+    "ast_hash": "3d053a1ec9300cef4c8f00cd1b4b1553",
+    "semantic_hash": ""
+  },
+  "public/cards/rosa-plus2.jpg": {
+    "mtime": 1795546239.549011,
+    "seen": 1795546453.4393883,
+    "ast_hash": "21cfd8ef2123d369e898e31d12210bb4",
+    "semantic_hash": ""
+  },
+  "public/cards/verde-plus2.jpg": {
+    "mtime": 1795546101.6499462,
+    "seen": 1795546453.441377,
+    "ast_hash": "67491cfbc956cb84348d3ad8f5fd8277",
     "semantic_hash": ""
   }
 }

@@ -66,7 +66,7 @@
           Faltan jugadores: {{ playablePlayers.length }}/2 conectados en esta sala.
         </p>
         <p class="muted small">
-          Se necesitan al menos 2 jugadores. Gana quien se quede sin cartas; las preguntas salvan de los +2/+4.
+          Se necesitan al menos 2 jugadores. Gana quien se quede sin cartas; las preguntas salvan de los +2/+4 y la carta «?» resta 5% de nota si fallas.
         </p>
       </section>
 
@@ -107,6 +107,7 @@
                 <span class="mini-back" aria-hidden="true" />
                 <span class="mini-count">{{ p.handCount }}</span>
               </span>
+              <span v-if="p.penalty > 0" class="penalty-badge" :title="`Penalización de nota: -${p.penalty}%`">-{{ p.penalty }}%</span>
             </div>
           </div>
 
@@ -150,6 +151,7 @@
 
           <div class="hand-head">
             <h3>Tu mano</h3>
+            <span v-if="(me?.penalty ?? 0) > 0" class="penalty-chip">Penalización: -{{ me?.penalty }}%</span>
             <span v-if="isMyTurn && !hasLegal" class="muted small">Sin jugadas legales: roba una carta.</span>
             <span v-else-if="isMyTurn && drawnThisTurn" class="muted small">Puedes jugar o pulsar «Pasar».</span>
             <span v-else-if="isMyTurn" class="muted small">Juega una carta resaltada.</span>
@@ -209,6 +211,9 @@
               (quiz {{ finalStats.quizPercent }}% · posición {{ finalStats.placementPercent }}%)
             </span>
           </p>
+          <p v-if="(finalStats.penalty ?? 0) > 0" class="muted small">
+            Penalización carta «?»: <strong>-{{ finalStats.penalty }}%</strong>
+          </p>
           <p v-if="!isFormative" class="muted small">Puntuación: {{ finalStats.score }}</p>
         </div>
         <ul class="player-list">
@@ -240,7 +245,11 @@
           <span class="q-badge" :class="activeQuestion.difficulty">
             {{ difficultyLabel(activeQuestion.difficulty) }}
           </span>
-          <span class="penalty-hint">Fallo: +{{ activeQuestion.drawCount }} cartas</span>
+          <span class="penalty-hint">
+            {{ activeQuestion.kind === 'question'
+              ? `Fallo: -${activeQuestion.penaltyPercent ?? 5}% nota`
+              : `Fallo: +${activeQuestion.drawCount} cartas` }}
+          </span>
           <span v-if="answerLeft !== null" class="timer">{{ answerLeft }} s</span>
         </div>
         <h2 id="uno-q-title" class="question-text">{{ activeQuestion.question }}</h2>
@@ -258,9 +267,10 @@
           </button>
         </div>
         <div v-if="questionResult" class="question-feedback" :class="questionResult.correct ? 'ok' : 'bad'">
-          <p v-if="questionResult.correct">¡Correcto! No robas cartas.</p>
+          <p v-if="questionResult.correct">¡Correcto! {{ activeQuestion?.kind === 'question' ? 'No pasa nada.' : 'No robas cartas.' }}</p>
           <p v-else>
             {{ questionResult.timeout ? 'Se agotó el tiempo.' : 'Respuesta incorrecta.' }}
+            <span v-if="activeQuestion?.kind === 'question'">Se te resta {{ activeQuestion.penaltyPercent ?? 5 }}% a la nota.</span>
             La correcta era <strong>{{ optionLetter(questionResult.correctIndex) }}</strong>
             <span v-if="questionResult.correctOption">: {{ questionResult.correctOption }}</span>
           </p>
@@ -376,7 +386,7 @@ const legalIds = computed(() => {
   const active = state.value.activeColor;
   return myHand.value
     .filter((card) => {
-      if (card.value === 'plus4') return true;
+      if (card.value === 'plus4' || card.value === 'question') return true;
       if (card.color && card.color === active) return true;
       if (top && top.color && card.color === top.color) return true;
       if (top && card.value === top.value) return true;
@@ -414,6 +424,7 @@ const questionEventLabel = computed(() => {
   switch (state.value?.questionKind) {
     case 'plus2': return 'Carta +2: pregunta fácil';
     case 'plus4': return 'Carta +4: pregunta difícil';
+    case 'question': return 'Carta ?: pregunta intermedia';
     case 'periodic': return 'Ronda par: pregunta media';
     default: return '';
   }
@@ -521,7 +532,9 @@ function handleMessage(message: GameMessage): void {
         question: String(message.question ?? ''),
         options: message.options ?? [],
         difficulty: (message.difficulty ?? 'easy') as Difficulty,
+        kind: message.kind ?? null,
         drawCount: Number(message.drawCount ?? 1),
+        penaltyPercent: Number(message.penaltyPercent ?? 0),
         deadline: typeof message.deadline === 'number' ? message.deadline : null,
       };
       questionResult.value = null;
@@ -548,6 +561,13 @@ function handleMessage(message: GameMessage): void {
         pushToast(`Robas ${message.drawCount ?? 0} carta(s)`, 'ko');
       } else {
         pushToast(`${playerName(message.dni)} roba ${message.drawCount ?? 0} carta(s)`, 'info');
+      }
+      break;
+    case 'grade_penalty_applied':
+      if (message.dni === you.value) {
+        pushToast(`Fallaste: -${message.percent ?? 5}% a tu nota (total -${message.totalPenalty ?? 0}%)`, 'ko');
+      } else {
+        pushToast(`${playerName(message.dni)} falló: -${message.percent ?? 5}% a su nota`, 'info');
       }
       break;
     case 'game_over':
@@ -670,14 +690,17 @@ function cardLabel(card: UnoCard): string {
     case 'plus4': return '+4';
     case 'skip': return '⊘';
     case 'reverse': return '⇄';
+    case 'question': return '?';
     default: return card.value;
   }
 }
 
 function cardFaceUrl(card: UnoCard): string | null {
+  if (card.value === 'plus4') return '/cards/plus4.jpg';
+  if (card.value === 'question') return '/cards/pregunta.jpg';
   if (!card.color) return null;
   if (/^[1-9]$/.test(card.value)) return `/cards/${card.color}-${card.value}.jpg`;
-  if (card.value === 'skip' || card.value === 'reverse') return `/cards/${card.color}-${card.value}.jpg`;
+  if (card.value === 'skip' || card.value === 'reverse' || card.value === 'plus2') return `/cards/${card.color}-${card.value}.jpg`;
   return null;
 }
 
@@ -884,6 +907,16 @@ void UNO_COLORS;
   font-weight: 700;
 }
 
+.penalty-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(179, 38, 30, 0.14);
+  color: var(--bad);
+  border: 1px solid rgba(179, 38, 30, 0.35);
+}
+
 .table-center {
   display: flex;
   gap: 28px;
@@ -1026,6 +1059,16 @@ void UNO_COLORS;
 
 .hand-head h3 {
   font-size: 1rem;
+}
+
+.penalty-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(179, 38, 30, 0.14);
+  color: var(--bad);
+  border: 1px solid rgba(179, 38, 30, 0.35);
 }
 
 .hand {

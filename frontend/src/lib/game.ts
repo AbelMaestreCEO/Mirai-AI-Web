@@ -106,9 +106,11 @@ export interface GameMessage {
   activeColor?: UnoColor;
   handCount?: number;
   direction?: 1 | -1;
-  kind?: 'plus2' | 'plus4' | 'periodic';
+  kind?: 'plus2' | 'plus4' | 'periodic' | 'question';
   sourceDni?: string | null;
   drawCount?: number;
+  penaltyPercent?: number;
+  totalPenalty?: number;
   round?: number;
   stats?: UnoFinalStats | null;
   standings?: { id: string; rank: number; finalPercent: number }[];
@@ -120,7 +122,7 @@ export interface GameMessage {
 export type UnoColor = 'azul' | 'celeste' | 'rosa' | 'verde';
 export type UnoValue =
   | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-  | 'skip' | 'reverse' | 'plus2' | 'plus4';
+  | 'skip' | 'reverse' | 'plus2' | 'plus4' | 'question';
 
 export interface UnoCard {
   id: string;
@@ -140,6 +142,8 @@ export interface UnoPlayer {
   points: number;
   answered: boolean;
   roundWins: number;
+  /** Puntos de porcentaje restados a la nota por fallar la carta "?". */
+  penalty: number;
 }
 
 export interface UnoState {
@@ -165,7 +169,7 @@ export interface UnoState {
   version: number;
   turnDeadline: number | null;
   questionDeadline: number | null;
-  questionKind: 'plus2' | 'plus4' | 'periodic' | null;
+  questionKind: 'plus2' | 'plus4' | 'periodic' | 'question' | null;
   canDraw: boolean;
   winnerId: string | null;
   players: UnoPlayer[];
@@ -176,7 +180,9 @@ export interface UnoQuestion {
   question: string;
   options: string[];
   difficulty: Difficulty;
+  kind?: 'plus2' | 'plus4' | 'periodic' | 'question' | null;
   drawCount: number;
+  penaltyPercent?: number;
   deadline: number | null;
   answered?: boolean;
 }
@@ -197,6 +203,7 @@ export interface UnoFinalStats {
   quizPercent: number;
   placementPercent: number;
   finalPercent: number;
+  penalty?: number;
   score: number;
 }
 
