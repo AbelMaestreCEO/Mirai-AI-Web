@@ -249,7 +249,7 @@ export class UnoRoom extends DurableObject<Env> {
       players: [],
       deck: [],
       discard: [],
-      activeColor: 'red',
+      activeColor: 'azul',
       direction: 1,
       turnIndex: 0,
       turnDeadline: null,
@@ -654,7 +654,7 @@ export class UnoRoom extends DurableObject<Env> {
     }
     if (first) {
       state.discard.push(first);
-      state.activeColor = (first.color ?? 'red') as UnoColor;
+      state.activeColor = (first.color ?? 'azul') as UnoColor;
     }
 
     state.status = 'playing';

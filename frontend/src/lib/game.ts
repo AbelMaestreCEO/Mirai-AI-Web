@@ -117,7 +117,7 @@ export interface GameMessage {
 
 /* ─────────────── Uno educativo (beta) ─────────────── */
 
-export type UnoColor = 'red' | 'green' | 'blue' | 'yellow';
+export type UnoColor = 'azul' | 'celeste' | 'rosa' | 'verde';
 export type UnoValue =
   | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
   | 'skip' | 'reverse' | 'plus2' | 'plus4';

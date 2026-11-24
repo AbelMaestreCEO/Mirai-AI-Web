@@ -321,7 +321,7 @@ import {
   type UnoState,
 } from '@/lib/game';
 
-const UNO_COLORS: UnoColor[] = ['red', 'green', 'blue', 'yellow'];
+const UNO_COLORS: UnoColor[] = ['azul', 'celeste', 'rosa', 'verde'];
 
 const route = useRoute();
 const router = useRouter();
@@ -675,9 +675,10 @@ function cardLabel(card: UnoCard): string {
 }
 
 function cardFaceUrl(card: UnoCard): string | null {
-  if (card.color !== 'green') return null;
-  if (!/^[1-9]$/.test(card.value)) return null;
-  return `/cards/green-${card.value}.jpg`;
+  if (!card.color) return null;
+  if (/^[1-9]$/.test(card.value)) return `/cards/${card.color}-${card.value}.jpg`;
+  if (card.value === 'skip' || card.value === 'reverse') return `/cards/${card.color}-${card.value}.jpg`;
+  return null;
 }
 
 function colorClass(color: UnoColor | 'wild'): string {
@@ -686,10 +687,10 @@ function colorClass(color: UnoColor | 'wild'): string {
 
 function colorName(color: UnoColor | 'wild'): string {
   switch (color) {
-    case 'red': return 'Rojo';
-    case 'green': return 'Verde';
-    case 'blue': return 'Azul';
-    case 'yellow': return 'Amarillo';
+    case 'azul': return 'Azul';
+    case 'celeste': return 'Celeste';
+    case 'rosa': return 'Rosa';
+    case 'verde': return 'Verde';
     default: return 'Comodín';
   }
 }
@@ -720,10 +721,10 @@ void UNO_COLORS;
   gap: 16px;
   color: var(--text-primary);
   --bad: #b3261e;
-  --card-red: #e53935;
-  --card-green: #43a047;
-  --card-blue: #1e88e5;
-  --card-yellow: #f9d63a;
+  --card-azul: #1e88e5;
+  --card-celeste: #4fc3f7;
+  --card-rosa: #e5397a;
+  --card-verde: #43a047;
 }
 
 [data-theme="dark"] .uno-page {
@@ -965,8 +966,8 @@ void UNO_COLORS;
   pointer-events: none;
 }
 
-/* Cartas con arte propio (de momento los números verdes 1-9): la imagen ya
-   trae el marco, así que se oculta el borde interior dibujado por CSS. */
+/* Cartas con arte propio (imágenes en /cards): la imagen ya trae el marco,
+   así que se oculta el borde interior dibujado por CSS. */
 .uno-card.has-face::before {
   display: none;
 }
@@ -1008,12 +1009,12 @@ void UNO_COLORS;
   background: var(--glass-bg);
 }
 
-.uno-red { background: var(--card-red); }
-.uno-green { background: var(--card-green); }
-.uno-blue { background: var(--card-blue); }
-.uno-yellow { background: var(--card-yellow); color: #4a3600; }
+.uno-azul { background: var(--card-azul); }
+.uno-celeste { background: var(--card-celeste); color: #00303f; }
+.uno-rosa { background: var(--card-rosa); }
+.uno-verde { background: var(--card-verde); }
 .uno-wild {
-  background: conic-gradient(from 0deg, var(--card-red), var(--card-yellow), var(--card-green), var(--card-blue), var(--card-red));
+  background: conic-gradient(from 0deg, var(--card-azul), var(--card-celeste), var(--card-rosa), var(--card-verde), var(--card-azul));
 }
 
 .hand-head {
@@ -1326,7 +1327,7 @@ void UNO_COLORS;
   cursor: pointer;
 }
 
-.color-option.uno-yellow { color: #4a3600; }
+.color-option.uno-celeste { color: #00303f; }
 
 .btn-primary,
 .btn-secondary {

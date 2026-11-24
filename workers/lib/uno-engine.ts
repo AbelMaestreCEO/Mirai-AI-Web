@@ -7,7 +7,7 @@
    las reglas y muta el estado recibido.
    ============================================ */
 
-export const UNO_COLORS = ['red', 'green', 'blue', 'yellow'] as const;
+export const UNO_COLORS = ['azul', 'celeste', 'rosa', 'verde'] as const;
 export type UnoColor = (typeof UNO_COLORS)[number];
 
 export type UnoValue =
