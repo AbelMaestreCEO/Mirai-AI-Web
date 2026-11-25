@@ -1084,7 +1084,7 @@ footer.footer {
    MÓVIL - SIDEBAR DESLIZABLE
    ============================================ */
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .mobile-menu-toggle {
     display: flex !important;
     position: relative !important;
@@ -5405,7 +5405,7 @@ html[data-theme="dark"] .category-stats {
 }
 
 /* Ajustes responsive para que en móvil no se aplique el colapso */
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .mobile-sidebar {
     /* FORZAMOS que esté oculto inicialmente */
     transform: translateX(-100%) !important;
@@ -5659,7 +5659,7 @@ html[data-theme="dark"] .category-stats {
    RESPONSIVE: MÓVIL
    ============================================ */
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .sidebar-logo img {
     max-width: 100px;
     max-height: 100px;
@@ -7750,7 +7750,7 @@ body::before {
 }
 
 /* Responsivo móvil */
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   .settings-sidebar-btn {
     width: calc(100% - 24px);
     padding: 10px 14px;
@@ -7909,10 +7909,11 @@ body::before {
    Ambas leen `--sidebar-w`, así que el menú puede estrecharse en ventanas
    pequeñas sin tocar ni una página. Para sumar una página nueva basta con
    añadir su selector a la familia que le corresponda. */
-@media (min-width: 769px) {
+@media (min-width: 1101px) {
 
   /* — Familia A: contenido centrado — */
   .mobile-sidebar~.courses-container,
+  .mobile-sidebar~.activity-container,
   .mobile-sidebar~.mirror-main,
   .mobile-sidebar~.categories-container,
   .mobile-sidebar~.course-details-container,
@@ -7938,6 +7939,7 @@ body::before {
   }
 
   .mobile-sidebar.collapsed~.courses-container,
+  .mobile-sidebar.collapsed~.activity-container,
   .mobile-sidebar.collapsed~.mirror-main,
   .mobile-sidebar.collapsed~.categories-container,
   .mobile-sidebar.collapsed~.course-details-container,
@@ -7974,15 +7976,17 @@ body::before {
   }
 }
 
-/* En móvil no hay menú fijo: todo el ancho vuelve al contenido. Va con
-   `!important` porque varias páginas traen su propio margen de escritorio. */
-@media (max-width: 768px) {
+/* En el modo cajón (pantallas hasta 1100px) no hay menú fijo: todo el ancho
+   vuelve al contenido. Va con `!important` porque varias páginas traen su
+   propio margen de escritorio. */
+@media (max-width: 1100px) {
   .home-main,
   .welcome-footer,
   .gen-page-content,
   .inv-page-content,
   .loc-wrapper,
   .courses-container,
+  .activity-container,
   .mirror-main,
   .categories-container,
   .course-details-container,
@@ -7999,35 +8003,6 @@ body::before {
   .uno-page {
     margin-left: 0 !important;
     margin-right: 0 !important;
-  }
-}
-
-/* Ventana de escritorio a medio encoger (por encima del breakpoint móvil, pero
-   ya sin espacio de sobra): el menú de 280px se comía casi todo el ancho útil y
-   el contenido quedaba estrujado. Estrechando el menú se devuelven 40px al
-   contenido sin perder la navegación permanente, que es justo lo que se pierde
-   al bajar de 769px. */
-@media (min-width: 769px) and (max-width: 1100px) {
-  :root {
-    --sidebar-w: 240px;
-  }
-
-  .sidebar-content {
-    padding: 14px;
-  }
-
-  .sidebar-header,
-  .sidebar-footer {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-
-  .nav-grid {
-    gap: 6px;
-  }
-
-  .nav-grid-item {
-    padding: 10px 4px;
   }
 }
 
@@ -8393,9 +8368,10 @@ html[data-theme="dark"] body[data-page] :is(
    ajustan las variables que ya usa el layout del sidebar para no pisar el
    hueco del menú; en móvil solo se fija el margen lateral como Cursos.
    ============================================ */
-@media (min-width: 769px) {
+@media (min-width: 1101px) {
   body[data-page] :is(
     .courses-container,
+    .activity-container,
     .classroom-container,
     .tasks-container,
     .purchase-container,
@@ -8412,7 +8388,7 @@ html[data-theme="dark"] body[data-page] :is(
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   body[data-page] :is(
     .courses-container,
     .classroom-container,

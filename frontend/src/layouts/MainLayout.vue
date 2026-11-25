@@ -134,7 +134,7 @@ function isActive(slug: string): boolean {
 function onNavigate() {
   // Al elegir un módulo la lista vuelve a mostrar solo los accesos base.
   shell.navExpanded = false;
-  if (window.innerWidth <= 768) closeMenu();
+  if (window.matchMedia('(max-width: 1100px)').matches) closeMenu();
 }
 
 async function logout() {

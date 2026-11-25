@@ -38,3 +38,13 @@ watch(
     document.body.style.overflow = open ? 'hidden' : '';
   },
 );
+
+// La barra pasa a ser un cajón deslizable hasta 1100px (por debajo ya no cabe
+// con el contenido). Si se amplía la ventana con el cajón abierto se cierra
+// para liberar el scroll del body y no dejar el velo a medias.
+if (typeof window !== 'undefined') {
+  const drawerQuery = window.matchMedia('(max-width: 1100px)');
+  drawerQuery.addEventListener?.('change', (event) => {
+    if (!event.matches) closeMenu();
+  });
+}

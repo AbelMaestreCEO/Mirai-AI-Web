@@ -1410,9 +1410,9 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1795544967.492582,
-    "seen": 1795545060.5873344,
-    "ast_hash": "96b9c798b169f2ac3da5ad089a4beff8",
+    "mtime": 1795547383.4472115,
+    "seen": 1795547448.58733,
+    "ast_hash": "0c9548817ccf909a04c32bb6c5d33ae0",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
@@ -1584,21 +1584,21 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/UnoRoomPage.vue": {
-    "mtime": 1795546421.8648233,
-    "seen": 1795546453.4097803,
-    "ast_hash": "1bf8a4deb12e4ff163e1442a2e6edcc4",
+    "mtime": 1795547435.1180367,
+    "seen": 1795547448.5950844,
+    "ast_hash": "12b0283f233d0efcb8105fb8c3bb9b7c",
     "semantic_hash": ""
   },
   "workers/durable/UnoRoom.ts": {
-    "mtime": 1795544967.2056477,
-    "seen": 1795545060.6062756,
-    "ast_hash": "a8a056b5796b7e0319659ec56cd40eac",
+    "mtime": 1795547299.3305545,
+    "seen": 1795547448.5967908,
+    "ast_hash": "b24129f2af8f446fe907378553ea61fc",
     "semantic_hash": ""
   },
   "workers/lib/uno-engine.ts": {
-    "mtime": 1795544966.7216296,
-    "seen": 1795545060.6096585,
-    "ast_hash": "86c043ba07073fbe4d2ee0d03cc7271c",
+    "mtime": 1795547409.5837848,
+    "seen": 1795547448.5984092,
+    "ast_hash": "840f50ff54ebf55d46a7cc3ffb381b4c",
     "semantic_hash": ""
   },
   "uno-like.md": {
@@ -2193,6 +2193,30 @@
     "mtime": 1795546101.6499462,
     "seen": 1795546453.441377,
     "ast_hash": "67491cfbc956cb84348d3ad8f5fd8277",
+    "semantic_hash": ""
+  },
+  "carta-uno/+4.jpg": {
+    "mtime": 1795547041.473222,
+    "seen": 1795547448.6052759,
+    "ast_hash": "b3543edb3da2ab5bc30cc60ad13186ae",
+    "semantic_hash": ""
+  },
+  "carta-uno/pregunta.jpg": {
+    "mtime": 1795547053.3189874,
+    "seen": 1795547448.6083455,
+    "ast_hash": "d548811f3b42c68bfa5d186e2837a9b0",
+    "semantic_hash": ""
+  },
+  "public/cards/plus4.jpg": {
+    "mtime": 1795547041.473222,
+    "seen": 1795547448.6110964,
+    "ast_hash": "b3543edb3da2ab5bc30cc60ad13186ae",
+    "semantic_hash": ""
+  },
+  "public/cards/pregunta.jpg": {
+    "mtime": 1795547053.3189874,
+    "seen": 1795547448.6110976,
+    "ast_hash": "d548811f3b42c68bfa5d186e2837a9b0",
     "semantic_hash": ""
   }
 }
