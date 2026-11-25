@@ -390,15 +390,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/AttendanceAdminPage.vue": {
-    "mtime": 1794580560.386345,
-    "seen": 1794580600.7489033,
-    "ast_hash": "d923ce73cc2230c3ac43f0c55688785a",
+    "mtime": 1795570484.8037271,
+    "seen": 1795570548.7242339,
+    "ast_hash": "0d5e13a4b6f6c28b92ef96c105073e69",
     "semantic_hash": ""
   },
   "frontend/src/pages/AttendancePage.vue": {
-    "mtime": 1794600963.374074,
-    "seen": 1794600996.914772,
-    "ast_hash": "cce81a9dcee233f558914eb22eab53ef",
+    "mtime": 1795570492.4660661,
+    "seen": 1795570548.7242398,
+    "ast_hash": "baa8230af68244dceca047d8c3e291dc",
     "semantic_hash": ""
   },
   "frontend/src/pages/ChatPage.vue": {
@@ -528,9 +528,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/ProjectsPage.vue": {
-    "mtime": 1792884859.1604486,
-    "seen": 1792884887.7092416,
-    "ast_hash": "f9c8eaa18b3e837a956807f7b651fc07",
+    "mtime": 1795570501.59875,
+    "seen": 1795570548.7475867,
+    "ast_hash": "37b6e6096c615a6997744e60f9f6ef97",
     "semantic_hash": ""
   },
   "frontend/src/pages/PurchasePage.vue": {

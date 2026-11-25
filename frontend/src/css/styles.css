@@ -8064,9 +8064,9 @@ body[data-page] :is(
   border: 1px solid rgba(103, 80, 164, 0.18);
   border-radius: 20px;
   background:
-    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   box-shadow: 0 8px 24px rgba(24, 16, 48, 0.06);
   transition:
     transform 0.25s cubic-bezier(0.2, 0, 0, 1),
@@ -8195,9 +8195,9 @@ html[data-theme="dark"] body[data-page] :is(
 ) {
   border-color: rgba(208, 188, 255, 0.18);
   background:
-    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
   scrollbar-color: rgba(208, 188, 255, 0.32) transparent;
 }
@@ -8222,23 +8222,6 @@ html[data-theme="dark"] body[data-page] :is(
   .task-card
 )::-webkit-scrollbar-thumb {
   background: rgba(208, 188, 255, 0.32);
-}
-
-/* Cuadros de categoría: fondo = variante oscura del acento del usuario,
-   cuadrícula = variante clara del acento. Se coloca después de los bloques
-   comunes (misma especificidad) para que mande. */
-body[data-page] .category-card {
-  background:
-    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    var(--secondary-container) padding-box;
-}
-
-html[data-theme="dark"] body[data-page] .category-card {
-  background:
-    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    var(--secondary-container) padding-box;
 }
 
 /* Escritorio: cuadros más altos y anchos, con el contenido escalado para
@@ -8571,9 +8554,9 @@ body[data-page] :is(
   border: 1px solid rgba(103, 80, 164, 0.18);
   border-radius: 20px;
   background:
-    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   box-shadow: 0 8px 24px rgba(24, 16, 48, 0.06);
   transition:
     transform 0.25s cubic-bezier(0.2, 0, 0, 1),
@@ -8593,9 +8576,9 @@ html[data-theme="dark"] body[data-page] :is(
 ) {
   border-color: rgba(208, 188, 255, 0.18);
   background:
-    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
 }
 
@@ -8644,18 +8627,18 @@ body[data-page] :is(.stat-card, .stats-summary-item) {
   border: 1px solid rgba(103, 80, 164, 0.18);
   border-radius: 20px;
   background:
-    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   box-shadow: 0 8px 24px rgba(24, 16, 48, 0.06);
 }
 
 html[data-theme="dark"] body[data-page] :is(.stat-card, .stats-summary-item) {
   border-color: rgba(208, 188, 255, 0.18);
   background:
-    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
 }
 
