@@ -4536,9 +4536,9 @@ svg {
    cristal, retícula técnica, borde degradado y barra de acento. */
 .category-card {
   background:
-    linear-gradient(rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(103, 80, 164, 0.04) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 246, 255, 0.94) 100%) padding-box;
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
   border-radius: 20px;
   padding: 1.35rem 1.35rem 1.15rem;
   border: 1px solid rgba(103, 80, 164, 0.18);
@@ -4657,10 +4657,6 @@ svg {
 
 /* Modo oscuro */
 html[data-theme="dark"] .category-card {
-  background:
-    linear-gradient(rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(90deg, rgba(208, 188, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
-    linear-gradient(160deg, #1b1824 0%, #221d30 100%) padding-box;
   border-color: rgba(208, 188, 255, 0.18);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
 }
