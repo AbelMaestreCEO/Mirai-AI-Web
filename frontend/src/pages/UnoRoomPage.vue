@@ -15,7 +15,6 @@
           {{ statusText }}
           · {{ playablePlayers.length }}/{{ state.maxPlayers }} jugadores
           <span class="badge">Ronda {{ state.round }}</span>
-          <span v-if="youRole === 'spectator'" class="badge">Espectador</span>
         </p>
         <p v-else class="muted small">Uno educativo en pruebas. Puede cambiar.</p>
       </div>
@@ -41,7 +40,6 @@
             <span class="player-name">
               {{ p.nickname }}
               <span v-if="p.id === you" class="you-badge">Tú</span>
-              <span v-if="p.role === 'spectator'" class="muted small"> · espectador</span>
             </span>
             <span class="muted small">{{ p.connected ? 'conectado' : 'desconectado' }}</span>
             <span v-if="p.role === 'player'" class="ready-chip" :class="{ ready: p.ready }">
@@ -50,7 +48,7 @@
           </li>
         </ul>
 
-        <button v-if="youRole === 'player'" class="btn-primary" type="button" @click="toggleReady">
+        <button class="btn-primary" type="button" @click="toggleReady">
           {{ me?.ready ? 'Quitar listo' : 'Estoy listo' }}
         </button>
         <button
@@ -157,7 +155,7 @@
             <span v-else-if="isMyTurn" class="muted small">Juega una carta resaltada.</span>
           </div>
 
-          <div v-if="youRole === 'player'" class="hand" role="list" aria-label="Tu mano">
+          <div class="hand" role="list" aria-label="Tu mano">
             <button
               v-for="card in myHand"
               :key="card.id"
@@ -183,7 +181,7 @@
             <span v-if="myHand.length === 0" class="muted small">Sin cartas.</span>
           </div>
 
-          <div v-if="youRole === 'player'" class="hand-actions">
+          <div class="hand-actions">
             <button
               v-if="canDraw"
               class="btn-primary"
@@ -233,7 +231,7 @@
             <p v-if="item.concept" class="muted small">🎯 Concepto: {{ item.concept }}</p>
           </div>
         </div>
-        <p v-else-if="youRole === 'player'" class="muted small">Sin errores en esta partida. 🎉</p>
+        <p v-else class="muted small">Sin errores en esta partida. 🎉</p>
         <button class="btn-secondary" type="button" @click="leaveRoom">Volver al lobby</button>
       </section>
     </template>
@@ -342,7 +340,6 @@ interface Toast { id: number; text: string; tone: ToastTone }
 
 const state = ref<UnoState | null>(null);
 const you = ref('');
-const youRole = ref<'player' | 'spectator'>('player');
 const youManage = ref(false);
 const starting = ref(false);
 const copied = ref(false);
@@ -462,7 +459,6 @@ function handleMessage(message: GameMessage): void {
   switch (message.type) {
     case 'state_snapshot': {
       you.value = message.you ?? '';
-      youRole.value = message.youRole ?? 'player';
       youManage.value = message.youManage === true;
       if (message.state) state.value = message.state as unknown as UnoState;
       if (Array.isArray(message.hand)) myHand.value = message.hand;

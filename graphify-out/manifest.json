@@ -1392,9 +1392,9 @@
     "semantic_hash": ""
   },
   "workers/durable/GameRoom.ts": {
-    "mtime": 1794444370.3964639,
-    "seen": 1794445178.2681832,
-    "ast_hash": "e16942cbc322b62456199df8d68218d2",
+    "mtime": 1795612942.6810539,
+    "seen": 1795612975.5887609,
+    "ast_hash": "3555f5dc75143f8b3e494d93964ccf9e",
     "semantic_hash": ""
   },
   "multijugador.md": {
@@ -1404,15 +1404,15 @@
     "semantic_hash": ""
   },
   "workers/routes/game.ts": {
-    "mtime": 1795485723.3287625,
-    "seen": 1795487560.7763863,
-    "ast_hash": "b11f8a8ddcd7741915ecd6197f22f1b4",
+    "mtime": 1795612900.6283982,
+    "seen": 1795612916.463728,
+    "ast_hash": "9349ef11c51ce225e44efb1369a86533",
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {
-    "mtime": 1795547383.4472115,
-    "seen": 1795547448.58733,
-    "ast_hash": "0c9548817ccf909a04c32bb6c5d33ae0",
+    "mtime": 1795612585.4224234,
+    "seen": 1795612916.4511938,
+    "ast_hash": "41022618dbff399bdc45cffa06563b0e",
     "semantic_hash": ""
   },
   "frontend/src/pages/GameLobbyPage.vue": {
@@ -1422,9 +1422,9 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/GameRoomPage.vue": {
-    "mtime": 1793582699.3498714,
-    "seen": 1793582730.1657238,
-    "ast_hash": "4fe9817732574261454a2ab26d5d726b",
+    "mtime": 1795612614.2011194,
+    "seen": 1795612916.4546847,
+    "ast_hash": "68f78bc9bf1429f5c50a7af43741de7c",
     "semantic_hash": ""
   },
   "workers/lib/game-questions.ts": {
@@ -1584,15 +1584,15 @@
     "semantic_hash": ""
   },
   "frontend/src/pages/UnoRoomPage.vue": {
-    "mtime": 1795547435.1180367,
-    "seen": 1795547448.5950844,
-    "ast_hash": "12b0283f233d0efcb8105fb8c3bb9b7c",
+    "mtime": 1795612653.3180735,
+    "seen": 1795612916.4561958,
+    "ast_hash": "8f0976885751f58383e5a7a16bf8ca7e",
     "semantic_hash": ""
   },
   "workers/durable/UnoRoom.ts": {
-    "mtime": 1795547299.3305545,
-    "seen": 1795547448.5967908,
-    "ast_hash": "b24129f2af8f446fe907378553ea61fc",
+    "mtime": 1795612946.3246589,
+    "seen": 1795612975.588765,
+    "ast_hash": "5ab2aa6be329432a955a3776d52fc90a",
     "semantic_hash": ""
   },
   "workers/lib/uno-engine.ts": {

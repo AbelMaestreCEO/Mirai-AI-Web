@@ -13,7 +13,7 @@ export interface GamePlayer {
   /** Identificador público (p0, p1...); nunca el DNI. */
   id: string;
   nickname: string;
-  role: 'player' | 'spectator';
+  role: 'player';
   color: GameColor | null;
   ready: boolean;
   connected: boolean;
@@ -73,7 +73,7 @@ export interface GameMessage {
   seq: number;
   state?: GameState;
   you?: string;
-  youRole?: 'player' | 'spectator';
+  youRole?: 'player';
   youManage?: boolean;
   dni?: string;
   dice?: number;
@@ -133,7 +133,7 @@ export interface UnoCard {
 export interface UnoPlayer {
   id: string;
   nickname: string;
-  role: 'player' | 'spectator';
+  role: 'player';
   teamId: string | null;
   seat: number;
   ready: boolean;

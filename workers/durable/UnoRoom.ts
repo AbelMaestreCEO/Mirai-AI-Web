@@ -191,7 +191,6 @@ export class UnoRoom extends DurableObject<Env> {
 
   async fetch(request: Request): Promise<Response> {
     const dni = request.headers.get('X-Game-User');
-    const roleHeader = request.headers.get('X-Game-Role') || 'student';
     const nickname = safeDecode(request.headers.get('X-Game-Nickname') || '').slice(0, 24);
     const code = request.headers.get('X-Game-Code') || '';
     const sectionId = request.headers.get('X-Game-Section') || null;
@@ -211,10 +210,10 @@ export class UnoRoom extends DurableObject<Env> {
     }
 
     const state = this.loadState() ?? this.createRoom(code, sectionId);
+    if (state.status === 'finished') this.resetToLobby(state);
 
-    const isSpectator = roleHeader !== 'student';
-    const player = this.upsertPlayer(state, dni, nickname, isSpectator);
-    if (!player && !isSpectator) {
+    const player = this.upsertPlayer(state, dni, nickname);
+    if (!player) {
       return new Response('Sala llena o partida en curso', { status: 409 });
     }
 
@@ -282,37 +281,20 @@ export class UnoRoom extends DurableObject<Env> {
   private upsertPlayer(
     state: UnoState,
     dni: string,
-    nickname: string,
-    spectator: boolean
+    nickname: string
   ): UnoPlayer | null {
     const existing = state.players.find((p) => p.dni === dni);
     if (existing) {
       existing.connected = true;
       if (nickname) existing.nickname = nickname;
-      if (!spectator && existing.role !== 'player' && state.status === 'lobby') {
+      // Salas antiguas pudieron marcar al docente como espectador. Si aún no ha
+      // empezado, se convierte en jugador.
+      if (existing.role !== 'player' && state.status === 'lobby') {
         existing.role = 'player';
         existing.ready = false;
         existing.seat = activePlayers(state).filter((p) => p.dni !== dni).length;
       }
       return existing;
-    }
-
-    if (spectator) {
-      const s: UnoPlayer = {
-        dni,
-        nickname: nickname || 'Docente',
-        role: 'spectator',
-        teamId: null,
-        seat: -1,
-        ready: true,
-        connected: true,
-        hand: [],
-        points: 0,
-        answered: false,
-        roundWins: 0,
-      };
-      state.players.push(s);
-      return s;
     }
 
     const active = activePlayers(state);
@@ -333,6 +315,42 @@ export class UnoRoom extends DurableObject<Env> {
     };
     state.players.push(player);
     return player;
+  }
+
+  /** Vuelve la sala a lobby tras una partida, conservando solo a los conectados. */
+  private resetToLobby(state: UnoState) {
+    state.status = 'lobby';
+    state.winnerDni = null;
+    state.turnDeadline = null;
+    state.questionDeadline = null;
+    state.questionEvent = null;
+    state.pendingQuestions = {};
+    state.answers = {};
+    state.quizStats = {};
+    state.review = {};
+    state.gradePenalty = {};
+    state.round = 1;
+    state.actionsThisRound = 0;
+    state.roundStartedAt = Date.now();
+    state.deck = [];
+    state.discard = [];
+    state.activeColor = 'azul';
+    state.direction = 1;
+    state.turnIndex = 0;
+    state.drawnThisTurn = false;
+    state.matchId = null;
+    state.assignmentId = null;
+    state.players = state.players.filter((p) => p.connected);
+    for (const p of state.players) {
+      p.role = 'player';
+      p.hand = [];
+      p.points = 0;
+      p.answered = false;
+      p.roundWins = 0;
+      p.ready = false;
+    }
+    this.saveState(state);
+    void this.ctx.storage.deleteAlarm();
   }
 
   private closeDuplicateSockets(dni: string) {
@@ -357,6 +375,7 @@ export class UnoRoom extends DurableObject<Env> {
 
     const state = this.loadState();
     if (!state) return jsonMsg({ error: 'La sala aún no tiene conexiones' }, 409);
+    if (state.status === 'finished') this.resetToLobby(state);
 
     switch (action) {
       case 'start':
@@ -1303,8 +1322,8 @@ export class UnoRoom extends DurableObject<Env> {
           .run();
       }
 
-      await this.env.MIRAI_AI_DB.prepare("UPDATE game_rooms SET status = 'finished' WHERE id = ?")
-        .bind(state.roomId)
+      await this.env.MIRAI_AI_DB.prepare("UPDATE game_rooms SET status = 'lobby' WHERE code = ?")
+        .bind(state.code)
         .run();
 
       if (state.assignmentId) {
@@ -1384,7 +1403,7 @@ export class UnoRoom extends DurableObject<Env> {
       type: 'state_snapshot',
       seq: state.seq,
       you: this.publicId(state, dni),
-      youRole: player?.role ?? 'spectator',
+      youRole: player?.role ?? 'player',
       youManage: canManage,
       hand,
       legal,

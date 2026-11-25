@@ -35,7 +35,7 @@ interface RoomRow {
   expires_at: string | null;
 }
 
-type GameRole = 'student' | 'teacher' | 'admin' | 'spectator';
+type GameRole = 'student' | 'teacher' | 'admin';
 
 let gameTablesReady = false;
 
@@ -223,8 +223,7 @@ async function createRoom(request: Request, env: Env, corsHeaders: Record<string
   const id = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + expiresMinutes * 60_000).toISOString();
   const nickname = await resolveNickname(dni, env);
-  // Quien crea la sala juega: si un docente quiere espectar, entra a una sala
-  // ajena. Los demás docentes con acceso siguen entrando como espectadores.
+  // Quien crea la sala siempre juega; no existe modo espectador.
   const creatorRole = 'player';
 
   let code = '';
@@ -333,7 +332,7 @@ async function listRooms(request: Request, env: Env, url: URL, corsHeaders: Reco
        FROM game_rooms r
        LEFT JOIN game_players p ON p.room_id = r.id AND p.role = 'player'
       WHERE ${filter}
-        AND r.status IN ('lobby', 'playing')
+        AND r.status = 'lobby'
         AND (r.expires_at IS NULL OR datetime(r.expires_at) > datetime('now'))
       GROUP BY r.id
       HAVING COUNT(p.user_dni) < r.max_players
@@ -419,28 +418,13 @@ async function joinRoom(request: Request, env: Env, code: string, corsHeaders: R
   const role = await resolveRole(room, dni, env);
   if (!role) return jsonResponse({ error: 'No perteneces a esta sección' }, 403, corsHeaders);
 
-  if (role === 'student') {
-    const count = await env.MIRAI_AI_DB.prepare(
-      "SELECT COUNT(*) AS n FROM game_players WHERE room_id = ? AND role = 'player'"
-    )
-      .bind(room.id)
-      .first<any>();
-    if ((count?.n ?? 0) >= room.max_players) {
-      return jsonResponse({ error: 'La sala está llena' }, 409, corsHeaders);
-    }
+  const nickname = await resolveNickname(dni, env);
+  const registered = await registerPlayerInRoom(room, dni, nickname, env);
+  if (!registered) {
+    return jsonResponse({ error: 'La sala está llena o la partida ya comenzó' }, 409, corsHeaders);
   }
 
-  const nickname = await resolveNickname(dni, env);
-  const playerRole = role === 'student' ? 'player' : 'spectator';
-  await env.MIRAI_AI_DB.prepare(
-    `INSERT INTO game_players (room_id, user_dni, nickname, role, status)
-     VALUES (?, ?, ?, ?, 'joined')
-     ON CONFLICT(room_id, user_dni) DO UPDATE SET status = 'joined', nickname = excluded.nickname`
-  )
-    .bind(room.id, dni.toUpperCase(), nickname, playerRole)
-    .run();
-
-  return jsonResponse({ room: { id: room.id, code: room.code, status: room.status }, role: playerRole }, 200, corsHeaders);
+  return jsonResponse({ room: { id: room.id, code: room.code, status: room.status }, role: 'player' }, 200, corsHeaders);
 }
 
 async function leaveRoom(
@@ -703,7 +687,7 @@ async function handleWebSocket(
   await ensureGameTables(env);
   const room = await getRoom(code, env);
   if (!room) return jsonResponse({ error: 'Sala no encontrada' }, 404, corsHeaders);
-  if (room.status === 'cancelled' || room.status === 'finished') {
+  if (room.status === 'cancelled') {
     return jsonResponse({ error: 'La sala ya no está activa' }, 410, corsHeaders);
   }
   if (room.expires_at && Date.parse(room.expires_at) < Date.now()) {
@@ -714,9 +698,9 @@ async function handleWebSocket(
   if (!role) return jsonResponse({ error: 'No perteneces a esta sección' }, 403, corsHeaders);
 
   const nickname = await resolveNickname(dni, env);
-  const registered = await registerPlayerInRoom(room, dni, nickname, role, env);
+  const registered = await registerPlayerInRoom(room, dni, nickname, env);
   if (!registered) {
-    return jsonResponse({ error: 'La sala está llena' }, 409, corsHeaders);
+    return jsonResponse({ error: 'La partida ya comenzó o la sala está llena' }, 409, corsHeaders);
   }
 
   // Copia la petición original (conserva el upgrade a WebSocket) y solo añade
@@ -939,11 +923,9 @@ async function registerPlayerInRoom(
   room: RoomRow,
   dni: string,
   nickname: string,
-  role: GameRole,
   env: Env
 ): Promise<boolean> {
   const upper = dni.toUpperCase();
-  const playerRole = role === 'student' ? 'player' : 'spectator';
 
   const existing = await env.MIRAI_AI_DB.prepare(
     'SELECT role FROM game_players WHERE room_id = ? AND user_dni = ?'
@@ -951,10 +933,10 @@ async function registerPlayerInRoom(
     .bind(room.id, upper)
     .first<any>();
 
-  // Si ya figuraba como espectador (p. ej. sala creada antes del cambio) y
-  // ahora entra como jugador, se respeta el aforo antes de promoverlo.
-  const becomingPlayer = playerRole === 'player' && existing?.role !== 'player';
-  if (becomingPlayer) {
+  // Un jugador ya inscrito puede reconectarse aunque la partida esté en curso.
+  // Quien llega nuevo solo entra si la sala sigue en lobby y hay espacio.
+  if (!existing) {
+    if (room.status !== 'lobby' && room.status !== 'finished') return false;
     const count = await env.MIRAI_AI_DB.prepare(
       "SELECT COUNT(*) AS n FROM game_players WHERE room_id = ? AND role = 'player'"
     )
@@ -965,11 +947,11 @@ async function registerPlayerInRoom(
 
   await env.MIRAI_AI_DB.prepare(
     `INSERT INTO game_players (room_id, user_dni, nickname, role, status)
-     VALUES (?, ?, ?, ?, 'joined')
+     VALUES (?, ?, ?, 'player', 'joined')
      ON CONFLICT(room_id, user_dni) DO UPDATE SET
-       nickname = excluded.nickname, role = excluded.role, status = 'joined'`
+       nickname = excluded.nickname, role = 'player', status = 'joined'`
   )
-    .bind(room.id, upper, nickname, playerRole)
+    .bind(room.id, upper, nickname)
     .run();
 
   return true;
@@ -987,11 +969,9 @@ async function resolveRole(room: RoomRow, dni: string, env: Env): Promise<GameRo
   // El creador siempre juega, aunque sea docente o admin.
   if (room.created_by?.toUpperCase() === upper) return 'student';
 
-  // El docente dueño de la sección observa (si no fue quien creó la sala).
+  // El docente dueño de la sección juega y conserva permisos de administración.
   if (room.professor_dni.toUpperCase() === upper) return 'teacher';
 
-  // Otros docentes observan; no se convierten en jugadores por tener acceso.
-  if (await isActiveProfessor(dni, env)) return 'spectator';
   if (await isAdmin(dni, env)) return 'admin';
 
   if (room.assignment_id) {

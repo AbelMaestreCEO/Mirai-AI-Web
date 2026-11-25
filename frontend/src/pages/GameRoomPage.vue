@@ -12,7 +12,6 @@
           {{ statusText }}
           · {{ playablePlayers.length }}/{{ state.maxPlayers }} jugadores
           <span v-if="state.cycle > 0" class="badge">Ciclo {{ state.cycle }}</span>
-          <span v-if="youRole === 'spectator'" class="badge">Espectador</span>
         </p>
       </div>
       <div class="top-actions">
@@ -35,7 +34,6 @@
             <span class="player-name">
               {{ p.nickname }}
               <span v-if="p.id === you" class="you-badge">Tú</span>
-              <span v-if="p.role === 'spectator'" class="muted small"> · espectador</span>
               <span v-if="p.color" class="team-label muted small"> · {{ teamFor(p.color)?.name }}</span>
             </span>
             <span class="muted small">{{ p.connected ? 'conectado' : 'desconectado' }}</span>
@@ -45,7 +43,7 @@
           </li>
         </ul>
 
-        <div v-if="youRole === 'player' && myPlayer" class="team-picker">
+        <div v-if="myPlayer" class="team-picker">
           <h3>Elige tu equipo</h3>
           <div class="team-grid">
             <button
@@ -68,7 +66,7 @@
           </div>
         </div>
 
-        <button v-if="youRole === 'player'" class="btn-primary" type="button" @click="toggleReady">
+        <button class="btn-primary" type="button" @click="toggleReady">
           {{ myPlayer?.ready ? 'Quitar listo' : 'Estoy listo' }}
         </button>
         <button
@@ -452,7 +450,6 @@ const code = String(route.params.code ?? '').toUpperCase();
 
 const state = ref<GameState | null>(null);
 const you = ref('');
-const youRole = ref<'player' | 'spectator'>('player');
 const youManage = ref(false);
 const starting = ref(false);
 const socketStatus = ref<SocketStatus>('connecting');
@@ -664,7 +661,6 @@ function handleMessage(message: GameMessage): void {
   switch (message.type) {
     case 'state_snapshot': {
       you.value = message.you ?? '';
-      youRole.value = message.youRole ?? 'player';
       youManage.value = message.youManage === true;
       legal.value = message.legal ?? [];
       if (message.state) state.value = message.state;
