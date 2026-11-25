@@ -8224,6 +8224,23 @@ html[data-theme="dark"] body[data-page] :is(
   background: rgba(208, 188, 255, 0.32);
 }
 
+/* Cuadros de categoría: fondo = variante oscura del acento del usuario,
+   cuadrícula = variante clara del acento. Se coloca después de los bloques
+   comunes (misma especificidad) para que mande. */
+body[data-page] .category-card {
+  background:
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
+}
+
+html[data-theme="dark"] body[data-page] .category-card {
+  background:
+    linear-gradient(var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    linear-gradient(90deg, var(--glass-border) 1px, transparent 1px) 0 0 / 22px 22px padding-box,
+    var(--secondary-container) padding-box;
+}
+
 /* Escritorio: cuadros más altos y anchos, con el contenido escalado para
    que el diseño acompañe el nuevo tamaño. */
 @media (min-width: 769px) {
