@@ -1404,9 +1404,9 @@
     "semantic_hash": ""
   },
   "workers/routes/game.ts": {
-    "mtime": 1795612900.6283982,
-    "seen": 1795612916.463728,
-    "ast_hash": "9349ef11c51ce225e44efb1369a86533",
+    "mtime": 1795629472.364865,
+    "seen": 1795629568.3717325,
+    "ast_hash": "7c4d624451391d2941b2dbff93381d1e",
     "semantic_hash": ""
   },
   "frontend/src/lib/game.ts": {

@@ -471,8 +471,8 @@ async function startRoom(request: Request, env: Env, code: string, corsHeaders: 
 
   const room = await getRoom(code, env);
   if (!room) return jsonResponse({ error: 'Sala no encontrada' }, 404, corsHeaders);
-  if (!(await canManageRoom(room, dni, env))) {
-    return jsonResponse({ error: 'Solo el creador de la sala o el docente puede iniciarla' }, 403, corsHeaders);
+  if (!isRoomHost(room, dni)) {
+    return jsonResponse({ error: 'Solo el anfitrión (creador de la sala) puede iniciarla' }, 403, corsHeaders);
   }
   if (room.status !== 'lobby') {
     return jsonResponse({ error: 'La partida ya está iniciada' }, 409, corsHeaders);
@@ -703,15 +703,15 @@ async function handleWebSocket(
     return jsonResponse({ error: 'La partida ya comenzó o la sala está llena' }, 409, corsHeaders);
   }
 
-  // Copia la petición original (conserva el upgrade a WebSocket) y solo añade
-  // las cabeceras de identidad.
-  const manager = await canManageRoom(room, dni, env);
+  // Solo el anfitrión (creador) recibe permiso de "iniciar partida"; los que se
+  // conectan después no deben ver ese botón.
+  const host = isRoomHost(room, dni);
   const forward = new Request(request);
   forward.headers.set('X-Game-User', dni.toUpperCase());
   forward.headers.set('X-Game-Role', roleForDo(role));
   forward.headers.set('X-Game-Code', room.code);
   forward.headers.set('X-Game-Nickname', encodeURIComponent(nickname));
-  forward.headers.set('X-Game-CanManage', manager ? '1' : '0');
+  forward.headers.set('X-Game-CanManage', host ? '1' : '0');
   if (room.section_id) forward.headers.set('X-Game-Section', room.section_id);
 
   const namespace = room.game_type === 'uno' ? env.UNO_ROOM : env.GAME_ROOM;
@@ -962,6 +962,11 @@ async function canManageRoom(room: RoomRow, dni: string, env: Env): Promise<bool
   if (room.created_by && room.created_by.toUpperCase() === upper) return true;
   if (room.professor_dni.toUpperCase() === upper) return true;
   return isAdmin(dni, env);
+}
+
+/** Solo quien creó la sala (anfitrión) puede iniciar la partida. */
+function isRoomHost(room: RoomRow, dni: string): boolean {
+  return !!room.created_by && room.created_by.toUpperCase() === dni.toUpperCase();
 }
 
 async function resolveRole(room: RoomRow, dni: string, env: Env): Promise<GameRole | null> {
